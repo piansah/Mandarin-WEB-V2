@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 
 // ─── Data placeholder — ganti dengan Supabase query saat auth aktif ───
 const mockStats = {
@@ -45,7 +46,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 p-6">
       {/* Header Greeting */}
       <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">{greeting} 👋</p>
+        <div className="flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">{greeting} 👋</p><DashboardThemeToggle /></div>
         <h1 className="text-2xl font-bold tracking-tight">{mockStats.displayName}</h1>
         <div className="flex items-center gap-2 mt-1">
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">

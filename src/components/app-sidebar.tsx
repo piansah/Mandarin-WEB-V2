@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -12,9 +11,14 @@ import {
   BookMarked,
   Star,
   CreditCard,
-  Settings,
   ChevronRight,
+  Settings,
 } from "lucide-react"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 import { NavUser } from "@/components/nav-user"
 import {
@@ -31,12 +35,8 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 
 const navItems = [
   {
@@ -48,33 +48,27 @@ const navItems = [
     title: "Hanzi",
     url: "/dashboard/hanzi",
     icon: Languages,
-    items: [
-      { title: "Semua Karakter", url: "/dashboard/hanzi" },
-      { title: "Set Hanzi", url: "/dashboard/hanzi/sets" },
-    ],
   },
   {
     title: "Grammar",
     url: "/dashboard/grammar",
     icon: BookOpen,
-    items: [
-      { title: "Pola Grammar", url: "/dashboard/grammar" },
-      { title: "Latihan Grammar", url: "/dashboard/grammar/practice" },
-    ],
   },
   {
     title: "Flashcard",
-    url: "/dashboard/flashcard",
     icon: Layers,
     items: [
       { title: "Semua Deck", url: "/dashboard/flashcard" },
-      { title: "Deck Pribadi", url: "/dashboard/flashcard/personal" },
+      { title: "Flashcard Kumulatif", url: "/dashboard/flashcard/review" },
     ],
   },
   {
     title: "Quiz",
-    url: "/dashboard/quiz",
     icon: FileText,
+    items: [
+      { title: "Quiz Harian", url: "/dashboard/quiz" },
+      { title: "Quiz Kumulatif", url: "/dashboard/quiz/review" },
+    ],
   },
   {
     title: "Cerita",
@@ -108,51 +102,16 @@ const placeholderUser = {
   avatar: "",
 }
 
-function NavCollapsibleItem({ item, pathname }: { item: any; pathname: string }) {
-  const [isOpen, setIsOpen] = React.useState(() => pathname.startsWith(item.url))
-
-  React.useEffect(() => {
-    if (pathname.startsWith(item.url)) {
-      setIsOpen(true)
-    }
-  }, [pathname, item.url])
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group/collapsible">
-      <SidebarMenuItem>
-        <CollapsibleTrigger render={<SidebarMenuButton tooltip={item.title} />}>
-          <item.icon />
-          <span>{item.title}</span>
-          <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <SidebarMenuSub>
-            {item.items.map((sub: any) => (
-              <SidebarMenuSubItem key={sub.title}>
-                <SidebarMenuSubButton isActive={pathname === sub.url} render={<Link href={sub.url} />}>
-                  {sub.title}
-                </SidebarMenuSubButton>
-              </SidebarMenuSubItem>
-            ))}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
-  )
-}
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { toggleSidebar } = useSidebar()
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              render={<Link href="/dashboard" />}
-            >
+            <SidebarMenuButton size="lg" tooltip="Buka/tutup sidebar" onClick={toggleSidebar}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
                 学
               </div>
@@ -171,8 +130,38 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             {navItems.map((item) =>
               item.items ? (
-                <NavCollapsibleItem key={item.title} item={item} pathname={pathname} />
-
+                <Collapsible
+                  key={item.title}
+                  defaultOpen={pathname.startsWith(`/${item.title.toLowerCase()}`)}
+                  render={<SidebarMenuItem />}
+                >
+                  <CollapsibleTrigger
+                    render={
+                      <SidebarMenuButton
+                        tooltip={item.title}
+                        isActive={item.items.some((subItem) => pathname === subItem.url)}
+                      />
+                    }
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      {item.items.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton
+                            isActive={pathname === subItem.url}
+                            render={<Link href={subItem.url} />}
+                          >
+                            <span>{subItem.title}</span>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </Collapsible>
               ) : (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton

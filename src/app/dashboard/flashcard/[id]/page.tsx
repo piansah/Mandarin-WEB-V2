@@ -3,8 +3,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronsLeft, Flag, Heart, Plus, X, Search, Volume2 } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { ChevronsLeft, Flag, Heart, Plus, X, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import {
@@ -17,6 +16,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer"
 import { Music, Layers, Edit2 } from "lucide-react"
+import { TonePinyin } from "@/components/tone-pinyin"
 
 type Card = {
   id: string
@@ -142,8 +142,6 @@ export default function FlashcardDeckPage() {
 
   const [deck, setDeck] = React.useState<DeckMeta | null>(null)
   const [cards, setCards] = React.useState<Card[]>([])
-  const [filtered, setFiltered] = React.useState<Card[]>([])
-  const [search, setSearch] = React.useState("")
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null)
@@ -187,27 +185,10 @@ export default function FlashcardDeckPage() {
       }
 
       setCards(cardData ?? [])
-      setFiltered(cardData ?? [])
       setLoading(false)
     }
     load()
   }, [deckId])
-
-  React.useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(cards)
-      return
-    }
-    const q = search.toLowerCase()
-    setFiltered(
-      cards.filter(
-        (c) =>
-          c.hanzi.includes(search) ||
-          c.pinyin.toLowerCase().includes(q) ||
-          c.arti.toLowerCase().includes(q)
-      )
-    )
-  }, [search, cards])
 
   function navigateToPractice(type: string) {
     router.push(`/dashboard/practice/${type}/${deckId}`)
@@ -345,40 +326,13 @@ export default function FlashcardDeckPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="px-6 pt-4 pb-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari Hanzi, Pinyin, atau Arti..."
-            className="pl-9 bg-card/50 border-border/50 rounded-xl"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
       {/* Card List */}
-      <div className="px-6 pt-2 flex flex-col gap-2">
-        {filtered.length === 0 && (
+      <div className="flex flex-col gap-2 px-6 pt-4">
+        {cards.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-12">Tidak ada kosakata ditemukan</p>
         )}
-        {filtered.map((card, i) => (
-          <div
-            key={card.id}
-            className="flex items-center gap-4 p-4 rounded-xl border border-border/40 bg-card/40 hover:bg-muted/30 transition-colors cursor-pointer group"
-            onClick={() => openDetail(card)}
-          >
-            <div className="shrink-0 text-3xl font-bold text-foreground leading-tight whitespace-nowrap min-w-[3.5rem]">{card.hanzi}</div>
-            <div className="flex-1 flex flex-col min-w-0">
-              <span className="text-sm font-medium text-primary">{card.pinyin}</span>
-              <span className="text-sm text-muted-foreground truncate">{card.arti}</span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0 ml-1">
-              <Volume2 className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground font-medium">#{i + 1}</span>
-            </div>
-          </div>
+        {cards.map((card, i) => (
+          <VocabularyRow key={card.id} card={card} index={i} onOpen={openDetail} />
         ))}
       </div>
 
@@ -464,6 +418,21 @@ export default function FlashcardDeckPage() {
       )}
     </div>
   )
+}
+
+function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onOpen: (card: Card) => void }) {
+  const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didHold = React.useRef(false)
+  const startPoint = React.useRef({ x: 0, y: 0 })
+  const clearPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); pressTimer.current = null }
+
+  React.useEffect(() => clearPress, [])
+
+  return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakHanzi(card.hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}>
+    <div className="min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl font-bold leading-tight text-foreground">{card.hanzi}</div>
+    <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
+    <div className="ml-1 flex shrink-0 items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /><span className="text-xs font-medium text-muted-foreground">#{index + 1}</span></div>
+  </div>
 }
 
 function WordDetailPortal({ children }: { children: React.ReactNode }) {

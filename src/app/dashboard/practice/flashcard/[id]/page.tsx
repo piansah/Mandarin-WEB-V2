@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X, Volume2, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
+import { TonePinyin } from "@/components/tone-pinyin"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string }
 
@@ -353,7 +354,7 @@ export default function FlashcardPracticePage() {
                   style={{ opacity: contentOpacity }}
                 >
                   <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
-                  <span className="text-2xl text-primary font-serif font-medium mb-2">{card.pinyin}</span>
+                  <TonePinyin text={card.pinyin} className="text-2xl font-serif font-medium mb-2" />
                   <span className="text-xl font-semibold text-center text-foreground">{card.arti}</span>
                 </div>
               ) : (
@@ -367,7 +368,7 @@ export default function FlashcardPracticePage() {
             {/* Face Menghadap Belakang 180deg (Pinyin) */}
             <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-card rounded-3xl rotate-y-180">
               <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
-              <span className="text-3xl text-primary font-serif font-medium">{card.pinyin}</span>
+              <TonePinyin text={card.pinyin} className="text-3xl font-serif font-medium" />
             </div>
 
             {/* Swipe Overlays (Hanya tampil di flip 2 saat swipeStatus tidak 'none') */}
