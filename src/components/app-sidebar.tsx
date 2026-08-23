@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -59,7 +60,7 @@ const navItems = [
     icon: Layers,
     items: [
       { title: "Semua Deck", url: "/dashboard/flashcard" },
-      { title: "Flashcard Kumulatif", url: "/dashboard/flashcard/review" },
+      { title: "Flashcard Kumulatif", url: "/dashboard/flashcard/cumulative" },
     ],
   },
   {
@@ -104,10 +105,27 @@ const placeholderUser = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const { toggleSidebar } = useSidebar()
+  const { isMobile, setOpen, toggleSidebar } = useSidebar()
+  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({})
+
+  React.useEffect(() => {
+    setOpenSections({
+      Flashcard: pathname.startsWith("/dashboard/flashcard"),
+      Quiz: pathname.startsWith("/dashboard/quiz"),
+    })
+  }, [pathname])
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar
+      collapsible="icon"
+      onMouseEnter={() => {
+        if (!isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if (!isMobile) setOpen(false)
+      }}
+      {...props}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -132,14 +150,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               item.items ? (
                 <Collapsible
                   key={item.title}
-                  defaultOpen={pathname.startsWith(`/${item.title.toLowerCase()}`)}
+                  open={openSections[item.title] ?? false}
+                  onOpenChange={(open) => setOpenSections((current) => ({ ...current, [item.title]: open }))}
                   render={<SidebarMenuItem />}
                 >
                   <CollapsibleTrigger
                     render={
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={item.items.some((subItem) => pathname === subItem.url)}
+                        isActive={item.items.some((subItem) => pathname.startsWith(subItem.url))}
                       />
                     }
                   >

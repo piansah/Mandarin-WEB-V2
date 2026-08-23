@@ -176,7 +176,7 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={() => setFavorited(value => !value)} />
-    <main className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map(char => <StrokePreview key={char} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map(char => <CharBreakdown key={char} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</main>
+    <main className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</main>
   </div>
 }
 
@@ -201,8 +201,17 @@ function SentenceToken({ segment }: { segment: Segment }) {
   return <button type="button" aria-label={`Dengarkan ${segment.text}`} className={segment.known ? styles.knownToken : styles.singleToken} onPointerDown={event => { event.stopPropagation(); gesture.onPointerDown(event) }} onPointerMove={gesture.onPointerMove} onPointerUp={event => { event.stopPropagation(); gesture.onPointerUp() }} onPointerCancel={gesture.onPointerCancel} onClick={event => { event.stopPropagation(); gesture.onClick(event) }}>{segment.text}</button>
 }
 
+function getVocabularyBadge(badge?: string | null) {
+  const normalized = badge?.trim().toLowerCase() ?? ""
+  const hsk = normalized.match(/hsk\s*([1-6])/)
+  if (hsk) return { label: `HSK ${hsk[1]}`, tone: `wordBadgeHsk${hsk[1]}` }
+  if (normalized === "common") return { label: "Common", tone: "wordBadgeCommon" }
+  if (normalized === "native" || !normalized) return { label: "Native", tone: "wordBadgeNative" }
+  return { label: badge ?? "Native", tone: "wordBadgeNative" }
+}
+
 function WordTab({ compounds }: { compounds: CompoundWord[] }) { if (compounds.length === 0) return <EmptyLine label="Tidak ada kata gabungan ditemukan." />; return <div className={styles.wordList}>{compounds.map((word, index) => <WordRow key={`${word.hanzi}-${index}`} word={word} index={index} />)}</div> }
-function WordRow({ word, index }: { word: CompoundWord; index: number }) { const gesture = useLongPress(() => speakHanzi(word.hanzi), () => speakHanzi(word.hanzi)); return <button type="button" className={styles.wordRow} {...gesture}><span className={styles.wordHanzi}>{word.hanzi}</span><span className={styles.wordInfo}><span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span><span className={styles.wordMeaning}>{word.arti}</span></span><span className={styles.wordNumber}>#{index + 1}</span></button> }
+function WordRow({ word, index }: { word: CompoundWord; index: number }) { const gesture = useLongPress(() => speakHanzi(word.hanzi), () => speakHanzi(word.hanzi)); const badge = getVocabularyBadge(word.badge); return <button type="button" className={styles.wordRow} {...gesture}><span className={styles.wordHanzi}>{word.hanzi}</span><span className={styles.wordInfo}><span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span><span className={styles.wordMeaning}>{word.arti}</span></span><span className={styles.wordMeta}><span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span><span className={styles.wordNumber}>#{index + 1}</span></span></button> }
 
 function CharBreakdown({ char, dictionary }: { char: string; dictionary: DictionaryMap | null }) {
   const entry = dictionary?.[char]; const { ids, label, parts } = decompParts(entry)
@@ -214,7 +223,7 @@ function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry 
 function StrokePreview({ char }: { char: string }) {
   const targetRef = React.useRef<HTMLDivElement>(null); const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
   React.useEffect(() => { let cancelled = false; const target = targetRef.current; if (!target) return; target.innerHTML = ""; import("hanzi-writer").then(({ default: HanziWriter }) => { if (cancelled || !targetRef.current) return; writerRef.current = HanziWriter.create(targetRef.current, char, { width: 260, height: 260, padding: 20, strokeColor: "#edf6ff", outlineColor: "#1b4965", drawingColor: "#42d6a4", showOutline: true, showCharacter: false }) }); return () => { cancelled = true; target.innerHTML = "" } }, [char])
-  return <button type="button" aria-label={`Putar animasi stroke ${char}`} className="flex w-full cursor-pointer flex-col items-center rounded-xl border border-[#2a2a42] bg-[#12131b] px-5 pb-6 pt-7 transition-colors hover:border-[#42d6a4]/55" onClick={() => writerRef.current?.animateCharacter()}><div ref={targetRef} className="h-[260px] w-[260px]" /></button>
+  return <button type="button" aria-label={`Putar animasi stroke ${char}`} className="flex w-full cursor-pointer flex-col items-center rounded-xl border border-border/60 bg-card/70 px-5 pb-6 pt-7 transition-colors hover:border-primary/55" onClick={() => writerRef.current?.animateCharacter()}><div ref={targetRef} className="h-[260px] w-[260px]" /></button>
 }
 function LoadingLine({ label }: { label: string }) { return <div className="flex justify-center py-12 text-sm text-slate-400">{label}</div> }
 function EmptyLine({ label }: { label: string }) { return <div className="py-12 text-center text-sm text-slate-400">{label}</div> }

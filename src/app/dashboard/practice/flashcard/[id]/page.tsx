@@ -159,8 +159,16 @@ export default function FlashcardPracticePage() {
   }
   function onPointerMove(e: React.PointerEvent) {
     if (!isDragging || flyOut) return
-    setDragX(e.clientX - startX.current)
-    setDragY(e.clientY - startY.current)
+    const nextDragX = e.clientX - startX.current
+    const nextDragY = e.clientY - startY.current
+
+    // Swipe selalu menilai dari sisi akhir agar arah gesture mendapat umpan balik visual.
+    if (Math.abs(nextDragX) > 14 || Math.abs(nextDragY) > 14) {
+      setFlip(currentFlip => currentFlip === 2 ? currentFlip : 2)
+    }
+
+    setDragX(nextDragX)
+    setDragY(nextDragY)
   }
   function onPointerUp() {
     if (!isDragging || flyOut) return
@@ -354,7 +362,7 @@ export default function FlashcardPracticePage() {
                   style={{ opacity: contentOpacity }}
                 >
                   <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
-                  <TonePinyin text={card.pinyin} className="text-2xl font-serif font-medium mb-2" />
+                  <TonePinyin text={card.pinyin} className="mb-2 text-2xl font-sans font-medium" />
                   <span className="text-xl font-semibold text-center text-foreground">{card.arti}</span>
                 </div>
               ) : (
@@ -368,7 +376,7 @@ export default function FlashcardPracticePage() {
             {/* Face Menghadap Belakang 180deg (Pinyin) */}
             <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-card rounded-3xl rotate-y-180">
               <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
-              <TonePinyin text={card.pinyin} className="text-3xl font-serif font-medium" />
+              <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium" />
             </div>
 
             {/* Swipe Overlays (Hanya tampil di flip 2 saat swipeStatus tidak 'none') */}

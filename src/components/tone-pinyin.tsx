@@ -15,12 +15,12 @@ function splitPinyin(word: string) {
 
 export function TonePinyin({ text, className }: { text: string; className?: string }) {
   return (
-    <span className={className}>
+    <span className={`inline leading-none tracking-normal ${className ?? ""}`}>
       {text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
         if (!part || /^(\s+|[,!.?·。，！？、；：()]+)$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
         return splitPinyin(part).map((syllable, syllableIndex) => {
           const tone = [...syllable].map(char => toneMap[char]).find(Boolean) ?? "tone0"
-          return <span key={`${syllable}-${syllableIndex}`} className={tone}>{syllable}</span>
+          return <span key={`${syllable}-${syllableIndex}`} className={`inline-block ${tone}`}>{syllable}</span>
         })
       })}
     </span>
