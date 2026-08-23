@@ -1,0 +1,263 @@
+/* © 2026 Piansah — Mandarin Journey. All rights reserved. */
+/* ============================================================
+   OCR.CSS — Optical Character Recognition Layer
+   ============================================================ */
+
+#layer-ocr {
+  background: #000;
+  z-index: 9999;
+}
+
+.ocr-camera-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#ocr-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Overlay ── */
+.ocr-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+
+.ocr-header {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+}
+
+.ocr-close {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.ocr-torch-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.2s;
+}
+
+.ocr-torch-btn.active {
+  background: var(--gold);
+  color: #000;
+  box-shadow: 0 0 15px rgba(232, 201, 109, 0.5);
+}
+
+.ocr-title {
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* ── Scan Area ── */
+.ocr-scan-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.ocr-scan-box {
+  width: 280px;
+  height: 120px;
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+}
+
+/* Corners */
+.ocr-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 4px solid var(--gold);
+}
+.ocr-corner.tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+.ocr-corner.tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 8px; }
+.ocr-corner.bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 8px; }
+.ocr-corner.br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 8px; }
+
+/* ── Footer ── */
+.ocr-footer {
+  padding: 24px 20px 44px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* ── Camera Mode ── */
+.ocr-status-text {
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+}
+
+.ocr-btn-shutter {
+  width: 72px;
+  height: 72px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 4px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.ocr-btn-shutter:active {
+  transform: scale(0.9);
+}
+
+.ocr-shutter-inner {
+  width: 54px;
+  height: 54px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+/* ── Result Mode ── */
+.ocr-raw-text {
+  color: var(--gold);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 6px 16px;
+  background: rgba(232, 201, 109, 0.1);
+  border: 1px solid rgba(232, 201, 109, 0.2);
+  border-radius: 10px;
+  word-break: break-all;
+  max-width: 95%;
+}
+
+.ocr-word-list {
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 4px;
+}
+
+.ocr-word-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.ocr-word-item:active {
+  background: rgba(255,255,255,0.15);
+}
+
+.ocr-word-item.not-found {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.ocr-punct-item {
+  color: #fff;
+  font-size: 18px;
+  opacity: 0.5;
+  padding: 4px 14px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.ocr-w-hanzi {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  min-width: 44px;
+  text-align: center;
+}
+
+.ocr-w-pinyin {
+  color: var(--gold);
+  font-size: 12px;
+  min-width: 60px;
+}
+
+.ocr-w-arti {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocr-w-arti.dim {
+  color: rgba(255,255,255,0.3);
+  font-style: italic;
+}
+
+.ocr-w-hsk {
+  background: rgba(232, 201, 109, 0.15);
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.ocr-btn-rescan {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 32px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ocr-btn-rescan:active {
+  background: rgba(255,255,255,0.2);
+  transform: scale(0.96);
+}

@@ -1,0 +1,431 @@
+"use client"
+
+import * as React from "react"
+import { useParams, useRouter } from "next/navigation"
+import { X, Volume2, Mic } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/browser"
+
+type Card = { id: number; hanzi: string; pinyin: string; arti: string }
+
+function speakHanzi(text: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  const utt = new SpeechSynthesisUtterance(text)
+  utt.lang = "zh-CN"
+  utt.rate = 0.85
+  window.speechSynthesis.speak(utt)
+}
+
+function normalizeChinese(str: string) {
+  return str.replace(/[，,、。．？?！!；;：:＂"＇'「」『』【】（）()〈〉《》〔〕［］｛｝·\s]/g, "").trim()
+}
+
+function levenshtein(a: string, b: string) {
+  const m = a.length, n = b.length
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  let curr = new Array(n + 1)
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] : 1 + Math.min(prev[j], curr[j - 1], prev[j - 1])
+    }
+    [prev, curr] = [curr, prev]
+  }
+  return prev[n]
+}
+
+function getSimilarity(a: string, b: string) {
+  if (!a || !b) return 0
+  if (a === b) return 100
+  const maxLen = Math.max(a.length, b.length)
+  const dist = levenshtein(a, b)
+  return Math.max(0, Math.round((1 - dist / maxLen) * 100))
+}
+
+export default function FlashcardPracticePage() {
+  const params = useParams()
+  const router = useRouter()
+  const deckId = Number(params.id)
+
+  const [cards, setCards] = React.useState<Card[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [idx, setIdx] = React.useState(0)
+  
+  // 0 = depan (hanzi), 1 = belakang 1 (pinyin), 2 = belakang 2 (arti)
+  const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
+  
+  const [hafal, setHafal] = React.useState(0)
+  const [lupa, setLupa] = React.useState(0)
+  const [ragu, setRagu] = React.useState(0)
+  const [done, setDone] = React.useState(false)
+
+  // Repeat queue for Lupa
+  const [repeatQueue, setRepeatQueue] = React.useState<Card[]>([])
+
+  // Drag/swipe state
+  const [dragX, setDragX] = React.useState(0)
+  const [dragY, setDragY] = React.useState(0)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const startX = React.useRef(0)
+  const startY = React.useRef(0)
+  const cardRef = React.useRef<HTMLDivElement>(null)
+
+  // Speech Recognition state
+  const [isRecording, setIsRecording] = React.useState(false)
+  const [feedback, setFeedback] = React.useState<{type: "ok"|"warn"|"err"|"interim", msg: string, hanzi?: string} | null>(null)
+  const recogRef = React.useRef<any>(null)
+  
+  // Clear feedback when card changes
+  React.useEffect(() => {
+    setFeedback(null)
+  }, [idx])
+
+  React.useEffect(() => {
+    async function load() {
+      const supa = createClient()
+      const { data } = await supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti")
+        .eq("set_id", deckId)
+        .order("created_at", { ascending: true })
+      setCards(data ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [deckId])
+
+  const totalOriginal = cards.length
+  // Current active cards list depends on whether we are in main list or repeat queue
+  const currentTotal = totalOriginal + repeatQueue.length
+  const card = idx < totalOriginal ? cards[idx] : repeatQueue[idx - totalOriginal]
+  const progress = currentTotal > 0 ? (idx / currentTotal) * 100 : 0
+
+  React.useEffect(() => {
+    if (flip === 1 && !isRecording && cards[idx]?.hanzi) {
+      speakHanzi(cards[idx].hanzi)
+    }
+  }, [flip, idx, isRecording])
+
+  function handleCardClick() {
+    if (isDragging || dragX > 10 || dragX < -10 || dragY > 10 || dragY < -10) return
+    
+    if (flip === 0) {
+      setFlip(1)
+    } else if (flip === 1) {
+      setFlip(2)
+    } else {
+      speakHanzi(card.hanzi) // Biarkan flip 2 tetap memanggil manual jika di klik lagi
+    }
+  }
+
+  const [flyOut, setFlyOut] = React.useState<{ x: number, y: number } | null>(null)
+
+  function animateFlyOutAndAdvance(quality: 0 | 3 | 5, toX: number, toY: number) {
+    setIsDragging(false)
+    setFlyOut({ x: toX, y: toY })
+    setTimeout(() => {
+      advance(quality)
+      setFlyOut(null)
+    }, 250)
+  }
+
+  function advance(quality: 0 | 3 | 5) {
+    if (quality === 5) setHafal(h => h + 1)
+    else if (quality === 3) setRagu(r => r + 1)
+    else {
+      setLupa(l => l + 1)
+      setRepeatQueue(prev => [...prev, card])
+    }
+    
+    setDragX(0)
+    setDragY(0)
+    setFlip(0)
+    
+    if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
+      setDone(true)
+    } else {
+      setIdx(i => i + 1)
+    }
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (flyOut) return // Jangan swipe saat animasi terbang berlangsung
+    startX.current = e.clientX
+    startY.current = e.clientY
+    setIsDragging(true)
+    cardRef.current?.setPointerCapture(e.pointerId)
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!isDragging || flyOut) return
+    setDragX(e.clientX - startX.current)
+    setDragY(e.clientY - startY.current)
+  }
+  function onPointerUp() {
+    if (!isDragging || flyOut) return
+    const absX = Math.abs(dragX)
+    const absY = Math.abs(dragY)
+
+    if (dragY > absX && dragY > 80) {
+      animateFlyOutAndAdvance(3, 0, 500) // Ragu
+    } else if (absX > dragY && absX > 80) {
+      if (dragX > 0) animateFlyOutAndAdvance(5, 500, 0) // Hafal
+      else animateFlyOutAndAdvance(0, -500, 0) // Lupa
+    } else {
+      // Batal swipe, kembalikan ke tengah
+      setDragX(0)
+      setDragY(0)
+      setIsDragging(false)
+    }
+  }
+
+  function toggleListen() {
+    if (typeof window === "undefined") return
+    
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) {
+      setFeedback({ type: "err", msg: "Browser tidak mendukung. Gunakan Chrome." })
+      return
+    }
+
+    if (isRecording) {
+      recogRef.current?.stop()
+      setIsRecording(false)
+      return
+    }
+
+    setIsRecording(true)
+    setFeedback(null)
+    const recog = new SR()
+    recog.lang = "zh-CN"
+    recog.interimResults = true
+    recog.maxAlternatives = 1
+
+    recog.onresult = (e: any) => {
+      const result = e.results[0]
+      const isFinal = result.isFinal
+      const text = result[0].transcript.trim()
+
+      if (!isFinal) {
+        setFeedback({ type: "interim", msg: `"${text}" ...` })
+        return
+      }
+
+      const tNorm = normalizeChinese(text.toLowerCase())
+      const hzNorm = normalizeChinese(card.hanzi)
+      
+      let bestScore = getSimilarity(tNorm, hzNorm)
+      if (hzNorm.includes(tNorm) && tNorm.length / hzNorm.length >= 0.75) {
+        bestScore = Math.max(bestScore, 85)
+      }
+
+      const displayResult = bestScore >= 60 ? card.hanzi : text
+
+      if (bestScore >= 80) {
+        setFeedback({ type: "ok", msg: `✓ Bagus! ${bestScore}% Tepat Sekali!`, hanzi: displayResult })
+      } else if (bestScore >= 60) {
+        setFeedback({ type: "warn", msg: `${bestScore}% — Hampir Sesuai`, hanzi: displayResult })
+      } else {
+        setFeedback({ type: "err", msg: `${bestScore}% — HUH WKWK?!`, hanzi: displayResult })
+      }
+    }
+
+    recog.onerror = () => {
+      setFeedback({ type: "err", msg: "Gagal mendengarkan" })
+      setIsRecording(false)
+    }
+
+    recog.onend = () => {
+      setIsRecording(false)
+    }
+
+    recogRef.current = recog
+    recog.start()
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (done || cards.length === 0) {
+    const pct = cards.length > 0 ? Math.round((hafal / (hafal + lupa + ragu)) * 100) : 0
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
+        <div className="absolute top-4 left-4">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <div className="text-6xl">{cards.length === 0 ? "📭" : "🎉"}</div>
+        <h2 className="text-3xl font-bold">{cards.length === 0 ? "Belum Ada Kartu" : "Sesi Selesai!"}</h2>
+        {cards.length > 0 && (
+          <>
+            <div className="grid grid-cols-3 gap-4 w-full max-w-md">
+              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                <span className="text-3xl font-bold text-emerald-500">{hafal}</span>
+                <span className="text-xs text-muted-foreground">Hafal</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <span className="text-3xl font-bold text-amber-500">{ragu}</span>
+                <span className="text-xs text-muted-foreground">Ragu</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
+                <span className="text-3xl font-bold text-red-500">{lupa}</span>
+                <span className="text-xs text-muted-foreground">Lupa</span>
+              </div>
+            </div>
+          </>
+        )}
+        <div className="flex gap-3 w-full max-w-xs">
+          <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
+          {cards.length > 0 && (
+            <Button className="flex-1 rounded-xl" onClick={() => { window.location.reload() }}>
+              🔀 Ulangi
+            </Button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  let swipeStatus: 'none' | 'hafal' | 'lupa' | 'ragu' = 'none'
+  const absX = Math.abs(dragX)
+  const absY = Math.abs(dragY)
+  
+  if (isDragging && flip === 2 && (absX > 20 || absY > 20)) {
+    if (dragY > absX) {
+      swipeStatus = 'ragu'
+    } else if (absX > dragY) {
+      if (dragX > 0) swipeStatus = 'hafal'
+      else swipeStatus = 'lupa'
+    }
+  }
+
+  const contentOpacity = swipeStatus !== 'none' ? 0 : 1
+  const cardRotation = dragX * 0.05
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden select-none bg-background">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0">
+          <X className="h-5 w-5" />
+        </Button>
+        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+          <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+        </div>
+        <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{currentTotal}</span>
+      </div>
+
+      {/* Card Area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
+        <div className="relative w-full max-w-sm aspect-[3/4] max-h-[420px] perspective-[800px]">
+          {/* Kartu (bergerak saat didrag) */}
+          <div
+            key={idx + "-" + card.id}
+            ref={cardRef}
+            className={`absolute inset-0 w-full h-full rounded-3xl border border-border bg-card shadow-xl flex flex-col transform-style-3d touch-none ${
+              isDragging ? '!transition-none cursor-grabbing' : flyOut ? 'transition-all duration-300 ease-out cursor-grabbing' : 'transition-transform duration-300 cursor-pointer'
+            }`}
+            style={{
+              transform: flyOut
+                ? `translate(${flyOut.x}px, ${flyOut.y}px) rotate(${flyOut.x * 0.05}deg) rotateY(360deg)`
+                : isDragging 
+                ? `translate(${dragX}px, ${dragY}px) rotate(${cardRotation}deg) rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)` 
+                : `rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`,
+              opacity: flyOut ? 0 : 1,
+            }}
+            onClick={handleCardClick}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          >
+            {/* Face Menghadap Depan (Bisa Front Face atau Back 2 Face) */}
+            <div className="absolute inset-0 backface-hidden rounded-3xl">
+              {flip === 2 ? (
+                // Back 2 (Arti)
+                <div 
+                  className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-secondary/30 rounded-3xl transition-opacity duration-200"
+                  style={{ opacity: contentOpacity }}
+                >
+                  <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
+                  <span className="text-2xl text-primary font-serif font-medium mb-2">{card.pinyin}</span>
+                  <span className="text-xl font-semibold text-center text-foreground">{card.arti}</span>
+                </div>
+              ) : (
+                // Front Face (Hanzi saja)
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-card rounded-3xl">
+                  <div className="text-8xl font-bold text-foreground leading-none">{card.hanzi}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Face Menghadap Belakang 180deg (Pinyin) */}
+            <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-card rounded-3xl rotate-y-180">
+              <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
+              <span className="text-3xl text-primary font-serif font-medium">{card.pinyin}</span>
+            </div>
+
+            {/* Swipe Overlays (Hanya tampil di flip 2 saat swipeStatus tidak 'none') */}
+            <div className={`absolute inset-0 rounded-3xl pointer-events-none flex items-center justify-center text-4xl font-bold tracking-wider z-20 backface-hidden transition-all duration-200 ${swipeStatus !== 'none' ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`} 
+                 style={{ 
+                   background: swipeStatus === 'hafal' ? 'rgba(26, 122, 74, 0.25)' : swipeStatus === 'lupa' ? 'rgba(192, 57, 43, 0.25)' : swipeStatus === 'ragu' ? 'rgba(245, 158, 11, 0.25)' : 'transparent', 
+                   color: swipeStatus === 'hafal' ? '#4ade80' : swipeStatus === 'lupa' ? '#f87171' : swipeStatus === 'ragu' ? '#f59e0b' : 'transparent',
+                   border: swipeStatus === 'hafal' ? '2px solid rgba(74, 222, 128, 0.4)' : swipeStatus === 'lupa' ? '2px solid rgba(248, 113, 113, 0.4)' : swipeStatus === 'ragu' ? '2px solid rgba(245, 158, 11, 0.4)' : 'none',
+                   display: flip === 2 ? 'flex' : 'none' 
+                 }}>
+              <span className="drop-shadow-lg">
+                {swipeStatus === 'hafal' ? 'HAFAL ✓' : swipeStatus === 'lupa' ? 'LUPA ✕' : swipeStatus === 'ragu' ? 'RAGU ?' : ''}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bawah Kartu: Tooltip / Instructions & Mic */}
+        <div className="flex flex-col items-center gap-4 mt-2 h-32 w-full max-w-sm">
+          {!feedback && (
+            <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
+              <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-emerald-500">Hafal →</span>
+            </p>
+          )}
+
+          <div className="flex justify-center w-full">
+            <Button 
+              variant="outline" 
+              className={`rounded-full h-10 px-6 gap-2 transition-colors border ${isRecording ? 'bg-red-500/10 border-red-500/40 text-red-500 hover:bg-red-500/20 hover:text-red-500' : 'bg-[#13151f] border-border/40 text-muted-foreground hover:text-foreground'}`}
+              onClick={toggleListen}
+            >
+              <Mic className={`h-4 w-4 ${isRecording ? 'animate-pulse' : ''}`} />
+              {isRecording ? "Mendengarkan..." : "Coba Ucapkan"}
+            </Button>
+          </div>
+
+          {feedback && (
+            <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-sm mx-auto shadow-sm ${
+              feedback.type === 'ok' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
+              feedback.type === 'warn' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' :
+              feedback.type === 'interim' ? 'text-muted-foreground border-transparent' :
+              'bg-red-500/10 border-red-500/20 text-red-500'
+            }`}>
+              <div className="font-medium text-sm">{feedback.msg}</div>
+              {feedback.hanzi && <div className="text-xl font-bold mt-1 font-sans">"{feedback.hanzi}"</div>}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* CSS untuk 3D flip (karena Tailwind default ga punya utilities khusus untuk rotate-y-360 dan transform-style-3d) */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .perspective-\\[800px\\] { perspective: 800px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .rotate-y-360 { transform: rotateY(360deg); }
+      `}} />
+    </div>
+  )
+}

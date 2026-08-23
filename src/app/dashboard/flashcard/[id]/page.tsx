@@ -1,0 +1,826 @@
+"use client"
+
+import * as React from "react"
+import { createPortal } from "react-dom"
+import { useParams, useRouter } from "next/navigation"
+import { ChevronsLeft, Flag, Heart, Plus, X, Search, Volume2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { createClient } from "@/lib/supabase/browser"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+import { Music, Layers, Edit2 } from "lucide-react"
+
+type Card = {
+  id: string
+  hanzi: string
+  pinyin: string
+  arti: string
+}
+
+type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
+
+type ExampleSentence = {
+  id: number
+  hanzi: string | null
+  pinyin: string | null
+  arti: string | null
+  section_label?: string | null
+}
+
+type CompoundWord = {
+  hanzi: string
+  pinyin: string | null
+  arti: string | null
+  badge?: string | null
+}
+
+type DictionaryEntry = {
+  pinyin?: string[]
+  definition?: string
+  decomposition?: string
+  etymology?: {
+    hint?: string
+  }
+}
+
+type DictionaryMap = Record<string, DictionaryEntry>
+
+type DeckMeta = {
+  title: string
+  description: string | null
+}
+
+function speakHanzi(text: string) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  const utt = new SpeechSynthesisUtterance(text)
+  utt.lang = "zh-CN"
+  utt.rate = 0.85
+  window.speechSynthesis.speak(utt)
+}
+
+const toneClass: Record<string, string> = {
+  "1": "text-red-400",
+  "2": "text-amber-400",
+  "3": "text-emerald-400",
+  "4": "text-sky-400",
+}
+
+function getTone(char: string) {
+  const toneMap: Record<string, string> = {
+    ā: "1", á: "2", ǎ: "3", à: "4",
+    ē: "1", é: "2", ě: "3", è: "4",
+    ī: "1", í: "2", ǐ: "3", ì: "4",
+    ō: "1", ó: "2", ǒ: "3", ò: "4",
+    ū: "1", ú: "2", ǔ: "3", ù: "4",
+    ǖ: "1", ǘ: "2", ǚ: "3", ǜ: "4",
+  }
+  return toneMap[char]
+}
+
+function ColorPinyin({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/(\s+)/).map((part, index) => {
+        const tone = [...part].map(getTone).find(Boolean)
+        return (
+          <span key={`${part}-${index}`} className={tone ? toneClass[tone] : undefined}>
+            {part}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+function isHanzi(char: string) {
+  const code = char.charCodeAt(0)
+  return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
+}
+
+const idsLabels: Record<string, string> = {
+  "⿰": "kiri · kanan",
+  "⿱": "atas · bawah",
+  "⿲": "kiri · tengah · kanan",
+  "⿳": "atas · tengah · bawah",
+  "⿴": "luar · dalam",
+  "⿵": "atas terbuka · dalam",
+  "⿶": "bawah terbuka · dalam",
+  "⿷": "kiri terbuka · dalam",
+  "⿸": "kiri atas · dalam",
+  "⿹": "kanan atas · dalam",
+  "⿺": "kiri bawah · dalam",
+  "⿻": "bertumpang",
+}
+
+function decompParts(entry?: DictionaryEntry) {
+  const raw = entry?.decomposition || ""
+  const ids = raw[0] || ""
+  const parts = raw
+    ? [...raw].filter(char => char !== ids && char !== "？" && !idsLabels[char])
+    : []
+  return { ids, label: idsLabels[ids] || "", parts }
+}
+
+import { useSidebar } from "@/components/ui/sidebar"
+
+export default function FlashcardDeckPage() {
+  const params = useParams()
+  const router = useRouter()
+  const deckId = Number(params.id)
+  
+  const { state: sidebarState, isMobile } = useSidebar()
+  const sidebarOffset = isMobile ? '0px' : (sidebarState === 'expanded' ? '16rem' : '3rem')
+
+  const [deck, setDeck] = React.useState<DeckMeta | null>(null)
+  const [cards, setCards] = React.useState<Card[]>([])
+  const [filtered, setFiltered] = React.useState<Card[]>([])
+  const [search, setSearch] = React.useState("")
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+  const [selectedCard, setSelectedCard] = React.useState<Card | null>(null)
+  const [detailTab, setDetailTab] = React.useState<DetailTab>("kalimat")
+  const [examples, setExamples] = React.useState<ExampleSentence[]>([])
+  const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
+  const [examplesLoading, setExamplesLoading] = React.useState(false)
+  const [compoundsLoading, setCompoundsLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    const supa = createClient()
+    async function load() {
+      setLoading(true)
+      setError(null)
+
+      // Fetch deck meta
+      const { data: setData, error: setErr } = await supa
+        .from("flashcard_sets")
+        .select("title, description")
+        .eq("id", deckId)
+        .single()
+
+      if (setErr || !setData) {
+        setError("Deck tidak ditemukan")
+        setLoading(false)
+        return
+      }
+      setDeck(setData)
+
+      // Fetch cards
+      const { data: cardData, error: cardErr } = await supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti")
+        .eq("set_id", deckId)
+        .order("created_at", { ascending: true })
+
+      if (cardErr) {
+        setError("Gagal memuat kartu: " + cardErr.message)
+        setLoading(false)
+        return
+      }
+
+      setCards(cardData ?? [])
+      setFiltered(cardData ?? [])
+      setLoading(false)
+    }
+    load()
+  }, [deckId])
+
+  React.useEffect(() => {
+    if (!search.trim()) {
+      setFiltered(cards)
+      return
+    }
+    const q = search.toLowerCase()
+    setFiltered(
+      cards.filter(
+        (c) =>
+          c.hanzi.includes(search) ||
+          c.pinyin.toLowerCase().includes(q) ||
+          c.arti.toLowerCase().includes(q)
+      )
+    )
+  }, [search, cards])
+
+  function navigateToPractice(type: string) {
+    router.push(`/dashboard/practice/${type}/${deckId}`)
+  }
+
+  function openDetail(card: Card) {
+    router.push(`/dashboard/flashcard/${deckId}/word/${card.id}`)
+  }
+
+  function closeDetail() {
+    setSelectedCard(null)
+    setExamples([])
+    setCompounds([])
+  }
+
+  React.useEffect(() => {
+    if (!selectedCard) return
+
+    const supa = createClient()
+    const activeCard = selectedCard
+    let cancelled = false
+
+    async function loadExamples() {
+      setExamplesLoading(true)
+      const [hanziRes, wordRes] = await Promise.all([
+        supa
+          .from("hanzi_items")
+          .select("id, section_label, hanzi, pinyin, arti")
+          .ilike("hanzi", `%${activeCard.hanzi}%`)
+          .order("id", { ascending: true })
+          .limit(12),
+        supa
+          .from("word_examples")
+          .select("id, hanzi, pinyin, arti")
+          .eq("word_hanzi", activeCard.hanzi)
+          .order("id", { ascending: true }),
+      ])
+
+      if (cancelled) return
+
+      const hskExamples = (hanziRes.data ?? []).map(row => ({
+        id: row.id,
+        section_label: row.section_label,
+        hanzi: row.hanzi,
+        pinyin: row.pinyin,
+        arti: row.arti,
+      }))
+      const userExamples = (wordRes.data ?? []).map(row => ({
+        id: row.id,
+        hanzi: row.hanzi,
+        pinyin: row.pinyin,
+        arti: row.arti,
+      }))
+
+      setExamples([...hskExamples, ...userExamples])
+      setExamplesLoading(false)
+    }
+
+    loadExamples()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCard])
+
+  React.useEffect(() => {
+    if (!selectedCard || detailTab !== "kata") return
+
+    const supa = createClient()
+    const activeCard = selectedCard
+    let cancelled = false
+
+    async function loadCompounds() {
+      setCompoundsLoading(true)
+      const { data } = await supa
+        .from("word_compounds")
+        .select("hanzi, pinyin, arti, badge")
+        .ilike("hanzi", `%${activeCard.hanzi}%`)
+        .limit(30)
+
+      if (cancelled) return
+      setCompounds(data ?? [])
+      setCompoundsLoading(false)
+    }
+
+    loadCompounds()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCard, detailTab])
+
+  React.useEffect(() => {
+    if (!selectedCard) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [selectedCard])
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+        <p className="text-red-400 text-sm">{error}</p>
+        <Button variant="outline" onClick={() => router.back()}>Kembali</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen pb-28 relative">
+      {/* Header sticky */}
+      <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/40 px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-bold text-primary truncate">{deck?.title}</h1>
+          <p className="text-xs text-muted-foreground">{deck?.description}</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.push("/dashboard/flashcard")}
+          className="h-8 w-8 rounded-full bg-muted/50 shrink-0"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Search */}
+      <div className="px-6 pt-4 pb-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari Hanzi, Pinyin, atau Arti..."
+            className="pl-9 bg-card/50 border-border/50 rounded-xl"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Card List */}
+      <div className="px-6 pt-2 flex flex-col gap-2">
+        {filtered.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-12">Tidak ada kosakata ditemukan</p>
+        )}
+        {filtered.map((card, i) => (
+          <div
+            key={card.id}
+            className="flex items-center gap-4 p-4 rounded-xl border border-border/40 bg-card/40 hover:bg-muted/30 transition-colors cursor-pointer group"
+            onClick={() => openDetail(card)}
+          >
+            <div className="shrink-0 text-3xl font-bold text-foreground leading-tight whitespace-nowrap min-w-[3.5rem]">{card.hanzi}</div>
+            <div className="flex-1 flex flex-col min-w-0">
+              <span className="text-sm font-medium text-primary">{card.pinyin}</span>
+              <span className="text-sm text-muted-foreground truncate">{card.arti}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-1">
+              <Volume2 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground font-medium">#{i + 1}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Sticky Bottom Bar */}
+      <div 
+        className="fixed bottom-0 right-0 z-30 p-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
+        style={{ left: sidebarOffset }}
+      >
+        <Drawer>
+          <DrawerTrigger
+            render={
+              <Button className="w-full h-13 rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />
+            }
+          >
+            Mulai Latihan
+          </DrawerTrigger>
+          <DrawerContent>
+            <div className="mx-auto w-full max-w-sm">
+              <DrawerHeader className="text-center pb-2">
+                <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+                  Pilih Latihan
+                </DrawerTitle>
+              </DrawerHeader>
+              <div className="p-4 grid grid-cols-3 gap-3">
+                <div
+                  onClick={() => navigateToPractice("nada")}
+                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                >
+                  <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                    <Music className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
+                </div>
+
+                <div
+                  onClick={() => navigateToPractice("flashcard")}
+                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
+                >
+                  <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <Layers className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
+                </div>
+
+                <div
+                  onClick={() => navigateToPractice("tulis")}
+                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                >
+                  <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                    <Edit2 className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
+                </div>
+              </div>
+              <DrawerFooter>
+                <DrawerClose
+                  render={<Button variant="outline" className="rounded-xl" />}
+                >
+                  Batal
+                </DrawerClose>
+              </DrawerFooter>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </div>
+
+      {selectedCard && (
+        <WordDetailPortal>
+          <WordDetailPanel
+            card={selectedCard}
+            tab={detailTab}
+            examples={examples}
+            compounds={compounds}
+            examplesLoading={examplesLoading}
+            compoundsLoading={compoundsLoading}
+            onTabChange={setDetailTab}
+            onClose={closeDetail}
+            onSpeak={speakHanzi}
+            onOpenCard={openDetail}
+          />
+        </WordDetailPortal>
+      )}
+    </div>
+  )
+}
+
+function WordDetailPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
+  return createPortal(children, document.body)
+}
+
+function WordDetailPanel({
+  card,
+  tab,
+  examples,
+  compounds,
+  examplesLoading,
+  compoundsLoading,
+  onTabChange,
+  onClose,
+  onSpeak,
+  onOpenCard,
+}: {
+  card: Card
+  tab: DetailTab
+  examples: ExampleSentence[]
+  compounds: CompoundWord[]
+  examplesLoading: boolean
+  compoundsLoading: boolean
+  onTabChange: (tab: DetailTab) => void
+  onClose: () => void
+  onSpeak: (text: string) => void
+  onOpenCard: (card: Card) => void
+}) {
+  const chars = [...card.hanzi].filter(isHanzi)
+  const [dictionary, setDictionary] = React.useState<DictionaryMap | null>(null)
+  const [dictionaryChecked, setDictionaryChecked] = React.useState(false)
+  const tabs: Array<{ id: DetailTab; label: string }> = [
+    { id: "kalimat", label: "Sentences" },
+    { id: "stroke", label: "Stroke" },
+    { id: "karakter", label: "Char" },
+    { id: "kata", label: "Word" },
+  ]
+
+  React.useEffect(() => {
+    if (tab !== "karakter" || dictionary || dictionaryChecked) return
+
+    let cancelled = false
+    fetch("/data/dictionary.json")
+      .then(res => (res.ok ? res.json() : null))
+      .then((data: DictionaryMap | null) => {
+        if (cancelled) return
+        setDictionary(data)
+        setDictionaryChecked(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setDictionary(null)
+        setDictionaryChecked(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [dictionary, dictionaryChecked, tab])
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[#07131f] text-slate-100">
+      <div className="flex h-[92px] shrink-0 items-center justify-between gap-3 border-b border-[#252636] bg-[#12131b] px-6">
+        <div className="min-w-0">
+          <div className="font-serif text-2xl font-bold text-[#f4d76d]">Detail Kata</div>
+          <div className="truncate text-base text-[#8f90d8]">Flashcard Day</div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button className="h-9 rounded-full border border-[#e8c96d]/50 bg-[#e8c96d]/10 px-5 text-xs font-bold text-[#f4d76d] hover:bg-[#e8c96d]/20">
+            <Plus className="h-3.5 w-3.5" />
+            TAMBAH
+          </Button>
+          <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl border border-[#252636] bg-[#1a1b2a] text-slate-300 hover:bg-[#222438] hover:text-white" onClick={onClose}>
+            <ChevronsLeft className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="relative grid h-14 shrink-0 grid-cols-4 border-b border-[#252636] bg-[#12131b] px-3">
+        {tabs.map(item => {
+          const active = tab === item.id
+          return (
+            <button
+              key={item.id}
+              className={`relative px-2 text-base font-bold tracking-wide transition-colors ${
+                active ? "text-[#f4d76d]" : "text-[#686bd6] hover:text-slate-200"
+              }`}
+              onClick={() => onTabChange(item.id)}
+            >
+              {item.label}
+              {active && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-[#f4d76d]" />}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="relative shrink-0 border-b border-[#343042] bg-[linear-gradient(135deg,#191a25_0%,#171821_55%,#1c1a12_100%)] px-6 py-8 text-center">
+        <div className="absolute left-6 top-4 rounded-lg border border-[#e8c96d]/40 bg-[#e8c96d]/15 px-3 py-1 text-xs font-bold text-[#f4d76d]">
+          HSK 1
+        </div>
+        <div className="absolute right-5 top-4 flex gap-3">
+          <button className="flex h-12 w-12 items-center justify-center rounded-full border border-[#2d2d46] bg-[#1b1c30] text-slate-400">
+            <Flag className="h-5 w-5" />
+          </button>
+          <button className="flex h-12 w-12 items-center justify-center rounded-full border border-[#2d2d46] bg-[#1b1c30] text-slate-400">
+            <Heart className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="text-7xl font-bold leading-none text-slate-100 sm:text-8xl">{card.hanzi}</div>
+        <div className="mt-4 text-[22px] font-semibold tracking-wide">
+          <ColorPinyin text={card.pinyin || ""} />
+        </div>
+        <div className="mx-auto mt-2 max-w-xl text-lg font-semibold text-[#e8c96d]">{card.arti}</div>
+        <Button variant="ghost" size="sm" className="mt-4 gap-1.5 rounded-full border border-cyan-900/60 bg-[#0b1c2b] px-4 text-slate-200 hover:bg-cyan-950/80" onClick={() => onSpeak(card.hanzi)}>
+          <Volume2 className="h-4 w-4" />
+          Dengar
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-5">
+        {tab === "kalimat" && (
+          <div className="mx-auto flex max-w-2xl flex-col gap-2">
+            {examplesLoading && <LoadingLine label="Memuat contoh kalimat..." />}
+            {!examplesLoading && examples.length === 0 && <EmptyLine label="Belum ada contoh kalimat." />}
+            {examples.map(example => (
+              <button
+                key={`${example.id}-${example.hanzi}`}
+                className="rounded-xl border border-cyan-900/50 bg-[#0b1c2b] px-4 py-3 text-left transition-colors hover:border-[#e8c96d]/40"
+                onClick={() => example.hanzi && onSpeak(example.hanzi)}
+              >
+                {example.section_label && (
+                  <div className="mb-1 text-[9px] font-bold uppercase tracking-widest text-slate-600">
+                    {example.section_label}
+                  </div>
+                )}
+                <div className="pr-8 text-xl font-semibold leading-relaxed text-slate-100">{example.hanzi}</div>
+                {example.pinyin && (
+                  <div className="mt-1 text-sm leading-relaxed">
+                    <ColorPinyin text={example.pinyin} />
+                  </div>
+                )}
+                {example.arti && <div className="mt-2 border-t border-cyan-900/50 pt-2 text-sm leading-relaxed text-slate-500">{example.arti}</div>}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === "stroke" && (
+          <div className="mx-auto grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
+            {chars.map(char => (
+              <div key={char} className="rounded-xl border border-cyan-900/50 bg-[#0b1c2b] p-4">
+                <StrokePreview char={char} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === "karakter" && (
+          <div className="mx-auto flex max-w-none flex-col gap-6">
+            {chars.map((char, index) => (
+              <CharBreakdown
+                key={`${char}-${index}`}
+                char={char}
+                dictionary={dictionary}
+                onSpeak={onSpeak}
+              />
+            ))}
+            {dictionaryChecked && !dictionary && (
+              <div className="text-center text-xs text-slate-600">
+                Simpan dictionary di public/data/dictionary.json untuk menampilkan komponen karakter.
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "kata" && (
+          <div className="mx-auto flex max-w-2xl flex-col gap-2">
+            {compoundsLoading && <LoadingLine label="Memuat kata gabungan..." />}
+            {!compoundsLoading && compounds.length === 0 && <EmptyLine label="Tidak ada kata gabungan ditemukan." />}
+            {compounds.map((word, index) => (
+              <button
+                key={`${word.hanzi}-${index}`}
+                className="flex items-center gap-4 rounded-xl border border-cyan-900/50 bg-[#0b1c2b] p-4 text-left transition-colors hover:border-[#e8c96d]/40"
+                onClick={() => onOpenCard({
+                  id: card.id,
+                  hanzi: word.hanzi,
+                  pinyin: word.pinyin ?? "",
+                  arti: word.arti ?? "",
+                })}
+              >
+                <span className="min-w-20 text-3xl font-bold text-slate-100">{word.hanzi}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">
+                    <ColorPinyin text={word.pinyin ?? ""} />
+                  </span>
+                  <span className="block truncate text-sm text-slate-500">{word.arti}</span>
+                </span>
+                {word.badge && <span className="rounded-full border border-[#e8c96d]/30 bg-[#e8c96d]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#e8c96d]">{word.badge}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function LoadingLine({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center gap-3 py-12 text-sm text-slate-500">
+      <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#e8c96d] border-t-transparent" />
+      {label}
+    </div>
+  )
+}
+
+function EmptyLine({ label }: { label: string }) {
+  return <div className="py-12 text-center text-sm text-slate-500">{label}</div>
+}
+
+function CharBreakdown({
+  char,
+  dictionary,
+  onSpeak,
+}: {
+  char: string
+  dictionary: DictionaryMap | null
+  onSpeak: (text: string) => void
+}) {
+  const entry = dictionary?.[char]
+  const { ids, label, parts } = decompParts(entry)
+  const pinyin = entry?.pinyin?.join(", ") || ""
+  const definition = entry?.definition || ""
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        className="rounded-2xl border border-[#252636] bg-[#1a1b25] px-5 py-5 text-left"
+        onClick={() => onSpeak(char)}
+      >
+        <div className="flex items-center gap-6">
+          <div className="min-w-20 text-center text-7xl font-bold leading-none text-slate-100">{char}</div>
+          <div className="min-w-0">
+            {pinyin && (
+              <div className="text-base font-bold">
+                <ColorPinyin text={pinyin} />
+              </div>
+            )}
+            <div className="mt-1 text-base text-[#8585d8]">{definition || "Data karakter belum tersedia"}</div>
+            {label && <div className="mt-3 text-sm text-[#e8c96d]">{ids} · {label}</div>}
+          </div>
+        </div>
+        {entry?.etymology?.hint && (
+          <div className="mt-5 border-t border-dashed border-[#e8c96d]/20 pt-4 text-sm italic leading-relaxed text-[#a8a8d5]">
+            {entry.etymology.hint}
+          </div>
+        )}
+      </button>
+
+      {parts.length > 0 && (
+        <>
+          <div className="text-center text-sm tracking-wide text-[#686bd6]">↓ komponen</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {parts.map((part, index) => {
+              const partEntry = dictionary?.[part]
+              const partInfo = decompParts(partEntry)
+              return (
+                <button
+                  key={`${part}-${index}`}
+                  className="rounded-xl border border-[#252636] bg-[#1a1b25] px-5 py-4 text-left transition-colors hover:border-[#e8c96d]/40"
+                  onClick={() => onSpeak(part)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="min-w-14 text-center text-5xl font-bold leading-none text-slate-100">{part}</div>
+                    <div className="min-w-0">
+                      {partEntry?.pinyin && (
+                        <div className="text-sm font-bold">
+                          <ColorPinyin text={partEntry.pinyin.join(", ")} />
+                        </div>
+                      )}
+                      {partEntry?.definition && (
+                        <div className="mt-1 text-sm leading-snug text-[#8585d8]">{partEntry.definition}</div>
+                      )}
+                    </div>
+                  </div>
+                  {partEntry?.etymology?.hint && (
+                    <div className="mt-3 border-t border-white/5 pt-3 text-xs italic leading-relaxed text-slate-500">
+                      {partEntry.etymology.hint}
+                    </div>
+                  )}
+                  {partInfo.parts.length > 0 && (
+                    <div className="mt-3 border-t border-white/5 pt-2 text-xs text-[#686bd6]">
+                      {partInfo.parts.join(" · ")}
+                    </div>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function StrokePreview({ char }: { char: string }) {
+  const targetRef = React.useRef<HTMLDivElement>(null)
+  const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
+
+  React.useEffect(() => {
+    let cancelled = false
+    const target = targetRef.current
+    if (!target) return
+
+    target.innerHTML = ""
+
+    import("hanzi-writer").then(({ default: HanziWriter }) => {
+      if (cancelled || !targetRef.current) return
+      writerRef.current = HanziWriter.create(targetRef.current, char, {
+        width: 220,
+        height: 220,
+        padding: 18,
+        strokeColor: "#e8e8f4",
+        outlineColor: "#2a2a3e",
+        drawingColor: "#e8c96d",
+        showOutline: true,
+        showCharacter: false,
+        strokeAnimationSpeed: 0.8,
+        delayBetweenStrokes: 180,
+      })
+    })
+
+    return () => {
+      cancelled = true
+      target.innerHTML = ""
+    }
+  }, [char])
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div ref={targetRef} className="h-[220px] w-[220px]" />
+      <Button
+        variant="outline"
+        size="sm"
+        className="rounded-full border-cyan-900/70 bg-[#081522] px-4 text-[#e8c96d] hover:bg-[#102235] hover:text-[#e8c96d]"
+        onClick={() => writerRef.current?.animateCharacter()}
+      >
+        Animasi Stroke
+      </Button>
+    </div>
+  )
+}
