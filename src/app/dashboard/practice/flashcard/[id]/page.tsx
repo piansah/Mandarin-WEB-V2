@@ -419,21 +419,21 @@ export default function FlashcardPracticePage() {
                   className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-secondary/30 rounded-3xl transition-opacity duration-200"
                   style={{ opacity: contentOpacity }}
                 >
-                  <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
+                  <div className="font-hanzi mb-6 text-6xl leading-none text-foreground">{card.hanzi}</div>
                   <TonePinyin text={card.pinyin} className="mb-2 text-2xl font-sans font-medium" />
                   <span className="text-xl font-semibold text-center text-foreground">{card.arti}</span>
                 </div>
               ) : (
                 // Front Face (Hanzi saja)
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-card rounded-3xl">
-                  <div className="text-8xl font-bold text-foreground leading-none">{card.hanzi}</div>
+                  <div className="font-hanzi text-8xl leading-none text-foreground">{card.hanzi}</div>
                 </div>
               )}
             </div>
 
             {/* Face Menghadap Belakang 180deg (Pinyin) */}
             <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-card rounded-3xl rotate-y-180">
-              <div className="text-6xl font-bold text-foreground leading-none mb-6">{card.hanzi}</div>
+              <div className="font-hanzi mb-6 text-6xl leading-none text-foreground">{card.hanzi}</div>
               <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium" />
             </div>
 
@@ -479,7 +479,7 @@ export default function FlashcardPracticePage() {
               'bg-red-500/10 border-red-500/20 text-red-500'
             }`}>
               <div className="font-medium text-sm">{feedback.msg}</div>
-              {feedback.hanzi && <div className="text-xl font-bold mt-1 font-sans">&quot;{feedback.hanzi}&quot;</div>}
+              {feedback.hanzi && <div className="font-hanzi mt-1 text-xl">&quot;{feedback.hanzi}&quot;</div>}
             </div>
           )}
         </div>

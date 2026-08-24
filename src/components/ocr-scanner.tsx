@@ -288,7 +288,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         <div className="flex-1 bg-background flex flex-col">
           <div className="p-6 pt-20 bg-muted/30 border-b border-border/50">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Teks Dipindai</h3>
-            <p className="text-lg font-serif">{rawText}</p>
+            <p className="font-hanzi text-lg">{rawText}</p>
           </div>
           
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
@@ -303,7 +303,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl font-bold">{word.hanzi}</span>
+                    <span className="font-hanzi text-2xl">{word.hanzi}</span>
                     {word.hsk && (
                       <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
                         HSK {word.hsk}
@@ -329,7 +329,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
                   </div>
                 ) : (
                   <div key={i} className="p-4 rounded-xl border border-border/50 bg-muted/20 flex flex-col gap-1 opacity-70">
-                    <span className="text-2xl font-bold">{word.hanzi}</span>
+                    <span className="font-hanzi text-2xl">{word.hanzi}</span>
                     <span className="text-xs text-muted-foreground italic">Tidak ada di kamus</span>
                   </div>
                 )

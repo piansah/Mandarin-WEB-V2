@@ -421,7 +421,7 @@ function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onO
   React.useEffect(() => clearPress, [])
 
   return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}>
-    <div className="min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl font-bold leading-tight text-foreground">{card.hanzi}</div>
+    <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
     <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
     <div className="ml-1 flex shrink-0 items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /><span className="text-xs font-medium text-muted-foreground">#{index + 1}</span></div>
   </div>
@@ -537,7 +537,7 @@ function WordDetailPanel({
             <Heart className="h-6 w-6" />
           </button>
         </div>
-        <div className="text-7xl font-bold leading-none text-slate-100 sm:text-8xl">{card.hanzi}</div>
+        <div className="font-hanzi text-7xl leading-none text-slate-100 sm:text-8xl">{card.hanzi}</div>
         <div className="mt-4 text-[22px] font-semibold tracking-wide">
           <ColorPinyin text={card.pinyin || ""} />
         </div>
@@ -564,7 +564,7 @@ function WordDetailPanel({
                     {example.section_label}
                   </div>
                 )}
-                <div className="pr-8 text-xl font-semibold leading-relaxed text-slate-100">{example.hanzi}</div>
+                <div className="font-hanzi pr-8 text-xl leading-relaxed text-slate-100">{example.hanzi}</div>
                 {example.pinyin && (
                   <div className="mt-1 text-sm leading-relaxed">
                     <ColorPinyin text={example.pinyin} />
@@ -619,7 +619,7 @@ function WordDetailPanel({
                   arti: word.arti ?? "",
                 })}
               >
-                <span className="min-w-20 text-3xl font-bold text-slate-100">{word.hanzi}</span>
+                <span className="font-hanzi min-w-20 text-3xl text-slate-100">{word.hanzi}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-semibold">
                     <ColorPinyin text={word.pinyin ?? ""} />
@@ -670,7 +670,7 @@ function CharBreakdown({
         onClick={() => onSpeak(char)}
       >
         <div className="flex items-center gap-6">
-          <div className="min-w-20 text-center text-7xl font-bold leading-none text-slate-100">{char}</div>
+          <div className="font-hanzi min-w-20 text-center text-7xl leading-none text-slate-100">{char}</div>
           <div className="min-w-0">
             {pinyin && (
               <div className="text-base font-bold">
@@ -702,7 +702,7 @@ function CharBreakdown({
                   onClick={() => onSpeak(part)}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="min-w-14 text-center text-5xl font-bold leading-none text-slate-100">{part}</div>
+                    <div className="font-hanzi min-w-14 text-center text-5xl leading-none text-slate-100">{part}</div>
                     <div className="min-w-0">
                       {partEntry?.pinyin && (
                         <div className="text-sm font-bold">

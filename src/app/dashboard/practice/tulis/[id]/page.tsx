@@ -219,7 +219,7 @@ export default function TulisHanziPage() {
       <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6">
         {/* Info kartu */}
         <div className="flex flex-col items-center gap-1 pb-3 text-center">
-          <span className="text-3xl font-bold text-foreground">{card.originalWord}</span>
+          <span className="font-hanzi text-3xl text-foreground">{card.originalWord}</span>
           <span className="text-lg text-primary font-medium">{card.pinyin}</span>
           <span className="text-base text-muted-foreground">{card.arti}</span>
         </div>

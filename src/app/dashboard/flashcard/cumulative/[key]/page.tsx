@@ -136,7 +136,7 @@ export default function CumulativeFlashcardSessionPage() {
               {group.items.map((item, index) => {
                 const state = stateById[item.id] ?? 0
                 return <button key={item.id} type="button" onClick={() => advance(item)} className={`min-h-36 rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}>
-                  <div className="flex items-start justify-between gap-3"><div className="font-serif text-2xl font-bold leading-relaxed text-foreground">{item.hanzi}</div><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">{index + 1}</span></div>
+                  <div className="flex items-start justify-between gap-3"><div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">{index + 1}</span></div>
                   {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
                   {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
                   {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}

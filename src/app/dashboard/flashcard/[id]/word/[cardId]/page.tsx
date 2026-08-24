@@ -8,7 +8,7 @@ import { speakMandarin } from "@/lib/tts"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
-type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null }
+type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
 type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null }
 type CompoundWord = { hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
 type DictionaryEntry = { pinyin?: string[]; definition?: string; decomposition?: string; etymology?: { hint?: string } }
@@ -74,6 +74,16 @@ function decompParts(entry?: DictionaryEntry) {
   return { ids, label: idsLabels[ids] || "", parts: [...new Set(parts)] }
 }
 
+function heroBadgeLabel(card: Card): string | null {
+  if (card.hsk_level) return `HSK ${card.hsk_level}`
+  const normalized = card.badge?.trim().toLowerCase() ?? ""
+  if (normalized === "common") return "Common"
+  if (normalized === "native") return "Native"
+  if (card.badge?.trim()) return card.badge.trim()
+  if (String(card.set_id) === "search") return "Native"
+  return null
+}
+
 export default function WordDetailPage() {
   const params = useParams()
   const cardId = String(params.cardId)
@@ -93,8 +103,32 @@ export default function WordDetailPage() {
       setLoading(true)
       let cardRes = await supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti, catatan, word_class").eq("id", cardId).single()
       if (cardRes.error) cardRes = await supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti").eq("id", cardId).single()
+      if (cardRes.data) {
+        let hsk_level: number | null = null
+        if (cardRes.data.set_id != null) {
+          const setRes = await supa.from("flashcard_sets").select("hsk_level").eq("id", cardRes.data.set_id).maybeSingle()
+          hsk_level = setRes.data?.hsk_level ?? null
+        }
+        if (!cancelled) setCard({ ...cardRes.data, hsk_level })
+        setLoading(false)
+        return
+      }
+
+      const compoundRes = await supa.from("word_compounds").select("id, hanzi, pinyin, arti, badge").eq("id", cardId).maybeSingle()
       if (cancelled) return
-      setCard(cardRes.data ?? null); setLoading(false)
+      if (compoundRes.data) {
+        setCard({
+          id: String(compoundRes.data.id),
+          set_id: "search",
+          hanzi: compoundRes.data.hanzi,
+          pinyin: compoundRes.data.pinyin ?? "",
+          arti: compoundRes.data.arti ?? "",
+          badge: compoundRes.data.badge,
+        })
+      } else {
+        setCard(null)
+      }
+      setLoading(false)
     }
     load(); return () => { cancelled = true }
   }, [cardId])
@@ -168,13 +202,14 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={() => setFavorited(value => !value)} />
-    <main className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</main>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
   </div>
 }
 
 function Hero({ card, favorited, onToggleFavorite }: { card: Card; favorited: boolean; onToggleFavorite: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
-  return <section className={styles.hero}><span className={styles.hskBadge}>HSK 1</span><div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
+  const badge = heroBadgeLabel(card)
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
 function SentenceTab({ examples, knownWords }: { examples: ExampleSentence[]; knownWords: Set<string> }) {

@@ -65,7 +65,7 @@
 .toolButton:hover, .toolButtonActive { border-color: #42d6a4; background: rgba(66, 214, 164, .1); color: #42d6a4; }
 
 .heroContent { max-width: 920px; cursor: pointer; }
-.hanzi { color: #fff; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: clamp(76px, 9vw, 118px); font-weight: 700; line-height: 1; }
+.hanzi { color: #fff; font-family: var(--font-hanzi); font-size: clamp(76px, 9vw, 118px); font-weight: 400; line-height: 1; }
 .pinyin { margin-top: 12px; font-family: inherit; font-size: 19px; font-style: italic; font-weight: 500; line-height: 1.35; }
 .meaning { margin-top: 8px; color: #aebfda; font-size: 20px; font-weight: 600; line-height: 1.35; }
 .wordClass { display: inline-flex; margin-top: 14px; border: 1px solid #23445b; border-radius: 999px; background: rgba(19, 47, 66, .7); color: #83a6c7; padding: 4px 14px; font-size: 12px; font-weight: 600; }
@@ -75,13 +75,13 @@
 .sentenceList { display: flex; flex-direction: column; gap: 12px; }
 .sentenceCard { padding: 18px 22px; border: 1px solid #173b55; border-radius: 12px; background: #091928; cursor: pointer; }
 .sentenceCard:hover { border-color: rgba(66, 214, 164, .45); }
-.sentenceHanzi { padding-right: 20px; color: #f7f8fb; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 24px; font-weight: 600; line-height: 1.55; }
+.sentenceHanzi { padding-right: 20px; color: #f7f8fb; font-family: var(--font-hanzi); font-size: 24px; font-weight: 400; line-height: 1.55; }
 .sentencePinyin { margin-top: 4px; font-family: inherit; font-size: 14px; font-style: italic; line-height: 1.6; }
 .sentenceMeaning { margin-top: 7px; padding-top: 7px; border-top: 1px solid #17344a; color: #aebfda; font-size: 15px; line-height: 1.5; }
 .wordList { display: flex; flex-direction: column; gap: 10px; }
 .wordRow { display: flex; align-items: center; gap: 18px; width: 100%; min-height: 92px; padding: 18px 22px; border: 1px solid #173b55; border-radius: 12px; background: #091928; color: #f5f7fa; font: inherit; text-align: left; cursor: pointer; }
 .wordRow:hover { border-color: rgba(66, 214, 164, .45); }
-.wordHanzi { min-width: 76px; color: #fff; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 36px; font-weight: 700; line-height: 1; text-align: center; }
+.wordHanzi { min-width: 76px; color: #fff; font-family: var(--font-hanzi); font-size: 36px; font-weight: 400; line-height: 1; text-align: center; }
 .wordInfo { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 5px; }
 .wordPinyin { font-size: 15px; font-weight: 600; line-height: 1.3; }
 .wordMeaning { color: #aebfda; font-size: 16px; font-weight: 500; line-height: 1.35; }
@@ -109,7 +109,7 @@
 .charBlock { margin-bottom: 24px; }
 .charMain { padding: 20px; border: 1px solid #173b55; border-radius: 14px; background: #091928; }
 .charHeader { display: flex; align-items: center; gap: 20px; }
-.charHanzi { min-width: 74px; color: #fff; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 70px; font-weight: 700; line-height: 1; }
+.charHanzi { min-width: 74px; color: #fff; font-family: var(--font-hanzi); font-size: 70px; font-weight: 400; line-height: 1; }
 .charDefinition { margin-top: 4px; color: #c0c6d7; font-size: 15px; line-height: 1.5; }
 .charStructure { margin-top: 8px; color: #83a6c7; font-size: 12px; }
 .charEtymology { margin-top: 16px; padding-top: 12px; border-top: 1px dashed #23445b; color: #aeb9c1; font-size: 13px; font-style: italic; line-height: 1.55; }
@@ -117,7 +117,7 @@
 .componentGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .componentCard { padding: 16px; border: 1px solid #173b55; border-radius: 12px; background: #091928; }
 .componentHeader { display: flex; align-items: center; gap: 14px; }
-.componentHanzi { min-width: 48px; color: #fff; font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif; font-size: 44px; font-weight: 700; line-height: 1; }
+.componentHanzi { min-width: 48px; color: #fff; font-family: var(--font-hanzi); font-size: 44px; font-weight: 400; line-height: 1; }
 .componentSub { margin-top: 12px; padding-top: 9px; border-top: 1px solid rgba(255,255,255,.08); color: #8590a1; font-size: 12px; }
 .strokeGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 8px 0 24px; }
 

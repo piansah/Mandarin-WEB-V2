@@ -7,7 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-poppins);
+  --font-sans: var(--font-poppins), var(--font-noto-sans-sc), sans-serif;
+  --font-hanzi: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -49,6 +50,7 @@
 }
 
 :root {
+  --font-hanzi: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --tone-1: #e05555;
   --tone-2: #e8d23e;
   --tone-3: #65df4d;
@@ -149,6 +151,11 @@
   --sidebar-accent-foreground: oklch(0.95 0.01 250);
   --sidebar-border: oklch(0.3 0.05 250);
   --sidebar-ring: oklch(0.8 0.15 165);
+}
+
+@utility font-hanzi {
+  font-family: var(--font-hanzi);
+  font-weight: 400;
 }
 
 @layer base {

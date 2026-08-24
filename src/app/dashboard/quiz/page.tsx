@@ -36,11 +36,15 @@ function getLocalScores(): ScoreMap {
 export default function QuizListPage() {
   const router = useRouter()
   const [sets, setSets] = React.useState<QuizSet[]>([])
-  const [scores] = React.useState<ScoreMap>(() => getLocalScores())
+  const [scores, setScores] = React.useState<ScoreMap>({})
   const [loading, setLoading] = React.useState(true)
   const [selectedLevel, setSelectedLevel] = React.useState(1)
   const [menuOpen, setMenuOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    setScores(getLocalScores())
+  }, [])
 
   React.useEffect(() => {
     const supa = createClient()

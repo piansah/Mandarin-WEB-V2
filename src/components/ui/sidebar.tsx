@@ -66,8 +66,14 @@ function SidebarProvider({
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
-  const isMobile = useIsMobile()
+  const isMobileQuery = useIsMobile()
+  const [mounted, setMounted] = React.useState(false)
   const [openMobile, setOpenMobile] = React.useState(false)
+  const isMobile = mounted && isMobileQuery
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -179,75 +185,76 @@ function Sidebar({
     )
   }
 
-  if (isMobile) {
-    return (
-      <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-        <SheetContent
-          dir={dir}
-          data-sidebar="sidebar"
-          data-slot="sidebar"
-          data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
-          side={side}
-        >
-          <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
-          </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
-        </SheetContent>
-      </Sheet>
-    )
-  }
-
   return (
-    <div
-      className="group peer hidden text-sidebar-foreground md:block"
-      data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
-      data-variant={variant}
-      data-side={side}
-      data-slot="sidebar"
-    >
-      {/* This is what handles the sidebar gap on desktop */}
+    <>
+      {isMobile ? (
+        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
+          <SheetContent
+            dir={dir}
+            data-sidebar="sidebar"
+            data-slot="sidebar"
+            data-mobile="true"
+            className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            style={
+              {
+                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+              } as React.CSSProperties
+            }
+            side={side}
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Sidebar</SheetTitle>
+              <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            </SheetHeader>
+            <div className="flex h-full w-full flex-col">{children}</div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
       <div
-        data-slot="sidebar-gap"
-        className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
-          "group-data-[collapsible=offcanvas]:w-0",
-          "group-data-[side=right]:rotate-180",
-          variant === "floating" || variant === "inset"
-            ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
-        )}
-      />
-      <div
-        data-slot="sidebar-container"
+        className="group peer hidden text-sidebar-foreground md:block"
+        data-state={state}
+        data-collapsible={state === "collapsed" ? collapsible : ""}
+        data-variant={variant}
         data-side={side}
-        className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
-          // Adjust the padding for floating and inset variants.
-          variant === "floating" || variant === "inset"
-            ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
-          className
-        )}
-        {...props}
+        data-slot="sidebar"
       >
-        <div
-          data-sidebar="sidebar"
-          data-slot="sidebar-inner"
-          className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
-        >
-          {children}
-        </div>
+        {!isMobile && (
+          <>
+            <div
+              data-slot="sidebar-gap"
+              className={cn(
+                "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+                "group-data-[collapsible=offcanvas]:w-0",
+                "group-data-[side=right]:rotate-180",
+                variant === "floating" || variant === "inset"
+                  ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
+                  : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
+              )}
+            />
+            <div
+              data-slot="sidebar-container"
+              data-side={side}
+              className={cn(
+                "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
+                variant === "floating" || variant === "inset"
+                  ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+                  : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+                className
+              )}
+              {...props}
+            >
+              <div
+                data-sidebar="sidebar"
+                data-slot="sidebar-inner"
+                className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+              >
+                {children}
+              </div>
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -510,6 +517,11 @@ function SidebarMenuButton({
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
   } & VariantProps<typeof sidebarMenuButtonVariants>) {
   const { isMobile, state } = useSidebar()
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
+  const showTooltip = Boolean(tooltip) && mounted && state === "collapsed" && !isMobile
   const comp = useRender({
     defaultTagName: "button",
     props: mergeProps<"button">(
@@ -518,7 +530,7 @@ function SidebarMenuButton({
       },
       props
     ),
-    render: !tooltip ? render : <TooltipTrigger render={render} />,
+    render: !showTooltip ? render : <TooltipTrigger render={render} />,
     state: {
       slot: "sidebar-menu-button",
       sidebar: "menu-button",
@@ -527,15 +539,11 @@ function SidebarMenuButton({
     },
   })
 
-  if (!tooltip) {
+  if (!showTooltip) {
     return comp
   }
 
-  if (typeof tooltip === "string") {
-    tooltip = {
-      children: tooltip,
-    }
-  }
+  const tooltipProps = typeof tooltip === "string" ? { children: tooltip } : tooltip
 
   return (
     <Tooltip>
@@ -543,8 +551,7 @@ function SidebarMenuButton({
       <TooltipContent
         side="right"
         align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
+        {...tooltipProps}
       />
     </Tooltip>
   )

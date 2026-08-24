@@ -1,43 +1,81 @@
 "use client"
 
 import * as React from "react"
-import { Search, Camera, ChevronLeft, Loader2, History } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Search, Camera, Loader2, Clock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
-import { GlobalWord, performSmartSearch, initGlobalSearchCache } from "@/lib/hanzi-segmentation"
+import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
 import { TonePinyin } from "@/components/tone-pinyin"
 
+const HISTORY_KEY = "hanzi_search_history"
+const HISTORY_LIMIT = 8
+
+function isSentenceQuery(raw: string) {
+  const hanziMatches = raw.match(/[\u4e00-\u9fff]/g) ?? []
+  return hanziMatches.length > 1
+}
+
 export default function HanziPage() {
+  const router = useRouter()
   const [query, setQuery] = React.useState("")
   const [results, setResults] = React.useState<GlobalWord[]>([])
+  const [segmented, setSegmented] = React.useState<SegmentedWord[]>([])
+  const [isSentenceMode, setIsSentenceMode] = React.useState(false)
   const [isSearching, setIsSearching] = React.useState(false)
   const [showScanner, setShowScanner] = React.useState(false)
-  const [selectedWord, setSelectedWord] = React.useState<GlobalWord | null>(null)
+  const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
   const [historyOpen, setHistoryOpen] = React.useState(false)
-  const [searchHistory, setSearchHistory] = React.useState<string[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const stored = window.localStorage.getItem("hanzi_search_history")
-      const parsed = stored ? JSON.parse(stored) : []
-      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string").slice(0, 8) : []
-    } catch {
-      return []
-    }
-  })
-  
+  const [searchHistory, setSearchHistory] = React.useState<string[]>([])
+  const historyRef = React.useRef<HTMLDivElement>(null)
+
   React.useEffect(() => {
     initGlobalSearchCache()
   }, [])
 
-  const handleSearch = React.useCallback(async (q: string) => {
-    if (!q.trim()) {
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(HISTORY_KEY)
+      const parsed = stored ? JSON.parse(stored) : []
+      if (Array.isArray(parsed)) {
+        setSearchHistory(parsed.filter((item) => typeof item === "string").slice(0, HISTORY_LIMIT))
+      }
+    } catch {
+      setSearchHistory([])
+    }
+  }, [])
+
+  React.useEffect(() => {
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (historyRef.current && !historyRef.current.contains(event.target as Node)) setHistoryOpen(false)
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePress)
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
+  }, [])
+
+  const handleSearch = React.useCallback(async (q: string, filter: "all" | "hsk" | "common" | "native") => {
+    const trimmed = q.trim()
+    if (!trimmed) {
       setResults([])
+      setSegmented([])
+      setIsSentenceMode(false)
       return
     }
+
+    const sentenceMode = isSentenceQuery(trimmed)
+    setIsSentenceMode(sentenceMode)
     setIsSearching(true)
     try {
-      const data = await performSmartSearch(q)
-      setResults(data)
+      await initGlobalSearchCache()
+      if (sentenceMode) {
+        const segs = segmentText(trimmed).filter((s) => s.found)
+        setSegmented(segs)
+        setResults([])
+      } else {
+        const data = await performSmartSearch(trimmed, filter)
+        setResults(data)
+        setSegmented([])
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -45,114 +83,145 @@ export default function HanziPage() {
     }
   }, [])
 
+  const saveHistory = React.useCallback((raw: string) => {
+    setSearchHistory((current) => {
+      const next = [raw, ...current.filter((item) => item !== raw)].slice(0, HISTORY_LIMIT)
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+
+  const removeHistoryItem = React.useCallback((raw: string) => {
+    setSearchHistory((current) => {
+      const next = current.filter((item) => item !== raw)
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [])
+
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      handleSearch(query)
+      handleSearch(query, searchFilter)
       const clean = query.trim()
-      if (clean.length >= 2) {
-        setSearchHistory((current) => {
-          const next = [clean, ...current.filter((item) => item !== clean)].slice(0, 8)
-          window.localStorage.setItem("hanzi_search_history", JSON.stringify(next))
-          return next
-        })
-      }
+      if (clean.length > 0) saveHistory(clean)
     }, 300)
     return () => clearTimeout(timer)
-  }, [query, handleSearch])
+  }, [query, searchFilter, handleSearch, saveHistory])
 
   const openWord = (hanzi: string) => {
     // If it's a string from OCR
     if (hanzi) {
-      handleSearch(hanzi).then(() => {
+      handleSearch(hanzi, searchFilter).then(() => {
         // Just let it show in results, or set query
         setQuery(hanzi)
       })
     }
   }
 
-  if (selectedWord) {
-    return (
-      <div className="flex flex-col min-h-[100dvh] bg-background">
-        <div className="flex items-center gap-4 p-4 border-b border-border/40">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedWord(null)}>
-            <ChevronLeft className="h-6 w-6" />
-          </Button>
-          <div className="font-bold text-lg">Detail Kamus</div>
-        </div>
-        <div className="flex flex-col items-center justify-center p-12 text-center border-b border-border/40 bg-muted/10">
-          <div className="text-7xl font-bold mb-6">{selectedWord.hanzi}</div>
-          <div className="text-2xl font-semibold mb-2">
-            <TonePinyin text={selectedWord.pinyin || ""} />
-          </div>
-          <div className="text-lg text-primary max-w-sm">{selectedWord.arti}</div>
-          
-          <div className="flex gap-2 mt-6">
-            {selectedWord.hsk_level && (
-              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase border border-primary/20">
-                HSK {selectedWord.hsk_level}
-              </span>
-            )}
-            {selectedWord.badge && (
-              <span className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-500 text-xs font-bold uppercase border border-orange-500/20">
-                {selectedWord.badge}
-              </span>
-            )}
-          </div>
-        </div>
-        
-        <div className="p-6">
-          <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Informasi Tambahan</div>
-          <div className="p-4 rounded-xl border border-border/50 bg-card text-sm text-muted-foreground">
-            Fitur detail (Stroke, Komponen, Kalimat) akan segera diintegrasikan.
-          </div>
-        </div>
-      </div>
-    )
+  const openWordDetail = (word: { id?: string | number; set_id?: number; source?: "hsk" | "compound" }) => {
+    const path = getWordDetailPath(word)
+    if (path) router.push(path)
   }
+
+  const hasQuery = query.trim() !== ""
 
   return (
     <div className="flex flex-col min-h-[100dvh] bg-background">
       <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/40 p-4">
         <div className="flex items-center gap-3">
-          <div className="relative flex-1">
+          <div ref={historyRef} className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Cari hanzi, pinyin, atau arti..." 
+            <input
+              type="text"
+              placeholder="Cari Hanzi, Pinyin, atau Arti..."
               className="w-full h-12 pl-10 pr-12 rounded-2xl bg-muted/50 border border-border/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-base"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => { if (!hasQuery) setHistoryOpen(true) }}
             />
-            <button
-              type="button"
-              aria-label="Riwayat pencarian"
-              className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-              onClick={() => setHistoryOpen((open) => !open)}
-            >
-              <History className="h-4 w-4" />
-            </button>
-            {historyOpen && (
-              <div className="absolute right-0 top-full z-30 mt-2 w-full max-w-sm overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-xl shadow-black/20">
-                {searchHistory.length === 0 ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">Belum ada riwayat pencarian.</div>
-                ) : (
-                  searchHistory.map((item) => (
-                    <button
+            {!hasQuery ? (
+              <button
+                type="button"
+                aria-label="Riwayat pencarian"
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={() => setHistoryOpen((open) => !open)}
+              >
+                <Clock className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Bersihkan pencarian"
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={() => { setQuery(""); setHistoryOpen(false) }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+
+            {historyOpen && !hasQuery && searchHistory.length > 0 && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-xl shadow-black/20">
+                <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-widest text-primary/70">
+                  Pencarian Terakhir
+                </div>
+                <div className="max-h-72 overflow-y-auto">
+                  {searchHistory.map((item) => (
+                    <div
                       key={item}
-                      type="button"
-                      className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                      role="button"
+                      tabIndex={0}
+                      className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted"
                       onClick={() => {
                         setQuery(item)
                         setHistoryOpen(false)
                       }}
                     >
-                      {item}
-                    </button>
-                  ))
-                )}
+                      <Clock className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+                      <span className="flex-1 truncate">{item}</span>
+                      <button
+                        type="button"
+                        aria-label={`Hapus riwayat ${item}`}
+                        className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-foreground group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeHistoryItem(item)
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
+        </div>
+
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button 
+            onClick={() => setSearchFilter("all")} 
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "all" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
+          >
+            Semua
+          </button>
+          <button 
+            onClick={() => setSearchFilter("hsk")} 
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "hsk" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
+          >
+            HSK
+          </button>
+          <button 
+            onClick={() => setSearchFilter("common")} 
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "common" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
+          >
+            Common
+          </button>
+          <button 
+            onClick={() => setSearchFilter("native")} 
+            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "native" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
+          >
+            Native
+          </button>
         </div>
       </div>
 
@@ -164,20 +233,68 @@ export default function HanziPage() {
           </div>
         )}
 
-        {!isSearching && query.trim() !== "" && results.length === 0 && (
+        {!isSearching && isSentenceMode && (
+          segmented.length > 0 ? (
+            <>
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                <div className="text-[11px] font-bold uppercase tracking-widest text-amber-500/80">
+                  Konteks Kalimat
+                </div>
+                <div className="font-hanzi mt-1 text-xl text-amber-400">{query.trim()}</div>
+              </div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Kosakata Ditemukan:
+              </div>
+              {segmented.map((word, i) => (
+                <div
+                  key={`${word.hanzi}-${i}`}
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/50 cursor-pointer transition-all"
+                  onClick={() => openWordDetail(word)}
+                >
+                  <div className="font-hanzi min-w-[3.5rem] text-4xl">{word.hanzi}</div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <div className="text-base font-semibold">
+                      <TonePinyin text={word.pinyin || ""} />
+                    </div>
+                    <div className="text-sm text-muted-foreground truncate">{word.arti}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    {word.hsk && (
+                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
+                        HSK {word.hsk}
+                      </span>
+                    )}
+                    {word.badge && (
+                      <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase border border-orange-500/20">
+                        {word.badge}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
+              <div className="text-4xl mb-4">🔍</div>
+              <p className="text-sm">Tidak ditemukan kosakata pada kalimat ini.</p>
+            </div>
+          )
+        )}
+
+        {!isSearching && !isSentenceMode && hasQuery && results.length === 0 && (
           <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
             <div className="text-4xl mb-4">🔍</div>
             <p className="text-sm">Tidak ditemukan kata yang cocok dengan &quot;{query}&quot;</p>
           </div>
         )}
 
-        {!isSearching && results.map((word, i) => (
-          <div 
+        {!isSearching && !isSentenceMode && results.map((word, i) => (
+          <div
             key={`${word.hanzi}-${i}`}
             className="flex items-center gap-4 p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/50 cursor-pointer transition-all"
-            onClick={() => setSelectedWord(word)}
+            onClick={() => openWordDetail(word)}
           >
-            <div className="text-4xl font-bold min-w-[3.5rem]">{word.hanzi}</div>
+            <div className="font-hanzi min-w-[3.5rem] text-4xl">{word.hanzi}</div>
             <div className="flex-1 min-w-0 flex flex-col justify-center">
               <div className="text-base font-semibold">
                 <TonePinyin text={word.pinyin || ""} />
@@ -200,8 +317,8 @@ export default function HanziPage() {
             </div>
           </div>
         ))}
-        
-        {!isSearching && query.trim() === "" && (
+
+        {!isSearching && !hasQuery && (
           <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground opacity-50 mt-10">
             <Search className="h-12 w-12 mb-4" />
             <p className="text-sm max-w-[200px]">Cari Hanzi, Pinyin, atau arti Bahasa Indonesia</p>
@@ -220,9 +337,9 @@ export default function HanziPage() {
       </Button>
 
       {showScanner && (
-        <OCRScanner 
-          onClose={() => setShowScanner(false)} 
-          onWordClick={openWord} 
+        <OCRScanner
+          onClose={() => setShowScanner(false)}
+          onWordClick={openWord}
         />
       )}
     </div>

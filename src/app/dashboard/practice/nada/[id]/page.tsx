@@ -191,7 +191,7 @@ export default function NadaPracticePage() {
         <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pilih nada yang benar</p>
 
         <div className="flex flex-col items-center gap-3">
-          <div className="text-8xl font-bold">{q.hanzi}</div>
+          <div className="font-hanzi text-8xl">{q.hanzi}</div>
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
             <Volume2 className="h-4 w-4" /> Dengar
           </Button>

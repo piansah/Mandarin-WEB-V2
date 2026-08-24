@@ -14,6 +14,9 @@ export type GlobalWord = {
 }
 
 export type SegmentedWord = {
+  id?: string | number
+  set_id?: number
+  source?: "hsk" | "compound"
   hanzi: string
   pinyin?: string | null
   arti?: string | null
@@ -23,12 +26,24 @@ export type SegmentedWord = {
   isPunct?: boolean
 }
 
+export function getWordDetailPath(word: {
+  id?: string | number
+  set_id?: number
+  source?: "hsk" | "compound"
+}): string | null {
+  if (word.id === undefined || word.id === null || word.id === "") return null
+  if (word.source === "hsk" && word.set_id != null) {
+    return `/dashboard/flashcard/${word.set_id}/word/${word.id}`
+  }
+  return `/dashboard/flashcard/search/word/${word.id}`
+}
+
 let _globalSearchCache: GlobalWord[] | null = null
 let _initPromise: Promise<void> | null = null
 
 const DB_NAME = "hanzi_cache_db"
 const STORE_NAME = "hanzi_store"
-const CACHE_KEY = "global_search_v1"
+const CACHE_KEY = "global_search_v2"
 
 async function getIDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -98,17 +113,43 @@ export async function initGlobalSearchCache(forceRefresh = false) {
       })
     }
 
+    // Helper to fetch all rows
+    async function fetchAll(table: string, select: string) {
+      let allData: any[] = []
+      let from = 0
+      const limit = 1000
+      let hasMore = true
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from(table)
+          .select(select)
+          .order("id", { ascending: true })
+          .range(from, from + limit - 1)
+          
+        if (error) {
+          console.error(`Error fetching ${table}:`, error)
+          break
+        }
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data]
+          from += limit
+          if (data.length < limit) {
+            hasMore = false
+          }
+        } else {
+          hasMore = false
+        }
+      }
+      return allData
+    }
+
     // Fetch Cards
-    const { data: cards } = await supabase
-      .from("flashcard_cards")
-      .select("id, set_id, hanzi, pinyin, arti")
-      .order("id", { ascending: true })
+    const cards = await fetchAll("flashcard_cards", "id, set_id, hanzi, pinyin, arti")
 
     // Fetch Compounds
-    const { data: compounds } = await supabase
-      .from("word_compounds")
-      .select("id, hanzi, pinyin, arti, badge")
-      .order("id", { ascending: true })
+    const compounds = await fetchAll("word_compounds", "id, hanzi, pinyin, arti, badge")
 
     const hskMapped: GlobalWord[] = (cards || []).map((c) => ({
       ...c,
@@ -238,13 +279,16 @@ export function segmentText(text: string): SegmentedWord[] {
       const wordData = hanziMap.get(candidate)
 
       if (wordData) {
-        result.push({ 
-          hanzi: candidate, 
+        result.push({
+          id: wordData.id,
+          set_id: wordData.set_id,
+          source: wordData.source,
+          hanzi: candidate,
           pinyin: wordData.pinyin,
           arti: wordData.arti,
           hsk: wordData.hsk_level,
           badge: wordData.badge,
-          found: true 
+          found: true,
         })
         i += len
         matched = true
