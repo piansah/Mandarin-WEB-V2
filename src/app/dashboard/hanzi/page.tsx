@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Search, Camera, ChevronLeft, Loader2 } from "lucide-react"
+import { Search, Camera, ChevronLeft, Loader2, History } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
 import { GlobalWord, performSmartSearch, initGlobalSearchCache } from "@/lib/hanzi-segmentation"
@@ -13,6 +13,17 @@ export default function HanziPage() {
   const [isSearching, setIsSearching] = React.useState(false)
   const [showScanner, setShowScanner] = React.useState(false)
   const [selectedWord, setSelectedWord] = React.useState<GlobalWord | null>(null)
+  const [historyOpen, setHistoryOpen] = React.useState(false)
+  const [searchHistory, setSearchHistory] = React.useState<string[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const stored = window.localStorage.getItem("hanzi_search_history")
+      const parsed = stored ? JSON.parse(stored) : []
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string").slice(0, 8) : []
+    } catch {
+      return []
+    }
+  })
   
   React.useEffect(() => {
     initGlobalSearchCache()
@@ -37,6 +48,14 @@ export default function HanziPage() {
   React.useEffect(() => {
     const timer = setTimeout(() => {
       handleSearch(query)
+      const clean = query.trim()
+      if (clean.length >= 2) {
+        setSearchHistory((current) => {
+          const next = [clean, ...current.filter((item) => item !== clean)].slice(0, 8)
+          window.localStorage.setItem("hanzi_search_history", JSON.stringify(next))
+          return next
+        })
+      }
     }, 300)
     return () => clearTimeout(timer)
   }, [query, handleSearch])
@@ -100,19 +119,40 @@ export default function HanziPage() {
             <input 
               type="text" 
               placeholder="Cari hanzi, pinyin, atau arti..." 
-              className="w-full h-12 pl-10 pr-4 rounded-2xl bg-muted/50 border border-border/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-base"
+              className="w-full h-12 pl-10 pr-12 rounded-2xl bg-muted/50 border border-border/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all text-base"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            <button
+              type="button"
+              aria-label="Riwayat pencarian"
+              className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+              onClick={() => setHistoryOpen((open) => !open)}
+            >
+              <History className="h-4 w-4" />
+            </button>
+            {historyOpen && (
+              <div className="absolute right-0 top-full z-30 mt-2 w-full max-w-sm overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-xl shadow-black/20">
+                {searchHistory.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Belum ada riwayat pencarian.</div>
+                ) : (
+                  searchHistory.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                      onClick={() => {
+                        setQuery(item)
+                        setHistoryOpen(false)
+                      }}
+                    >
+                      {item}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            className="h-12 w-12 rounded-2xl border-primary/50 text-primary bg-primary/5 hover:bg-primary/10 shrink-0"
-            onClick={() => setShowScanner(true)}
-          >
-            <Camera className="h-6 w-6" />
-          </Button>
         </div>
       </div>
 
@@ -168,6 +208,16 @@ export default function HanziPage() {
           </div>
         )}
       </div>
+
+      <Button
+        variant="outline"
+        size="icon"
+        className="fixed bottom-6 right-6 z-30 h-14 w-14 rounded-full border-primary/50 bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 md:hidden"
+        onClick={() => setShowScanner(true)}
+        aria-label="Buka kamera OCR"
+      >
+        <Camera className="h-6 w-6" />
+      </Button>
 
       {showScanner && (
         <OCRScanner 
