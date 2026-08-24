@@ -94,6 +94,29 @@
 .tone4 { color: var(--tone-4); }
 .tone0 { color: var(--tone-0); }
 
+.tts-speed-badge {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  z-index: 100;
+  pointer-events: none;
+  transform: translate(-50%, 0.5rem);
+  border: 1px solid color-mix(in oklch, var(--primary) 38%, transparent);
+  border-radius: 9999px;
+  background: color-mix(in oklch, var(--card) 94%, transparent);
+  color: var(--primary);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.tts-speed-badge[data-visible="true"] {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}
+
 .dark {
   --background: oklch(0.18 0.03 250);
   --foreground: oklch(0.95 0.01 250);

@@ -2,20 +2,31 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X, Volume2, Mic } from "lucide-react"
+import { X, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
+import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string }
-
-function speakHanzi(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utt = new SpeechSynthesisUtterance(text)
-  utt.lang = "zh-CN"
-  utt.rate = 0.85
-  window.speechSynthesis.speak(utt)
+type SpeechRecognitionLike = {
+  lang: string
+  interimResults: boolean
+  maxAlternatives: number
+  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+type SpeechRecognitionResultEventLike = {
+  results: {
+    0: {
+      isFinal: boolean
+      0: { transcript: string }
+    }
+  }
 }
 
 function normalizeChinese(str: string) {
@@ -71,16 +82,13 @@ export default function FlashcardPracticePage() {
   const startX = React.useRef(0)
   const startY = React.useRef(0)
   const cardRef = React.useRef<HTMLDivElement>(null)
+  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = React.useRef(false)
 
   // Speech Recognition state
   const [isRecording, setIsRecording] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{type: "ok"|"warn"|"err"|"interim", msg: string, hanzi?: string} | null>(null)
-  const recogRef = React.useRef<any>(null)
-  
-  // Clear feedback when card changes
-  React.useEffect(() => {
-    setFeedback(null)
-  }, [idx])
+  const recogRef = React.useRef<SpeechRecognitionLike | null>(null)
 
   React.useEffect(() => {
     async function load() {
@@ -104,11 +112,27 @@ export default function FlashcardPracticePage() {
 
   React.useEffect(() => {
     if (flip === 1 && !isRecording && cards[idx]?.hanzi) {
-      speakHanzi(cards[idx].hanzi)
+      speakMandarin(cards[idx].hanzi)
     }
   }, [flip, idx, isRecording])
 
+  React.useEffect(() => {
+    return () => {
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    }
+  }, [])
+
+  function cancelLongPress() {
+    if (!longPressTimer.current) return
+    clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
   function handleCardClick() {
+    if (didLongPress.current) {
+      didLongPress.current = false
+      return
+    }
     if (isDragging || dragX > 10 || dragX < -10 || dragY > 10 || dragY < -10) return
     
     if (flip === 0) {
@@ -116,7 +140,7 @@ export default function FlashcardPracticePage() {
     } else if (flip === 1) {
       setFlip(2)
     } else {
-      speakHanzi(card.hanzi) // Biarkan flip 2 tetap memanggil manual jika di klik lagi
+      speakMandarin(card.hanzi) // Biarkan flip 2 tetap memanggil manual jika di klik lagi
     }
   }
 
@@ -142,6 +166,7 @@ export default function FlashcardPracticePage() {
     setDragX(0)
     setDragY(0)
     setFlip(0)
+    setFeedback(null)
     
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
@@ -152,15 +177,24 @@ export default function FlashcardPracticePage() {
 
   function onPointerDown(e: React.PointerEvent) {
     if (flyOut) return // Jangan swipe saat animasi terbang berlangsung
+    didLongPress.current = false
     startX.current = e.clientX
     startY.current = e.clientY
     setIsDragging(true)
     cardRef.current?.setPointerCapture(e.pointerId)
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null
+      didLongPress.current = true
+      setIsDragging(false)
+      router.push(`/dashboard/flashcard/${deckId}/word/${card.id}`)
+    }, 600)
   }
   function onPointerMove(e: React.PointerEvent) {
     if (!isDragging || flyOut) return
     const nextDragX = e.clientX - startX.current
     const nextDragY = e.clientY - startY.current
+
+    if (Math.abs(nextDragX) > 10 || Math.abs(nextDragY) > 10) cancelLongPress()
 
     // Swipe selalu menilai dari sisi akhir agar arah gesture mendapat umpan balik visual.
     if (Math.abs(nextDragX) > 14 || Math.abs(nextDragY) > 14) {
@@ -171,6 +205,7 @@ export default function FlashcardPracticePage() {
     setDragY(nextDragY)
   }
   function onPointerUp() {
+    cancelLongPress()
     if (!isDragging || flyOut) return
     const absX = Math.abs(dragX)
     const absY = Math.abs(dragY)
@@ -188,10 +223,21 @@ export default function FlashcardPracticePage() {
     }
   }
 
+  function onPointerCancel() {
+    cancelLongPress()
+    setDragX(0)
+    setDragY(0)
+    setIsDragging(false)
+  }
+
   function toggleListen() {
     if (typeof window === "undefined") return
     
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    const speechWindow = window as Window & {
+      SpeechRecognition?: SpeechRecognitionConstructor
+      webkitSpeechRecognition?: SpeechRecognitionConstructor
+    }
+    const SR = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
     if (!SR) {
       setFeedback({ type: "err", msg: "Browser tidak mendukung. Gunakan Chrome." })
       return
@@ -210,7 +256,7 @@ export default function FlashcardPracticePage() {
     recog.interimResults = true
     recog.maxAlternatives = 1
 
-    recog.onresult = (e: any) => {
+    recog.onresult = (e) => {
       const result = e.results[0]
       const isFinal = result.isFinal
       const text = result[0].transcript.trim()
@@ -263,26 +309,26 @@ export default function FlashcardPracticePage() {
   if (done || cards.length === 0) {
     const pct = cards.length > 0 ? Math.round((hafal / (hafal + lupa + ragu)) * 100) : 0
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
+      <div className="flashcard-result flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
         <div className="absolute top-4 left-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="text-6xl">{cards.length === 0 ? "📭" : "🎉"}</div>
-        <h2 className="text-3xl font-bold">{cards.length === 0 ? "Belum Ada Kartu" : "Sesi Selesai!"}</h2>
+        <div className="flashcard-result-emoji text-6xl">{cards.length === 0 ? "📭" : "🎉"}</div>
+        <h2 className="flashcard-result-title text-3xl font-bold">{cards.length === 0 ? "Belum Ada Kartu" : "Sesi Selesai!"}</h2>
         {cards.length > 0 && (
           <>
             <div className="grid grid-cols-3 gap-4 w-full max-w-md">
-              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
                 <span className="text-3xl font-bold text-emerald-500">{hafal}</span>
                 <span className="text-xs text-muted-foreground">Hafal</span>
               </div>
-              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
                 <span className="text-3xl font-bold text-amber-500">{ragu}</span>
                 <span className="text-xs text-muted-foreground">Ragu</span>
               </div>
-              <div className="flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
                 <span className="text-3xl font-bold text-red-500">{lupa}</span>
                 <span className="text-xs text-muted-foreground">Lupa</span>
               </div>
@@ -293,10 +339,21 @@ export default function FlashcardPracticePage() {
           <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
           {cards.length > 0 && (
             <Button className="flex-1 rounded-xl" onClick={() => { window.location.reload() }}>
-              🔀 Ulangi
+              Ulangi
             </Button>
           )}
         </div>
+        <style dangerouslySetInnerHTML={{__html: `
+          .flashcard-result { animation: fcResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
+          .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
+          .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
+          .flashcard-result-stat { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) both; }
+          .flashcard-result-stat:nth-child(2) { animation-delay: 80ms; }
+          .flashcard-result-stat:nth-child(3) { animation-delay: 160ms; }
+          @keyframes fcResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+          @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+          @keyframes fcResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        `}} />
       </div>
     )
   }
@@ -352,6 +409,7 @@ export default function FlashcardPracticePage() {
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
           >
             {/* Face Menghadap Depan (Bisa Front Face atau Back 2 Face) */}
             <div className="absolute inset-0 backface-hidden rounded-3xl">
@@ -421,7 +479,7 @@ export default function FlashcardPracticePage() {
               'bg-red-500/10 border-red-500/20 text-red-500'
             }`}>
               <div className="font-medium text-sm">{feedback.msg}</div>
-              {feedback.hanzi && <div className="text-xl font-bold mt-1 font-sans">"{feedback.hanzi}"</div>}
+              {feedback.hanzi && <div className="text-xl font-bold mt-1 font-sans">&quot;{feedback.hanzi}&quot;</div>}
             </div>
           )}
         </div>

@@ -4,6 +4,7 @@ import * as React from "react"
 import { useParams } from "next/navigation"
 import { Flag, Heart } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+import { speakMandarin } from "@/lib/tts"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
@@ -17,15 +18,6 @@ type Segment = { text: string; hanzi: boolean; known: boolean }
 const toneMap: Record<string, string> = { ā: "1", á: "2", ǎ: "3", à: "4", ē: "1", é: "2", ě: "3", è: "4", ī: "1", í: "2", ǐ: "3", ì: "4", ō: "1", ó: "2", ǒ: "3", ò: "4", ū: "1", ú: "2", ǔ: "3", ù: "4", ǖ: "1", ǘ: "2", ǚ: "3", ǜ: "4" }
 const wordClassLabel: Record<string, string> = { noun: "Nomina · 名词 (míngcí)", verb: "Verba · 动词 (dòngcí)", adj: "Adjektiva · 形容词 (xíngróngcí)", adv: "Adverbia · 副词 (fùcí)", conj: "Konjungsi · 连词 (liáncí)", particle: "Partikel · 助词 (zhùcí)", pron: "Pronomina · 代词 (dàicí)", num: "Numeralia · 数词 (shùcí)", classifier: "Klasifikator · 量词 (liàngcí)", prep: "Preposisi · 介词 (jiècí)", interj: "Interjeksi · 叹词 (tàncí)" }
 const idsLabels: Record<string, string> = { "⿰": "kiri · kanan", "⿱": "atas · bawah", "⿲": "kiri · tengah · kanan", "⿳": "atas · tengah · bawah", "⿴": "luar · dalam", "⿵": "atas terbuka · dalam", "⿶": "bawah terbuka · dalam", "⿷": "kiri terbuka · dalam", "⿸": "kiri atas · dalam", "⿹": "kanan atas · dalam", "⿺": "kiri bawah · dalam", "⿻": "bertumpang" }
-
-function speakHanzi(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis || !text) return
-  window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = "zh-CN"
-  utterance.rate = 0.85
-  window.speechSynthesis.speak(utterance)
-}
 
 function isHanzi(char: string) {
   const code = char.charCodeAt(0)
@@ -181,7 +173,7 @@ export default function WordDetailPage() {
 }
 
 function Hero({ card, favorited, onToggleFavorite }: { card: Card; favorited: boolean; onToggleFavorite: () => void }) {
-  const gesture = useLongPress(() => speakHanzi(card.hanzi), () => speakHanzi(card.hanzi))
+  const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   return <section className={styles.hero}><span className={styles.hskBadge}>HSK 1</span><div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
@@ -192,12 +184,12 @@ function SentenceTab({ examples, knownWords }: { examples: ExampleSentence[]; kn
 
 function SentenceCard({ example, knownWords }: { example: ExampleSentence; knownWords: Set<string> }) {
   const sentence = example.hanzi || ""
-  const gesture = useLongPress(() => speakHanzi(sentence), () => speakHanzi(sentence))
+  const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
   return <article className={styles.sentenceCard} {...gesture}><div className={styles.sentenceHanzi}>{segmentSentence(sentence, knownWords).map((segment, index) => segment.hanzi ? <SentenceToken key={`${segment.text}-${index}`} segment={segment} /> : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</div>{example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}{example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}</article>
 }
 
 function SentenceToken({ segment }: { segment: Segment }) {
-  const gesture = useLongPress(() => speakHanzi(segment.text), () => speakHanzi(segment.text))
+  const gesture = useLongPress(() => speakMandarin(segment.text), () => speakMandarin(segment.text))
   return <button type="button" aria-label={`Dengarkan ${segment.text}`} className={segment.known ? styles.knownToken : styles.singleToken} onPointerDown={event => { event.stopPropagation(); gesture.onPointerDown(event) }} onPointerMove={gesture.onPointerMove} onPointerUp={event => { event.stopPropagation(); gesture.onPointerUp() }} onPointerCancel={gesture.onPointerCancel} onClick={event => { event.stopPropagation(); gesture.onClick(event) }}>{segment.text}</button>
 }
 
@@ -211,13 +203,13 @@ function getVocabularyBadge(badge?: string | null) {
 }
 
 function WordTab({ compounds }: { compounds: CompoundWord[] }) { if (compounds.length === 0) return <EmptyLine label="Tidak ada kata gabungan ditemukan." />; return <div className={styles.wordList}>{compounds.map((word, index) => <WordRow key={`${word.hanzi}-${index}`} word={word} index={index} />)}</div> }
-function WordRow({ word, index }: { word: CompoundWord; index: number }) { const gesture = useLongPress(() => speakHanzi(word.hanzi), () => speakHanzi(word.hanzi)); const badge = getVocabularyBadge(word.badge); return <button type="button" className={styles.wordRow} {...gesture}><span className={styles.wordHanzi}>{word.hanzi}</span><span className={styles.wordInfo}><span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span><span className={styles.wordMeaning}>{word.arti}</span></span><span className={styles.wordMeta}><span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span><span className={styles.wordNumber}>#{index + 1}</span></span></button> }
+function WordRow({ word, index }: { word: CompoundWord; index: number }) { const gesture = useLongPress(() => speakMandarin(word.hanzi), () => speakMandarin(word.hanzi)); const badge = getVocabularyBadge(word.badge); return <button type="button" className={styles.wordRow} {...gesture}><span className={styles.wordHanzi}>{word.hanzi}</span><span className={styles.wordInfo}><span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span><span className={styles.wordMeaning}>{word.arti}</span></span><span className={styles.wordMeta}><span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span><span className={styles.wordNumber}>#{index + 1}</span></span></button> }
 
 function CharBreakdown({ char, dictionary }: { char: string; dictionary: DictionaryMap | null }) {
   const entry = dictionary?.[char]; const { ids, label, parts } = decompParts(entry)
   return <section className={styles.charBlock}><div className={styles.charMain}><div className={styles.charHeader}><CharSpeaker char={char} className={styles.charHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : <div className="text-sm text-slate-500">Pinyin belum tersedia</div>}<div className={styles.charDefinition}>{entry?.definition || "Data karakter belum ada di dictionary.json."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}</div>{parts.length > 0 ? <><div className={styles.componentLabel}>↓ komponen</div><div className={styles.componentGrid}>{parts.map(part => <CharComponent key={part} char={part} entry={dictionary?.[part]} />)}</div></> : <p className="py-3 text-center text-sm text-slate-500">Tidak ada data komponen.</p>}</section>
 }
-function CharSpeaker({ char, className }: { char: string; className: string }) { const gesture = useLongPress(() => speakHanzi(char), () => speakHanzi(char)); return <button type="button" aria-label={`Dengarkan ${char}`} className={className} {...gesture}>{char}</button> }
+function CharSpeaker({ char, className }: { char: string; className: string }) { const gesture = useLongPress(() => speakMandarin(char), () => speakMandarin(char)); return <button type="button" aria-label={`Dengarkan ${char}`} className={className} {...gesture}>{char}</button> }
 function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry }) { const { ids, label, parts } = decompParts(entry); return <article className={styles.componentCard}><div className={styles.componentHeader}><CharSpeaker char={char} className={styles.componentHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : null}<div className={styles.charDefinition}>{entry?.definition || "Data komponen belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}{parts.length > 0 && <p className={styles.componentSub}>Komponen: {parts.join(" · ")}</p>}</article> }
 
 function StrokePreview({ char }: { char: string }) {

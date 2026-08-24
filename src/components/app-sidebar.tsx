@@ -11,7 +11,6 @@ import {
   FileText,
   BookMarked,
   Star,
-  CreditCard,
   ChevronRight,
   Settings,
 } from "lucide-react"
@@ -59,8 +58,9 @@ const navItems = [
     title: "Flashcard",
     icon: Layers,
     items: [
-      { title: "Semua Deck", url: "/dashboard/flashcard" },
+      { title: "Flashcard Kosakata", url: "/dashboard/flashcard" },
       { title: "Flashcard Kumulatif", url: "/dashboard/flashcard/cumulative" },
+      { title: "Deck Pribadi", url: "/dashboard/personal-cards" },
     ],
   },
   {
@@ -85,11 +85,6 @@ const navItems = [
 
 const navSecondary = [
   {
-    title: "Kartu Pribadi",
-    url: "/dashboard/personal-cards",
-    icon: CreditCard,
-  },
-  {
     title: "Pengaturan",
     url: "/dashboard/settings",
     icon: Settings,
@@ -106,14 +101,14 @@ const placeholderUser = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { isMobile, setOpen, toggleSidebar } = useSidebar()
-  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>({})
-
-  React.useEffect(() => {
-    setOpenSections({
-      Flashcard: pathname.startsWith("/dashboard/flashcard"),
+  const defaultOpenSections = React.useMemo<Record<string, boolean>>(
+    () => ({
+      Flashcard: pathname.startsWith("/dashboard/flashcard") || pathname.startsWith("/dashboard/personal-cards"),
       Quiz: pathname.startsWith("/dashboard/quiz"),
-    })
-  }, [pathname])
+    }),
+    [pathname]
+  )
+  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>(defaultOpenSections)
 
   return (
     <Sidebar
@@ -150,7 +145,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               item.items ? (
                 <Collapsible
                   key={item.title}
-                  open={openSections[item.title] ?? false}
+                  open={openSections[item.title] ?? defaultOpenSections[item.title] ?? false}
                   onOpenChange={(open) => setOpenSections((current) => ({ ...current, [item.title]: open }))}
                   render={<SidebarMenuItem />}
                 >

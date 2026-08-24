@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/drawer"
 import { Music, Layers, Edit2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { speakMandarin } from "@/lib/tts"
 
 type Card = {
   id: string
@@ -56,15 +57,6 @@ type DictionaryMap = Record<string, DictionaryEntry>
 type DeckMeta = {
   title: string
   description: string | null
-}
-
-function speakHanzi(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utt = new SpeechSynthesisUtterance(text)
-  utt.lang = "zh-CN"
-  utt.rate = 0.85
-  window.speechSynthesis.speak(utt)
 }
 
 const toneClass: Record<string, string> = {
@@ -411,7 +403,7 @@ export default function FlashcardDeckPage() {
             compoundsLoading={compoundsLoading}
             onTabChange={setDetailTab}
             onClose={closeDetail}
-            onSpeak={speakHanzi}
+            onSpeak={speakMandarin}
             onOpenCard={openDetail}
           />
         </WordDetailPortal>
@@ -428,7 +420,7 @@ function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onO
 
   React.useEffect(() => clearPress, [])
 
-  return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakHanzi(card.hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}>
+  return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}>
     <div className="min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl font-bold leading-tight text-foreground">{card.hanzi}</div>
     <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
     <div className="ml-1 flex shrink-0 items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /><span className="text-xs font-medium text-muted-foreground">#{index + 1}</span></div>
@@ -436,11 +428,7 @@ function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onO
 }
 
 function WordDetailPortal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = React.useState(false)
-
-  React.useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = typeof document !== "undefined"
 
   if (!mounted) return null
   return createPortal(children, document.body)

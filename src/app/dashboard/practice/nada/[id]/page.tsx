@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X, Volume2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
+import { speakMandarin } from "@/lib/tts"
 
 type Card = {
   id: number
@@ -95,15 +96,6 @@ function splitToneCards(cards: Array<{ id: number; hanzi: string; pinyin: string
   }).filter(card => card.nada > 0)
 }
 
-function speakHanzi(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utt = new SpeechSynthesisUtterance(text)
-  utt.lang = "zh-CN"
-  utt.rate = 0.8
-  window.speechSynthesis.speak(utt)
-}
-
 export default function NadaPracticePage() {
   const params = useParams()
   const router = useRouter()
@@ -140,7 +132,7 @@ export default function NadaPracticePage() {
     if (showResult) return
     setSelected(tone)
     setShowResult(true)
-    speakHanzi(q.hanzi)
+    speakMandarin(q.hanzi)
     if (tone === q.nada) setCorrect(c => c + 1)
   }
 
@@ -179,7 +171,7 @@ export default function NadaPracticePage() {
         )}
         <div className="flex gap-3 w-full max-w-xs">
           <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-          {total > 0 && <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0); setSelected(null); setShowResult(false) }}>🔀 Ulangi</Button>}
+          {total > 0 && <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0); setSelected(null); setShowResult(false) }}>Ulangi</Button>}
         </div>
       </div>
     )
@@ -200,7 +192,7 @@ export default function NadaPracticePage() {
 
         <div className="flex flex-col items-center gap-3">
           <div className="text-8xl font-bold">{q.hanzi}</div>
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakHanzi(q.hanzi)}>
+          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
             <Volume2 className="h-4 w-4" /> Dengar
           </Button>
         </div>

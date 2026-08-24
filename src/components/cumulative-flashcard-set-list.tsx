@@ -20,20 +20,11 @@ export function CumulativeFlashcardSetList({ sets }: { sets: CumulativeFlashcard
   const levels = [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b)
   const [selectedLevel, setSelectedLevel] = React.useState(levels.includes(1) ? 1 : levels[0])
   const [menuOpen, setMenuOpen] = React.useState(false)
-  const [readCounts, setReadCounts] = React.useState<Record<string, number>>({})
   const filterRef = React.useRef<HTMLDivElement>(null)
   const visibleSets = sets.filter((set) => set.hsk_level === selectedLevel)
-
-  React.useEffect(() => {
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setMenuOpen(false)
-    }
-    document.addEventListener("pointerdown", closeOnOutsidePress)
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
-  }, [])
-
-  React.useEffect(() => {
-    const counts = Object.fromEntries(sets.map((set) => {
+  const readCounts = React.useMemo(() => {
+    if (typeof window === "undefined") return {}
+    return Object.fromEntries(sets.map((set) => {
       try {
         const stored = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
         const completedIds = stored ? JSON.parse(stored) : []
@@ -42,8 +33,15 @@ export function CumulativeFlashcardSetList({ sets }: { sets: CumulativeFlashcard
         return [set.key, 0]
       }
     })) as Record<string, number>
-    setReadCounts(counts)
   }, [sets])
+
+  React.useEffect(() => {
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener("pointerdown", closeOnOutsidePress)
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
+  }, [])
 
   return (
     <section className="flex flex-col gap-5">

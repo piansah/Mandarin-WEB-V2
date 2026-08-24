@@ -5,16 +5,16 @@ import { useParams, useRouter } from "next/navigation"
 import { X, RotateCcw, Eye, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
+import { speakMandarin } from "@/lib/tts"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string; originalWord: string }
-
-function speakHanzi(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utt = new SpeechSynthesisUtterance(text)
-  utt.lang = "zh-CN"
-  utt.rate = 0.8
-  window.speechSynthesis.speak(utt)
+type HanziWriterLike = {
+  quiz: (options: {
+    onMistake?: () => void
+    onCorrectStroke?: () => void
+    onComplete?: () => void
+  }) => void
+  animateCharacter: (options?: { onComplete?: () => void }) => void
 }
 
 export default function TulisHanziPage() {
@@ -32,7 +32,7 @@ export default function TulisHanziPage() {
   const [hintPlaying, setHintPlaying] = React.useState(false)
   const [mistakeCount, setMistakeCount] = React.useState(0)
 
-  const writerRef = React.useRef<any>(null)
+  const writerRef = React.useRef<HanziWriterLike | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const strictModeRef = React.useRef(false)
   const mistakeRef = React.useRef(0)
@@ -68,7 +68,7 @@ export default function TulisHanziPage() {
   const total = cards.length
   const progress = total > 0 ? (idx / total) * 100 : 0
 
-  function startQuiz(writer: any, currentCard: Card) {
+  function startQuiz(writer: HanziWriterLike, currentCard: Card) {
     if (!writer) return
     mistakeRef.current = 0
     setMistakeCount(0)
@@ -91,7 +91,7 @@ export default function TulisHanziPage() {
       },
       onComplete: () => {
         if (cancelledRef.current) return
-        speakHanzi(currentCard.originalWord)
+        speakMandarin(currentCard.originalWord)
         setTimeout(() => {
           if (cancelledRef.current) return
           setCorrect(c => c + 1)
@@ -195,7 +195,7 @@ export default function TulisHanziPage() {
           <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
           {total > 0 && (
             <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0) }}>
-              🔀 Ulangi
+              Ulangi
             </Button>
           )}
         </div>

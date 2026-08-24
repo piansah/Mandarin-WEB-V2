@@ -6,6 +6,7 @@ import { RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { createClient } from "@/lib/supabase/browser"
+import { speakMandarin } from "@/lib/tts"
 
 type HanziSet = {
   key: string
@@ -21,15 +22,6 @@ type HanziItem = {
   hanzi: string
   pinyin: string
   arti: string
-}
-
-function speakMandarin(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const utterance = new SpeechSynthesisUtterance(text)
-  utterance.lang = "zh-CN"
-  utterance.rate = 0.85
-  window.speechSynthesis.speak(utterance)
 }
 
 export default function CumulativeFlashcardSessionPage() {
@@ -153,8 +145,20 @@ export default function CumulativeFlashcardSessionPage() {
             </div>
           </section>
         ))}
-        {completedCount === items.length && items.length > 0 && <div className="flex flex-col items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center"><p className="font-semibold text-emerald-600 dark:text-emerald-400">Semua kalimat telah dibaca.</p><Button variant="outline" className="gap-2" onClick={resetProgress}><RotateCcw className="h-4 w-4" />Ulangi dari awal</Button></div>}
+        {completedCount === items.length && items.length > 0 && (
+          <div className="cumulative-finish flex flex-col items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center">
+            <div className="cumulative-finish-emoji text-4xl">🎉</div>
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400">Semua kalimat telah dibaca.</p>
+            <Button variant="outline" className="gap-2" onClick={resetProgress}><RotateCcw className="h-4 w-4" />Ulangi dari awal</Button>
+          </div>
+        )}
       </main>
+      <style dangerouslySetInnerHTML={{__html: `
+        .cumulative-finish { animation: cumulativeFinishEnter 520ms cubic-bezier(.22,1,.36,1) both; }
+        .cumulative-finish-emoji { animation: cumulativeFinishPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
+        @keyframes cumulativeFinishEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes cumulativeFinishPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+      `}} />
     </div>
   )
 }
