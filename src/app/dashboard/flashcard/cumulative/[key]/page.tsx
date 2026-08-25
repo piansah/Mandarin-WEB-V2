@@ -266,7 +266,6 @@ export default function CumulativeFlashcardSessionPage() {
         isOpen={addSentenceModal}
         onClose={closeAddSentenceModal}
         hanziKey={key}
-        onSuccess={handleAddSentenceSuccess}
       />
     </div>
   )

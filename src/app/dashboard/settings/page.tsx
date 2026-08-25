@@ -74,8 +74,8 @@ export default function SettingsPage() {
   }
 
   const HANZI_MODES: { value: HanziMode; label: string; description: string }[] = [
-    { value: "simplified", label: "Simplified", description: "汉字简体 - Hanzi versi sederhana" },
-    { value: "traditional", label: "Traditional", description: "漢字繁體 - Hanzi versi tradisional" },
+    { value: 0, label: "Simplified", description: "汉字简体 - Hanzi versi sederhana" },
+    { value: 1, label: "Traditional", description: "漢字繁體 - Hanzi versi tradisional" },
   ]
 
   if (loading) {
