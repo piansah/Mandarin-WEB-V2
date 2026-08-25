@@ -197,7 +197,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
     totalScore: statsRpcRes.data?.xp ?? 0,
     tier: currentTier,
     tierLabel: TIER_LABEL[currentTier],
-    tierHsk: TIER_HSK[currentTier],
+    tierHsk: `HSK ${TIER_HSK[currentTier].join("–")}`,
     wordsMastered,
     flashcardDue,
     quizCompleted: quizCountRes.count ?? 0,
