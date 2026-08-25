@@ -263,7 +263,34 @@ function SentenceTab({ examples, knownWords }: { examples: ExampleSentence[]; kn
 function SentenceCard({ example, knownWords }: { example: ExampleSentence; knownWords: Set<string> }) {
   const sentence = example.hanzi || ""
   const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
-  return <article className={styles.sentenceCard} {...gesture}><div className={styles.sentenceHanzi}>{segmentSentence(sentence, knownWords).map((segment, index) => segment.hanzi ? <SentenceToken key={`${segment.text}-${index}`} segment={segment} /> : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</div>{example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}{example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}</article>
+  
+  const handleReport = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    window.openBugReportModal?.(
+      `Kesalahan Kalimat: ${sentence}`,
+      `Ditemukan kesalahan pada kalimat: ${sentence} (${example.pinyin || ""})`,
+      'content',
+      String(example.id)
+    )
+  }
+  
+  return (
+    <div className="relative group">
+      <article className={styles.sentenceCard} {...gesture}>
+        <div className={styles.sentenceHanzi}>{segmentSentence(sentence, knownWords).map((segment, index) => segment.hanzi ? <SentenceToken key={`${segment.text}-${index}`} segment={segment} /> : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</div>
+        {example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}
+        {example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}
+      </article>
+      <button
+        type="button"
+        onClick={handleReport}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Report kalimat"
+      >
+        <Flag className="h-3 w-3 text-orange-500" />
+      </button>
+    </div>
+  )
 }
 
 function SentenceToken({ segment }: { segment: Segment }) {

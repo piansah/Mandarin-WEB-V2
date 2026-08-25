@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { BugReportFab } from "@/components/bug-report-fab"
 import { PWAInstall } from "@/components/pwa-install"
+import "@/lib/global-bug-report"
 
 export default async function DashboardLayout({
   children,
