@@ -98,21 +98,19 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <a href="/dashboard/profile" className="flex items-center gap-2 cursor-pointer">
-                  <UserIcon className="h-4 w-4" />
-                  <div className="flex flex-col items-start">
-                    <span>Profil</span>
-                    {profile && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="secondary" className="text-xs h-5 px-1">
-                          Lvl {profile.level}
-                        </Badge>
-                        <span>{profile.title}</span>
-                      </div>
-                    )}
-                  </div>
-                </a>
+              <DropdownMenuItem onClick={() => router.push("/dashboard/profile")}>
+                <UserIcon className="h-4 w-4" />
+                <div className="flex flex-col items-start">
+                  <span>Profil</span>
+                  {profile && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary" className="text-xs h-5 px-1">
+                        Lvl {profile.level}
+                      </Badge>
+                      <span>{profile.title}</span>
+                    </div>
+                  )}
+                </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
