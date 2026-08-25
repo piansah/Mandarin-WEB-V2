@@ -6,6 +6,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/server"
+import { BugReportFab } from "@/components/bug-report-fab"
 
 export default async function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default async function DashboardLayout({
           {children}
         </div>
       </SidebarInset>
+      <BugReportFab />
     </SidebarProvider>
   )
 }

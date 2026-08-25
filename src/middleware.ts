@@ -47,6 +47,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url))
   }
 
+  // Placement test (pemicu unlock tier awal) belum dikerjakan → paksa ke
+  // /dashboard/placement dulu sebelum bisa akses halaman dashboard lain.
+  // `has_seen_onboarding` dipakai sebagai penanda "setup awal selesai",
+  // sama seperti di project lama.
+  const isPlacementRoute = request.nextUrl.pathname.startsWith("/dashboard/placement")
+  if (isProtected && user && !isPlacementRoute) {
+    const { data: profile } = await supabase
+      .from("user_profile")
+      .select("has_seen_onboarding")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (profile && profile.has_seen_onboarding === false) {
+      return NextResponse.redirect(new URL("/dashboard/placement", request.url))
+    }
+  }
+
   return response
 }
 

@@ -1,19 +1,27 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, Lock } from "lucide-react"
 
 export function HskLevelFilter({
   levels,
   selectedLevel,
   onChange,
   label,
+  unlockedLevels,
 }: {
   levels: number[]
   selectedLevel: number
   onChange: (level: number) => void
   /** Judul di kiri, default "HSK {selectedLevel}" */
   label?: string
+  /**
+   * Level HSK yang sudah terbuka (tier-unlock). Kalau di-omit, semua level
+   * dianggap terbuka (perilaku lama, dipakai di tempat yang belum
+   * memakai tier-unlock). `undefined` selama masih loading — filter tetap
+   * tampil tanpa gembok sampai data unlocked_tiers datang.
+   */
+  unlockedLevels?: number[]
 }) {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
@@ -25,6 +33,8 @@ export function HskLevelFilter({
     document.addEventListener("pointerdown", closeOnOutsidePress)
     return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
   }, [])
+
+  const isLocked = (level: number) => !!unlockedLevels && !unlockedLevels.includes(level)
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -45,25 +55,36 @@ export function HskLevelFilter({
         {menuOpen && (
           <div
             role="listbox"
-            className="absolute right-0 z-20 mt-2 min-w-32 overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-xl shadow-black/20"
+            className="absolute right-0 z-20 mt-2 min-w-36 overflow-hidden rounded-xl border border-border/70 bg-card p-1 shadow-xl shadow-black/20"
           >
-            {levels.map((level) => (
-              <button
-                key={level}
-                type="button"
-                role="option"
-                aria-selected={selectedLevel === level}
-                className={`block w-full rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
-                  selectedLevel === level ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
-                }`}
-                onClick={() => {
-                  onChange(level)
-                  setMenuOpen(false)
-                }}
-              >
-                HSK {level}
-              </button>
-            ))}
+            {levels.map((level) => {
+              const locked = isLocked(level)
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  role="option"
+                  aria-selected={selectedLevel === level}
+                  aria-disabled={locked}
+                  title={locked ? "Selesaikan tier sebelumnya untuk membuka level ini" : undefined}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+                    selectedLevel === level
+                      ? "bg-primary text-primary-foreground"
+                      : locked
+                        ? "cursor-not-allowed text-muted-foreground/60"
+                        : "text-foreground hover:bg-muted"
+                  }`}
+                  onClick={() => {
+                    if (locked) return
+                    onChange(level)
+                    setMenuOpen(false)
+                  }}
+                >
+                  HSK {level}
+                  {locked && <Lock className="h-3 w-3 shrink-0" />}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

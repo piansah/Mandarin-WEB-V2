@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/browser"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
+import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
 
 type QuizSet = {
   id: number
@@ -57,8 +58,11 @@ export default function QuizListPage() {
       })
   }, [])
 
+  const unlockedHSK = useUnlockedHSK()
   const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])
-  const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
+  const rawLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
+  const effectiveLevel = unlockedHSK ? clampToUnlockedLevel(rawLevel, unlockedHSK) : rawLevel
+  const isLevelLocked = !!unlockedHSK && !unlockedHSK.includes(effectiveLevel)
   const visibleQuizzes = React.useMemo(() => sets.filter((set) => set.hsk_level === effectiveLevel), [sets, effectiveLevel])
 
   if (loading) {
@@ -89,9 +93,16 @@ export default function QuizListPage() {
       </div>
 
       <section className="flex flex-col gap-5">
-        <HskLevelFilter levels={levels} selectedLevel={effectiveLevel} onChange={setSelectedLevel} />
+        <HskLevelFilter
+          levels={levels}
+          selectedLevel={effectiveLevel}
+          onChange={setSelectedLevel}
+          unlockedLevels={unlockedHSK ?? undefined}
+        />
 
-        {visibleQuizzes.length === 0 ? (
+        {isLevelLocked ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">{lockedLevelMessage(effectiveLevel)}</p>
+        ) : visibleQuizzes.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Belum ada quiz untuk HSK {effectiveLevel}.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">

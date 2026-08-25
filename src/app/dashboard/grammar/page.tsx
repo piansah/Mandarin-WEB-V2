@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/browser"
 import { getGrammarScores } from "@/lib/grammar-scores"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
+import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
 
 type GrammarPattern = {
   id: number
@@ -42,8 +43,11 @@ export default function GrammarListPage() {
       })
   }, [])
 
+  const unlockedHSK = useUnlockedHSK()
   const levels = React.useMemo(() => [...new Set(patterns.map((item) => item.hsk_level))].sort((a, b) => a - b), [patterns])
-  const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
+  const rawLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
+  const effectiveLevel = unlockedHSK ? clampToUnlockedLevel(rawLevel, unlockedHSK) : rawLevel
+  const isLevelLocked = !!unlockedHSK && !unlockedHSK.includes(effectiveLevel)
   const visible = React.useMemo(() => patterns.filter((item) => item.hsk_level === effectiveLevel), [patterns, effectiveLevel])
 
   if (loading) {
@@ -74,9 +78,16 @@ export default function GrammarListPage() {
       </div>
 
       <section className="flex flex-col gap-5">
-        <HskLevelFilter levels={levels} selectedLevel={effectiveLevel} onChange={setSelectedLevel} />
+        <HskLevelFilter
+          levels={levels}
+          selectedLevel={effectiveLevel}
+          onChange={setSelectedLevel}
+          unlockedLevels={unlockedHSK ?? undefined}
+        />
 
-        {visible.length === 0 ? (
+        {isLevelLocked ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">{lockedLevelMessage(effectiveLevel)}</p>
+        ) : visible.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Belum ada pola untuk HSK {effectiveLevel}.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
