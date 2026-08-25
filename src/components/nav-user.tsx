@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
 import {
@@ -22,7 +23,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { ChevronsUpDownIcon, SparklesIcon, BadgeCheckIcon, CreditCardIcon, BellIcon, LogOutIcon } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ChevronsUpDownIcon, UserIcon, LogOutIcon } from "lucide-react"
+import { fetchUserProfile, type UserProfile } from "@/lib/user-profile"
 
 export function NavUser({
   user,
@@ -35,6 +38,11 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
+  const [profile, setProfile] = React.useState<UserProfile | null>(null)
+
+  React.useEffect(() => {
+    fetchUserProfile().then(setProfile)
+  }, [])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -47,6 +55,8 @@ export function NavUser({
     ? user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()
     : "CN"
 
+  const displayAvatar = profile?.avatar || user.avatar
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -57,7 +67,7 @@ export function NavUser({
             }
           >
             <Avatar>
-              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarImage src={displayAvatar} alt={user.name} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
@@ -76,7 +86,7 @@ export function NavUser({
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                   <Avatar>
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={displayAvatar} alt={user.name} />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
@@ -88,34 +98,26 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <SparklesIcon
-                />
-                Upgrade to Pro
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheckIcon
-                />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <CreditCardIcon
-                />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <BellIcon
-                />
-                Notifications
+              <DropdownMenuItem asChild>
+                <a href="/dashboard/profile" className="flex items-center gap-2 cursor-pointer">
+                  <UserIcon className="h-4 w-4" />
+                  <div className="flex flex-col items-start">
+                    <span>Profil</span>
+                    {profile && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary" className="text-xs h-5 px-1">
+                          Lvl {profile.level}
+                        </Badge>
+                        <span>{profile.title}</span>
+                      </div>
+                    )}
+                  </div>
+                </a>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
-              <LogOutIcon
-              />
+              <LogOutIcon className="h-4 w-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

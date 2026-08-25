@@ -13,6 +13,7 @@ import {
   Star,
   ChevronRight,
   Settings,
+  User,
 } from "lucide-react"
 import {
   Collapsible,
@@ -84,6 +85,11 @@ const navItems = [
 ]
 
 const navSecondary = [
+  {
+    title: "Profil",
+    url: "/dashboard/profile",
+    icon: User,
+  },
   {
     title: "Pengaturan",
     url: "/dashboard/settings",
