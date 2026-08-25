@@ -6,6 +6,7 @@ import { X, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import { saveUserScore } from "@/lib/user-scores"
 import { TonePinyin } from "@/components/tone-pinyin"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string }
@@ -121,6 +122,15 @@ export default function FlashcardPracticePage() {
       if (longPressTimer.current) clearTimeout(longPressTimer.current)
     }
   }, [])
+
+  const scoreSavedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!done || cards.length === 0 || scoreSavedRef.current) return
+    scoreSavedRef.current = true
+    const total = hafal + lupa + ragu
+    const pct = total > 0 ? Math.round((hafal / total) * 100) : 0
+    saveUserScore("fc_session", String(deckId), pct).catch(() => {})
+  }, [done, cards.length, hafal, lupa, ragu, deckId])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return

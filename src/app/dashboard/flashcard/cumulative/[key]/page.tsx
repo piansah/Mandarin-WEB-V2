@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import { saveUserScore } from "@/lib/user-scores"
 
 type HanziSet = {
   key: string
@@ -104,6 +105,10 @@ export default function CumulativeFlashcardSessionPage() {
       const updated = { ...previous, [item.id]: next }
       const completed = items.filter((entry) => updated[entry.id] === 2).map((entry) => entry.id)
       window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(completed))
+      if (items.length > 0 && completed.length === items.length) {
+        // type "hanzi" cuma dapat XP kalau score = 100 (bonus selesai penuh)
+        saveUserScore("hanzi", key, 100).catch(() => {})
+      }
       return updated
     })
   }

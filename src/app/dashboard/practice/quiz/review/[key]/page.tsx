@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import { saveUserScore } from "@/lib/user-scores"
 import styles from "../../[key]/page.module.css"
 
 type RawKalimatQuestion = {
@@ -238,6 +239,9 @@ export default function CumulativeQuizPracticePage() {
       saved[key].submitted = true
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
+    // type "kal" pakai jumlah benar mentah (dari total 60), bukan persentase —
+    // harus sinkron dengan xpFromKalScore di get-user-stats (ambang 48/36 dari 60 soal)
+    saveUserScore("kal", key, totalCorrect).catch(() => {})
   }
 
   function handleRetry() {

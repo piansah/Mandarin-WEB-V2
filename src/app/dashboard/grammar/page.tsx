@@ -2,78 +2,63 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Lock, Zap } from "lucide-react"
+import { BookOpen, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/browser"
+import { getGrammarScores } from "@/lib/grammar-scores"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 
-type QuizSet = {
+type GrammarPattern = {
   id: number
-  key: string
   title: string
-  sub: string
-  badge: string
+  slug: string
   hsk_level: number
+  sub_title: string | null
+  badge: string | null
 }
 
-type ScoreMap = Record<string, number>
-
-function getLocalScores(): ScoreMap {
-  if (typeof window === "undefined") return {}
-  try {
-    const state = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    const scores: ScoreMap = {}
-    for (const [key, val] of Object.entries(state)) {
-      const s = val as { answered?: Record<string, boolean>; submitted?: boolean }
-      if (s.submitted && s.answered) {
-        scores[key] = Object.values(s.answered).filter(Boolean).length
-      }
-    }
-    return scores
-  } catch { return {} }
-}
-
-export default function QuizListPage() {
+export default function GrammarListPage() {
   const router = useRouter()
-  const [sets, setSets] = React.useState<QuizSet[]>([])
-  const [scores, setScores] = React.useState<ScoreMap>({})
+  const [patterns, setPatterns] = React.useState<GrammarPattern[]>([])
+  const [scores, setScores] = React.useState<Record<string, number>>({})
   const [loading, setLoading] = React.useState(true)
   const [selectedLevel, setSelectedLevel] = React.useState(1)
 
   React.useEffect(() => {
-    setScores(getLocalScores())
+    setScores(getGrammarScores())
   }, [])
 
   React.useEffect(() => {
     const supa = createClient()
     supa
-      .from("quiz_sets")
-      .select("id, key, title, sub, badge, hsk_level")
+      .from("grammar_patterns")
+      .select("id, title, slug, hsk_level, sub_title, badge, sort_order")
+      .order("hsk_level", { ascending: true })
       .order("sort_order", { ascending: true })
       .then(({ data }) => {
-        setSets(data ?? [])
+        setPatterns((data ?? []) as GrammarPattern[])
         setLoading(false)
       })
   }, [])
 
-  const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])
+  const levels = React.useMemo(() => [...new Set(patterns.map((item) => item.hsk_level))].sort((a, b) => a - b), [patterns])
   const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
-  const visibleQuizzes = React.useMemo(() => sets.filter((set) => set.hsk_level === effectiveLevel), [sets, effectiveLevel])
+  const visible = React.useMemo(() => patterns.filter((item) => item.hsk_level === effectiveLevel), [patterns, effectiveLevel])
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center min-h-[50vh]">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     )
   }
 
-  if (sets.length === 0) {
+  if (patterns.length === 0) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-4 min-h-[50vh] text-center p-8">
-        <div className="text-5xl">📭</div>
-        <p className="text-muted-foreground text-sm">Belum ada quiz yang tersedia.</p>
+      <div className="flex min-h-[50vh] flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+        <BookOpen className="h-10 w-10 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Belum ada pola grammar yang tersedia.</p>
       </div>
     )
   }
@@ -82,38 +67,38 @@ export default function QuizListPage() {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <Zap className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Quiz Harian</h1>
+          <BookOpen className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Grammar</h1>
         </div>
-        <p className="text-sm text-muted-foreground">100 soal · 4 bagian · Pinyin, Hanzi, Kalimat</p>
+        <p className="text-sm text-muted-foreground">Pelajari pola kalimat, lalu susun kata sesuai urutan yang benar.</p>
       </div>
 
       <section className="flex flex-col gap-5">
         <HskLevelFilter levels={levels} selectedLevel={effectiveLevel} onChange={setSelectedLevel} />
 
-        {visibleQuizzes.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">Belum ada quiz untuk HSK {effectiveLevel}.</p>
+        {visible.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">Belum ada pola untuk HSK {effectiveLevel}.</p>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {visibleQuizzes.map((quiz, index) => {
-              const score = scores[quiz.key]
+            {visible.map((pattern, index) => {
+              const score = scores[pattern.slug]
               const isDone = score !== undefined
-              const prevKey = index > 0 ? visibleQuizzes[index - 1].key : null
-              const prevDone = prevKey ? scores[prevKey] !== undefined : true
+              const prevSlug = index > 0 ? visible[index - 1].slug : null
+              const prevDone = prevSlug ? scores[prevSlug] !== undefined : true
               const isLocked = !prevDone
 
               return (
                 <button
-                  key={quiz.key}
+                  key={pattern.slug}
                   type="button"
                   disabled={isLocked}
-                  onClick={() => router.push(`/dashboard/practice/quiz/${quiz.key}`)}
+                  onClick={() => router.push(`/dashboard/practice/grammar/${pattern.slug}`)}
                   className="group block text-left disabled:cursor-not-allowed"
                 >
                   <Card className={`flex h-full flex-col border-border/50 bg-card/50 backdrop-blur-sm transition-all ${isLocked ? "opacity-55" : "hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"}`}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
                       <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] text-primary">
-                        {quiz.badge || `HSK ${quiz.hsk_level}`}
+                        {pattern.badge || `HSK ${pattern.hsk_level}`}
                       </Badge>
                       {isLocked ? (
                         <Badge variant="secondary" className="gap-1 border-transparent bg-muted text-[10px] uppercase text-muted-foreground">
@@ -122,7 +107,7 @@ export default function QuizListPage() {
                         </Badge>
                       ) : isDone ? (
                         <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-[10px] text-emerald-600 dark:text-emerald-400">
-                          {score}/100
+                          {score}%
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="border-transparent bg-muted text-[10px] uppercase text-muted-foreground">
@@ -131,12 +116,11 @@ export default function QuizListPage() {
                       )}
                     </CardHeader>
                     <CardContent className="flex flex-1 flex-col p-4 pt-2">
-                      <h3 className="mb-1 text-sm font-bold leading-tight transition-colors group-hover:text-primary">{quiz.title}</h3>
-                      <p className="text-xs text-muted-foreground">{quiz.sub}</p>
-                      <p className="mb-4 mt-3 text-xs text-primary/80">100 Soal · HSK {quiz.hsk_level}</p>
-                      <div className="mt-auto">
-                        <span className={`inline-flex h-7 w-full items-center justify-center rounded-md text-xs font-semibold text-primary transition-colors ${isLocked ? "bg-muted/70 text-muted-foreground" : "bg-primary/15 group-hover:bg-primary/25"}`}>
-                          {isLocked ? "Terkunci" : "Buka"}
+                      <h3 className="mb-1 text-sm font-bold leading-tight transition-colors group-hover:text-primary">{pattern.title}</h3>
+                      <p className="text-xs text-muted-foreground">{pattern.sub_title || "Susun kata — Grammar"}</p>
+                      <div className="mt-auto pt-4">
+                        <span className={`inline-flex h-7 w-full items-center justify-center rounded-md text-xs font-semibold transition-colors ${isLocked ? "bg-muted/70 text-muted-foreground" : "bg-primary/15 text-primary group-hover:bg-primary/25"}`}>
+                          {isLocked ? "Terkunci" : "Mulai"}
                         </span>
                       </div>
                     </CardContent>

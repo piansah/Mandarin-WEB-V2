@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
 /* ── Types ── */
@@ -274,6 +275,8 @@ export default function QuizPage() {
     setSubmitted(true)
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
     if (saved[key]) { saved[key].submitted = true; localStorage.setItem("hsk_quiz_state", JSON.stringify(saved)) }
+    // totalCorrect sudah dalam basis 0-100 (100 soal), jadi sekaligus jadi persentase
+    saveUserScore("quiz", key, totalCorrect).catch(() => {})
   }
 
   /* ── Retry quiz ── */
