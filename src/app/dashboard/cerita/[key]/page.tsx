@@ -11,11 +11,14 @@ import {
   Volume2,
   X,
   BookMarked,
+  Play,
+  Pause,
+  Gauge,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/lib/supabase/browser"
-import { speakMandarin, cancelTTS } from "@/lib/tts"
+import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 
@@ -62,6 +65,13 @@ type Popover = { word: string; pinyin: string; arti: string; x: number; y: numbe
 
 const FONT_LEVELS = [16, 20, 24, 28, 32]
 
+const AUTOPLAY_SPEEDS = [
+  { rate: 1, label: "1×" },
+  { rate: 0.75, label: "0.75×" },
+  { rate: 0.5, label: "0.5×" },
+]
+const AUTOPLAY_SPEED_KEY = "cerita_autoplay_speed"
+
 export default function CeritaReadPage() {
   const params = useParams<{ key: string }>()
   const key = params.key
@@ -81,6 +91,24 @@ export default function CeritaReadPage() {
   const [quizCorrect, setQuizCorrect] = React.useState(0)
   const [quizSelected, setQuizSelected] = React.useState<number | null>(null)
   const [quizDone, setQuizDone] = React.useState(false)
+
+  /* ── Autoplay (baca otomatis berurutan) ── */
+  const [autoplayOn, setAutoplayOn] = React.useState(false)
+  const [autoplayIdx, setAutoplayIdx] = React.useState<number | null>(null)
+  const [speedIdx, setSpeedIdx] = React.useState(0)
+  const autoplayStopRef = React.useRef(false)
+  const autoplayRunIdRef = React.useRef(0)
+  const speedIdxRef = React.useRef(0)
+  const paragraphRefs = React.useRef<(HTMLParagraphElement | null)[]>([])
+
+  React.useEffect(() => {
+    const saved = window.localStorage.getItem(AUTOPLAY_SPEED_KEY)
+    const idx = saved !== null ? Number(saved) : NaN
+    if (!Number.isNaN(idx) && AUTOPLAY_SPEEDS[idx]) {
+      setSpeedIdx(idx)
+      speedIdxRef.current = idx
+    }
+  }, [])
 
   const rootRef = React.useRef<HTMLDivElement>(null)
   const quizPanelRef = React.useRef<HTMLDivElement>(null)
@@ -189,19 +217,66 @@ export default function CeritaReadPage() {
     return () => el.removeEventListener("scroll", updateProgress)
   }, [data, getScrollEl, updateProgress])
 
+  const stopAutoplay = React.useCallback(() => {
+    autoplayStopRef.current = true
+    autoplayRunIdRef.current += 1
+    setAutoplayOn(false)
+    setAutoplayIdx(null)
+  }, [])
+
   /* ── Cleanup on unmount / tab hidden ── */
   React.useEffect(() => {
     function onVisibility() {
-      if (document.hidden) cancelTTS()
+      if (document.hidden) {
+        cancelTTS()
+        stopAutoplay()
+      }
     }
     document.addEventListener("visibilitychange", onVisibility)
     window.addEventListener("pagehide", cancelTTS)
     return () => {
       cancelTTS()
+      stopAutoplay()
       document.removeEventListener("visibilitychange", onVisibility)
       window.removeEventListener("pagehide", cancelTTS)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
+
+  const startAutoplay = React.useCallback(async () => {
+    if (!data || data.paragraphs.length === 0) return
+    cancelTTS()
+    autoplayStopRef.current = false
+    const runId = (autoplayRunIdRef.current += 1)
+    setAutoplayOn(true)
+
+    for (let i = 0; i < data.paragraphs.length; i++) {
+      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
+      setAutoplayIdx(i)
+      paragraphRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      await speakParagraph(data.paragraphs[i], AUTOPLAY_SPEEDS[speedIdxRef.current].rate)
+      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
+    }
+
+    if (runId === autoplayRunIdRef.current) {
+      setAutoplayOn(false)
+      setAutoplayIdx(null)
+    }
+  }, [data])
+
+  function toggleAutoplay() {
+    if (autoplayOn) stopAutoplay()
+    else startAutoplay()
+  }
+
+  function cycleSpeed() {
+    setSpeedIdx((current) => {
+      const next = (current + 1) % AUTOPLAY_SPEEDS.length
+      speedIdxRef.current = next
+      window.localStorage.setItem(AUTOPLAY_SPEED_KEY, String(next))
+      return next
+    })
+  }
 
   function changeFontLevel(delta: number) {
     setFontLevel((current) => Math.min(FONT_LEVELS.length - 1, Math.max(0, current + delta)))
@@ -329,8 +404,16 @@ export default function CeritaReadPage() {
       <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-20 sm:px-6">
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
+          const isActive = autoplayIdx === pi
           return (
-            <p key={pi} style={{ fontSize }} className="font-hanzi relative mb-5 pr-8 leading-loose text-foreground">
+            <p
+              key={pi}
+              ref={(el) => { paragraphRefs.current[pi] = el }}
+              style={{ fontSize }}
+              className={`font-hanzi relative mb-5 rounded-lg pr-8 leading-loose text-foreground transition-colors ${
+                isActive ? "bg-primary/10 ring-1 ring-primary/30" : ""
+              }`}
+            >
               {segments.map((seg, si) =>
                 typeof seg === "string" ? (
                   <React.Fragment key={si}>{seg}</React.Fragment>
@@ -395,6 +478,29 @@ export default function CeritaReadPage() {
 
       <footer className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
         <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card/95 px-2 py-1.5 shadow-lg shadow-black/15 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
+            <button
+              type="button"
+              onClick={toggleAutoplay}
+              disabled={data.paragraphs.length === 0}
+              className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+              aria-label={autoplayOn ? "Jeda baca otomatis" : "Mulai baca otomatis"}
+              title={autoplayOn ? "Jeda" : "Baca otomatis"}
+            >
+              {autoplayOn ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={cycleSpeed}
+              className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Ganti kecepatan baca"
+              title="Kecepatan baca otomatis"
+            >
+              <Gauge className="h-3.5 w-3.5" />
+              {AUTOPLAY_SPEEDS[speedIdx].label}
+            </button>
+          </div>
+
           <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
             <button type="button" onClick={() => changeFontLevel(-1)} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Perkecil font">
               <Minus className="h-3.5 w-3.5" />

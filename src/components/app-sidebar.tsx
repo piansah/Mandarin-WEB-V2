@@ -91,14 +91,12 @@ const navSecondary = [
   },
 ]
 
-// Placeholder user — akan diganti dengan data session saat auth aktif
-const placeholderUser = {
-  name: "Pelajar",
-  email: "pelajar@example.com",
-  avatar: "",
-}
-
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  user,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  user: { name: string; email: string; avatar: string }
+}) {
   const pathname = usePathname()
   const { isMobile, setOpen, toggleSidebar } = useSidebar()
   const defaultOpenSections = React.useMemo<Record<string, boolean>>(
@@ -212,7 +210,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter>
-        <NavUser user={placeholderUser} />
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

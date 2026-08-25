@@ -99,6 +99,34 @@ export function speakMandarin(text: string, options: { silent?: boolean } = {}) 
   window.speechSynthesis.speak(utterance)
 }
 
+export function speakParagraph(text: string, rate: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (!isSupported() || !text.trim()) {
+      resolve()
+      return
+    }
+    ensureVoiceListener()
+    if (!voices.length) loadVoices()
+
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = "zh-CN"
+    utterance.rate = rate
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.voice = voices.find(voice =>
+      voice.lang === "zh-CN" ||
+      voice.lang === "zh-TW" ||
+      voice.lang.startsWith("zh") ||
+      /mandarin|chinese/i.test(voice.name),
+    ) ?? null
+    utterance.onend = () => resolve()
+    utterance.onerror = () => resolve()
+    currentText = text
+    window.speechSynthesis.speak(utterance)
+  })
+}
+
 export function cancelTTS() {
   if (!isSupported()) return
   currentText = null
