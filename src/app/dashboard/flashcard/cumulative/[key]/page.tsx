@@ -2,12 +2,15 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw } from "lucide-react"
+import { RotateCcw, Mic, Flag, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { ReportModal } from "@/components/report-modal"
+import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
+import { checkUserContentReport } from "@/lib/bug-reports"
 
 type HanziSet = {
   key: string
@@ -23,6 +26,7 @@ type HanziItem = {
   hanzi: string
   pinyin: string
   arti: string
+  user_contribution: boolean | null
 }
 
 export default function CumulativeFlashcardSessionPage() {
@@ -31,9 +35,12 @@ export default function CumulativeFlashcardSessionPage() {
   const key = params.key
   const [set, setSet] = React.useState<HanziSet | null>(null)
   const [items, setItems] = React.useState<HanziItem[]>([])
+  const [reportedItems, setReportedItems] = React.useState<Set<number>>(new Set())
   const [stateById, setStateById] = React.useState<Record<number, 0 | 1 | 2>>({})
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
+  const [addSentenceModal, setAddSentenceModal] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
@@ -44,7 +51,7 @@ export default function CumulativeFlashcardSessionPage() {
         supa.from("hanzi_sets").select("key, title, sub").eq("key", key).single(),
         supa
           .from("hanzi_items")
-          .select("id, section_label, section_tag, sort_order, hanzi, pinyin, arti")
+          .select("id, section_label, section_tag, sort_order, hanzi, pinyin, arti, user_contribution")
           .eq("hanzi_key", key)
           .order("sort_order", { ascending: true }),
       ])
@@ -68,6 +75,15 @@ export default function CumulativeFlashcardSessionPage() {
       setSet(setResult.data)
       setItems(itemsResult.data ?? [])
       setStateById(restored)
+      
+      // Check which items have been reported by user
+      const reportedIds = new Set<number>()
+      for (const item of (itemsResult.data ?? [])) {
+        const hasReported = await checkUserContentReport(item.id)
+        if (hasReported) reportedIds.add(item.id)
+      }
+      setReportedItems(reportedIds)
+      
       setLoading(false)
     }
 
@@ -119,6 +135,32 @@ export default function CumulativeFlashcardSessionPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
+  function navigateToSpeakingPractice() {
+    router.push(`/dashboard/flashcard/cumulative/${key}/speaking`)
+  }
+
+  function openReportModal(item: HanziItem) {
+    if (!item) return
+    setReportModal({
+      isOpen: true,
+      itemId: item.id,
+      itemLabel: item.hanzi,
+    })
+  }
+
+  function closeReportModal() {
+    setReportModal({ isOpen: false, itemId: null, itemLabel: "" })
+  }
+
+  function openAddSentenceModal() {
+    setAddSentenceModal(true)
+  }
+
+  function closeAddSentenceModal() {
+    setAddSentenceModal(false)
+  }
+
+
   if (loading) return <div className="flex flex-1 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   if (error || !set) return <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
@@ -127,12 +169,18 @@ export default function CumulativeFlashcardSessionPage() {
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{set.title}</h1><p className="truncate text-xs text-muted-foreground">{set.sub}</p></div>
-          <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
+            <Button variant="outline" size="sm" onClick={openAddSentenceModal}>
+              <Plus className="h-4 w-4 mr-1" />
+              Tambah
+            </Button>
+          </div>
         </div>
         <div className="h-1 bg-muted"><div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-12 sm:px-6">
+      <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-28 sm:px-6">
         <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
         {groups.map((group) => (
           <section key={`${group.tag}-${group.label}`}>
@@ -140,12 +188,40 @@ export default function CumulativeFlashcardSessionPage() {
             <div className="grid gap-3 md:grid-cols-2">
               {group.items.map((item, index) => {
                 const state = stateById[item.id] ?? 0
-                return <button key={item.id} type="button" onClick={() => advance(item)} className={`min-h-36 rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}>
-                  <div className="flex items-start justify-between gap-3"><div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">{index + 1}</span></div>
-                  {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
-                  {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
-                  {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
-                </button>
+                return (
+                  <div key={item.id} className="relative group">
+                    <button 
+                      type="button" 
+                      onClick={() => advance(item)} 
+                      className={`min-h-36 w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
+                        <div className="flex items-center gap-2">
+                          {item.user_contribution && (
+                            <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">
+                              User
+                            </span>
+                          )}
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">{index + 1}</span>
+                        </div>
+                      </div>
+                      {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
+                      {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
+                      {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
+                    </button>
+                    {!reportedItems.has(item.id) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openReportModal(item) }}
+                        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Report kalimat"
+                      >
+                        <Flag className="h-3 w-3 text-orange-500" />
+                      </button>
+                    )}
+                  </div>
+                )
               })}
             </div>
           </section>
@@ -158,12 +234,40 @@ export default function CumulativeFlashcardSessionPage() {
           </div>
         )}
       </main>
+
+      {/* Fixed Footer with Practice Button */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4">
+        <div className="mx-auto max-w-4xl">
+          <Button onClick={navigateToSpeakingPractice} className="w-full" size="lg">
+            <Mic className="h-5 w-5 mr-2" />
+            Latihan Speaking
+          </Button>
+        </div>
+      </div>
+
       <style dangerouslySetInnerHTML={{__html: `
         .cumulative-finish { animation: cumulativeFinishEnter 520ms cubic-bezier(.22,1,.36,1) both; }
         .cumulative-finish-emoji { animation: cumulativeFinishPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
         @keyframes cumulativeFinishEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
         @keyframes cumulativeFinishPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
       `}} />
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={closeReportModal}
+        contentType="kalimat"
+        contentId={reportModal.itemId || 0}
+        contentLabel={reportModal.itemLabel}
+      />
+
+      {/* Add Sentence Modal */}
+      <AddSentenceModal
+        isOpen={addSentenceModal}
+        onClose={closeAddSentenceModal}
+        hanziKey={key}
+        onSuccess={handleAddSentenceSuccess}
+      />
     </div>
   )
 }

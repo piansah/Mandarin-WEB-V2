@@ -3,6 +3,7 @@ import { Noto_Sans_SC, Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ServiceWorkerProvider } from "@/components/service-worker-provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -22,6 +23,12 @@ const notoSansSC = Noto_Sans_SC({
 export const metadata: Metadata = {
   title: "Mandarin Journey",
   description: "Platform kursus Mandarin modern — HSK 3.0",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Mandarin Journey",
+  },
 };
 
 export default function RootLayout({
@@ -42,7 +49,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TooltipProvider>
-            {children}
+            <ServiceWorkerProvider>
+              {children}
+            </ServiceWorkerProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

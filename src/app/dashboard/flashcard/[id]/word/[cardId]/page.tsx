@@ -5,6 +5,8 @@ import { useParams } from "next/navigation"
 import { Flag, Heart } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
+import { ReportModal } from "@/components/report-modal"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
@@ -96,6 +98,7 @@ export default function WordDetailPage() {
   const [loading, setLoading] = React.useState(true)
   const [tabLoading, setTabLoading] = React.useState(false)
   const [favorited, setFavorited] = React.useState(false)
+  const [reportModal, setReportModal] = React.useState({ isOpen: false, contentLabel: "" })
 
   React.useEffect(() => {
     const supa = createClient(); let cancelled = false
@@ -148,6 +151,11 @@ export default function WordDetailPage() {
 
   React.useEffect(() => {
     if (!card) return
+    checkFavorite(card.hanzi).then(setFavorited)
+  }, [card])
+
+  React.useEffect(() => {
+    if (!card) return
     const activeCard = card
     const supa = createClient(); let cancelled = false
     async function loadExamples() {
@@ -196,20 +204,55 @@ export default function WordDetailPage() {
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   if (!card) return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
+  
   const chars = [...card.hanzi].filter(isHanzi)
   const tabs: Array<{ id: DetailTab; label: string }> = [{ id: "kalimat", label: "Sentences" }, { id: "stroke", label: "Stroke" }, { id: "karakter", label: "Char" }, { id: "kata", label: "Word" }]
 
+  async function handleToggleFavorite() {
+    if (!card) return
+    const result = await toggleFavorite({
+      hanzi: card.hanzi,
+      pinyin: card.pinyin,
+      arti: card.arti,
+      word_class: card.word_class,
+      catatan: card.catatan,
+      source: "flashcard",
+      source_id: Number(card.id),
+    })
+    if (!result.error) {
+      setFavorited(result.isFavorited)
+    }
+  }
+
+  function openReportModal() {
+    if (!card) return
+    setReportModal({ isOpen: true, contentLabel: card.hanzi })
+  }
+
+  function closeReportModal() {
+    setReportModal({ isOpen: false, contentLabel: "" })
+  }
+
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
-    <Hero card={card} favorited={favorited} onToggleFavorite={() => setFavorited(value => !value)} />
+    <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
     <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
+    
+    {/* Report Modal */}
+    <ReportModal
+      isOpen={reportModal.isOpen}
+      onClose={closeReportModal}
+      contentType="kosakata"
+      contentId={cardId}
+      contentLabel={reportModal.contentLabel}
+    />
   </div>
 }
 
-function Hero({ card, favorited, onToggleFavorite }: { card: Card; favorited: boolean; onToggleFavorite: () => void }) {
+function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   const badge = heroBadgeLabel(card)
-  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
 function SentenceTab({ examples, knownWords }: { examples: ExampleSentence[]; knownWords: Set<string> }) {

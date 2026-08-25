@@ -203,3 +203,88 @@ export async function removeFavorite(id: number): Promise<{ error: string | null
   const { error } = await supa.from("personal_favorites").delete().eq("id", id).eq("user_id", user.id)
   return { error: error?.message ?? null }
 }
+
+export async function addFavorite(
+  card: {
+    hanzi: string
+    pinyin: string
+    arti: string
+    word_class?: string | null
+    catatan?: string | null
+    source?: string | null
+    source_id?: number | null
+  }
+): Promise<{ error: string | null; id?: number }> {
+  const { supa, user } = await requireUser()
+  if (!user) return { error: "Belum login" }
+
+  const { data, error } = await supa
+    .from("personal_favorites")
+    .insert({
+      user_id: user.id,
+      hanzi: card.hanzi,
+      pinyin: card.pinyin,
+      arti: card.arti,
+      word_class: card.word_class || null,
+      catatan: card.catatan || null,
+      source: card.source || null,
+      source_id: card.source_id || null,
+    })
+    .select("id")
+    .single()
+
+  if (error) return { error: error?.message ?? null }
+  return { error: null, id: data?.id }
+}
+
+export async function checkFavorite(hanzi: string): Promise<boolean> {
+  const { supa, user } = await requireUser()
+  if (!user) return false
+
+  const { data } = await supa
+    .from("personal_favorites")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("hanzi", hanzi)
+    .maybeSingle()
+
+  return !!data
+}
+
+export async function toggleFavorite(
+  card: {
+    hanzi: string
+    pinyin: string
+    arti: string
+    word_class?: string | null
+    catatan?: string | null
+    source?: string | null
+    source_id?: number | null
+  }
+): Promise<{ error: string | null; isFavorited: boolean }> {
+  const { supa, user } = await requireUser()
+  if (!user) return { error: "Belum login", isFavorited: false }
+
+  const isFavorited = await checkFavorite(card.hanzi)
+  
+  if (isFavorited) {
+    // Remove existing favorite
+    const { data } = await supa
+      .from("personal_favorites")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("hanzi", card.hanzi)
+      .single()
+    
+    if (data) {
+      const result = await removeFavorite(data.id)
+      if (result.error) return { error: result.error, isFavorited: true }
+    }
+    return { error: null, isFavorited: false }
+  } else {
+    // Add new favorite
+    const result = await addFavorite(card)
+    if (result.error) return { error: result.error, isFavorited: false }
+    return { error: null, isFavorited: true }
+  }
+}

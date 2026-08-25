@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/server"
 import { BugReportFab } from "@/components/bug-report-fab"
+import { PWAInstall } from "@/components/pwa-install"
 
 export default async function DashboardLayout({
   children,
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
         </div>
       </SidebarInset>
       <BugReportFab />
+      <PWAInstall />
     </SidebarProvider>
   )
 }
