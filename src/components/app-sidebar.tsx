@@ -187,9 +187,9 @@ export function AppSidebar({
       {...props}
     >
       <SidebarHeader>
-        <div className="px-2 py-1">
-          <span className="truncate text-lg font-bold text-primary">
-            <span className="font-hanzi text-2xl">木</span> JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
+        <div className="px-2 py-1 bg-primary rounded-lg">
+          <span className="truncate text-lg font-bold text-white">
+            <span className="font-hanzi text-2xl">木</span> <span className="dark:text-white text-foreground">JOURNEY</span><span className="ml-0.5 text-2xl text-primary-foreground">.</span>
           </span>
         </div>
       </SidebarHeader>
@@ -208,7 +208,9 @@ export function AppSidebar({
                   isActive={pathname === item.url}
                   render={<Link href={item.url} />}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary">
+                    <item.icon className="h-4 w-4 text-white" />
+                  </div>
                   <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -231,7 +233,9 @@ export function AppSidebar({
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary">
+                      <item.icon className="h-4 w-4 text-white flex-shrink-0" />
+                    </div>
                     <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
                 </SidebarMenuButton>
@@ -255,7 +259,9 @@ export function AppSidebar({
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary">
+                      <item.icon className="h-4 w-4 text-white flex-shrink-0" />
+                    </div>
                     <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
                 </SidebarMenuButton>
