@@ -120,17 +120,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, open } = useSidebar()
-  const [manuallyOpened, setManuallyOpened] = React.useState(false)
-
-  // Listen for sidebar-toggle event from SidebarTrigger
-  React.useEffect(() => {
-    const handleToggle = (e: CustomEvent<boolean>) => {
-      setManuallyOpened(e.detail)
-    }
-    window.addEventListener('sidebar-toggle', handleToggle as EventListener)
-    return () => window.removeEventListener('sidebar-toggle', handleToggle as EventListener)
-  }, [])
+  const { isMobile, setOpen } = useSidebar()
 
   async function handleLogout() {
     const supabase = createClient()
@@ -154,7 +144,7 @@ export function AppSidebar({
         if (!isMobile) setOpen(true)
       }}
       onMouseLeave={() => {
-        if (!isMobile && !manuallyOpened) setOpen(false)
+        if (!isMobile) setOpen(false)
       }}
       {...props}
     >
