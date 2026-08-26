@@ -120,10 +120,10 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen } = useSidebar()
+  const { isMobile, setOpen, open } = useSidebar()
 
   function handleToggleSidebar() {
-    setOpen(prev => !prev)
+    setOpen(!open)
   }
 
   async function handleLogout() {
@@ -160,8 +160,21 @@ export function AppSidebar({
               e.stopPropagation()
               setOpen(true)
             }}>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-500 text-2xl ml-0.5">.</span></span>
+              <div className="flex items-center gap-2">
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-bold text-sage-500 text-lg">JOURNEY<span className="text-white text-2xl ml-0.5">.</span></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleToggleSidebar()
+                  }}
+                  className="p-1.5 hover:bg-muted rounded-md transition-colors"
+                  aria-label="Toggle sidebar"
+                >
+                  {open ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+                </button>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
