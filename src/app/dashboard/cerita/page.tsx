@@ -85,7 +85,7 @@ export default function CeritaListPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <BookMarked className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Cerita</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Baca</h1>
         </div>
         <p className="text-sm text-muted-foreground">Baca cerita pendek untuk melatih pemahaman bacaan.</p>
       </div>

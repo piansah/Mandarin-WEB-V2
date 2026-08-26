@@ -386,7 +386,7 @@ export default function CeritaReadPage() {
 
   return (
     <div ref={rootRef} className="flex min-h-full flex-col bg-background">
-      <header className="fixed inset-x-0 top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur">
+      <header className="border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <Link href="/dashboard/cerita" className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Kembali">
             <ArrowLeft className="h-4 w-4" />
@@ -401,7 +401,7 @@ export default function CeritaReadPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-20 sm:px-6">
+      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
           const isActive = autoplayIdx === pi
@@ -476,7 +476,7 @@ export default function CeritaReadPage() {
         )}
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
+      <footer className="flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-6 pl-[max(1rem,env(safe-area-inset-left))]">
         <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card/95 px-2 py-1.5 shadow-lg shadow-black/15 backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
             <button

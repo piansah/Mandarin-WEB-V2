@@ -17,6 +17,7 @@ import {
   FolderHeart,
   Flame,
   Bug,
+  ChevronRight,
 } from "lucide-react"
 import {
   Sidebar,
@@ -118,6 +119,15 @@ export function AppSidebar({
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Save pinned state to cookie
+  React.useEffect(() => {
+    if (pinned) {
+      document.cookie = "sidebar_pinned=true; path=/; max-age=31536000"
+    } else {
+      document.cookie = "sidebar_pinned=; path=/; max-age=0"
+    }
+  }, [pinned])
+
   const clearCloseTimeout = React.useCallback(() => {
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current)
@@ -177,7 +187,7 @@ export function AppSidebar({
         {/* Dashboard & Modul */}
         <div className="px-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            UTAMA
+            MENU UTAMA
           </div>
           <SidebarMenu className="gap-1">
             {todayItems.map((item) => (
@@ -260,14 +270,15 @@ export function AppSidebar({
                 }
               >
                 <div className="flex items-center gap-3 w-full">
-                  <Avatar className="h-10 w-10">
+                  <Avatar className="h-8 w-8">
                     <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="text-lg bg-primary text-primary-foreground">
+                    <AvatarFallback className="text-sm bg-primary text-primary-foreground">
                       {user.name.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 group-data-[collapsed=true]/sidebar:hidden">
+                  <div className="flex-1 flex items-center gap-2 group-data-[collapsed=true]/sidebar:hidden">
                     <span className="font-medium">{user.name}</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
               </DropdownMenuTrigger>

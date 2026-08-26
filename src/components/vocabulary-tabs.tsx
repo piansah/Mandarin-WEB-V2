@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { BookOpen, Search, Camera, Loader2, Clock, X } from "lucide-react"
+import { BookOpen, Search, Camera, Loader2, Clock, X, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
 import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
@@ -10,6 +10,8 @@ import { TonePinyin } from "@/components/tone-pinyin"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { speakMandarin } from "@/lib/tts"
 
 const HISTORY_KEY = "hanzi_search_history"
 const HISTORY_LIMIT = 8
@@ -288,32 +290,51 @@ function VocabularySearch() {
             const hskLevel = 'hsk_level' in item ? item.hsk_level : ('hsk' in item ? item.hsk : null)
             const arti = 'arti' in item ? item.arti : null
             return (
-              <button
+              <Card
                 key={i}
-                type="button"
+                className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all cursor-pointer"
                 onClick={() => {
                   const path = getWordDetailPath(item)
                   if (path) router.push(path)
                 }}
-                className="w-full text-left p-4 border border-border rounded-lg hover:bg-muted transition-colors"
+                onPointerDown={() => {
+                  if (item.pinyin && typeof item.pinyin === 'string') {
+                    speakMandarin(item.pinyin)
+                  }
+                }}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-2xl font-bold">{item.hanzi}</span>
-                      {hskLevel && (
-                        <Badge variant="outline" className="text-xs">
-                          HSK {hskLevel}
-                        </Badge>
-                      )}
-                    </div>
-                    {item.pinyin && typeof item.pinyin === 'string' && (
-                      <TonePinyin text={item.pinyin} className="text-sm text-muted-foreground mb-2" />
-                    )}
-                    {arti && <p className="text-sm">{arti}</p>}
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
+                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] text-primary">
+                    Kata
+                  </Badge>
+                  {hskLevel && (
+                    <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] text-primary">
+                      HSK {hskLevel}
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent className="p-4 pt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-2xl font-bold">{item.hanzi}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (item.pinyin && typeof item.pinyin === 'string') {
+                          speakMandarin(item.pinyin)
+                        }
+                      }}
+                      className="ml-auto h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                    >
+                      <Volume2 className="h-3 w-3" />
+                    </button>
                   </div>
-                </div>
-              </button>
+                  {item.pinyin && typeof item.pinyin === 'string' && (
+                    <TonePinyin text={item.pinyin} className="text-sm text-muted-foreground mb-2" />
+                  )}
+                  {arti && <p className="text-sm">{arti}</p>}
+                </CardContent>
+              </Card>
             )
           })}
         </div>
