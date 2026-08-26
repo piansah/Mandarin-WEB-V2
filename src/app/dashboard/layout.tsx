@@ -29,19 +29,16 @@ export default async function DashboardLayout({
   }
 
   const cookieStore = await cookies()
-  // The sidebar is pinned open (and stays open) if the user previously
-  // toggled it on via the burger menu. Otherwise it starts hidden and only
-  // appears on hover near the left edge.
-  const defaultPinned = cookieStore.get("sidebar_pinned")?.value === "true"
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false"
 
   return (
-    <SidebarProvider defaultOpen={defaultPinned} defaultPinned={defaultPinned}>
+    <SidebarProvider defaultOpen={false}>
       <SidebarHoverTrigger />
       <SidebarMobileOpenButton />
       <AppSidebar user={sidebarUser} />
-      <SidebarInset className="min-h-0 overflow-hidden">
+      <SidebarInset>
         <DashboardHeader />
-        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <div className="flex-1 overflow-auto">
           {children}
         </div>
       </SidebarInset>
