@@ -16,6 +16,8 @@ import {
   LogOut,
   FolderHeart,
   Flame,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react"
 import {
   Sidebar,
@@ -119,6 +121,10 @@ export function AppSidebar({
   const pathname = usePathname()
   const router = useRouter()
   const { isMobile, setOpen } = useSidebar()
+
+  function handleToggleSidebar() {
+    setOpen(prev => !prev)
+  }
 
   async function handleLogout() {
     const supabase = createClient()
