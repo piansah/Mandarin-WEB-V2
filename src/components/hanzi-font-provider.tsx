@@ -5,13 +5,6 @@ import { fetchUserSettings } from "@/lib/user-settings"
 
 type HanziFont = "noto-sans-sc" | "ma-shan-zheng" | "zcool-xiao-wei" | "long-cang"
 
-const FONT_MAPPINGS: Record<HanziFont, string> = {
-  "noto-sans-sc": "var(--font-hanzi)",
-  "ma-shan-zheng": "var(--font-hanzi-ma-shan)",
-  "zcool-xiao-wei": "var(--font-hanzi-zcool)",
-  "long-cang": "var(--font-hanzi-long)",
-}
-
 const FONT_FAMILY_VALUES: Record<HanziFont, string> = {
   "noto-sans-sc": "var(--font-noto-sans-sc), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   "ma-shan-zheng": "var(--font-ma-shan-zheng), 'Ma Shan Zheng', 'Noto Sans SC', sans-serif",
@@ -35,8 +28,8 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (userFont) {
-      document.documentElement.style.setProperty("--font-hanzi", FONT_MAPPINGS[userFont])
-      document.documentElement.style.setProperty("--font-hanzi-family", FONT_FAMILY_VALUES[userFont])
+      // Update the CSS variable directly to the font family string
+      document.documentElement.style.setProperty("--font-hanzi", FONT_FAMILY_VALUES[userFont])
     }
   }, [userFont])
 
