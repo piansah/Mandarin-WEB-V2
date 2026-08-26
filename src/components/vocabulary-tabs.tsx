@@ -275,7 +275,7 @@ function VocabularySearch() {
 
       {/* Results */}
       {!isSearching && (results.length > 0 || segmented.length > 0) && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {isSentenceMode ? (
             <div className="text-sm text-muted-foreground mb-2">
               Hasil segmentasi kalimat:
@@ -287,58 +287,42 @@ function VocabularySearch() {
           )}
 
           {(isSentenceMode ? segmented : results).map((item, i) => {
-            const hskLevel = 'hsk_level' in item ? item.hsk_level : ('hsk' in item ? item.hsk : null)
-            const arti = 'arti' in item ? item.arti : null
+            const hskLevel = 'hsk_level' in item ? (item.hsk_level ?? null) : ('hsk' in item ? (item.hsk ?? null) : null)
+            const arti = 'arti' in item ? (item.arti ?? null) : null
             return (
-              <Card
+              <VocabularyRow
                 key={i}
-                className="border-border/50 bg-card/50 backdrop-blur-sm hover:border-primary/40 hover:shadow-md hover:shadow-primary/5 transition-all cursor-pointer"
-                onClick={() => {
+                item={item}
+                index={i}
+                hskLevel={hskLevel}
+                arti={arti}
+                onOpen={() => {
                   const path = getWordDetailPath(item)
-                  if (path) router.push(path)
+                  if (path) router.push(`${path}?from=search`)
                 }}
-                onPointerDown={() => {
-                  if (item.pinyin && typeof item.pinyin === 'string') {
-                    speakMandarin(item.pinyin)
-                  }
-                }}
-              >
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
-                  <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] text-primary">
-                    Kata
-                  </Badge>
-                  {hskLevel && (
-                    <Badge variant="outline" className="border-primary/30 bg-primary/10 text-[10px] text-primary">
-                      HSK {hskLevel}
-                    </Badge>
-                  )}
-                </CardHeader>
-                <CardContent className="p-4 pt-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-bold">{item.hanzi}</span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (item.pinyin && typeof item.pinyin === 'string') {
-                          speakMandarin(item.pinyin)
-                        }
-                      }}
-                      className="ml-auto h-6 w-6 flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20"
-                    >
-                      <Volume2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                  {item.pinyin && typeof item.pinyin === 'string' && (
-                    <TonePinyin text={item.pinyin} className="text-sm text-muted-foreground mb-2" />
-                  )}
-                  {arti && <p className="text-sm">{arti}</p>}
-                </CardContent>
-              </Card>
+              />
             )
           })}
         </div>
       )}
     </div>
   )
+}
+
+function VocabularyRow({ item, index, hskLevel, arti, onOpen }: { item: GlobalWord | SegmentedWord; index: number; hskLevel: number | null; arti: string | null; onOpen: () => void }) {
+  const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didHold = React.useRef(false)
+  const startPoint = React.useRef({ x: 0, y: 0 })
+  const clearPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); pressTimer.current = null }
+
+  React.useEffect(() => clearPress, [])
+
+  const hanzi = item.hanzi
+  const pinyin = 'pinyin' in item ? item.pinyin : null
+
+  return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen() }}>
+    <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{hanzi}</div>
+    <div className="flex min-w-0 flex-1 flex-col">{pinyin && typeof pinyin === 'string' && <TonePinyin text={pinyin} className="text-sm font-medium" />}{arti && <span className="truncate text-sm text-muted-foreground">{arti}</span>}</div>
+    <div className="ml-1 flex shrink-0 items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /></div>
+  </div>
 }

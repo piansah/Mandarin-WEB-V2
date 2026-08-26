@@ -276,10 +276,8 @@ export function AppSidebar({
                       {user.name.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 flex items-center gap-2 group-data-[collapsed=true]/sidebar:hidden">
-                    <span className="font-medium">{user.name}</span>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
+                  <span className="font-medium flex-1 group-data-[collapsed=true]/sidebar:hidden">{user.name}</span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent

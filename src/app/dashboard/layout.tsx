@@ -34,7 +34,7 @@ export default async function DashboardLayout({
   const defaultPinned = cookieStore.get("sidebar_pinned")?.value === "true"
 
   return (
-    <SidebarProvider defaultOpen={false} defaultPinned={defaultPinned}>
+    <SidebarProvider defaultOpen={true} defaultPinned={defaultPinned}>
       <SidebarHoverTrigger />
       <SidebarMobileOpenButton />
       <AppSidebar user={sidebarUser} />

@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { useParams } from "next/navigation"
-import { Flag, Heart, Plus } from "lucide-react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
+import { Flag, Heart, Plus, ArrowLeft } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
@@ -89,6 +89,8 @@ function heroBadgeLabel(card: Card): string | null {
 
 export default function WordDetailPage() {
   const params = useParams()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const cardId = String(params.cardId)
   const [tab, setTab] = React.useState<DetailTab>("kalimat")
   const [card, setCard] = React.useState<Card | null>(null)
@@ -101,6 +103,7 @@ export default function WordDetailPage() {
   const [favorited, setFavorited] = React.useState(false)
   const [reportModal, setReportModal] = React.useState({ isOpen: false, contentLabel: "" })
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
+  const fromSearch = searchParams.get('from') === 'search'
 
   React.useEffect(() => {
     const supa = createClient(); let cancelled = false
@@ -261,6 +264,9 @@ export default function WordDetailPage() {
 
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
+    <button type="button" onClick={() => router.back()} className="absolute top-16 left-4 z-10 p-2 rounded-full bg-background/80 hover:bg-background border border-border/60">
+      <ArrowLeft className="h-5 w-5" />
+    </button>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
     <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} card={card} onAddSentence={openAddSentenceModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
     

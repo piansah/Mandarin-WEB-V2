@@ -10,8 +10,10 @@
   --c-bg: #061523;
   --c-card: #091928;
   display: flex;
-  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
   min-height: 0;
+  flex-direction: column;
   overflow: hidden;
   overscroll-behavior: contain;
   background: var(--c-bg);
@@ -294,7 +296,6 @@
   border-top: 1px solid var(--c-border);
   background: #061523ee;
   backdrop-filter: blur(10px);
-  padding-left: max(16px, env(safe-area-inset-left));
 }
 
 .btnGhost,
