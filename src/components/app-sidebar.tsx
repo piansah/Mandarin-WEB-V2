@@ -18,11 +18,13 @@ import {
   RefreshCw,
   FolderHeart,
   PlusCircle,
+  LogOut,
 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -30,6 +32,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { NavUser } from "@/components/nav-user"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/browser"
 
 const todayItems = [
   {
@@ -39,41 +43,47 @@ const todayItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Kuis Harian", 
+    title: "Sesi hari ini",
     description: "Latihan harian ~5 menit",
     url: "/dashboard/quiz",
     icon: Zap,
   },
   {
-    title: "Review",
-    description: "Ulangi kata yang salah",
-    url: "/dashboard/quiz/review",
-    icon: RefreshCw,
+    title: "Modul",
+    description: "Kurikulum yang sudah dipelajari",
+    url: "/dashboard/flashcard",
+    icon: Layers,
   },
 ]
 
 const learningPathItems = [
   {
-    title: "Flashcard",
-    description: "Kartu hafalan HSK",
-    url: "/dashboard/flashcard",
-    icon: Layers,
-  },
-  {
-    title: "Hanzi",
-    description: "Latihan tulis karakter",
-    url: "/dashboard/hanzi",
-    icon: Languages,
-  },
-  {
     title: "Grammar",
-    description: "Pola kalimat & tata bahasa",
     url: "/dashboard/grammar",
     icon: BookOpen,
   },
   {
-    title: "Cerita",
-    description: "Bacaan interaktif",
+    title: "Kartu Hafalan",
+    url: "/dashboard/flashcard",
+    icon: Layers,
+  },
+  {
+    title: "Quiz Latihan",
+    url: "/dashboard/quiz",
+    icon: FileText,
+  },
+  {
+    title: "Kartu Kumulatif",
+    url: "/dashboard/flashcard/cumulative",
+    icon: Layers,
+  },
+  {
+    title: "Quiz Kumulatif",
+    url: "/dashboard/quiz/review",
+    icon: FileText,
+  },
+  {
+    title: "Baca",
     url: "/dashboard/cerita",
     icon: BookMarked,
   },
@@ -82,13 +92,11 @@ const learningPathItems = [
 const personalCollectionItems = [
   {
     title: "Favorit",
-    description: "Kata/kalimat yang disimpan",
     url: "/dashboard/favorit",
     icon: Star,
   },
   {
     title: "Deck Saya",
-    description: "Kartu personal buatan sendiri",
     url: "/dashboard/personal-cards",
     icon: FolderHeart,
   },
@@ -101,7 +109,15 @@ export function AppSidebar({
   user: { name: string; email: string; avatar: string }
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { isMobile, setOpen, toggleSidebar } = useSidebar()
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/login")
+    router.refresh()
+  }
 
   return (
     <Sidebar
@@ -117,13 +133,9 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="Buka/tutup sidebar" onClick={toggleSidebar}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-bold">
-                学
-              </div>
+            <SidebarMenuButton size="lg" tooltip="JOURNEY" onClick={toggleSidebar}>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Mandarin Journey</span>
-                <span className="truncate text-xs text-muted-foreground">HSK 3.0</span>
+                <span className="truncate font-bold text-white text-lg">JOURNEY</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -132,13 +144,13 @@ export function AppSidebar({
 
       <SidebarContent>
         {/* Profile Section */}
-        <div className="px-3 py-4">
+        <div className="px-3 py-4 group-data-[collapsed=true]/sidebar:hidden">
           <NavUser user={user} />
         </div>
 
         {/* HARI INI */}
         <div className="px-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             HARI INI
           </div>
           <SidebarMenu>
@@ -151,20 +163,22 @@ export function AppSidebar({
                   className="flex-col items-start p-3 h-auto"
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4" />
-                    <span className="font-medium">{item.title}</span>
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
+                  {item.description && (
+                    <span className="text-xs text-muted-foreground ml-6 group-data-[collapsed=true]/sidebar:hidden">{item.description}</span>
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
         </div>
 
-        {/* JALUR PEMBELAJARAN */}
+        {/* LATIHAN */}
         <div className="px-3 mt-4">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            JALUR PEMBELAJARAN
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+            LATIHAN
           </div>
           <SidebarMenu>
             {learningPathItems.map((item) => (
@@ -173,13 +187,12 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={pathname === item.url}
                   render={<Link href={item.url} />}
-                  className="flex-col items-start p-3 h-auto"
+                  className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4" />
-                    <span className="font-medium">{item.title}</span>
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
@@ -188,7 +201,7 @@ export function AppSidebar({
 
         {/* KOLEKSI PRIBADI */}
         <div className="px-3 mt-4">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             KOLEKSI PRIBADI
           </div>
           <SidebarMenu>
@@ -198,19 +211,32 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={pathname === item.url}
                   render={<Link href={item.url} />}
-                  className="flex-col items-start p-3 h-auto"
+                  className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4" />
-                    <span className="font-medium">{item.title}</span>
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
         </div>
       </SidebarContent>
+
+      <SidebarFooter className="group-data-[collapsed=true]/sidebar:hidden">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={handleLogout}
+              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Keluar</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/browser"
 import {
   Avatar,
   AvatarFallback,
@@ -13,8 +12,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -23,10 +20,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Badge } from "@/components/ui/badge"
-import { ChevronsUpDownIcon, UserIcon, LogOutIcon, SettingsIcon, Flame } from "lucide-react"
+import { UserIcon, SettingsIcon, Flame } from "lucide-react"
 import { fetchUserProfile, type UserProfile } from "@/lib/user-profile"
-import { fetchUserSettings } from "@/lib/user-settings"
 
 export function NavUser({
   user,
@@ -47,13 +42,6 @@ export function NavUser({
     // Fetch streak data (implement later)
     setStreak(1) // Placeholder
   }, [])
-
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/login")
-    router.refresh()
-  }
 
   const initials = user.name
     ? user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()
@@ -76,7 +64,7 @@ export function NavUser({
                 <AvatarFallback className="text-lg">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between">
                   <span className="font-medium">{user.name}</span>
                   <button
                     type="button"
@@ -89,19 +77,13 @@ export function NavUser({
                     <SettingsIcon className="h-4 w-4 text-muted-foreground" />
                   </button>
                 </div>
-                {profile && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs h-5 px-1">
-                      Lvl {profile.level}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">{profile.title}</span>
-                  </div>
-                )}
               </div>
             </div>
-            <div className="flex items-center gap-1 mt-2 w-full text-xs text-muted-foreground">
-              <Flame className="h-3 w-3 text-orange-500" />
-              <span>{streak} hari streak</span>
+            <div className="flex items-center gap-2 mt-2 w-full">
+              <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs">
+                <Flame className="h-3 w-3" />
+                <span>{streak} hari streak</span>
+              </div>
             </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -115,16 +97,7 @@ export function NavUser({
                 <UserIcon className="h-4 w-4" />
                 Profil
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
-                <SettingsIcon className="h-4 w-4" />
-                Pengaturan
-              </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout}>
-              <LogOutIcon className="h-4 w-4" />
-              Keluar
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
