@@ -140,9 +140,6 @@ export function AppSidebar({
   return (
     <Sidebar
       collapsible="none"
-      onMouseEnter={() => {
-        if (!isMobile) setOpen(true)
-      }}
       onMouseLeave={() => {
         if (!isMobile) setOpen(false)
       }}
