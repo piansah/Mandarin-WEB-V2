@@ -31,7 +31,7 @@ export function VocabularyTabs({ children }: { children: React.ReactNode }) {
         </TabsTrigger>
         <TabsTrigger value="search">
           <Search className="h-4 w-4 mr-2" />
-          Search
+          Cari Kosakata
         </TabsTrigger>
       </TabsList>
       <TabsContent value="deck" className="mt-6">
