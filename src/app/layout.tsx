@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Poppins } from "next/font/google";
+import { Noto_Sans_SC, Poppins, Ma_Shan_Zheng, ZCOOL_XiaoWei, Long_Cang } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ServiceWorkerProvider } from "@/components/service-worker-provider";
+import { ServiceWorkerProvider } from "@/components/service-worker-provider"
+import { HanziFontProvider } from "@/components/hanzi-font-provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -15,6 +16,30 @@ const notoSansSC = Noto_Sans_SC({
   variable: "--font-noto-sans-sc",
   subsets: ["latin"],
   weight: ["400", "500"],
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const maShanZheng = Ma_Shan_Zheng({
+  variable: "--font-ma-shan-zheng",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const zcoolXiaoWei = ZCOOL_XiaoWei({
+  variable: "--font-zcool-xiao-wei",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const longCang = Long_Cang({
+  variable: "--font-long-cang",
+  subsets: ["latin"],
+  weight: ["400"],
   display: "swap",
   adjustFontFallback: false,
 });
@@ -46,7 +71,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body
-        className={`${poppins.variable} ${notoSansSC.variable} antialiased min-h-screen bg-background font-sans`}
+        className={`${poppins.variable} ${notoSansSC.variable} ${maShanZheng.variable} ${zcoolXiaoWei.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans`}
         suppressHydrationWarning
       >
         <ThemeProvider
@@ -55,11 +80,13 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>
-            <ServiceWorkerProvider>
-              {children}
-            </ServiceWorkerProvider>
-          </TooltipProvider>
+          <HanziFontProvider>
+            <TooltipProvider>
+              <ServiceWorkerProvider>
+                {children}
+              </ServiceWorkerProvider>
+            </TooltipProvider>
+          </HanziFontProvider>
         </ThemeProvider>
       </body>
     </html>

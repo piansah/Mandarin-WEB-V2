@@ -13,6 +13,7 @@ export type UserSettings = {
   displayName: string
   email: string | null
   hanziMode: HanziMode | null
+  hanziFont: string | null
 }
 
 export async function fetchUserSettings(): Promise<UserSettings | null> {
@@ -23,7 +24,7 @@ export async function fetchUserSettings(): Promise<UserSettings | null> {
   if (!user) return null
 
   const [{ data: profile }, { data: placement }] = await Promise.all([
-    supa.from("user_profile").select("display_name").eq("user_id", user.id).maybeSingle(),
+    supa.from("user_profile").select("display_name, hanzi_font").eq("user_id", user.id).maybeSingle(),
     supa.from("user_placement").select("hanzi_mode").eq("user_id", user.id).maybeSingle(),
   ])
 
@@ -31,6 +32,7 @@ export async function fetchUserSettings(): Promise<UserSettings | null> {
     displayName: profile?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
     email: user.email ?? null,
     hanziMode: placement?.hanzi_mode ?? null,
+    hanziFont: profile?.hanzi_font ?? null,
   }
 }
 
@@ -60,6 +62,19 @@ export async function updateHanziMode(mode: HanziMode): Promise<{ error: string 
   const { error } = await supa
     .from("user_placement")
     .upsert({ user_id: user.id, hanzi_mode: mode, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+  return { error: error?.message ?? null }
+}
+
+export async function updateHanziFont(font: string): Promise<{ error: string | null }> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return { error: "Belum login" }
+
+  const { error } = await supa
+    .from("user_profile")
+    .upsert({ user_id: user.id, hanzi_font: font, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
   return { error: error?.message ?? null }
 }
 

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { fetchUserSettings, updateDisplayName, updateHanziMode, signOut, type UserSettings } from "@/lib/user-settings"
+import { fetchUserSettings, updateDisplayName, updateHanziMode, updateHanziFont, signOut, type UserSettings } from "@/lib/user-settings"
 import type { HanziMode } from "@/lib/placement"
-import { User, Mic, LogOut, Save, Check } from "lucide-react"
+import { User, Mic, LogOut, Save, Check, Type } from "lucide-react"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -16,6 +16,7 @@ export default function SettingsPage() {
   const [editingName, setEditingName] = React.useState(false)
   const [newName, setNewName] = React.useState("")
   const [selectedHanziMode, setSelectedHanziMode] = React.useState<HanziMode | null>(null)
+  const [selectedHanziFont, setSelectedHanziFont] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
   const [saveSuccess, setSaveSuccess] = React.useState(false)
 
@@ -30,6 +31,7 @@ export default function SettingsPage() {
     if (data) {
       setNewName(data.displayName)
       setSelectedHanziMode(data.hanziMode)
+      setSelectedHanziFont(data.hanziFont)
     }
     setLoading(false)
   }
@@ -61,6 +63,19 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSaveHanziFont() {
+    if (!selectedHanziFont) return
+    setSaving(true)
+    const result = await updateHanziFont(selectedHanziFont)
+    setSaving(false)
+    if (!result.error) {
+      showSaveSuccess()
+      loadSettings()
+    } else {
+      alert(result.error)
+    }
+  }
+
   function showSaveSuccess() {
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 2000)
@@ -77,6 +92,20 @@ export default function SettingsPage() {
     { value: 0, label: "Simplified", description: "汉字简体 - Hanzi versi sederhana" },
     { value: 1, label: "Traditional", description: "漢字繁體 - Hanzi versi tradisional" },
   ]
+
+  const HANZI_FONTS: { value: string; label: string; description: string; sample: string }[] = [
+    { value: "noto-sans-sc", label: "Noto Sans SC", description: "Font modern dan clean", sample: "木" },
+    { value: "ma-shan-zheng", label: "Ma Shan Zheng", description: "Font brush style tradisional", sample: "木" },
+    { value: "zcool-xiao-wei", label: "ZCOOL XiaoWei", description: "Font fun dan playful", sample: "木" },
+    { value: "long-cang", label: "Long Cang", description: "Font elegant dan artistic", sample: "木" },
+  ]
+
+  const FONT_FAMILY_VALUES: Record<string, string> = {
+    "noto-sans-sc": "var(--font-noto-sans-sc), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    "ma-shan-zheng": "var(--font-ma-shan-zheng), 'Ma Shan Zheng', 'Noto Sans SC', sans-serif",
+    "zcool-xiao-wei": "var(--font-zcool-xiao-wei), 'ZCOOL XiaoWei', 'Noto Sans SC', sans-serif",
+    "long-cang": "var(--font-long-cang), 'Long Cang', 'Noto Sans SC', sans-serif",
+  }
 
   if (loading) {
     return (
@@ -184,6 +213,54 @@ export default function SettingsPage() {
           {selectedHanziMode !== settings.hanziMode && (
             <div className="flex justify-end">
               <Button onClick={handleSaveHanziMode} disabled={saving}>
+                {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Hanzi Font Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Type className="h-5 w-5" />
+            Font Hanzi
+          </CardTitle>
+          <CardDescription>Pilih font untuk tampilan karakter Mandarin</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3">
+            {HANZI_FONTS.map((font) => (
+              <div
+                key={font.value}
+                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedHanziFont === font.value
+                    ? "border-primary bg-primary/5"
+                    : "border-border hover:border-primary/50"
+                }`}
+                onClick={() => setSelectedHanziFont(font.value)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="font-hanzi text-3xl" style={{
+                    fontFamily: selectedHanziFont === font.value ? FONT_FAMILY_VALUES[font.value as keyof typeof FONT_FAMILY_VALUES] : 'var(--font-hanzi)'
+                  }}>
+                    {font.sample}
+                  </div>
+                  <div>
+                    <div className="font-medium">{font.label}</div>
+                    <div className="text-sm text-muted-foreground">{font.description}</div>
+                  </div>
+                </div>
+                {selectedHanziFont === font.value && (
+                  <Check className="h-5 w-5 text-primary" />
+                )}
+              </div>
+            ))}
+          </div>
+          {selectedHanziFont !== settings.hanziFont && (
+            <div className="flex justify-end">
+              <Button onClick={handleSaveHanziFont} disabled={saving}>
                 {saving ? "Menyimpan..." : "Simpan Perubahan"}
               </Button>
             </div>

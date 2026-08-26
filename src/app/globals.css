@@ -8,7 +8,10 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-poppins), var(--font-noto-sans-sc), sans-serif;
-  --font-hanzi: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-hanzi: var(--font-hanzi-family);
+  --font-hanzi-ma-shan: var(--font-ma-shan-zheng), "Ma Shan Zheng", "Noto Sans SC", sans-serif;
+  --font-hanzi-zcool: var(--font-zcool-xiao-wei), "ZCOOL XiaoWei", "Noto Sans SC", sans-serif;
+  --font-hanzi-long: var(--font-long-cang), "Long Cang", "Noto Sans SC", sans-serif;
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -50,7 +53,11 @@
 }
 
 :root {
-  --font-hanzi: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-hanzi-family: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-hanzi: var(--font-hanzi-family);
+  --font-hanzi-ma-shan: var(--font-ma-shan-zheng), "Ma Shan Zheng", "Noto Sans SC", sans-serif;
+  --font-hanzi-zcool: var(--font-zcool-xiao-wei), "ZCOOL XiaoWei", "Noto Sans SC", sans-serif;
+  --font-hanzi-long: var(--font-long-cang), "Long Cang", "Noto Sans SC", sans-serif;
   --tone-1: #e05555;
   --tone-2: #e8d23e;
   --tone-3: #65df4d;
