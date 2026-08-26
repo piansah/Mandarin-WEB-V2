@@ -16,6 +16,7 @@ import {
   LogOut,
   FolderHeart,
   Flame,
+  PanelLeft,
 } from "lucide-react"
 import {
   Sidebar,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
+import { cn } from "@/lib/utils"
 
 const todayItems = [
   {
@@ -117,7 +119,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, pinned } = useSidebar()
+  const { isMobile, setOpen, pinned, togglePinned, openMobile, setOpenMobile } = useSidebar()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearCloseTimeout = React.useCallback(() => {
@@ -158,6 +160,14 @@ export function AppSidebar({
     router.push("/dashboard/settings")
   }
 
+  function handleToggleClick() {
+    if (isMobile) {
+      setOpenMobile(false)
+    } else {
+      togglePinned()
+    }
+  }
+
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -168,15 +178,21 @@ export function AppSidebar({
       {...props}
     >
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="JOURNEY">
-              <div className="text-left text-sm leading-tight">
-                <span className="truncate font-bold text-sage-500 text-lg">JOURNEY<span className="text-white text-2xl ml-0.5">.</span></span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="flex items-center justify-between gap-2 px-2 py-1">
+          <span className="truncate text-lg font-bold text-sage-500">
+            JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
+          </span>
+          <button
+            type="button"
+            onClick={handleToggleClick}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+            aria-pressed={isMobile ? undefined : pinned}
+            title={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+          >
+            <PanelLeft className={cn("h-4 w-4", !isMobile && pinned && "text-sage-500")} />
+          </button>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
