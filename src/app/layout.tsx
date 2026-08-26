@@ -21,13 +21,17 @@ const notoSansSC = Noto_Sans_SC({
 
 
 export const metadata: Metadata = {
-  title: "Mandarin Journey",
+  title: "木 Journey - Mandarin HSK 3.0",
   description: "Platform kursus Mandarin modern — HSK 3.0",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/icon-192.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Mandarin Journey",
+    title: "木 Journey",
   },
 };
 
@@ -38,6 +42,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
       <body
         className={`${poppins.variable} ${notoSansSC.variable} antialiased min-h-screen bg-background font-sans`}
         suppressHydrationWarning

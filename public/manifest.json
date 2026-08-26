@@ -1,6 +1,6 @@
 {
   "name": "Mandarin Journey - HSK 3.0",
-  "short_name": "Mandarin Journey",
+  "short_name": "木 Journey",
   "description": "Aplikasi belajar Mandarin HSK 3.0 yang lengkap dan interaktif",
   "start_url": "/",
   "display": "standalone",
@@ -9,15 +9,15 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icon-192.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     }
   ],

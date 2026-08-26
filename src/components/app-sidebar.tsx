@@ -189,7 +189,7 @@ export function AppSidebar({
       <SidebarHeader>
         <div className="px-2 py-1">
           <span className="truncate text-lg font-bold text-primary">
-            JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
+            <span className="font-hanzi text-2xl">木</span> JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
           </span>
         </div>
       </SidebarHeader>
