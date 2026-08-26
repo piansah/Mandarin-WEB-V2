@@ -8,6 +8,7 @@ import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
+import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
@@ -18,24 +19,11 @@ type DictionaryEntry = { pinyin?: string[]; definition?: string; decomposition?:
 type DictionaryMap = Record<string, DictionaryEntry>
 type Segment = { text: string; hanzi: boolean; known: boolean }
 
-const toneMap: Record<string, string> = { ā: "1", á: "2", ǎ: "3", à: "4", ē: "1", é: "2", ě: "3", è: "4", ī: "1", í: "2", ǐ: "3", ì: "4", ō: "1", ó: "2", ǒ: "3", ò: "4", ū: "1", ú: "2", ǔ: "3", ù: "4", ǖ: "1", ǘ: "2", ǚ: "3", ǜ: "4" }
-const wordClassLabel: Record<string, string> = { noun: "Nomina · 名词 (míngcí)", verb: "Verba · 动词 (dòngcí)", adj: "Adjektiva · 形容词 (xíngróngcí)", adv: "Adverbia · 副词 (fùcí)", conj: "Konjungsi · 连词 (liáncí)", particle: "Partikel · 助词 (zhùcí)", pron: "Pronomina · 代词 (dàicí)", num: "Numeralia · 数词 (shùcí)", classifier: "Klasifikator · 量词 (liàngcí)", prep: "Preposisi · 介词 (jiècí)", interj: "Interjeksi · 叹词 (tàncí)" }
-const idsLabels: Record<string, string> = { "⿰": "kiri · kanan", "⿱": "atas · bawah", "⿲": "kiri · tengah · kanan", "⿳": "atas · tengah · bawah", "⿴": "luar · dalam", "⿵": "atas terbuka · dalam", "⿶": "bawah terbuka · dalam", "⿷": "kiri terbuka · dalam", "⿸": "kiri atas · dalam", "⿹": "kanan atas · dalam", "⿺": "kiri bawah · dalam", "⿻": "bertumpang" }
-
-function isHanzi(char: string) {
-  const code = char.charCodeAt(0)
-  return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
-}
-
-function splitPinyin(word: string) {
-  return word.match(/[bpmfdtnlgkhjqxzcsryw]{0,2}[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜaeiouü]+(?:ng?|r)?/gi) ?? [word]
-}
-
 function ColorPinyin({ text }: { text: string }) {
   return <>{text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
     if (!part || /^(\s+|[,!.?·。，！？、；：()]+)$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
     return splitPinyin(part).map((syllable, syllableIndex) => {
-      const tone = [...syllable].map(char => toneMap[char]).find(Boolean)
+      const tone = [...syllable].map(getTone).find(Boolean)
       return <span key={`${syllable}-${syllableIndex}`} className={tone ? styles[`tone${tone}` as "tone1" | "tone2" | "tone3" | "tone4"] : styles.tone0}>{syllable}</span>
     })
   })}</>
@@ -68,13 +56,6 @@ function segmentSentence(text: string, knownWords: Set<string>): Segment[] {
     else { segments.push({ text: char, hanzi: true, known: false }); index += 1 }
   }
   return segments
-}
-
-function decompParts(entry?: DictionaryEntry) {
-  const raw = entry?.decomposition || ""
-  const ids = raw[0] || ""
-  const parts = raw ? [...raw].filter(char => char !== ids && char !== "？" && !idsLabels[char]) : []
-  return { ids, label: idsLabels[ids] || "", parts: [...new Set(parts)] }
 }
 
 function heroBadgeLabel(card: Card): string | null {
@@ -292,7 +273,7 @@ export default function WordDetailPage() {
 function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   const badge = heroBadgeLabel(card)
-  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
 function SentenceTab({ examples, knownWords, card, onAddSentence }: { examples: ExampleSentence[]; knownWords: Set<string>; card: Card; onAddSentence: () => void }) {

@@ -250,7 +250,7 @@ function VocabularySearch() {
               type="button"
               variant={searchFilter === filter.value ? "default" : "outline"}
               size="sm"
-              onClick={() => handleFilterChange(filter.value as any)}
+              onClick={() => handleFilterChange(filter.value as "all" | "hsk" | "common" | "native")}
             >
               {filter.label}
             </Button>

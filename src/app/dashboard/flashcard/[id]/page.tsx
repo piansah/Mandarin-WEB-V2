@@ -18,110 +18,12 @@ import {
 import { Music, Layers, Edit2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
+import { getTone, isHanzi, IDS_LABELS, decompParts } from "@/lib/hanzi-utils"
 import { useSidebar } from "@/components/ui/sidebar"
+import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
+import { ColorPinyin } from "./components"
 
-type Card = {
-  id: string
-  hanzi: string
-  pinyin: string
-  arti: string
-}
-
-type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
-
-type ExampleSentence = {
-  id: number
-  hanzi: string | null
-  pinyin: string | null
-  arti: string | null
-  section_label?: string | null
-}
-
-type CompoundWord = {
-  hanzi: string
-  pinyin: string | null
-  arti: string | null
-  badge?: string | null
-}
-
-type DictionaryEntry = {
-  pinyin?: string[]
-  definition?: string
-  decomposition?: string
-  etymology?: {
-    hint?: string
-  }
-}
-
-type DictionaryMap = Record<string, DictionaryEntry>
-
-type DeckMeta = {
-  title: string
-  description: string | null
-}
-
-const toneClass: Record<string, string> = {
-  "1": "text-red-400",
-  "2": "text-amber-400",
-  "3": "text-emerald-400",
-  "4": "text-sky-400",
-}
-
-function getTone(char: string) {
-  const toneMap: Record<string, string> = {
-    ā: "1", á: "2", ǎ: "3", à: "4",
-    ē: "1", é: "2", ě: "3", è: "4",
-    ī: "1", í: "2", ǐ: "3", ì: "4",
-    ō: "1", ó: "2", ǒ: "3", ò: "4",
-    ū: "1", ú: "2", ǔ: "3", ù: "4",
-    ǖ: "1", ǘ: "2", ǚ: "3", ǜ: "4",
-  }
-  return toneMap[char]
-}
-
-function ColorPinyin({ text }: { text: string }) {
-  return (
-    <>
-      {text.split(/(\s+)/).map((part, index) => {
-        const tone = [...part].map(getTone).find(Boolean)
-        return (
-          <span key={`${part}-${index}`} className={tone ? toneClass[tone] : undefined}>
-            {part}
-          </span>
-        )
-      })}
-    </>
-  )
-}
-
-function isHanzi(char: string) {
-  const code = char.charCodeAt(0)
-  return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
-}
-
-const idsLabels: Record<string, string> = {
-  "⿰": "kiri · kanan",
-  "⿱": "atas · bawah",
-  "⿲": "kiri · tengah · kanan",
-  "⿳": "atas · tengah · bawah",
-  "⿴": "luar · dalam",
-  "⿵": "atas terbuka · dalam",
-  "⿶": "bawah terbuka · dalam",
-  "⿷": "kiri terbuka · dalam",
-  "⿸": "kiri atas · dalam",
-  "⿹": "kanan atas · dalam",
-  "⿺": "kiri bawah · dalam",
-  "⿻": "bertumpang",
-}
-
-function decompParts(entry?: DictionaryEntry) {
-  const raw = entry?.decomposition || ""
-  const ids = raw[0] || ""
-  const parts = raw
-    ? [...raw].filter(char => char !== ids && char !== "？" && !idsLabels[char])
-    : []
-  return { ids, label: idsLabels[ids] || "", parts }
-}
+const idsLabels = IDS_LABELS
 
 export default function FlashcardDeckPage() {
   const params = useParams()

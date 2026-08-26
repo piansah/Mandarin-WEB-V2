@@ -6,6 +6,7 @@ import { X } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
+import { shuffle } from "@/lib/array-utils"
 import styles from "../../[key]/page.module.css"
 
 type RawKalimatQuestion = {
@@ -89,15 +90,6 @@ function RumpangText({ text }: { text: string }) {
     if (p.type === "lat") return <span key={i} className={styles.lat}>({p.content})</span>
     return <span key={i}>{p.content}</span>
   })}</span>
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
 }
 
 function buildKalimatQuiz(rows: RawKalimatQuestion[]): QuizQuestion[] {

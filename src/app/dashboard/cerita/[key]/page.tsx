@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
+import { shuffle } from "@/lib/array-utils"
 
 type QuizQuestion = {
   q: string
@@ -324,7 +325,7 @@ export default function CeritaReadPage() {
   /* ── Comprehension quiz ── */
   function shuffleOptions(q: QuizQuestion): QuizQuestion {
     const correctText = q.options[q.correctIndex]
-    const options = [...q.options].sort(() => Math.random() - 0.5)
+    const options = shuffle(q.options)
     return { ...q, options, correctIndex: options.indexOf(correctText) }
   }
 

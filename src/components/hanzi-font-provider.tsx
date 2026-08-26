@@ -25,13 +25,8 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
 
   async function loadUserFont() {
     const settings = await fetchUserSettings()
-    console.log("Loading user settings:", settings)
-    console.log("hanziFont from settings:", settings?.hanziFont)
     if (settings?.hanziFont) {
-      console.log("Setting font to:", settings.hanziFont)
       setUserFont(settings.hanziFont as HanziFont)
-    } else {
-      console.log("No font preference found, using default")
     }
     setIsLoaded(true)
   }
@@ -40,28 +35,51 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
     if (isLoaded) {
       const fontToUse = userFont || "noto-sans-sc"
       const fontFamily = FONT_FAMILY_VALUES[fontToUse]
-      console.log("Applying font family:", fontFamily)
-      console.log("Font to use:", fontToUse)
       
       // Remove old style sheet if exists
       if (styleSheetRef.current) {
         styleSheetRef.current.remove()
       }
       
-      // Create new style sheet
+      // Create new style sheet - ONLY target Hanzi elements
       const styleSheet = document.createElement('style')
       styleSheet.innerHTML = `
+        /* Target all elements with font-hanzi class */
         .font-hanzi {
           font-family: ${fontFamily} !important;
         }
+        
+        /* Target inline font-family with --font-hanzi variable */
         [style*="font-family"] {
+          font-family: ${fontFamily} !important;
+        }
+        
+        /* Update CSS variable globally */
+        :root {
+          --font-hanzi: ${fontFamily} !important;
+        }
+        
+        html {
+          --font-hanzi: ${fontFamily} !important;
+        }
+        
+        body {
+          --font-hanzi: ${fontFamily} !important;
+        }
+        
+        /* Target elements with hanzi in class name */
+        [class*="hanzi"],
+        [class*="Hanzi"] {
+          font-family: ${fontFamily} !important;
+        }
+        
+        /* Target tone classes which often contain Hanzi */
+        .tone1, .tone2, .tone3, .tone4, .tone0 {
           font-family: ${fontFamily} !important;
         }
       `
       document.head.appendChild(styleSheet)
       styleSheetRef.current = styleSheet
-      
-      console.log("Font applied successfully via dynamic stylesheet")
     }
   }, [userFont, isLoaded])
 

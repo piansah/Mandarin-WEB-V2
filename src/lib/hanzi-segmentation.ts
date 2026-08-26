@@ -114,8 +114,8 @@ export async function initGlobalSearchCache(forceRefresh = false) {
     }
 
     // Helper to fetch all rows
-    async function fetchAll(table: string, select: string) {
-      let allData: any[] = []
+    async function fetchAll<T>(table: string, select: string): Promise<T[]> {
+      let allData: T[] = []
       let from = 0
       const limit = 1000
       let hasMore = true
@@ -133,7 +133,7 @@ export async function initGlobalSearchCache(forceRefresh = false) {
         }
         
         if (data && data.length > 0) {
-          allData = [...allData, ...data]
+          allData = [...allData, ...(data as T[])]
           from += limit
           if (data.length < limit) {
             hasMore = false
@@ -146,20 +146,20 @@ export async function initGlobalSearchCache(forceRefresh = false) {
     }
 
     // Fetch Cards
-    const cards = await fetchAll("flashcard_cards", "id, set_id, hanzi, pinyin, arti")
+    const cards = await fetchAll<{ id: string | number; set_id?: number; hanzi: string; pinyin: string | null; arti: string | null }>("flashcard_cards", "id, set_id, hanzi, pinyin, arti")
 
     // Fetch Compounds
-    const compounds = await fetchAll("word_compounds", "id, hanzi, pinyin, arti, badge")
+    const compounds = await fetchAll<{ id: string | number; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }>("word_compounds", "id, hanzi, pinyin, arti, badge")
 
     const hskMapped: GlobalWord[] = (cards || []).map((c) => ({
       ...c,
-      source: "hsk",
+      source: "hsk" as const,
       hsk_level: c.set_id ? (setHskMap[c.set_id] || 1) : 1,
     }))
 
     const compMapped: GlobalWord[] = (compounds || []).map((c) => ({
       ...c,
-      source: "compound",
+      source: "compound" as const,
     }))
 
     _globalSearchCache = [...hskMapped, ...compMapped]

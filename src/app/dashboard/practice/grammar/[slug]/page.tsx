@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
+import { shuffle } from "@/lib/array-utils"
 import styles from "./page.module.css"
 
 type Example = { hz?: string; py?: string; id?: string }
@@ -43,15 +44,6 @@ const toneMap: Record<string, string> = {
   ō: "tone1", ó: "tone2", ǒ: "tone3", ò: "tone4",
   ū: "tone1", ú: "tone2", ǔ: "tone3", ù: "tone4",
   ǖ: "tone1", ǘ: "tone2", ǚ: "tone3", ǜ: "tone4",
-}
-
-function shuffle<T>(items: T[]) {
-  const next = [...items]
-  for (let i = next.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[next[i], next[j]] = [next[j], next[i]]
-  }
-  return next
 }
 
 function asStringArray(value: unknown): string[] {
