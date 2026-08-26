@@ -11,89 +11,86 @@ import {
   FileText,
   BookMarked,
   Star,
-  ChevronRight,
   Settings,
   User,
+  Flame,
+  Zap,
+  RefreshCw,
+  FolderHeart,
+  PlusCircle,
 } from "lucide-react"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { NavUser } from "@/components/nav-user"
 
-const navItems = [
+const todayItems = [
   {
     title: "Dashboard",
+    description: "Beranda + ringkasan hari ini",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
+    title: "Kuis Harian", 
+    description: "Latihan harian ~5 menit",
+    url: "/dashboard/quiz",
+    icon: Zap,
+  },
+  {
+    title: "Review",
+    description: "Ulangi kata yang salah",
+    url: "/dashboard/quiz/review",
+    icon: RefreshCw,
+  },
+]
+
+const learningPathItems = [
+  {
+    title: "Flashcard",
+    description: "Kartu hafalan HSK",
+    url: "/dashboard/flashcard",
+    icon: Layers,
+  },
+  {
     title: "Hanzi",
+    description: "Latihan tulis karakter",
     url: "/dashboard/hanzi",
     icon: Languages,
   },
   {
     title: "Grammar",
+    description: "Pola kalimat & tata bahasa",
     url: "/dashboard/grammar",
     icon: BookOpen,
   },
   {
-    title: "Flashcard",
-    icon: Layers,
-    items: [
-      { title: "Flashcard Kosakata", url: "/dashboard/flashcard" },
-      { title: "Flashcard Kumulatif", url: "/dashboard/flashcard/cumulative" },
-      { title: "Deck Pribadi", url: "/dashboard/personal-cards" },
-    ],
-  },
-  {
-    title: "Quiz",
-    icon: FileText,
-    items: [
-      { title: "Quiz Harian", url: "/dashboard/quiz" },
-      { title: "Quiz Kumulatif", url: "/dashboard/quiz/review" },
-    ],
-  },
-  {
     title: "Cerita",
+    description: "Bacaan interaktif",
     url: "/dashboard/cerita",
     icon: BookMarked,
   },
+]
+
+const personalCollectionItems = [
   {
     title: "Favorit",
+    description: "Kata/kalimat yang disimpan",
     url: "/dashboard/favorit",
     icon: Star,
   },
-]
-
-const navSecondary = [
   {
-    title: "Profil",
-    url: "/dashboard/profile",
-    icon: User,
-  },
-  {
-    title: "Pengaturan",
-    url: "/dashboard/settings",
-    icon: Settings,
+    title: "Deck Saya",
+    description: "Kartu personal buatan sendiri",
+    url: "/dashboard/personal-cards",
+    icon: FolderHeart,
   },
 ]
 
@@ -105,14 +102,6 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const { isMobile, setOpen, toggleSidebar } = useSidebar()
-  const defaultOpenSections = React.useMemo<Record<string, boolean>>(
-    () => ({
-      Flashcard: pathname.startsWith("/dashboard/flashcard") || pathname.startsWith("/dashboard/personal-cards"),
-      Quiz: pathname.startsWith("/dashboard/quiz"),
-    }),
-    [pathname]
-  )
-  const [openSections, setOpenSections] = React.useState<Record<string, boolean>>(defaultOpenSections)
 
   return (
     <Sidebar
@@ -142,82 +131,87 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Menu Utama</SidebarGroupLabel>
-          <SidebarMenu>
-            {navItems.map((item) =>
-              item.items ? (
-                <Collapsible
-                  key={item.title}
-                  open={openSections[item.title] ?? defaultOpenSections[item.title] ?? false}
-                  onOpenChange={(open) => setOpenSections((current) => ({ ...current, [item.title]: open }))}
-                  render={<SidebarMenuItem />}
-                >
-                  <CollapsibleTrigger
-                    render={
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        isActive={item.items.some((subItem) => pathname.startsWith(subItem.url))}
-                      />
-                    }
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                    <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            isActive={pathname === subItem.url}
-                            render={<Link href={subItem.url} />}
-                          >
-                            <span>{subItem.title}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </Collapsible>
-              ) : (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    tooltip={item.title}
-                    isActive={pathname === item.url}
-                    render={<Link href={item.url} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )
-            )}
-          </SidebarMenu>
-        </SidebarGroup>
+        {/* Profile Section */}
+        <div className="px-3 py-4">
+          <NavUser user={user} />
+        </div>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Lainnya</SidebarGroupLabel>
+        {/* HARI INI */}
+        <div className="px-3">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            HARI INI
+          </div>
           <SidebarMenu>
-            {navSecondary.map((item) => (
+            {todayItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
                   render={<Link href={item.url} />}
+                  className="flex-col items-start p-3 h-auto"
                 >
-                  <item.icon />
-                  <span>{item.title}</span>
+                  <div className="flex items-center gap-2 w-full">
+                    <item.icon className="h-4 w-4" />
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-        </SidebarGroup>
+        </div>
+
+        {/* JALUR PEMBELAJARAN */}
+        <div className="px-3 mt-4">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            JALUR PEMBELAJARAN
+          </div>
+          <SidebarMenu>
+            {learningPathItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={pathname === item.url}
+                  render={<Link href={item.url} />}
+                  className="flex-col items-start p-3 h-auto"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <item.icon className="h-4 w-4" />
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
+
+        {/* KOLEKSI PRIBADI */}
+        <div className="px-3 mt-4">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            KOLEKSI PRIBADI
+          </div>
+          <SidebarMenu>
+            {personalCollectionItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={pathname === item.url}
+                  render={<Link href={item.url} />}
+                  className="flex-col items-start p-3 h-auto"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <item.icon className="h-4 w-4" />
+                    <span className="font-medium">{item.title}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground ml-6">{item.description}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
       </SidebarContent>
 
-      <SidebarFooter>
-        <NavUser user={user} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )

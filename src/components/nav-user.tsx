@@ -24,8 +24,9 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
-import { ChevronsUpDownIcon, UserIcon, LogOutIcon } from "lucide-react"
+import { ChevronsUpDownIcon, UserIcon, LogOutIcon, SettingsIcon, Flame } from "lucide-react"
 import { fetchUserProfile, type UserProfile } from "@/lib/user-profile"
+import { fetchUserSettings } from "@/lib/user-settings"
 
 export function NavUser({
   user,
@@ -39,9 +40,12 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const router = useRouter()
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
+  const [streak, setStreak] = React.useState<number>(0)
 
   React.useEffect(() => {
     fetchUserProfile().then(setProfile)
+    // Fetch streak data (implement later)
+    setStreak(1) // Placeholder
   }, [])
 
   async function handleLogout() {
@@ -63,18 +67,42 @@ export function NavUser({
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted" />
+              <SidebarMenuButton size="lg" className="aria-expanded:bg-muted p-3 h-auto flex-col items-start" />
             }
           >
-            <Avatar>
-              <AvatarImage src={displayAvatar} alt={user.name} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs">{user.email}</span>
+            <div className="flex items-center gap-3 w-full">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={displayAvatar} alt={user.name} />
+                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{user.name}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push("/dashboard/settings")
+                    }}
+                    className="p-1 hover:bg-muted rounded"
+                  >
+                    <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </div>
+                {profile && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="secondary" className="text-xs h-5 px-1">
+                      Lvl {profile.level}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{profile.title}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <ChevronsUpDownIcon className="ml-auto size-4" />
+            <div className="flex items-center gap-1 mt-2 w-full text-xs text-muted-foreground">
+              <Flame className="h-3 w-3 text-orange-500" />
+              <span>{streak} hari streak</span>
+            </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-fit"
@@ -83,40 +111,19 @@ export function NavUser({
             sideOffset={4}
           >
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="p-0 font-normal">
-                <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar>
-                    <AvatarImage src={displayAvatar} alt={user.name} />
-                    <AvatarFallback>{initials}</AvatarFallback>
-                  </Avatar>
-                  <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-medium">{user.name}</span>
-                    <span className="truncate text-xs">{user.email}</span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
               <DropdownMenuItem onClick={() => router.push("/dashboard/profile")}>
                 <UserIcon className="h-4 w-4" />
-                <div className="flex flex-col items-start">
-                  <span>Profil</span>
-                  {profile && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="secondary" className="text-xs h-5 px-1">
-                        Lvl {profile.level}
-                      </Badge>
-                      <span>{profile.title}</span>
-                    </div>
-                  )}
-                </div>
+                Profil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/dashboard/settings")}>
+                <SettingsIcon className="h-4 w-4" />
+                Pengaturan
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOutIcon className="h-4 w-4" />
-              Log out
+              Keluar
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
