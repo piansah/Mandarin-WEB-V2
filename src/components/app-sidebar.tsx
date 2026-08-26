@@ -187,9 +187,12 @@ export function AppSidebar({
       {...props}
     >
       <SidebarHeader>
-        <div className="px-2 py-1">
-          <span className="truncate text-lg font-bold text-primary">
-            <span className="font-hanzi text-2xl">木</span> JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
+        <div className="px-2 py-1 flex items-center gap-2">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary flex-shrink-0">
+            <span className="font-hanzi text-xl text-white">木</span>
+          </div>
+          <span className="truncate text-lg font-bold">
+            <span className="text-black dark:text-white">JOURNEY</span><span className="ml-0.5 text-2xl text-primary">.</span>
           </span>
         </div>
       </SidebarHeader>
