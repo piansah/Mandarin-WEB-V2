@@ -143,38 +143,15 @@ export function AppSidebar({
 
   return (
     <Sidebar
-      collapsible="offcanvas"
-      onMouseEnter={() => {
-        if (!isMobile) setOpen(true)
-      }}
-      onMouseLeave={() => {
-        if (!isMobile) setOpen(false)
-      }}
+      collapsible="none"
       {...props}
     >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="JOURNEY" onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setOpen(true)
-            }}>
-              <div className="flex items-center gap-2">
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-bold text-sage-500 text-lg">JOURNEY<span className="text-white text-2xl ml-0.5">.</span></span>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleToggleSidebar()
-                  }}
-                  className="p-1.5 hover:bg-muted rounded-md transition-colors"
-                  aria-label="Toggle sidebar"
-                >
-                  {open ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
-                </button>
+            <SidebarMenuButton size="lg" tooltip="JOURNEY">
+              <div className="text-left text-sm leading-tight">
+                <span className="truncate font-bold text-sage-500 text-lg">JOURNEY<span className="text-white text-2xl ml-0.5">.</span></span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
