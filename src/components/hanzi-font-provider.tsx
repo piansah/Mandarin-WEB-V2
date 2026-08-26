@@ -17,6 +17,7 @@ const HanziFontContext = React.createContext<string | null>(null)
 export function HanziFontProvider({ children }: { children: React.ReactNode }) {
   const [userFont, setUserFont] = React.useState<HanziFont | null>(null)
   const [isLoaded, setIsLoaded] = React.useState(false)
+  const styleSheetRef = React.useRef<HTMLStyleElement | null>(null)
 
   React.useEffect(() => {
     loadUserFont()
@@ -42,16 +43,25 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
       console.log("Applying font family:", fontFamily)
       console.log("Font to use:", fontToUse)
       
-      // Update the CSS variable directly to the font family string
-      document.documentElement.style.setProperty("--font-hanzi", fontFamily)
+      // Remove old style sheet if exists
+      if (styleSheetRef.current) {
+        styleSheetRef.current.remove()
+      }
       
-      // Apply to all elements with font-hanzi class
-      const hanziElements = document.querySelectorAll('.font-hanzi')
-      hanziElements.forEach(el => {
-        (el as HTMLElement).style.fontFamily = fontFamily
-      })
+      // Create new style sheet
+      const styleSheet = document.createElement('style')
+      styleSheet.innerHTML = `
+        .font-hanzi {
+          font-family: ${fontFamily} !important;
+        }
+        [style*="font-family"] {
+          font-family: ${fontFamily} !important;
+        }
+      `
+      document.head.appendChild(styleSheet)
+      styleSheetRef.current = styleSheet
       
-      console.log("Font applied successfully. Total elements updated:", hanziElements.length)
+      console.log("Font applied successfully via dynamic stylesheet")
     }
   }, [userFont, isLoaded])
 
