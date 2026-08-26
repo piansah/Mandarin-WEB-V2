@@ -12,20 +12,21 @@ const EDGE_TRIGGER_PX = 24
  * onMouseLeave (see app-sidebar.tsx), so this component only ever opens it.
  */
 export function SidebarHoverTrigger() {
-  const { setOpen, isMobile, pinned } = useSidebar()
+  const { setOpen, isMobile, open, pinned } = useSidebar()
 
   useEffect(() => {
     if (isMobile || pinned) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (e.clientX <= EDGE_TRIGGER_PX) {
+      // Only trigger if sidebar is closed
+      if (!open && e.clientX <= EDGE_TRIGGER_PX) {
         setOpen(true)
       }
     }
 
     window.addEventListener("mousemove", handleMouseMove)
     return () => window.removeEventListener("mousemove", handleMouseMove)
-  }, [setOpen, isMobile, pinned])
+  }, [setOpen, isMobile, open, pinned])
 
   return null
 }
