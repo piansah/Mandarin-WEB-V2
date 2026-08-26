@@ -179,7 +179,7 @@ export function AppSidebar({
     >
       <SidebarHeader>
         <div className="flex items-center justify-between gap-2 px-2 py-1">
-          <span className="truncate text-lg font-bold text-sage-500">
+          <span className="truncate text-lg font-bold text-primary">
             JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
           </span>
           <button
@@ -190,7 +190,7 @@ export function AppSidebar({
             aria-pressed={isMobile ? undefined : pinned}
             title={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
           >
-            <PanelLeft className={cn("h-4 w-4", !isMobile && pinned && "text-sage-500")} />
+            <PanelLeft className={cn("h-4 w-4", !isMobile && pinned && "text-primary")} />
           </button>
         </div>
       </SidebarHeader>
