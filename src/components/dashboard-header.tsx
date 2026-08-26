@@ -16,12 +16,13 @@ export function DashboardHeader() {
       <Button
         type="button"
         onClick={togglePinned}
+        variant="ghost"
         className="flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-muted"
         aria-label={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
         aria-pressed={pinned}
         title={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
       >
-        <PanelLeft className={cn("h-5 w-5", pinned && "text-primary")} />
+        <PanelLeft className="h-5 w-5" />
       </Button>
 
       <div className="flex items-center gap-2">
