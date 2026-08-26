@@ -1,22 +1,20 @@
 /**
- * USER SENTENCES — fitur untuk user menambahkan kalimat ke hanzi_items
+ * USER SENTENCES — fitur untuk user menambahkan contoh kalimat ke word_examples
  * 
- * User bisa submit kalimat yang akan masuk ke hanzi_items dengan flag user_contribution
- * Sistem menggunakan table hanzi_items yang sudah ada
+ * User bisa submit contoh kalimat untuk kata yang sedang dilihat
+ * Sistem menggunakan table word_examples yang sudah ada
  */
 
 import { createClient } from "@/lib/supabase/browser"
 
-export type HanziItem = {
+export type WordExample = {
   id: number
-  section_label: string | null
-  section_tag: string | null
-  sort_order: number | null
   hanzi: string
   pinyin: string
   arti: string
-  hanzi_key: string
-  user_contribution: boolean | null
+  section_label: string | null
+  section_tag: string | null
+  hanzi_item_id: number | null
   created_at: string
 }
 
@@ -39,28 +37,22 @@ export async function submitUserSentence(
   const { supa, user } = await requireUser()
   if (!user) return { error: "Belum login" }
 
-  // Get max sort_order for this hanzi_key
-  const { data: maxOrder } = await supa
+  // Find the hanzi_item_id based on hanzi_key
+  const { data: hanziItem } = await supa
     .from("hanzi_items")
-    .select("sort_order")
-    .eq("hanzi_key", sentence.hanzi_key)
-    .order("sort_order", { ascending: false })
-    .limit(1)
+    .select("id")
+    .eq("hanzi", sentence.hanzi_key)
     .maybeSingle()
 
-  const nextSortOrder = (maxOrder?.sort_order ?? 0) + 1
-
   const { data, error } = await supa
-    .from("hanzi_items")
+    .from("word_examples")
     .insert({
-      hanzi_key: sentence.hanzi_key,
       hanzi: sentence.hanzi,
       pinyin: sentence.pinyin,
       arti: sentence.arti,
       section_label: null,
       section_tag: null,
-      sort_order: nextSortOrder,
-      user_contribution: true,
+      hanzi_item_id: hanziItem?.id || null,
     })
     .select("id")
     .single()
@@ -69,14 +61,13 @@ export async function submitUserSentence(
   return { error: null, id: data?.id }
 }
 
-export async function listUserSentences(): Promise<HanziItem[]> {
+export async function listUserSentences(): Promise<WordExample[]> {
   const { supa, user } = await requireUser()
   if (!user) return []
 
   const { data, error } = await supa
-    .from("hanzi_items")
+    .from("word_examples")
     .select("*")
-    .eq("user_contribution", true)
     .order("created_at", { ascending: false })
 
   if (error || !data) return []
@@ -88,10 +79,9 @@ export async function deleteUserSentence(id: number): Promise<{ error: string | 
   if (!user) return { error: "Belum login" }
 
   const { error } = await supa
-    .from("hanzi_items")
+    .from("word_examples")
     .delete()
     .eq("id", id)
-    .eq("user_contribution", true)
 
   return { error: error?.message ?? null }
 }

@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import { useParams } from "next/navigation"
-import { Flag, Heart } from "lucide-react"
+import { Flag, Heart, Plus } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
+import { AddSentenceModal } from "@/components/add-sentence-modal"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
@@ -99,6 +100,7 @@ export default function WordDetailPage() {
   const [tabLoading, setTabLoading] = React.useState(false)
   const [favorited, setFavorited] = React.useState(false)
   const [reportModal, setReportModal] = React.useState({ isOpen: false, contentLabel: "" })
+  const [addSentenceModal, setAddSentenceModal] = React.useState(false)
 
   React.useEffect(() => {
     const supa = createClient(); let cancelled = false
@@ -233,10 +235,34 @@ export default function WordDetailPage() {
     setReportModal({ isOpen: false, contentLabel: "" })
   }
 
+  function openAddSentenceModal() {
+    setAddSentenceModal(true)
+  }
+
+  function closeAddSentenceModal() {
+    setAddSentenceModal(false)
+  }
+
+  function handleAddSentenceSuccess() {
+    // Reload the vocabulary data to refresh examples
+    const controller = new AbortController()
+    const signal = controller.signal
+    const supa = createClient()
+    
+    const loadVocabulary = async () => {
+      if (!cardId) return
+      const { data: cardData } = await supa.from("flashcard_cards").select("*").eq("id", cardId).single()
+      if (cardData) setCard(cardData)
+    }
+    
+    loadVocabulary()
+    closeAddSentenceModal()
+  }
+
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} card={card} onAddSentence={openAddSentenceModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
     
     {/* Report Modal */}
     <ReportModal
@@ -245,6 +271,14 @@ export default function WordDetailPage() {
       contentType="kosakata"
       contentId={cardId}
       contentLabel={reportModal.contentLabel}
+    />
+
+    {/* Add Sentence Modal */}
+    <AddSentenceModal
+      isOpen={addSentenceModal}
+      onClose={closeAddSentenceModal}
+      hanziKey={card?.hanzi || ""}
+      onSuccess={handleAddSentenceSuccess}
     />
   </div>
 }
@@ -255,9 +289,23 @@ function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; fav
   return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{wordClassLabel[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
-function SentenceTab({ examples, knownWords }: { examples: ExampleSentence[]; knownWords: Set<string> }) {
+function SentenceTab({ examples, knownWords, card, onAddSentence }: { examples: ExampleSentence[]; knownWords: Set<string>; card: Card; onAddSentence: () => void }) {
   if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
-  return <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} knownWords={knownWords} />)}</div>
+  return (
+    <div>
+      <div className="flex justify-end mb-4">
+        <button
+          type="button"
+          onClick={onAddSentence}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Tambah Contoh Kalimat
+        </button>
+      </div>
+      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} knownWords={knownWords} />)}</div>
+    </div>
+  )
 }
 
 function SentenceCard({ example, knownWords }: { example: ExampleSentence; knownWords: Set<string> }) {
@@ -284,7 +332,9 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
       <button
         type="button"
         onClick={handleReport}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
+        onMouseDown={(e) => e.stopPropagation()}
+        onMouseUp={(e) => e.stopPropagation()}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity z-10"
         title="Report kalimat"
       >
         <Flag className="h-3 w-3 text-orange-500" />
