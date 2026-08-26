@@ -161,7 +161,7 @@ export function AppSidebar({
   return (
     <Sidebar
       collapsible="offcanvas"
-      overlay
+      overlay={!pinned}
       className="border-r border-sidebar-border"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
