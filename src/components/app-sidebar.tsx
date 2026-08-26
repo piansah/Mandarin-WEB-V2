@@ -118,7 +118,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, toggleSidebar, open } = useSidebar()
+  const { isMobile, setOpen } = useSidebar()
 
   async function handleLogout() {
     const supabase = createClient()
@@ -137,15 +137,21 @@ export function AppSidebar({
 
   return (
     <Sidebar
-      collapsible="icon"
+      collapsible="offcanvas"
+      onMouseEnter={() => {
+        if (!isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if (!isMobile) setOpen(false)
+      }}
       {...props}
     >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="JOURNEY" onClick={toggleSidebar}>
+            <SidebarMenuButton size="lg" tooltip="JOURNEY">
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-400">.</span></span>
+                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-500 text-xl">.</span></span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

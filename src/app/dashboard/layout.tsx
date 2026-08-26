@@ -8,7 +8,6 @@ import {
 import { createClient } from "@/lib/supabase/server"
 import { BugReportFab } from "@/components/bug-report-fab"
 import { PWAInstall } from "@/components/pwa-install"
-import { DashboardHeader } from "@/components/dashboard-header"
 import "@/lib/global-bug-report"
 
 export default async function DashboardLayout({
@@ -34,7 +33,6 @@ export default async function DashboardLayout({
       <AppSidebar user={sidebarUser} />
       <SidebarInset className="min-h-0 overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-          <DashboardHeader />
           {children}
         </div>
       </SidebarInset>
