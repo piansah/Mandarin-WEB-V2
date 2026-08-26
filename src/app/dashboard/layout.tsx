@@ -39,7 +39,7 @@ export default async function DashboardLayout({
       <SidebarHoverTrigger />
       <SidebarMobileOpenButton />
       <AppSidebar user={sidebarUser} />
-      <SidebarInset>
+      <SidebarInset className="flex flex-col h-screen">
         <DashboardHeader />
         <div className="flex-1 overflow-auto">
           {children}
