@@ -18,6 +18,7 @@ import {
 import { Music, Layers, Edit2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
+import { useSidebar } from "@/components/ui/sidebar"
 
 type Card = {
   id: string
@@ -126,10 +127,11 @@ export default function FlashcardDeckPage() {
   const params = useParams()
   const router = useRouter()
   const deckId = Number(params.id)
+  const { pinned } = useSidebar()
 
-  // The sidebar now floats as an overlay and never pushes page content, so
-  // this bar always spans the full width regardless of sidebar state.
-  const sidebarOffset = '0px'
+  // The sidebar floats as an overlay, but when pinned it takes up space
+  // Calculate offset based on sidebar state
+  const sidebarOffset = pinned ? '280px' : '0px'
 
   const [deck, setDeck] = React.useState<DeckMeta | null>(null)
   const [cards, setCards] = React.useState<Card[]>([])

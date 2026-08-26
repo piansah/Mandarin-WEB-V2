@@ -18,6 +18,9 @@ import {
   Flame,
   Bug,
   ChevronRight,
+  Target,
+  BarChart3,
+  RotateCcw,
 } from "lucide-react"
 import {
   Sidebar,
@@ -58,6 +61,18 @@ const todayItems = [
     description: "Kurikulum & Pembelajaran",
     url: "/dashboard/modul",
     icon: Layers,
+  },
+  {
+    title: "Path",
+    description: "Learning path terstruktur",
+    url: "/dashboard/path",
+    icon: Target,
+  },
+  {
+    title: "Statistik",
+    description: "Analisis progress detail",
+    url: "/dashboard/statistik",
+    icon: BarChart3,
   },
 ]
 

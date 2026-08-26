@@ -8,22 +8,65 @@ import {
   Layers,
   Zap,
   Target,
+  RotateCcw,
+  Clock,
+  CheckCircle2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
+import { createClient } from "@/lib/supabase/browser"
+
+type DueCard = {
+  id: string
+  hanzi: string
+  pinyin: string
+  arti: string
+  dueDate: string
+}
 
 export default function DashboardPage() {
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const [dueCards, setDueCards] = React.useState<DueCard[]>([])
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
       setStats(s)
       setLoading(false)
     })
+    loadDueCards()
   }, [])
+
+  async function loadDueCards() {
+    try {
+      const supa = createClient()
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+
+      const { data: cards } = await supa
+        .from("srs_cards")
+        .select("id, hanzi, pinyin, arti, due_date")
+        .eq("user_id", user.id)
+        .lte("due_date", new Date().toISOString())
+        .order("due_date", { ascending: true })
+        .limit(5)
+
+      if (cards) {
+        setDueCards(cards.map(card => ({
+          id: card.id,
+          hanzi: card.hanzi,
+          pinyin: card.pinyin,
+          arti: card.arti,
+          dueDate: card.due_date,
+        })))
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "Selamat Pagi" : hour < 17 ? "Selamat Siang" : "Selamat Malam"
@@ -209,6 +252,50 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Review Section */}
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
+            {dueCards.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {dueCards.length} kartu due
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {dueCards.length === 0 ? (
+            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+              <span className="text-sm">Tidak ada kartu yang harus direview</span>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {dueCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{card.hanzi}</p>
+                    <p className="text-xs text-muted-foreground">{card.pinyin} · {card.arti}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                  </div>
+                </div>
+              ))}
+              <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = '/dashboard/review'}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Mulai Review
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Aktivitas Terbaru */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">

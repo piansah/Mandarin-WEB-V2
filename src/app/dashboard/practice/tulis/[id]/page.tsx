@@ -6,6 +6,7 @@ import { X, RotateCcw, Eye, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import styles from "./page.module.css"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string; originalWord: string }
 type HanziWriterLike = {
@@ -169,43 +170,48 @@ export default function TulisHanziPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      <div className={styles.page}>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+        </div>
       </div>
     )
   }
 
   if (done || total === 0) {
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
-        <div className="absolute top-4 left-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="text-6xl">{total === 0 ? "📭" : "✍️"}</div>
-        <h2 className="text-3xl font-bold">{total === 0 ? "Belum Ada Kartu" : "Latihan Selesai!"}</h2>
-        {total > 0 && (
-          <div className="flex flex-col items-center gap-1 p-6 rounded-2xl bg-primary/10 border border-primary/30">
-            <span className="text-4xl font-bold text-primary">{correct}</span>
-            <span className="text-sm text-muted-foreground">Karakter Selesai</span>
-          </div>
-        )}
-        <div className="flex gap-3 w-full max-w-xs">
-          <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-          {total > 0 && (
-            <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0) }}>
-              Ulangi
+      <div className={styles.page}>
+        <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
+          <div className="absolute top-4 left-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
+              <X className="h-5 w-5" />
             </Button>
+          </div>
+          <div className="text-6xl">{total === 0 ? "📭" : "✍️"}</div>
+          <h2 className="text-3xl font-bold">{total === 0 ? "Belum Ada Kartu" : "Latihan Selesai!"}</h2>
+          {total > 0 && (
+            <div className="flex flex-col items-center gap-1 p-6 rounded-2xl bg-primary/10 border border-primary/30">
+              <span className="text-4xl font-bold text-primary">{correct}</span>
+              <span className="text-sm text-muted-foreground">Karakter Selesai</span>
+            </div>
           )}
+          <div className="flex gap-3 w-full max-w-xs">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
+            {total > 0 && (
+              <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0) }}>
+                Ulangi
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      {/* Header */}
+    <div className={styles.page}>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0">
           <X className="h-5 w-5" />
@@ -285,6 +291,7 @@ export default function TulisHanziPage() {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { TonePinyin } from "@/components/tone-pinyin"
+import styles from "./page.module.css"
 
 type Card = { id: number; hanzi: string; pinyin: string; arti: string }
 type SpeechRecognitionLike = {
@@ -310,8 +311,10 @@ export default function FlashcardPracticePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+      <div className={styles.page}>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+        </div>
       </div>
     )
   }
@@ -319,51 +322,53 @@ export default function FlashcardPracticePage() {
   if (done || cards.length === 0) {
     const pct = cards.length > 0 ? Math.round((hafal / (hafal + lupa + ragu)) * 100) : 0
     return (
-      <div className="flashcard-result flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
-        <div className="absolute top-4 left-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="flashcard-result-emoji text-6xl">{cards.length === 0 ? "📭" : "🎉"}</div>
-        <h2 className="flashcard-result-title text-3xl font-bold">{cards.length === 0 ? "Belum Ada Kartu" : "Sesi Selesai!"}</h2>
-        {cards.length > 0 && (
-          <>
-            <div className="grid grid-cols-3 gap-4 w-full max-w-md">
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                <span className="text-3xl font-bold text-emerald-500">{hafal}</span>
-                <span className="text-xs text-muted-foreground">Hafal</span>
-              </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-                <span className="text-3xl font-bold text-amber-500">{ragu}</span>
-                <span className="text-xs text-muted-foreground">Ragu</span>
-              </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
-                <span className="text-3xl font-bold text-red-500">{lupa}</span>
-                <span className="text-xs text-muted-foreground">Lupa</span>
-              </div>
-            </div>
-          </>
-        )}
-        <div className="flex gap-3 w-full max-w-xs">
-          <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-          {cards.length > 0 && (
-            <Button className="flex-1 rounded-xl" onClick={() => { window.location.reload() }}>
-              Ulangi
+      <div className={styles.page}>
+        <div className="flashcard-result flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
+          <div className="absolute top-4 left-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
+              <X className="h-5 w-5" />
             </Button>
+          </div>
+          <div className="flashcard-result-emoji text-6xl">{cards.length === 0 ? "📭" : "🎉"}</div>
+          <h2 className="flashcard-result-title text-3xl font-bold">{cards.length === 0 ? "Belum Ada Kartu" : "Sesi Selesai!"}</h2>
+          {cards.length > 0 && (
+            <>
+              <div className="grid grid-cols-3 gap-4 w-full max-w-md">
+                <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                  <span className="text-3xl font-bold text-emerald-500">{hafal}</span>
+                  <span className="text-xs text-muted-foreground">Hafal</span>
+                </div>
+                <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                  <span className="text-3xl font-bold text-amber-500">{ragu}</span>
+                  <span className="text-xs text-muted-foreground">Ragu</span>
+                </div>
+                <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
+                  <span className="text-3xl font-bold text-red-500">{lupa}</span>
+                  <span className="text-xs text-muted-foreground">Lupa</span>
+                </div>
+              </div>
+            </>
           )}
+          <div className="flex gap-3 w-full max-w-xs">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
+            {cards.length > 0 && (
+              <Button className="flex-1 rounded-xl" onClick={() => { window.location.reload() }}>
+                Ulangi
+              </Button>
+            )}
+          </div>
+          <style dangerouslySetInnerHTML={{__html: `
+            .flashcard-result { animation: fcResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
+            .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
+            .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
+            .flashcard-result-stat { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) both; }
+            .flashcard-result-stat:nth-child(2) { animation-delay: 80ms; }
+            .flashcard-result-stat:nth-child(3) { animation-delay: 160ms; }
+            @keyframes fcResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+            @keyframes fcResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+          `}} />
         </div>
-        <style dangerouslySetInnerHTML={{__html: `
-          .flashcard-result { animation: fcResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
-          .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
-          .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
-          .flashcard-result-stat { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) both; }
-          .flashcard-result-stat:nth-child(2) { animation-delay: 80ms; }
-          .flashcard-result-stat:nth-child(3) { animation-delay: 160ms; }
-          @keyframes fcResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-          @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
-          @keyframes fcResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        `}} />
       </div>
     )
   }
@@ -385,8 +390,9 @@ export default function FlashcardPracticePage() {
   const cardRotation = dragX * 0.05
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden select-none bg-background">
-      {/* Header */}
+    <div className={styles.page}>
+      <div className="flex flex-col flex-1 overflow-hidden select-none bg-background">
+        {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0">
           <X className="h-5 w-5" />
@@ -503,6 +509,7 @@ export default function FlashcardPracticePage() {
         .rotate-y-180 { transform: rotateY(180deg); }
         .rotate-y-360 { transform: rotateY(360deg); }
       `}} />
+    </div>
     </div>
   )
 }

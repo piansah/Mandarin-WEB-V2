@@ -6,6 +6,7 @@ import { X, Volume2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
+import styles from "./page.module.css"
 
 type Card = {
   id: number
@@ -142,63 +143,66 @@ export default function NadaPracticePage() {
   }
 
   if (loading) {
-    return <div className="flex flex-1 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div>
+    return <div className={styles.page}><div className="flex flex-1 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div></div>
   }
 
   if (done || total === 0) {
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0
     return (
-      <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
-        <div className="absolute top-4 left-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><X className="h-5 w-5" /></Button>
-        </div>
-        <div className="text-6xl">{total === 0 ? "📭" : "🎵"}</div>
-        <h2 className="text-3xl font-bold">{total === 0 ? "Tidak Ada Soal" : "Latihan Selesai!"}</h2>
-        {total > 0 && (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                <span className="text-3xl font-bold text-emerald-500">{correct}</span>
-                <span className="text-xs text-muted-foreground">Benar</span>
+      <div className={styles.page}>
+        <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
+          <div className="absolute top-4 left-4">
+            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full"><X className="h-5 w-5" /></Button>
+          </div>
+          <div className="text-6xl">{total === 0 ? "📭" : "🎵"}</div>
+          <h2 className="text-3xl font-bold">{total === 0 ? "Tidak Ada Soal" : "Latihan Selesai!"}</h2>
+          {total > 0 && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col items-center p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                  <span className="text-3xl font-bold text-emerald-500">{correct}</span>
+                  <span className="text-xs text-muted-foreground">Benar</span>
+                </div>
+                <div className="flex flex-col items-center p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
+                  <span className="text-3xl font-bold text-red-500">{total - correct}</span>
+                  <span className="text-xs text-muted-foreground">Salah</span>
+                </div>
               </div>
-              <div className="flex flex-col items-center p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
-                <span className="text-3xl font-bold text-red-500">{total - correct}</span>
-                <span className="text-xs text-muted-foreground">Salah</span>
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-primary">{pct}%</p>
-          </>
-        )}
-        <div className="flex gap-3 w-full max-w-xs">
-          <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-          {total > 0 && <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0); setSelected(null); setShowResult(false) }}>Ulangi</Button>}
+              <p className="text-2xl font-bold text-primary">{pct}%</p>
+            </>
+          )}
+          <div className="flex gap-3 w-full max-w-xs">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
+            {total > 0 && <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0); setSelected(null); setShowResult(false) }}>Ulangi</Button>}
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-hidden">
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0"><X className="h-5 w-5" /></Button>
-        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-          <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
-        </div>
-        <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6">
-        <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pilih nada yang benar</p>
-
-        <div className="flex flex-col items-center gap-3">
-          <div className="font-hanzi text-8xl">{q.hanzi}</div>
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
-            <Volume2 className="h-4 w-4" /> Dengar
-          </Button>
+    <div className={styles.page}>
+      <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0"><X className="h-5 w-5" /></Button>
+          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-          {choices.map(tone => {
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6">
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pilih nada yang benar</p>
+
+          <div className="flex flex-col items-center gap-3">
+            <div className="font-hanzi text-8xl">{q.hanzi}</div>
+            <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
+              <Volume2 className="h-4 w-4" /> Dengar
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+            {choices.map(tone => {
             const isCorrect = tone === q.nada
             const isSelected = selected === tone
             let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all "
@@ -237,6 +241,7 @@ export default function NadaPracticePage() {
           </Button>
         )}
       </div>
+    </div>
     </div>
   )
 }
