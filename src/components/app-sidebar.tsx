@@ -14,10 +14,6 @@ import {
   Settings,
   User,
   Flame,
-  Zap,
-  RefreshCw,
-  FolderHeart,
-  PlusCircle,
   LogOut,
 } from "lucide-react"
 import {
@@ -31,7 +27,19 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { NavUser } from "@/components/nav-user"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
 
@@ -41,12 +49,6 @@ const todayItems = [
     description: "Beranda + ringkasan hari ini",
     url: "/dashboard",
     icon: LayoutDashboard,
-  },
-  {
-    title: "Sesi hari ini",
-    description: "Latihan harian ~5 menit",
-    url: "/dashboard/sesi-hari-ini",
-    icon: Zap,
   },
   {
     title: "Modul",
@@ -115,7 +117,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, toggleSidebar } = useSidebar()
+  const { isMobile, setOpen, toggleSidebar, open } = useSidebar()
 
   async function handleLogout() {
     const supabase = createClient()
@@ -124,9 +126,23 @@ export function AppSidebar({
     router.refresh()
   }
 
+  async function handleProfileClick() {
+    router.push("/dashboard/profile")
+  }
+
+  async function handleSettingsClick() {
+    router.push("/dashboard/settings")
+  }
+
   return (
     <Sidebar
-      collapsible="none"
+      collapsible="icon"
+      onMouseEnter={() => {
+        if (!isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if (!isMobile) setOpen(false)
+      }}
       {...props}
     >
       <SidebarHeader>
@@ -134,7 +150,7 @@ export function AppSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" tooltip="JOURNEY" onClick={toggleSidebar}>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold text-white text-lg">JOURNEY</span>
+                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-400">.</span></span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -142,24 +158,16 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Profile Section */}
+        {/* Streak */}
         <div className="px-3 py-4 group-data-[collapsed=true]/sidebar:hidden">
-          <NavUser user={user} />
-        </div>
-
-        {/* Streak - Outside Profile */}
-        <div className="px-3 pb-4 group-data-[collapsed=true]/sidebar:hidden">
           <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs font-medium">
             <Flame className="h-3 w-3" />
             <span>1 hari streak</span>
           </div>
         </div>
 
-        {/* HARI INI */}
+        {/* Dashboard & Modul */}
         <div className="px-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            HARI INI
-          </div>
           <SidebarMenu>
             {todayItems.map((item) => (
               <SidebarMenuItem key={item.title}>
@@ -231,16 +239,50 @@ export function AppSidebar({
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="group-data-[collapsed=true]/sidebar:hidden">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={handleLogout}
-              className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Keluar</span>
-            </SidebarMenuButton>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <SidebarMenuButton size="lg" className="aria-expanded:bg-muted p-3 h-auto flex-col items-start" />
+                }
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="text-lg bg-primary text-primary-foreground">
+                      {user.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 group-data-[collapsed=true]/sidebar:hidden">
+                    <span className="font-medium">{user.name}</span>
+                  </div>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                className="w-fit"
+                side="right"
+                align="end"
+                sideOffset={4}
+              >
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={handleProfileClick}>
+                    <UserIcon className="h-4 w-4" />
+                    Profil
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSettingsClick}>
+                    <SettingsIcon className="h-4 w-4" />
+                    Pengaturan
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" />
+                  Keluar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
