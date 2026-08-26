@@ -12,8 +12,11 @@ const FONT_FAMILY_VALUES: Record<HanziFont, string> = {
   "long-cang": "var(--font-long-cang), 'Long Cang', 'Noto Sans SC', sans-serif",
 }
 
+const HanziFontContext = React.createContext<string | null>(null)
+
 export function HanziFontProvider({ children }: { children: React.ReactNode }) {
   const [userFont, setUserFont] = React.useState<HanziFont | null>(null)
+  const [isLoaded, setIsLoaded] = React.useState(false)
 
   React.useEffect(() => {
     loadUserFont()
@@ -21,17 +24,37 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
 
   async function loadUserFont() {
     const settings = await fetchUserSettings()
+    console.log("Loading user settings:", settings)
     if (settings?.hanziFont) {
+      console.log("Setting font to:", settings.hanziFont)
       setUserFont(settings.hanziFont as HanziFont)
+    } else {
+      console.log("No font preference found, using default")
     }
+    setIsLoaded(true)
   }
 
   React.useEffect(() => {
-    if (userFont) {
+    if (userFont && isLoaded) {
+      const fontFamily = FONT_FAMILY_VALUES[userFont]
+      console.log("Applying font family:", fontFamily)
+      
       // Update the CSS variable directly to the font family string
-      document.documentElement.style.setProperty("--font-hanzi", FONT_FAMILY_VALUES[userFont])
+      document.documentElement.style.setProperty("--font-hanzi", fontFamily)
+      
+      console.log("Font applied successfully")
     }
-  }, [userFont])
+  }, [userFont, isLoaded])
 
-  return <>{children}</>
+  const currentFont = userFont ? FONT_FAMILY_VALUES[userFont] : null
+
+  return (
+    <HanziFontContext.Provider value={currentFont}>
+      {children}
+    </HanziFontContext.Provider>
+  )
+}
+
+export function useHanziFont() {
+  return React.useContext(HanziFontContext)
 }

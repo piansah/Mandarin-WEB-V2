@@ -71,6 +71,10 @@ export default function SettingsPage() {
     if (!result.error) {
       showSaveSuccess()
       loadSettings()
+      // Force page reload to apply new font
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } else {
       alert(result.error)
     }

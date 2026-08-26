@@ -321,4 +321,4 @@ export function AppSidebar({
       <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </Sidebar>
   )
-}
+}  
