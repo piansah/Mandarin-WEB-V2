@@ -55,7 +55,7 @@ const todayItems = [
   },
   {
     title: "Modul",
-    description: "Kurikulum yang sudah dipelajari",
+    description: "Kurikulum & Pembelajaran",
     url: "/dashboard/modul",
     icon: Layers,
   },
@@ -144,6 +144,12 @@ export function AppSidebar({
   return (
     <Sidebar
       collapsible="none"
+      onMouseEnter={() => {
+        if (!isMobile) setOpen(true)
+      }}
+      onMouseLeave={() => {
+        if (!isMobile) setOpen(false)
+      }}
       {...props}
     >
       <SidebarHeader>
