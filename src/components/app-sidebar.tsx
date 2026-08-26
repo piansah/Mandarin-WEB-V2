@@ -16,7 +16,6 @@ import {
   LogOut,
   FolderHeart,
   Flame,
-  PanelLeft,
 } from "lucide-react"
 import {
   Sidebar,
@@ -43,73 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
-import { cn } from "@/lib/utils"
-
-const todayItems = [
-  {
-    title: "Dashboard",
-    description: "Beranda + ringkasan hari ini",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Modul",
-    description: "Kurikulum & Pembelajaran",
-    url: "/dashboard/modul",
-    icon: Layers,
-  },
-]
-
-const learningPathItems = [
-  {
-    title: "Grammar",
-    url: "/dashboard/grammar",
-    icon: BookOpen,
-  },
-  {
-    title: "Hanzi",
-    url: "/dashboard/hanzi",
-    icon: Languages,
-  },
-  {
-    title: "Daftar Kata",
-    url: "/dashboard/flashcard",
-    icon: Layers,
-  },
-  {
-    title: "Quiz Harian",
-    url: "/dashboard/quiz",
-    icon: FileText,
-  },
-  {
-    title: "Kartu Kumulatif",
-    url: "/dashboard/flashcard/cumulative",
-    icon: Layers,
-  },
-  {
-    title: "Quiz Kumulatif",
-    url: "/dashboard/quiz/review",
-    icon: FileText,
-  },
-  {
-    title: "Baca",
-    url: "/dashboard/cerita",
-    icon: BookMarked,
-  },
-]
-
-const personalCollectionItems = [
-  {
-    title: "Favorit",
-    url: "/dashboard/favorit",
-    icon: Star,
-  },
-  {
-    title: "Deck Saya",
-    url: "/dashboard/personal-cards",
-    icon: FolderHeart,
-  },
-]
+import { useLanguage } from "@/contexts/language-context"
 
 export function AppSidebar({
   user,
@@ -119,7 +52,8 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, pinned, togglePinned, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, setOpen, pinned, togglePinned } = useSidebar()
+  const { t } = useLanguage()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearCloseTimeout = React.useCallback(() => {
@@ -160,13 +94,71 @@ export function AppSidebar({
     router.push("/dashboard/settings")
   }
 
-  function handleToggleClick() {
-    if (isMobile) {
-      setOpenMobile(false)
-    } else {
-      togglePinned()
-    }
-  }
+  const todayItems = [
+    {
+      title: t('sidebar.dashboard'),
+      description: "Beranda + ringkasan hari ini",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: t('sidebar.modul'),
+      description: "Kurikulum & Pembelajaran",
+      url: "/dashboard/modul",
+      icon: Layers,
+    },
+  ]
+
+  const learningPathItems = [
+    {
+      title: t('sidebar.grammar'),
+      url: "/dashboard/grammar",
+      icon: BookOpen,
+    },
+    {
+      title: t('sidebar.hanzi'),
+      url: "/dashboard/hanzi",
+      icon: Languages,
+    },
+    {
+      title: t('sidebar.daftarKata'),
+      url: "/dashboard/flashcard",
+      icon: Layers,
+    },
+    {
+      title: t('sidebar.quizHarian'),
+      url: "/dashboard/quiz",
+      icon: FileText,
+    },
+    {
+      title: t('sidebar.kartuKumulatif'),
+      url: "/dashboard/flashcard/cumulative",
+      icon: Layers,
+    },
+    {
+      title: t('sidebar.quizKumulatif'),
+      url: "/dashboard/quiz/review",
+      icon: FileText,
+    },
+    {
+      title: t('sidebar.baca'),
+      url: "/dashboard/cerita",
+      icon: BookMarked,
+    },
+  ]
+
+  const personalCollectionItems = [
+    {
+      title: t('sidebar.favorit'),
+      url: "/dashboard/favorit",
+      icon: Star,
+    },
+    {
+      title: t('sidebar.deckSaya'),
+      url: "/dashboard/personal-cards",
+      icon: FolderHeart,
+    },
+  ]
 
   return (
     <Sidebar
@@ -178,20 +170,10 @@ export function AppSidebar({
       {...props}
     >
       <SidebarHeader>
-        <div className="flex items-center justify-between gap-2 px-2 py-1">
+        <div className="px-2 py-1">
           <span className="truncate text-lg font-bold text-primary">
             JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
           </span>
-          <button
-            type="button"
-            onClick={handleToggleClick}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            aria-label={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
-            aria-pressed={isMobile ? undefined : pinned}
-            title={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
-          >
-            <PanelLeft className={cn("h-4 w-4", !isMobile && pinned && "text-primary")} />
-          </button>
         </div>
       </SidebarHeader>
 
@@ -199,7 +181,7 @@ export function AppSidebar({
         {/* Dashboard & Modul */}
         <div className="px-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            UTAMA
+            {t('sidebar.utama')}
           </div>
           <SidebarMenu className="gap-1">
             {todayItems.map((item) => (
@@ -226,7 +208,7 @@ export function AppSidebar({
         {/* LATIHAN */}
         <div className="px-3 mt-4">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            LATIHAN
+            {t('sidebar.latihan')}
           </div>
           <SidebarMenu className="gap-1">
             {learningPathItems.map((item) => (
@@ -250,7 +232,7 @@ export function AppSidebar({
         {/* KOLEKSI PRIBADI */}
         <div className="px-3 mt-4">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            KOLEKSI PRIBADI
+            {t('sidebar.koleksiPribadi')}
           </div>
           <SidebarMenu className="gap-1">
             {personalCollectionItems.map((item) => (
@@ -302,17 +284,17 @@ export function AppSidebar({
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={handleProfileClick}>
                     <User className="h-4 w-4" />
-                    Profil
+                    {t('sidebar.profil')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="h-4 w-4" />
-                    Pengaturan
+                    {t('sidebar.pengaturan')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="h-4 w-4" />
-                  Keluar
+                  {t('sidebar.keluar')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
