@@ -16,6 +16,7 @@ import {
   LogOut,
   FolderHeart,
   Flame,
+  Bug,
 } from "lucide-react"
 import {
   Sidebar,
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
+import { BugReportDialog } from "@/components/bug-report-dialog"
 
 const todayItems = [
   {
@@ -118,6 +120,7 @@ export function AppSidebar({
   const pathname = usePathname()
   const router = useRouter()
   const { isMobile, setOpen, pinned, togglePinned } = useSidebar()
+  const [bugReportOpen, setBugReportOpen] = React.useState(false)
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearCloseTimeout = React.useCallback(() => {
@@ -288,6 +291,10 @@ export function AppSidebar({
                     <Settings className="h-4 w-4" />
                     Pengaturan
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setBugReportOpen(true)}>
+                    <Bug className="h-4 w-4" />
+                    Lapor Bug
+                  </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
@@ -299,6 +306,7 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </Sidebar>
   )
 }

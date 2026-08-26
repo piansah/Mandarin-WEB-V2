@@ -6,7 +6,6 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/server"
-import { BugReportFab } from "@/components/bug-report-fab"
 import { PWAInstall } from "@/components/pwa-install"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { SidebarMobileOpenButton } from "@/components/sidebar-trigger"
@@ -45,7 +44,6 @@ export default async function DashboardLayout({
           {children}
         </div>
       </SidebarInset>
-      <BugReportFab />
       <PWAInstall />
     </SidebarProvider>
   )
