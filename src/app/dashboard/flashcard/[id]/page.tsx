@@ -122,15 +122,14 @@ function decompParts(entry?: DictionaryEntry) {
   return { ids, label: idsLabels[ids] || "", parts }
 }
 
-import { useSidebar } from "@/components/ui/sidebar"
-
 export default function FlashcardDeckPage() {
   const params = useParams()
   const router = useRouter()
   const deckId = Number(params.id)
-  
-  const { state: sidebarState, isMobile } = useSidebar()
-  const sidebarOffset = isMobile ? '0px' : (sidebarState === 'expanded' ? '16rem' : '3rem')
+
+  // The sidebar now floats as an overlay and never pushes page content, so
+  // this bar always spans the full width regardless of sidebar state.
+  const sidebarOffset = '0px'
 
   const [deck, setDeck] = React.useState<DeckMeta | null>(null)
   const [cards, setCards] = React.useState<Card[]>([])

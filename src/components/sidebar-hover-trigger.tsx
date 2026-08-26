@@ -3,20 +3,29 @@
 import { useSidebar } from "@/components/ui/sidebar"
 import { useEffect } from "react"
 
+const EDGE_TRIGGER_PX = 24
+
+/**
+ * Invisible helper that watches the mouse position and reveals the sidebar
+ * whenever the cursor rests near the left edge of the screen. Hiding it
+ * again once the cursor moves away is handled by the sidebar's own
+ * onMouseLeave (see app-sidebar.tsx), so this component only ever opens it.
+ */
 export function SidebarHoverTrigger() {
-  const { setOpen } = useSidebar()
+  const { setOpen, isMobile, pinned } = useSidebar()
 
   useEffect(() => {
+    if (isMobile || pinned) return
+
     const handleMouseMove = (e: MouseEvent) => {
-      // Open sidebar when mouse is near left edge (within 20px)
-      if (e.clientX <= 20) {
+      if (e.clientX <= EDGE_TRIGGER_PX) {
         setOpen(true)
       }
     }
 
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [setOpen])
+    window.addEventListener("mousemove", handleMouseMove)
+    return () => window.removeEventListener("mousemove", handleMouseMove)
+  }, [setOpen, isMobile, pinned])
 
   return null
 }

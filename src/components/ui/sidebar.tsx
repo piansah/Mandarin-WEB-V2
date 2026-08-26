@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip"
 import { PanelLeftIcon } from "lucide-react"
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
+const SIDEBAR_PINNED_COOKIE_NAME = "sidebar_pinned"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
@@ -40,6 +40,10 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  /** Whether the sidebar is "pinned" open via the burger menu (ignores hover auto-hide). */
+  pinned: boolean
+  setPinned: (pinned: boolean) => void
+  togglePinned: () => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -55,6 +59,7 @@ function useSidebar() {
 
 function SidebarProvider({
   defaultOpen = true,
+  defaultPinned = false,
   open: openProp,
   onOpenChange: setOpenProp,
   className,
@@ -63,6 +68,7 @@ function SidebarProvider({
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean
+  defaultPinned?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
@@ -87,12 +93,28 @@ function SidebarProvider({
       } else {
         _setOpen(openState)
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+      // Note: intentionally no cookie write here — this state also flips on
+      // every hover in/out of the sidebar, and persisting that would be both
+      // wasteful and wrong (hover state shouldn't survive a reload). Only
+      // the "pinned" state below is persisted.
     },
     [setOpenProp, open]
   )
+
+  // Whether the sidebar is pinned open via the burger menu. When pinned,
+  // hover auto-hide is disabled and the sidebar stays open.
+  const [pinned, _setPinned] = React.useState(defaultPinned)
+  const setPinned = React.useCallback(
+    (value: boolean) => {
+      _setPinned(value)
+      setOpen(value)
+      document.cookie = `${SIDEBAR_PINNED_COOKIE_NAME}=${value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+    },
+    [setOpen]
+  )
+  const togglePinned = React.useCallback(() => {
+    setPinned(!pinned)
+  }, [pinned, setPinned])
 
   // Helper to toggle the sidebar.
   const toggleSidebar = React.useCallback(() => {
@@ -128,8 +150,22 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      pinned,
+      setPinned,
+      togglePinned,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [
+      state,
+      open,
+      setOpen,
+      isMobile,
+      openMobile,
+      setOpenMobile,
+      toggleSidebar,
+      pinned,
+      setPinned,
+      togglePinned,
+    ]
   )
 
   return (
@@ -159,6 +195,7 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  overlay = false,
   className,
   children,
   dir,
@@ -167,6 +204,12 @@ function Sidebar({
   side?: "left" | "right"
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
+  /**
+   * When true, the sidebar never reserves layout space (the "gap" spacer
+   * stays at 0 width) — it always floats on top of the page content
+   * instead of pushing it. Ideal for a hover-to-reveal / pinnable sidebar.
+   */
+  overlay?: boolean
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
@@ -223,12 +266,17 @@ function Sidebar({
             <div
               data-slot="sidebar-gap"
               className={cn(
-                "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
-                "group-data-[collapsible=offcanvas]:w-0",
-                "group-data-[side=right]:rotate-180",
-                variant === "floating" || variant === "inset"
-                  ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-                  : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
+                "relative bg-transparent transition-[width] duration-200 ease-linear",
+                overlay
+                  ? "w-0"
+                  : cn(
+                      "w-(--sidebar-width)",
+                      "group-data-[collapsible=offcanvas]:w-0",
+                      variant === "floating" || variant === "inset"
+                        ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
+                        : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
+                    ),
+                "group-data-[side=right]:rotate-180"
               )}
             />
             <div
@@ -239,6 +287,7 @@ function Sidebar({
                 variant === "floating" || variant === "inset"
                   ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
                   : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+                overlay && "z-40 shadow-2xl",
                 className
               )}
               {...props}

@@ -1,23 +1,44 @@
 "use client"
 
 import { useSidebar } from "@/components/ui/sidebar"
-import { Menu } from "lucide-react"
+import { Menu, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
-export function SidebarTrigger() {
-  const { open, setOpen } = useSidebar()
+/**
+ * Fixed burger button that lets the user permanently pin the sidebar open
+ * (ignoring the hover auto-hide behavior) or hide it again, going back to
+ * "auto show on hover near the left edge" mode. On mobile it opens/closes
+ * the slide-in sheet instead.
+ */
+export function SidebarBurgerTrigger({ className }: { className?: string }) {
+  const { isMobile, openMobile, setOpenMobile, pinned, togglePinned, open } =
+    useSidebar()
+
+  const isActive = isMobile ? openMobile : pinned
+  const isVisiblyOpen = isMobile ? openMobile : open
+
+  function handleClick() {
+    if (isMobile) {
+      setOpenMobile(!openMobile)
+    } else {
+      togglePinned()
+    }
+  }
 
   return (
     <button
       type="button"
-      onClick={() => {
-        setOpen(!open)
-        // Set a custom event to notify AppSidebar to toggle manuallyOpened
-        window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: !open }))
-      }}
-      className="fixed left-0 top-12 z-50 p-2 bg-primary text-primary-foreground rounded-r-md hover:bg-primary/90 transition-colors"
-      aria-label="Toggle sidebar"
+      onClick={handleClick}
+      className={cn(
+        "fixed top-3 z-50 flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-md transition-[left,background-color] duration-200 ease-linear hover:bg-primary/90",
+        isVisiblyOpen && !isMobile ? "left-[calc(var(--sidebar-width,16rem)+0.75rem)]" : "left-3",
+        className
+      )}
+      aria-label={isActive ? "Sembunyikan sidebar" : "Tampilkan sidebar"}
+      aria-pressed={isActive}
+      title={isActive ? "Sembunyikan sidebar" : "Kunci sidebar tetap terbuka"}
     >
-      <Menu className="h-5 w-5" />
+      {isActive ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
     </button>
   )
 }

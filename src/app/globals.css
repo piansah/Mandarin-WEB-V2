@@ -19,6 +19,16 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-sage-50: #f4f6f1;
+  --color-sage-100: #e6ebde;
+  --color-sage-200: #cfd9bf;
+  --color-sage-300: #b0c199;
+  --color-sage-400: #93ab79;
+  --color-sage-500: #7a9660;
+  --color-sage-600: #5f7a49;
+  --color-sage-700: #4b613a;
+  --color-sage-800: #3d4e30;
+  --color-sage-900: #33412a;
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);

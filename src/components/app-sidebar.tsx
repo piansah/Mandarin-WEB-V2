@@ -16,8 +16,6 @@ import {
   LogOut,
   FolderHeart,
   Flame,
-  PanelLeft,
-  PanelLeftClose,
 } from "lucide-react"
 import {
   Sidebar,
@@ -27,7 +25,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
 import {
@@ -120,7 +117,31 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen } = useSidebar()
+  const { isMobile, setOpen, pinned } = useSidebar()
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearCloseTimeout = React.useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+  }, [])
+
+  React.useEffect(() => clearCloseTimeout, [clearCloseTimeout])
+
+  function handleMouseEnter() {
+    if (isMobile) return
+    clearCloseTimeout()
+    setOpen(true)
+  }
+
+  function handleMouseLeave() {
+    if (isMobile || pinned) return
+    clearCloseTimeout()
+    // Small delay avoids the sidebar flickering shut when the cursor
+    // briefly crosses a gap (e.g. into a dropdown/menu portal).
+    closeTimeoutRef.current = setTimeout(() => setOpen(false), 200)
+  }
 
   async function handleLogout() {
     const supabase = createClient()
@@ -139,10 +160,11 @@ export function AppSidebar({
 
   return (
     <Sidebar
-      collapsible="none"
-      onMouseLeave={() => {
-        if (!isMobile) setOpen(false)
-      }}
+      collapsible="offcanvas"
+      overlay
+      className="border-r border-sidebar-border"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       <SidebarHeader>
@@ -278,8 +300,6 @@ export function AppSidebar({
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
-      <SidebarRail />
     </Sidebar>
   )
 }
