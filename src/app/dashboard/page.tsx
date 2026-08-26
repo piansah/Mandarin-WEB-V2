@@ -27,10 +27,21 @@ type DueCard = {
   dueDate: string
 }
 
+type SrsStats = {
+  total: number
+  mature: number
+  due: number
+  hafalToday: number
+  lupaToday: number
+  pctToday: number
+  totalToday: number
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [dueCards, setDueCards] = React.useState<DueCard[]>([])
+  const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -38,6 +49,7 @@ export default function DashboardPage() {
       setLoading(false)
     })
     loadDueCards()
+    loadSrsStats()
   }, [])
 
   async function loadDueCards() {
@@ -63,6 +75,73 @@ export default function DashboardPage() {
           dueDate: card.due_date,
         })))
       }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  async function loadSrsStats() {
+    try {
+      const supa = createClient()
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+
+      const today = new Date().toISOString().slice(0, 10)
+
+      const { data: progress } = await supa
+        .from("user_card_progress")
+        .select("card_id, srs_level, next_review, last_reviewed")
+        .eq("user_id", user.id)
+
+      if (!progress) return
+
+      const progressByCard = new Map()
+      progress.forEach((row) => {
+        if (!row.card_id) return
+        const prev = progressByCard.get(row.card_id)
+        const prevKey = `${prev?.last_reviewed || ""}|${prev?.next_review || ""}`
+        const rowKey = `${row.last_reviewed || ""}|${row.next_review || ""}`
+        if (!prev || rowKey >= prevKey) progressByCard.set(row.card_id, row)
+      })
+
+      const reviewed = [...progressByCard.values()]
+      const total = reviewed.length
+
+      const todayCards = reviewed.filter((r) => r.last_reviewed === today)
+      const hafalToday = todayCards.filter((r) => r.srs_level >= 1).length
+      const lupaToday = todayCards.filter((r) => r.srs_level === 0).length
+      const totalToday = hafalToday + lupaToday
+      const totalHafal = reviewed.filter((r) => r.srs_level >= 1).length
+      const dueRows = reviewed.filter((r) => r.next_review <= today && r.card_id)
+
+      let dueCount = dueRows.length
+      if (dueRows.length > 0) {
+        const validDueIds = new Set()
+        const dueIds = dueRows.map((r) => r.card_id)
+        for (let i = 0; i < dueIds.length; i += 100) {
+          const chunk = dueIds.slice(i, i + 100)
+          const result = await supa
+            .from("flashcard_cards")
+            .select("id")
+            .in("id", chunk)
+          if (result.data) {
+            result.data.forEach((card: { id: string }) => validDueIds.add(card.id))
+          }
+        }
+        dueCount = dueRows.filter((r) => validDueIds.has(r.card_id)).length
+      }
+
+      const pct = totalToday > 0 ? Math.round((hafalToday / totalToday) * 100) : 0
+
+      setSrsStats({
+        total,
+        mature: totalHafal,
+        due: dueCount,
+        hafalToday,
+        lupaToday,
+        pctToday: pct,
+        totalToday,
+      })
     } catch (e) {
       console.error(e)
     }
@@ -258,40 +337,89 @@ export default function DashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
-            {dueCards.length > 0 && (
+            {srsStats && srsStats.due > 0 && (
               <Badge variant="outline" className="text-xs">
-                {dueCards.length} kartu due
+                {srsStats.due} kartu due
               </Badge>
             )}
           </div>
         </CardHeader>
         <CardContent>
-          {dueCards.length === 0 ? (
-            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
-              <CheckCircle2 className="h-5 w-5 text-green-500" />
-              <span className="text-sm">Tidak ada kartu yang harus direview</span>
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {dueCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{card.hanzi}</p>
-                    <p className="text-xs text-muted-foreground">{card.pinyin} · {card.arti}</p>
+          {srsStats ? (
+            <div className="space-y-4">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <div className="text-2xl font-bold text-foreground">{srsStats.total}</div>
+                  <div className="text-xs text-muted-foreground">Total</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="text-2xl font-bold text-emerald-500">{srsStats.mature}</div>
+                  <div className="text-xs text-muted-foreground">Hafal</div>
+                </div>
+                <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="text-2xl font-bold text-amber-500">{srsStats.due}</div>
+                  <div className="text-xs text-muted-foreground">Due</div>
+                </div>
+              </div>
+
+              {/* Today's Progress */}
+              {srsStats.totalToday > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Progress Hari Ini</span>
+                    <span className="font-medium">{srsStats.pctToday}%</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      style={{ width: `${srsStats.pctToday}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{srsStats.hafalToday} hafal hari ini</span>
+                    <span>{srsStats.lupaToday} lupa hari ini</span>
                   </div>
                 </div>
-              ))}
-              <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = '/dashboard/review'}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Mulai Review
-              </Button>
+              )}
+
+              {/* Due Cards List */}
+              {dueCards.length > 0 ? (
+                <div className="space-y-2">
+                  {dueCards.map((card) => (
+                    <div
+                      key={card.id}
+                      className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{card.hanzi}</p>
+                        <p className="text-xs text-muted-foreground">{card.pinyin} · {card.arti}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </div>
+                    </div>
+                  ))}
+                  <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = '/dashboard/review'}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Mulai Review
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-4 gap-3 text-muted-foreground">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <span className="text-sm">
+                    {srsStats.totalToday > 0
+                      ? "Sesi hari ini selesai!"
+                      : "Tidak ada kartu yang harus direview"}
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
+              <span className="text-sm">Memuat statistik...</span>
             </div>
           )}
         </CardContent>
