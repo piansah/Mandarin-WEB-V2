@@ -13,9 +13,9 @@ import {
   Star,
   Settings,
   User,
-  Flame,
   LogOut,
   FolderHeart,
+  Flame,
 } from "lucide-react"
 import {
   Sidebar,
@@ -138,12 +138,6 @@ export function AppSidebar({
   return (
     <Sidebar
       collapsible="icon"
-      onMouseEnter={() => {
-        if (!isMobile) setOpen(true)
-      }}
-      onMouseLeave={() => {
-        if (!isMobile) setOpen(false)
-      }}
       {...props}
     >
       <SidebarHeader>
@@ -159,14 +153,6 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Streak */}
-        <div className="px-3 py-4 group-data-[collapsed=true]/sidebar:hidden">
-          <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs font-medium">
-            <Flame className="h-3 w-3" />
-            <span>1 hari streak</span>
-          </div>
-        </div>
-
         {/* Dashboard & Modul */}
         <div className="px-3">
           <SidebarMenu>
