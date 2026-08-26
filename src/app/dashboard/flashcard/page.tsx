@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { BookOpen } from "lucide-react"
 import { FlashcardDeckList, type FlashcardSet } from "@/components/flashcard-deck-list"
+import { VocabularyTabs } from "@/components/vocabulary-tabs"
 
 export default async function FlashcardPage() {
   const supa = await createClient()
@@ -19,8 +20,8 @@ export default async function FlashcardPage() {
     )
   }
 
-  return (
-    <div className="flex flex-col gap-6 p-6">
+  const deckContent = (
+    <>
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
@@ -31,6 +32,14 @@ export default async function FlashcardPage() {
       </div>
 
       <FlashcardDeckList sets={(sets ?? []).map(set => ({ ...set, wordCount: set.flashcard_cards?.[0]?.count ?? 0 })) as FlashcardSet[]} />
+    </>
+  )
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <VocabularyTabs>
+        {deckContent}
+      </VocabularyTabs>
     </div>
   )
 }

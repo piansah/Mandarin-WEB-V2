@@ -67,11 +67,6 @@ const learningPathItems = [
     icon: BookOpen,
   },
   {
-    title: "Hanzi",
-    url: "/dashboard/hanzi",
-    icon: Languages,
-  },
-  {
     title: "Daftar Kata",
     url: "/dashboard/flashcard",
     icon: Layers,
