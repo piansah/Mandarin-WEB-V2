@@ -25,6 +25,7 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
   async function loadUserFont() {
     const settings = await fetchUserSettings()
     console.log("Loading user settings:", settings)
+    console.log("hanziFont from settings:", settings?.hanziFont)
     if (settings?.hanziFont) {
       console.log("Setting font to:", settings.hanziFont)
       setUserFont(settings.hanziFont as HanziFont)
@@ -35,14 +36,22 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
   }
 
   React.useEffect(() => {
-    if (userFont && isLoaded) {
-      const fontFamily = FONT_FAMILY_VALUES[userFont]
+    if (isLoaded) {
+      const fontToUse = userFont || "noto-sans-sc"
+      const fontFamily = FONT_FAMILY_VALUES[fontToUse]
       console.log("Applying font family:", fontFamily)
+      console.log("Font to use:", fontToUse)
       
       // Update the CSS variable directly to the font family string
       document.documentElement.style.setProperty("--font-hanzi", fontFamily)
       
-      console.log("Font applied successfully")
+      // Apply to all elements with font-hanzi class
+      const hanziElements = document.querySelectorAll('.font-hanzi')
+      hanziElements.forEach(el => {
+        (el as HTMLElement).style.fontFamily = fontFamily
+      })
+      
+      console.log("Font applied successfully. Total elements updated:", hanziElements.length)
     }
   }, [userFont, isLoaded])
 
