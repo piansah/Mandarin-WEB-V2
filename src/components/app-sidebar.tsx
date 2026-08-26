@@ -198,7 +198,10 @@ export function AppSidebar({
       <SidebarContent>
         {/* Dashboard & Modul */}
         <div className="px-3">
-          <SidebarMenu>
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+            UTAMA
+          </div>
+          <SidebarMenu className="gap-1.5">
             {todayItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -225,7 +228,7 @@ export function AppSidebar({
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             LATIHAN
           </div>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1.5">
             {learningPathItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -249,7 +252,7 @@ export function AppSidebar({
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             KOLEKSI PRIBADI
           </div>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1.5">
             {personalCollectionItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
