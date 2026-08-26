@@ -15,6 +15,7 @@ import {
   User,
   Flame,
   LogOut,
+  FolderHeart,
 } from "lucide-react"
 import {
   Sidebar,
@@ -268,11 +269,11 @@ export function AppSidebar({
               >
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={handleProfileClick}>
-                    <UserIcon className="h-4 w-4" />
+                    <User className="h-4 w-4" />
                     Profil
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
-                    <SettingsIcon className="h-4 w-4" />
+                    <Settings className="h-4 w-4" />
                     Pengaturan
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
