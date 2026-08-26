@@ -34,8 +34,6 @@ export async function submitUserSentence(
     hanzi: string
     pinyin: string
     arti: string
-    section_label?: string | null
-    section_tag?: string | null
   }
 ): Promise<{ error: string | null; id?: number }> {
   const { supa, user } = await requireUser()
@@ -59,8 +57,8 @@ export async function submitUserSentence(
       hanzi: sentence.hanzi,
       pinyin: sentence.pinyin,
       arti: sentence.arti,
-      section_label: sentence.section_label || null,
-      section_tag: sentence.section_tag || null,
+      section_label: null,
+      section_tag: null,
       sort_order: nextSortOrder,
       user_contribution: true,
     })

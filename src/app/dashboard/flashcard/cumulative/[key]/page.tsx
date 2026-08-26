@@ -2,11 +2,10 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Mic, Flag, Plus } from "lucide-react"
+import { RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
-import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { createClient } from "@/lib/supabase/browser"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -40,7 +39,6 @@ export default function CumulativeFlashcardSessionPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
-  const [addSentenceModal, setAddSentenceModal] = React.useState(false)
 
   React.useEffect(() => {
     let cancelled = false
@@ -152,15 +150,6 @@ export default function CumulativeFlashcardSessionPage() {
     setReportModal({ isOpen: false, itemId: null, itemLabel: "" })
   }
 
-  function openAddSentenceModal() {
-    setAddSentenceModal(true)
-  }
-
-  function closeAddSentenceModal() {
-    setAddSentenceModal(false)
-  }
-
-
   if (loading) return <div className="flex flex-1 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   if (error || !set) return <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
@@ -169,13 +158,7 @@ export default function CumulativeFlashcardSessionPage() {
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{set.title}</h1><p className="truncate text-xs text-muted-foreground">{set.sub}</p></div>
-          <div className="flex items-center gap-2">
-            <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
-            <Button variant="outline" size="sm" onClick={openAddSentenceModal}>
-              <Plus className="h-4 w-4 mr-1" />
-              Tambah
-            </Button>
-          </div>
+          <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
         </div>
         <div className="h-1 bg-muted"><div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
       </header>
@@ -203,7 +186,7 @@ export default function CumulativeFlashcardSessionPage() {
                               User
                             </span>
                           )}
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">{index + 1}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
                         </div>
                       </div>
                       {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
@@ -259,13 +242,6 @@ export default function CumulativeFlashcardSessionPage() {
         contentType="kalimat"
         contentId={reportModal.itemId || 0}
         contentLabel={reportModal.itemLabel}
-      />
-
-      {/* Add Sentence Modal */}
-      <AddSentenceModal
-        isOpen={addSentenceModal}
-        onClose={closeAddSentenceModal}
-        hanziKey={key}
       />
     </div>
   )

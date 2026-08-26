@@ -22,8 +22,6 @@ export function AddSentenceModal({
   const [hanzi, setHanzi] = React.useState("")
   const [pinyin, setPinyin] = React.useState("")
   const [arti, setArti] = React.useState("")
-  const [sectionLabel, setSectionLabel] = React.useState("")
-  const [sectionTag, setSectionTag] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
   const [submitted, setSubmitted] = React.useState(false)
 
@@ -41,8 +39,6 @@ export function AddSentenceModal({
       hanzi: hanzi.trim(),
       pinyin: pinyin.trim(),
       arti: arti.trim(),
-      section_label: sectionLabel.trim() || null,
-      section_tag: sectionTag.trim() || null,
     })
     setSubmitting(false)
 
@@ -56,8 +52,6 @@ export function AddSentenceModal({
         setHanzi("")
         setPinyin("")
         setArti("")
-        setSectionLabel("")
-        setSectionTag("")
       }, 2000)
     }
   }
@@ -123,31 +117,6 @@ export function AddSentenceModal({
                   className="w-full px-3 py-2 rounded-md border bg-background"
                   maxLength={500}
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Section Label (opsional)</label>
-                  <input
-                    type="text"
-                    value={sectionLabel}
-                    onChange={(e) => setSectionLabel(e.target.value)}
-                    placeholder="Percakapan"
-                    className="w-full px-3 py-2 rounded-md border bg-background"
-                    maxLength={100}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Section Tag (opsional)</label>
-                  <input
-                    type="text"
-                    value={sectionTag}
-                    onChange={(e) => setSectionTag(e.target.value)}
-                    placeholder="K1"
-                    className="w-full px-3 py-2 rounded-md border bg-background"
-                    maxLength={10}
-                  />
-                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
