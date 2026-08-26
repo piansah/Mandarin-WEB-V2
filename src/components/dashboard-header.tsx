@@ -2,20 +2,22 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, Bell, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Trophy, Star, User, Settings, ClipboardList } from "lucide-react"
+import { Search, Bell, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Trophy, Star, User, Settings, ClipboardList, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
+import { createClient } from "@/lib/supabase/browser"
 
 type SearchResult = {
-  type: 'page'
+  type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar'
   title: string
   description?: string
   url: string
   icon: React.ReactNode
+  category?: string
 }
 
 const menuItems: SearchResult[] = [
@@ -37,31 +39,118 @@ export function DashboardHeader() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
   const searchRef = React.useRef<HTMLDivElement>(null)
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   React.useEffect(() => {
     const closeOnOutsidePress = (event: PointerEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) setSearchOpen(false)
     }
     document.addEventListener("pointerdown", closeOnOutsidePress)
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePress)
+    }
   }, [])
 
-  const handleSearch = React.useCallback((query: string) => {
+  React.useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  const handleSearch = React.useCallback(async (query: string) => {
     setSearchQuery(query)
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
     if (!query.trim()) {
       setSearchResults([])
       return
     }
 
     const lowerQuery = query.toLowerCase()
-    const filtered = menuItems.filter(item =>
+    const filteredMenu = menuItems.filter(item =>
       item.title.toLowerCase().includes(lowerQuery) ||
       (item.description && item.description.toLowerCase().includes(lowerQuery))
     )
 
-    setSearchResults(filtered)
+    setSearchResults(filteredMenu)
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const supa = createClient()
+        const results: SearchResult[] = []
+
+        // Search flashcard sets
+        const { data: flashcardSets } = await supa
+          .from("flashcard_sets")
+          .select("id, title, description, hsk_level")
+          .ilike("title", `%${query}%`)
+          .limit(5)
+
+        if (flashcardSets) {
+          flashcardSets.forEach(set => {
+            results.push({
+              type: 'flashcard',
+              title: set.title,
+              description: set.description || `HSK ${set.hsk_level || ''}`,
+              url: `/dashboard/flashcard/${set.id}`,
+              icon: <Layers className="h-4 w-4" />,
+              category: 'Flashcard'
+            })
+          })
+        }
+
+        // Search stories
+        const { data: stories } = await supa
+          .from("stories")
+          .select("key, title, title_zh")
+          .or(`title.ilike.%${query}%,title_zh.ilike.%${query}%`)
+          .limit(5)
+
+        if (stories) {
+          stories.forEach(story => {
+            results.push({
+              type: 'story',
+              title: story.title,
+              description: story.title_zh || '',
+              url: `/dashboard/cerita/${story.key}`,
+              icon: <BookOpen className="h-4 w-4" />,
+              category: 'Cerita'
+            })
+          })
+        }
+
+        // Search grammar
+        const { data: grammarRules } = await supa
+          .from("grammar_rules")
+          .select("slug, title, description")
+          .ilike("title", `%${query}%`)
+          .limit(5)
+
+        if (grammarRules) {
+          grammarRules.forEach(rule => {
+            results.push({
+              type: 'grammar',
+              title: rule.title,
+              description: rule.description || '',
+              url: `/dashboard/practice/grammar/${rule.slug}`,
+              icon: <FileText className="h-4 w-4" />,
+              category: 'Grammar'
+            })
+          })
+        }
+
+        setSearchResults([...filteredMenu, ...results])
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 300)
   }, [])
 
   const handleResultClick = (result: SearchResult) => {
@@ -90,7 +179,7 @@ export function DashboardHeader() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Cari menu..."
+            placeholder="Cari modul, quiz, cerita..."
             value={searchQuery}
             onChange={(e) => {
               handleSearch(e.target.value)
@@ -119,26 +208,46 @@ export function DashboardHeader() {
           {/* Search Results Dropdown */}
           {searchOpen && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 overflow-auto">
-              <div className="p-2">
-                {(searchResults.length > 0 ? searchResults : menuItems).map((result, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleResultClick(result)}
-                    className="w-full text-left p-3 hover:bg-muted rounded-md flex items-start gap-3 transition-colors"
-                  >
-                    <div className="mt-0.5 text-muted-foreground">
-                      {result.icon}
+              {isSearching ? (
+                <div className="p-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Mencari...
+                </div>
+              ) : (
+                <div className="p-2">
+                  {searchResults.length > 0 ? (
+                    searchResults.map((result, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleResultClick(result)}
+                        className="w-full text-left p-3 hover:bg-muted rounded-md flex items-start gap-3 transition-colors"
+                      >
+                        <div className="mt-0.5 text-muted-foreground">
+                          {result.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium truncate">{result.title}</div>
+                            {result.category && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                                {result.category}
+                              </Badge>
+                            )}
+                          </div>
+                          {result.description && (
+                            <div className="text-sm text-muted-foreground truncate">{result.description}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Tidak ada hasil ditemukan
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{result.title}</div>
-                      {result.description && (
-                        <div className="text-sm text-muted-foreground truncate">{result.description}</div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
