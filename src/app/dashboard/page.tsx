@@ -2,15 +2,13 @@
 
 import * as React from "react"
 import {
-  Flame,
-  Trophy,
-  BookOpen,
   Layers,
   Zap,
-  Target,
   RotateCcw,
   Clock,
   CheckCircle2,
+  BookOpen,
+  Flame,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -207,53 +205,6 @@ export default function DashboardPage() {
             {stats.tierHsk}
           </Badge>
         </div>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Streak</CardTitle>
-            <Flame className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.streak}</div>
-            <p className="text-xs text-muted-foreground mt-1">hari berturut-turut 🔥</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Skor</CardTitle>
-            <Trophy className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.totalScore.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">poin terkumpul</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Kosakata</CardTitle>
-            <BookOpen className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.wordsMastered}</div>
-            <p className="text-xs text-muted-foreground mt-1">kata dihafal</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Quiz</CardTitle>
-            <Target className="h-4 w-4 text-violet-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.quizCompleted}</div>
-            <p className="text-xs text-muted-foreground mt-1">quiz diselesaikan</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Streak Widget Mingguan & Quick Access */}

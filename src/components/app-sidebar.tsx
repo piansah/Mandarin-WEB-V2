@@ -52,25 +52,21 @@ import { BugReportDialog } from "@/components/bug-report-dialog"
 const todayItems = [
   {
     title: "Dashboard",
-    description: "Beranda + ringkasan hari ini",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
     title: "Modul",
-    description: "Kurikulum & Pembelajaran",
     url: "/dashboard/modul",
     icon: Layers,
   },
   {
     title: "Path",
-    description: "Learning path terstruktur",
     url: "/dashboard/path",
     icon: Target,
   },
   {
     title: "Statistik",
-    description: "Analisis progress detail",
     url: "/dashboard/statistik",
     icon: BarChart3,
   },
@@ -211,15 +207,9 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={pathname === item.url}
                   render={<Link href={item.url} />}
-                  className="flex-col items-start p-3 h-auto"
                 >
-                  <div className="flex items-center gap-2 w-full">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
-                  </div>
-                  {item.description && (
-                    <span className="text-xs text-muted-foreground ml-6 group-data-[collapsed=true]/sidebar:hidden break-words">{item.description}</span>
-                  )}
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.title}</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
