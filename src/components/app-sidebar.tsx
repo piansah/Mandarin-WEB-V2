@@ -45,13 +45,13 @@ const todayItems = [
   {
     title: "Sesi hari ini",
     description: "Latihan harian ~5 menit",
-    url: "/dashboard/quiz",
+    url: "/dashboard/sesi-hari-ini",
     icon: Zap,
   },
   {
     title: "Modul",
     description: "Kurikulum yang sudah dipelajari",
-    url: "/dashboard/flashcard",
+    url: "/dashboard/modul",
     icon: Layers,
   },
 ]
@@ -63,12 +63,17 @@ const learningPathItems = [
     icon: BookOpen,
   },
   {
-    title: "Kartu Hafalan",
+    title: "Hanzi",
+    url: "/dashboard/hanzi",
+    icon: Languages,
+  },
+  {
+    title: "Daftar Kata",
     url: "/dashboard/flashcard",
     icon: Layers,
   },
   {
-    title: "Quiz Latihan",
+    title: "Quiz Harian",
     url: "/dashboard/quiz",
     icon: FileText,
   },
@@ -121,13 +126,7 @@ export function AppSidebar({
 
   return (
     <Sidebar
-      collapsible="icon"
-      onMouseEnter={() => {
-        if (!isMobile) setOpen(true)
-      }}
-      onMouseLeave={() => {
-        if (!isMobile) setOpen(false)
-      }}
+      collapsible="none"
       {...props}
     >
       <SidebarHeader>
@@ -146,6 +145,14 @@ export function AppSidebar({
         {/* Profile Section */}
         <div className="px-3 py-4 group-data-[collapsed=true]/sidebar:hidden">
           <NavUser user={user} />
+        </div>
+
+        {/* Streak - Outside Profile */}
+        <div className="px-3 pb-4 group-data-[collapsed=true]/sidebar:hidden">
+          <div className="flex items-center justify-center gap-1 px-3 py-1.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs font-medium">
+            <Flame className="h-3 w-3" />
+            <span>1 hari streak</span>
+          </div>
         </div>
 
         {/* HARI INI */}
@@ -167,7 +174,7 @@ export function AppSidebar({
                     <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
                   {item.description && (
-                    <span className="text-xs text-muted-foreground ml-6 group-data-[collapsed=true]/sidebar:hidden">{item.description}</span>
+                    <span className="text-xs text-muted-foreground ml-6 group-data-[collapsed=true]/sidebar:hidden break-words">{item.description}</span>
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>

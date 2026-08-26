@@ -79,12 +79,6 @@ export function NavUser({
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2 mt-2 w-full">
-              <div className="flex items-center gap-1 px-2 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-full text-xs">
-                <Flame className="h-3 w-3" />
-                <span>{streak} hari streak</span>
-              </div>
-            </div>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-fit"
