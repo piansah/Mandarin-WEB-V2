@@ -42,7 +42,72 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/browser"
-import { useLanguage } from "@/contexts/language-context"
+
+const todayItems = [
+  {
+    title: "Dashboard",
+    description: "Beranda + ringkasan hari ini",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Modul",
+    description: "Kurikulum & Pembelajaran",
+    url: "/dashboard/modul",
+    icon: Layers,
+  },
+]
+
+const learningPathItems = [
+  {
+    title: "Grammar",
+    url: "/dashboard/grammar",
+    icon: BookOpen,
+  },
+  {
+    title: "Hanzi",
+    url: "/dashboard/hanzi",
+    icon: Languages,
+  },
+  {
+    title: "Daftar Kata",
+    url: "/dashboard/flashcard",
+    icon: Layers,
+  },
+  {
+    title: "Quiz Harian",
+    url: "/dashboard/quiz",
+    icon: FileText,
+  },
+  {
+    title: "Kartu Kumulatif",
+    url: "/dashboard/flashcard/cumulative",
+    icon: Layers,
+  },
+  {
+    title: "Quiz Kumulatif",
+    url: "/dashboard/quiz/review",
+    icon: FileText,
+  },
+  {
+    title: "Baca",
+    url: "/dashboard/cerita",
+    icon: BookMarked,
+  },
+]
+
+const personalCollectionItems = [
+  {
+    title: "Favorit",
+    url: "/dashboard/favorit",
+    icon: Star,
+  },
+  {
+    title: "Deck Saya",
+    url: "/dashboard/personal-cards",
+    icon: FolderHeart,
+  },
+]
 
 export function AppSidebar({
   user,
@@ -53,7 +118,6 @@ export function AppSidebar({
   const pathname = usePathname()
   const router = useRouter()
   const { isMobile, setOpen, pinned, togglePinned } = useSidebar()
-  const { t } = useLanguage()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const clearCloseTimeout = React.useCallback(() => {
@@ -94,72 +158,6 @@ export function AppSidebar({
     router.push("/dashboard/settings")
   }
 
-  const todayItems = [
-    {
-      title: t('sidebar.dashboard'),
-      description: "Beranda + ringkasan hari ini",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: t('sidebar.modul'),
-      description: "Kurikulum & Pembelajaran",
-      url: "/dashboard/modul",
-      icon: Layers,
-    },
-  ]
-
-  const learningPathItems = [
-    {
-      title: t('sidebar.grammar'),
-      url: "/dashboard/grammar",
-      icon: BookOpen,
-    },
-    {
-      title: t('sidebar.hanzi'),
-      url: "/dashboard/hanzi",
-      icon: Languages,
-    },
-    {
-      title: t('sidebar.daftarKata'),
-      url: "/dashboard/flashcard",
-      icon: Layers,
-    },
-    {
-      title: t('sidebar.quizHarian'),
-      url: "/dashboard/quiz",
-      icon: FileText,
-    },
-    {
-      title: t('sidebar.kartuKumulatif'),
-      url: "/dashboard/flashcard/cumulative",
-      icon: Layers,
-    },
-    {
-      title: t('sidebar.quizKumulatif'),
-      url: "/dashboard/quiz/review",
-      icon: FileText,
-    },
-    {
-      title: t('sidebar.baca'),
-      url: "/dashboard/cerita",
-      icon: BookMarked,
-    },
-  ]
-
-  const personalCollectionItems = [
-    {
-      title: t('sidebar.favorit'),
-      url: "/dashboard/favorit",
-      icon: Star,
-    },
-    {
-      title: t('sidebar.deckSaya'),
-      url: "/dashboard/personal-cards",
-      icon: FolderHeart,
-    },
-  ]
-
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -181,7 +179,7 @@ export function AppSidebar({
         {/* Dashboard & Modul */}
         <div className="px-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            {t('sidebar.utama')}
+            UTAMA
           </div>
           <SidebarMenu className="gap-1">
             {todayItems.map((item) => (
@@ -208,7 +206,7 @@ export function AppSidebar({
         {/* LATIHAN */}
         <div className="px-3 mt-4">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            {t('sidebar.latihan')}
+            LATIHAN
           </div>
           <SidebarMenu className="gap-1">
             {learningPathItems.map((item) => (
@@ -232,7 +230,7 @@ export function AppSidebar({
         {/* KOLEKSI PRIBADI */}
         <div className="px-3 mt-4">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            {t('sidebar.koleksiPribadi')}
+            KOLEKSI PRIBADI
           </div>
           <SidebarMenu className="gap-1">
             {personalCollectionItems.map((item) => (
@@ -284,17 +282,17 @@ export function AppSidebar({
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={handleProfileClick}>
                     <User className="h-4 w-4" />
-                    {t('sidebar.profil')}
+                    Profil
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="h-4 w-4" />
-                    {t('sidebar.pengaturan')}
+                    Pengaturan
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="h-4 w-4" />
-                  {t('sidebar.keluar')}
+                  Keluar
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

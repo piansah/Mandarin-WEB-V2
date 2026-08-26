@@ -11,7 +11,6 @@ import { PWAInstall } from "@/components/pwa-install"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { SidebarMobileOpenButton } from "@/components/sidebar-trigger"
 import { DashboardHeader } from "@/components/dashboard-header"
-import { LanguageProvider } from "@/contexts/language-context"
 import "@/lib/global-bug-report"
 
 export default async function DashboardLayout({
@@ -36,20 +35,18 @@ export default async function DashboardLayout({
   const defaultPinned = cookieStore.get("sidebar_pinned")?.value === "true"
 
   return (
-    <LanguageProvider>
-      <SidebarProvider defaultOpen={defaultPinned} defaultPinned={defaultPinned}>
-        <SidebarHoverTrigger />
-        <SidebarMobileOpenButton />
-        <AppSidebar user={sidebarUser} />
-        <SidebarInset className="flex flex-col min-h-screen">
-          <DashboardHeader />
-          <div className="flex-1 overflow-auto">
-            {children}
-          </div>
-        </SidebarInset>
-        <BugReportFab />
-        <PWAInstall />
-      </SidebarProvider>
-    </LanguageProvider>
+    <SidebarProvider defaultOpen={false} defaultPinned={defaultPinned}>
+      <SidebarHoverTrigger />
+      <SidebarMobileOpenButton />
+      <AppSidebar user={sidebarUser} />
+      <SidebarInset className="flex flex-col min-h-screen">
+        <DashboardHeader />
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
+      </SidebarInset>
+      <BugReportFab />
+      <PWAInstall />
+    </SidebarProvider>
   )
 }
