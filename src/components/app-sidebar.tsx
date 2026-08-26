@@ -119,7 +119,31 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen } = useSidebar()
+  const { isMobile, setOpen, pinned, togglePinned, openMobile, setOpenMobile } = useSidebar()
+  const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearCloseTimeout = React.useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+  }, [])
+
+  React.useEffect(() => clearCloseTimeout, [clearCloseTimeout])
+
+  function handleMouseEnter() {
+    if (isMobile) return
+    clearCloseTimeout()
+    setOpen(true)
+  }
+
+  function handleMouseLeave() {
+    if (isMobile || pinned) return
+    clearCloseTimeout()
+    // Small delay avoids the sidebar flickering shut when the cursor
+    // briefly crosses a gap (e.g. into a dropdown/menu portal).
+    closeTimeoutRef.current = setTimeout(() => setOpen(false), 200)
+  }
 
   async function handleLogout() {
     const supabase = createClient()
@@ -136,22 +160,38 @@ export function AppSidebar({
     router.push("/dashboard/settings")
   }
 
+  function handleToggleClick() {
+    if (isMobile) {
+      setOpenMobile(false)
+    } else {
+      togglePinned()
+    }
+  }
+
   return (
     <Sidebar
-      collapsible="none"
-      onMouseEnter={() => {
-        if (!isMobile) setOpen(true)
-      }}
-      onMouseLeave={() => {
-        if (!isMobile) setOpen(false)
-      }}
+      collapsible="offcanvas"
+      overlay
+      className="border-r border-sidebar-border"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       <SidebarHeader>
-        <div className="px-2 py-1">
+        <div className="flex items-center justify-between gap-2 px-2 py-1">
           <span className="truncate text-lg font-bold text-primary">
             JOURNEY<span className="ml-0.5 text-2xl text-white">.</span>
           </span>
+          <button
+            type="button"
+            onClick={handleToggleClick}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            aria-label={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+            aria-pressed={isMobile ? undefined : pinned}
+            title={isMobile ? "Tutup sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+          >
+            <PanelLeft className={cn("h-4 w-4", !isMobile && pinned && "text-primary")} />
+          </button>
         </div>
       </SidebarHeader>
 
@@ -161,7 +201,7 @@ export function AppSidebar({
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             UTAMA
           </div>
-          <SidebarMenu className="gap-1.5">
+          <SidebarMenu className="gap-1">
             {todayItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -188,7 +228,7 @@ export function AppSidebar({
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             LATIHAN
           </div>
-          <SidebarMenu className="gap-1.5">
+          <SidebarMenu className="gap-1">
             {learningPathItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
@@ -212,7 +252,7 @@ export function AppSidebar({
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             KOLEKSI PRIBADI
           </div>
-          <SidebarMenu className="gap-1.5">
+          <SidebarMenu className="gap-1">
             {personalCollectionItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
