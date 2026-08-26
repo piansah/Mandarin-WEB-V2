@@ -149,9 +149,13 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" tooltip="JOURNEY">
+            <SidebarMenuButton size="lg" tooltip="JOURNEY" onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setOpen(true)
+            }}>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-500 text-xl">.</span></span>
+                <span className="truncate font-bold text-white text-lg">JOURNEY<span className="text-sage-500 text-2xl ml-0.5">.</span></span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
