@@ -87,24 +87,24 @@ export async function fetchDueFlashcards(
       }
     }
 
-    // Fetch example sentences from word_compounds
+    // Fetch example sentences from word_examples
     const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
     const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
     if (hanziList.length > 0) {
       for (const hanzi of hanziList) {
-        // Try to get example from word_compounds
-        const { data: compoundData } = await supa
-          .from("word_compounds")
+        // Try to get example from word_examples
+        const { data: exampleData } = await supa
+          .from("word_examples")
           .select("hanzi, pinyin, arti")
-          .ilike("hanzi", `%${hanzi}%`)
+          .eq("word_hanzi", hanzi)
           .limit(1)
 
-        if (compoundData && compoundData.length > 0) {
+        if (exampleData && exampleData.length > 0) {
           exampleMap.set(hanzi, {
-            hanzi: compoundData[0].hanzi ?? "",
-            pinyin: compoundData[0].pinyin ?? "",
-            arti: compoundData[0].arti ?? "",
+            hanzi: exampleData[0].hanzi ?? "",
+            pinyin: exampleData[0].pinyin ?? "",
+            arti: exampleData[0].arti ?? "",
           })
         }
       }
