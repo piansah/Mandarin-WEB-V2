@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft,
   Minus,
@@ -78,6 +78,7 @@ const AUTOPLAY_SPEED_KEY = "cerita_autoplay_speed"
 
 export default function CeritaReadPage() {
   const params = useParams<{ key: string }>()
+  const router = useRouter()
   const key = params.key
   const supa = useSupabase()
 
