@@ -68,6 +68,7 @@ type Popover = { word: string; pinyin: string; arti: string; x: number; y: numbe
 const FONT_LEVELS = [16, 20, 24, 28, 32]
 
 const AUTOPLAY_SPEEDS = [
+  { rate: 1.0, label: "1.0×" },
   { rate: 0.7, label: "0.7×" },
   { rate: 0.5, label: "0.5×" },
   { rate: 0.3, label: "0.3×" },
@@ -118,7 +119,7 @@ export default function CeritaReadPage() {
   const lastSavedPctRef = React.useRef(-1)
 
   const getScrollEl = React.useCallback((): HTMLElement | null => {
-    return rootRef.current?.closest(".overflow-auto") as HTMLElement | null
+    return rootRef.current
   }, [])
 
   /* ── Load data ── */
@@ -382,7 +383,7 @@ export default function CeritaReadPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     )
@@ -390,7 +391,7 @@ export default function CeritaReadPage() {
 
   if (error || !data) {
     return (
-      <div className="flex min-h-[50vh] flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center">
         <p className="text-sm text-red-400">{error ?? "Cerita tidak ditemukan."}</p>
         <Link href="/dashboard/cerita" className={buttonVariants({ variant: "outline" })}>Kembali</Link>
       </div>

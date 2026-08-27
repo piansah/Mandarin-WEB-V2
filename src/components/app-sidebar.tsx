@@ -200,7 +200,7 @@ export function AppSidebar({
       <SidebarContent>
         {/* Dashboard & Modul */}
         <div className="px-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+          <div className="mb-2 px-2 pt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             MENU UTAMA
           </div>
           <SidebarMenu className="gap-1">

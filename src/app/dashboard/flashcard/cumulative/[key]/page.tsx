@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronsLeft, RotateCcw, Mic, Flag } from "lucide-react"
+import { ArrowLeft, RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
@@ -151,15 +151,15 @@ export default function CumulativeFlashcardSessionPage() {
     setReportModal({ isOpen: false, itemId: null, itemLabel: "" })
   }
 
-  if (loading) return <div className="flex flex-1 items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
-  if (error || !set) return <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
+  if (loading) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+  if (error || !set) return <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
   return (
     <div className={styles.fullscreenContainer}>
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/flashcard/cumulative")}>
-            <ChevronsLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{set.title}</h1><p className="truncate text-xs text-muted-foreground">{set.sub}</p></div>
           <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>

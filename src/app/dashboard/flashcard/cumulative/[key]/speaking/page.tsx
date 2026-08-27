@@ -165,7 +165,7 @@ export default function SpeakingPracticePage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-full items-center justify-center">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
       </div>
     )
@@ -173,7 +173,7 @@ export default function SpeakingPracticePage() {
 
   if (error || !set) {
     return (
-      <div className="flex min-h-full flex-col items-center justify-center gap-4 p-6">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6">
         <p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p>
         <Button variant="outline" onClick={handleBack}>Kembali</Button>
       </div>
@@ -212,7 +212,7 @@ export default function SpeakingPracticePage() {
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ChevronsLeft className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-bold">Latihan Speaking</h1>

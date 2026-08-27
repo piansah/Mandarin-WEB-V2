@@ -13,7 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
+
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
 import { useSupabase } from "@/hooks/use-supabase"
 
@@ -193,7 +193,6 @@ export default function DashboardPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">{greeting} 👋</p>
-          <DashboardThemeToggle />
         </div>
         <h1 className="text-2xl font-bold tracking-tight">{stats.displayName}</h1>
         <div className="flex items-center gap-2 mt-1">
