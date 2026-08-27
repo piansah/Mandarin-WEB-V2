@@ -5,7 +5,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { fetchDueFlashcards, recordSrsReview, type DueFlashcard } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
-export default function ReviewPage() {
+export default function FastReviewPage() {
   const supa = useSupabase()
   const [cards, setCards] = React.useState<DueFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -48,7 +48,8 @@ export default function ReviewPage() {
       deckTitle={cards[0]?.deckTitle || "Review Kartu"}
       deckLevel={cards[0]?.deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "SRS - Kartu Jatuh Tempo"}
       userId={userId}
-      disableSwipe={true}
+      disableSwipe={false}
+      isFastMode={true}
     />
   )
 }

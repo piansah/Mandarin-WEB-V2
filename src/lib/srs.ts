@@ -7,6 +7,8 @@ export type DueFlashcard = {
   arti: string
   setId: string | number | null
   srsLevel: number
+  deckTitle?: string
+  deckHskLevel?: number
 }
 
 function todayStr() {
@@ -67,7 +69,23 @@ export async function fetchDueFlashcards(
       .select("id, hanzi, pinyin, arti, set_id")
       .in("id", chunk)
 
+    // Fetch deck info for all unique set_ids
+    const uniqueSetIds = [...new Set((data ?? []).map(c => c.set_id).filter(Boolean))]
+    const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
+
+    if (uniqueSetIds.length > 0) {
+      const { data: deckData } = await supa
+        .from("flashcard_sets")
+        .select("id, title, hsk_level")
+        .in("id", uniqueSetIds)
+
+      for (const deck of deckData ?? []) {
+        deckInfoMap.set(deck.id, { title: deck.title ?? "", hsk_level: deck.hsk_level ?? 0 })
+      }
+    }
+
     for (const card of data ?? []) {
+      const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
       cards.push({
         id: String(card.id),
         hanzi: card.hanzi ?? "",
@@ -75,6 +93,8 @@ export async function fetchDueFlashcards(
         arti: card.arti ?? "",
         setId: card.set_id ?? null,
         srsLevel: progressByCard.get(String(card.id))?.srs_level ?? 0,
+        deckTitle: deckInfo?.title,
+        deckHskLevel: deckInfo?.hsk_level,
       })
     }
   }

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, Mic, Zap, List, ChevronDown, ChevronUp, TrendingUp, Star, CheckCircle2 } from "lucide-react"
+import { X, Mic, Zap, List, TrendingUp, Star, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -78,6 +78,8 @@ type SwipeFlashcardSessionProps = {
   deckTitle?: string
   deckLevel?: string
   userId?: string | null
+  disableSwipe?: boolean
+  isFastMode?: boolean
 }
 
 export function SwipeFlashcardSession({
@@ -91,6 +93,8 @@ export function SwipeFlashcardSession({
   deckTitle = "Kartu Hafalan",
   deckLevel = "Level A1",
   userId,
+  disableSwipe = false,
+  isFastMode = false,
 }: SwipeFlashcardSessionProps) {
   const router = useRouter()
   const supa = useSupabase()
@@ -117,7 +121,6 @@ export function SwipeFlashcardSession({
   const [flyOut, setFlyOut] = React.useState<{ x: number; y: number } | null>(null)
   const [sessionKey, setSessionKey] = React.useState(0)
   const scoreSavedRef = React.useRef(false)
-  const [statsExpanded, setStatsExpanded] = React.useState(false)
   const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
     dueToday: 0,
     totalCards: 0,
@@ -261,7 +264,7 @@ export function SwipeFlashcardSession({
   }
 
   function onPointerDown(e: React.PointerEvent) {
-    if (flyOut || !card) return
+    if (flyOut || !card || disableSwipe) return
     didLongPress.current = false
     startX.current = e.clientX
     startY.current = e.clientY
@@ -277,7 +280,7 @@ export function SwipeFlashcardSession({
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!isDragging || flyOut) return
+    if (!isDragging || flyOut || disableSwipe) return
     const nextDragX = e.clientX - startX.current
     const nextDragY = e.clientY - startY.current
 
@@ -293,7 +296,7 @@ export function SwipeFlashcardSession({
 
   function onPointerUp() {
     cancelLongPress()
-    if (!isDragging || flyOut) return
+    if (!isDragging || flyOut || disableSwipe) return
     const absX = Math.abs(dragX)
     const absY = Math.abs(dragY)
 
@@ -476,39 +479,29 @@ export function SwipeFlashcardSession({
     <div className={styles.page}>
       <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
-        <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-              <p className="text-xs text-muted-foreground">{deckLevel}</p>
+        {!isFastMode ? (
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+                <p className="text-xs text-muted-foreground">{deckLevel}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.push('/dashboard/review/fast')}>
+                  <Zap className="h-3.5 w-3.5" />
+                  Mode cepat
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
+                  <List className="h-3.5 w-3.5" />
+                  Daftar kartu {idx + 1}/{currentTotal}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
-                <Zap className="h-3.5 w-3.5" />
-                Mode cepat
-              </Button>
-              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
-                <List className="h-3.5 w-3.5" />
-                Daftar kartu {idx + 1}/{currentTotal}
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
 
-          {/* Collapsible Stats Section */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setStatsExpanded(!statsExpanded)}
-            className="w-full flex items-center justify-between py-2 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <span>Statistik Session</span>
-            {statsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-
-          {statsExpanded && (
+            {/* Always Visible Stats Section */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
               <div className={`${styles.statsCard} flex flex-col gap-1`}>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -549,8 +542,23 @@ export function SwipeFlashcardSession({
                 <div className="text-sm font-semibold text-foreground">{headerStats.rated}</div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+                <p className="text-xs text-muted-foreground">{deckLevel} - Mode Cepat</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.back()}>
+                  <X className="h-3.5 w-3.5" />
+                  Keluar
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Progress Bar */}
         <div className="flex items-center gap-3 px-4 py-2 shrink-0">
@@ -561,7 +569,7 @@ export function SwipeFlashcardSession({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          <div className="relative w-full max-w-sm aspect-[3/4] max-h-[420px] perspective-[800px]">
+          <div className="relative w-full max-w-lg aspect-[4/3] max-h-[400px] perspective-[800px]">
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
@@ -588,12 +596,21 @@ export function SwipeFlashcardSession({
               <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
                 {flip === 2 ? (
                   <div
-                    className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
+                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
-                    <div className="font-hanzi mb-6 text-6xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
-                    <TonePinyin text={card.pinyin} className="mb-2 text-2xl font-sans font-medium drop-shadow-sm" />
-                    <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                      <div className="font-hanzi mb-4 text-7xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                      <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
+                      <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
+                    </div>
+                    {!isFastMode && (
+                      <div className="mt-4 pt-4 border-t border-border/40">
+                        <div className="text-xs text-muted-foreground mb-2">CONTOH PENGGUNAAN</div>
+                        <div className="text-sm text-foreground mb-1">Example sentence with {card.hanzi}</div>
+                        <div className="text-sm text-muted-foreground">Translation of the example</div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl">
@@ -624,14 +641,14 @@ export function SwipeFlashcardSession({
           </div>
 
           <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-sm">
-            {!feedback && (
+            {isFastMode && !feedback && (
               <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
                 <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-blue-400">Sulit ↑</span> • <span className="text-emerald-500">Mudah →</span>
               </p>
             )}
 
             {/* Visible Rating Buttons */}
-            {flip === 2 && (
+            {flip === 2 && !isFastMode && (
               <div className="grid grid-cols-4 gap-2 w-full px-2">
                 <Button
                   variant="outline"
@@ -642,7 +659,6 @@ export function SwipeFlashcardSession({
                   }`}
                   onClick={() => { setSelectedRating(0); advance(0) }}
                 >
-                  <span className="text-lg">🙈</span>
                   Lupa
                 </Button>
                 <Button
@@ -654,7 +670,6 @@ export function SwipeFlashcardSession({
                   }`}
                   onClick={() => { setSelectedRating(3); advance(3) }}
                 >
-                  <span className="text-lg">🤔</span>
                   Ragu
                 </Button>
                 <Button
@@ -666,7 +681,6 @@ export function SwipeFlashcardSession({
                   }`}
                   onClick={() => { setSelectedRating(4); advance(4) }}
                 >
-                  <span className="text-lg">😓</span>
                   Sulit
                 </Button>
                 <Button
@@ -678,7 +692,6 @@ export function SwipeFlashcardSession({
                   }`}
                   onClick={() => { setSelectedRating(5); advance(5) }}
                 >
-                  <span className="text-lg">😎</span>
                   Mudah
                 </Button>
               </div>
