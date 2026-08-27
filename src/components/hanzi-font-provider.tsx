@@ -49,33 +49,9 @@ export function HanziFontProvider({ children }: { children: React.ReactNode }) {
           font-family: ${fontFamily} !important;
         }
         
-        /* Target inline font-family with --font-hanzi variable */
-        [style*="font-family"] {
-          font-family: ${fontFamily} !important;
-        }
-        
         /* Update CSS variable globally */
-        :root {
+        :root, html, body {
           --font-hanzi: ${fontFamily} !important;
-        }
-        
-        html {
-          --font-hanzi: ${fontFamily} !important;
-        }
-        
-        body {
-          --font-hanzi: ${fontFamily} !important;
-        }
-        
-        /* Target elements with hanzi in class name */
-        [class*="hanzi"],
-        [class*="Hanzi"] {
-          font-family: ${fontFamily} !important;
-        }
-        
-        /* Target tone classes which often contain Hanzi */
-        .tone1, .tone2, .tone3, .tone4, .tone0 {
-          font-family: ${fontFamily} !important;
         }
       `
       document.head.appendChild(styleSheet)
