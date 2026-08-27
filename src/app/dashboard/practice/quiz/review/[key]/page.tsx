@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
+import { LearningHeader } from "@/components/learning-header"
 import styles from "../../[key]/page.module.css"
 
 type RawKalimatQuestion = {
@@ -294,15 +295,14 @@ export default function CumulativeQuizPracticePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
-        <button className={styles.closeBtn} onClick={() => router.back()} aria-label="Keluar quiz">
-          <X size={20} />
-        </button>
-        <div className={styles.progWrap}>
-          <div className={styles.progFill} style={{ width: `${progress}%` }} />
-        </div>
-        <div className={styles.score}>{totalCorrect}/{totalAnswered}</div>
-      </div>
+      <LearningHeader
+        title={quizTitle || "Quiz Kumulatif"}
+        subtitle={`Level ${key.replace("level-", "")}`}
+        progress={progress}
+        rightContent={`${totalCorrect}/${totalAnswered}`}
+        icon="x"
+        onClose={() => router.back()}
+      />
 
       <div className={styles.tabs}>
         {([["all", "Semua"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (

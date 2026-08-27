@@ -22,6 +22,7 @@ import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
+import { LearningHeader } from "@/components/learning-header"
 import styles from "./page.module.css"
 
 type QuizQuestion = {
@@ -403,22 +404,14 @@ export default function CeritaReadPage() {
 
   return (
     <div ref={rootRef} className={styles.fullscreenContainer}>
-      <div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">
-        {/* Back button and progress */}
-        <div className="flex items-center gap-3 mb-4">
-          <Link href="/dashboard/cerita" className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Kembali">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div className="flex-1 h-1 bg-muted">
-            <div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-
-        {/* Title and subtitle in main content */}
-        <div className="mb-6">
-          <h1 className="font-hanzi text-3xl font-bold text-foreground mb-2">{data.title_zh || data.title}</h1>
-          {data.title_zh && <p className="text-sm text-muted-foreground">{data.title}</p>}
-        </div>
+      <LearningHeader
+        title={data.title_zh || data.title}
+        subtitle={data.title_zh ? data.title : undefined}
+        progress={pct}
+        icon="arrow"
+        onClose={() => router.push("/dashboard/cerita")}
+      />
+      <div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-6 sm:px-6">
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
           const isActive = autoplayIdx === pi

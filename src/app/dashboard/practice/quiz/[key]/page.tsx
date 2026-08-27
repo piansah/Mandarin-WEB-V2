@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
+import { Button } from "@/components/ui/button"
+import { LearningHeader } from "@/components/learning-header"
 import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
@@ -364,15 +366,14 @@ export default function QuizPage() {
   return (
     <div className={styles.page}>
       {/* Header */}
-      <div className={styles.header}>
-        <button className={styles.closeBtn} onClick={() => router.back()} aria-label="Keluar kuis">
-          <X size={20} />
-        </button>
-        <div className={styles.progWrap}>
-          <div className={styles.progFill} style={{ width: `${progress}%` }} />
-        </div>
-        <div className={styles.score}>{totalCorrect}/{totalAnswered}</div>
-      </div>
+      <LearningHeader
+        title={quizTitle || "Quiz Harian"}
+        subtitle={quizSub || `Level ${key.replace("level-", "")}`}
+        progress={progress}
+        rightContent={`${totalCorrect}/${totalAnswered}`}
+        icon="x"
+        onClose={() => router.back()}
+      />
 
       {/* Section tabs */}
       <div className={styles.tabs}>

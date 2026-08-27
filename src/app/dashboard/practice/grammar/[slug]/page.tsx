@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
+import { LearningHeader } from "@/components/learning-header"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
@@ -324,19 +325,14 @@ export default function GrammarPracticePage() {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <button type="button" className={styles.closeBtn} aria-label="Kembali" onClick={() => router.push("/dashboard/grammar")}>
-          <X className="h-5 w-5" />
-        </button>
-        <div className={styles.titleWrap}>
-          <div className={styles.title}>{pattern.title}</div>
-          <div className={styles.sub}>
-            {reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
-          </div>
-        </div>
-        {phase !== "theory" && <div className={styles.score}>{correctCount}/{questions.length}</div>}
-      </header>
-      {phase !== "theory" && <div className={styles.progWrap}><div className={styles.progFill} style={{ width: `${progress}%` }} /></div>}
+      <LearningHeader
+        title={pattern.title}
+        subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
+        progress={phase !== "theory" ? progress : undefined}
+        rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
+        icon="x"
+        onClose={() => router.push("/dashboard/grammar")}
+      />
 
       <div className={styles.body}>
         {phase === "theory" && (

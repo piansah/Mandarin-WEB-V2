@@ -6,6 +6,7 @@ import { ArrowLeft, RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
+import { LearningHeader } from "@/components/learning-header"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -156,16 +157,14 @@ export default function CumulativeFlashcardSessionPage() {
 
   return (
     <div className={styles.fullscreenContainer}>
-      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/flashcard/cumulative")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{set.title}</h1><p className="truncate text-xs text-muted-foreground">{set.sub}</p></div>
-          <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
-        </div>
-        <div className="h-1 bg-muted"><div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
-      </header>
+      <LearningHeader
+        title={set.title}
+        subtitle={set.sub}
+        progress={progress}
+        rightContent={`${completedCount}/${items.length}`}
+        icon="arrow"
+        onClose={() => router.push("/dashboard/flashcard/cumulative")}
+      />
 
       <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6">
         <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>

@@ -71,7 +71,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body
-        className={`${poppins.variable} ${notoSansSC.variable} ${maShanZheng.variable} ${zcoolXiaoWei.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans`}
+        className={`${poppins.variable} ${notoSansSC.variable} ${maShanZheng.variable} ${zcoolXiaoWei.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans overflow-x-hidden`}
         suppressHydrationWarning
       >
         <ThemeProvider
