@@ -87,41 +87,32 @@ export async function fetchDueFlashcards(
       }
     }
 
-    // Fetch example sentences from word_examples (similar to detail kosakata logic)
+    // Fetch example sentences from word_examples (exact match logic like detail kosakata)
     const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
     const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
     if (hanziList.length > 0) {
       for (const hanzi of hanziList) {
-        // Try to get example from word_examples with exact match first (like detail kosakata)
-        const { data: directRes } = await supa
-          .from("word_examples")
-          .select("hanzi, pinyin, arti")
-          .eq("word_hanzi", hanzi)
-          .order("id")
-          .limit(1)
+        // Use same logic as detail kosakata: fetch both exact and partial match in parallel
+        const [directRes, partialRes] = await Promise.all([
+          supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
+          supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
+        ])
 
-        // If no exact match, try partial match
-        if (!directRes || directRes.length === 0) {
-          const { data: partialRes } = await supa
-            .from("word_examples")
-            .select("hanzi, pinyin, arti")
-            .ilike("hanzi", `%${hanzi}%`)
-            .order("id")
-            .limit(1)
+        // Combine results like detail kosakata, but only keep 1 example
+        const seen = new Set<string>()
+        const allExamples = [...(directRes.data ?? []), ...(partialRes.data ?? [])].filter(item => {
+          const key = `${item.id}-${item.hanzi}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
 
-          if (partialRes && partialRes.length > 0) {
-            exampleMap.set(hanzi, {
-              hanzi: partialRes[0].hanzi ?? "",
-              pinyin: partialRes[0].pinyin ?? "",
-              arti: partialRes[0].arti ?? "",
-            })
-          }
-        } else if (directRes && directRes.length > 0) {
+        if (allExamples.length > 0) {
           exampleMap.set(hanzi, {
-            hanzi: directRes[0].hanzi ?? "",
-            pinyin: directRes[0].pinyin ?? "",
-            arti: directRes[0].arti ?? "",
+            hanzi: allExamples[0].hanzi ?? "",
+            pinyin: allExamples[0].pinyin ?? "",
+            arti: allExamples[0].arti ?? "",
           })
         }
       }

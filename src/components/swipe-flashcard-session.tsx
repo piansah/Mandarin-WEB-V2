@@ -644,7 +644,7 @@ export function SwipeFlashcardSession({
                             <div className="text-sm text-foreground">{card.exampleTranslation}</div>
                           </>
                         ) : (
-                          <div className="text-sm text-muted-foreground italic">Contoh kalimat tidak tersedia untuk kata ini</div>
+                          <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
                         )}
                       </div>
                     )}
