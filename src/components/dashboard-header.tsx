@@ -62,6 +62,17 @@ export function DashboardHeader() {
     }
   }, [])
 
+  React.useEffect(() => {
+    if (mobileSearchActive) {
+      document.body.classList.add("mobile-search-active")
+    } else {
+      document.body.classList.remove("mobile-search-active")
+    }
+    return () => {
+      document.body.classList.remove("mobile-search-active")
+    }
+  }, [mobileSearchActive])
+
   const handleSearch = React.useCallback(async (query: string) => {
     setSearchQuery(query)
 

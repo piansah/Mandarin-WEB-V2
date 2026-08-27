@@ -23,6 +23,7 @@ export function SidebarMobileOpenButton({ className }: { className?: string }) {
       onClick={() => setOpenMobile(true)}
       className={cn(
         "fixed left-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-md transition-colors hover:bg-primary/90",
+        "[.mobile-search-active_&]:hidden",
         className
       )}
       aria-label="Buka sidebar"
