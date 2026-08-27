@@ -56,21 +56,36 @@ export default function DashboardPage() {
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
 
-      const { data: cards } = await supa
-        .from("srs_cards")
-        .select("id, hanzi, pinyin, arti, due_date")
+      const today = new Date().toISOString().slice(0, 10)
+
+      // Query kartu yang due dari user_card_progress
+      const { data: progressRows } = await supa
+        .from("user_card_progress")
+        .select("card_id, next_review")
         .eq("user_id", user.id)
-        .lte("due_date", new Date().toISOString())
-        .order("due_date", { ascending: true })
+        .lte("next_review", today)
+        .order("next_review", { ascending: true })
         .limit(5)
 
+      if (!progressRows || progressRows.length === 0) return
+
+      const cardIds = progressRows.map((r) => r.card_id).filter(Boolean)
+      if (cardIds.length === 0) return
+
+      // Ambil detail kartu dari flashcard_cards
+      const { data: cards } = await supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti")
+        .in("id", cardIds)
+
       if (cards) {
-        setDueCards(cards.map(card => ({
+        const reviewMap = new Map(progressRows.map((r) => [r.card_id, r.next_review]))
+        setDueCards(cards.map((card) => ({
           id: card.id,
-          hanzi: card.hanzi,
-          pinyin: card.pinyin,
-          arti: card.arti,
-          dueDate: card.due_date,
+          hanzi: card.hanzi ?? "",
+          pinyin: card.pinyin ?? "",
+          arti: card.arti ?? "",
+          dueDate: reviewMap.get(card.id) ?? today,
         })))
       }
     } catch (e) {
@@ -332,27 +347,45 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Due Cards List */}
-              {dueCards.length > 0 ? (
-                <div className="space-y-2">
-                  {dueCards.map((card) => (
-                    <div
-                      key={card.id}
-                      className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{card.hanzi}</p>
-                        <p className="text-xs text-muted-foreground">{card.pinyin} · {card.arti}</p>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                      </div>
+              {/* Due Cards CTA */}
+              {srsStats.due > 0 ? (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-amber-500/20">
+                      <RotateCcw className="h-5 w-5 text-amber-500" />
                     </div>
-                  ))}
-                  <Button variant="outline" className="w-full mt-2" onClick={() => window.location.href = '/dashboard/review'}>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold">
+                        {srsStats.due} kartu siap direview
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Review sekarang agar tidak lupa
+                      </p>
+                    </div>
+                  </div>
+                  {dueCards.length > 0 && (
+                    <div className="space-y-1.5">
+                      {dueCards.map((card) => (
+                        <div
+                          key={card.id}
+                          className="flex items-center gap-3 rounded-md border border-border/40 bg-background/60 px-3 py-2"
+                        >
+                          <p className="font-medium text-sm">{card.hanzi}</p>
+                          <p className="text-xs text-muted-foreground flex-1">{card.pinyin} · {card.arti}</p>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
+                    onClick={() => window.location.href = '/dashboard/review'}
+                  >
                     <RotateCcw className="h-4 w-4 mr-2" />
-                    Mulai Review
+                    Mulai Review ({srsStats.due} kartu)
                   </Button>
                 </div>
               ) : (
@@ -360,11 +393,12 @@ export default function DashboardPage() {
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                   <span className="text-sm">
                     {srsStats.totalToday > 0
-                      ? "Sesi hari ini selesai!"
+                      ? "Sesi hari ini selesai! 🎉"
                       : "Tidak ada kartu yang harus direview"}
                   </span>
                 </div>
               )}
+
             </div>
           ) : (
             <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">

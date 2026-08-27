@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { fetchUserSettings, updateDisplayName, updateHanziMode, updateHanziFont, signOut, type UserSettings } from "@/lib/user-settings"
 import type { HanziMode } from "@/lib/placement"
-import { User, Mic, LogOut, Save, Check, Type } from "lucide-react"
+import { User, Mic, LogOut, Save, Check, Type, Smartphone, Download, Share } from "lucide-react"
+import { usePwaInstall } from "@/hooks/use-pwa-install"
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -19,6 +20,7 @@ export default function SettingsPage() {
   const [selectedHanziFont, setSelectedHanziFont] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
   const [saveSuccess, setSaveSuccess] = React.useState(false)
+  const { status: pwaStatus, installing: pwaInstalling, installPwa } = usePwaInstall()
 
   React.useEffect(() => {
     loadSettings()
@@ -271,6 +273,85 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* PWA Install Card */}
+      {pwaStatus !== "loading" && pwaStatus !== "unsupported" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Instal Aplikasi
+            </CardTitle>
+            <CardDescription>
+              Pasang Mandarin Journey di perangkat kamu untuk akses lebih cepat, offline, dan tampilan layar penuh
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {pwaStatus === "installed" && (
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-emerald-500/20">
+                  <Check className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400">Aplikasi sudah terpasang</p>
+                  <p className="text-sm text-muted-foreground">Buka dari layar utama perangkat kamu</p>
+                </div>
+              </div>
+            )}
+
+            {pwaStatus === "installable" && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-primary/10">
+                    <Download className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium">木 Journey</p>
+                    <p className="text-sm text-muted-foreground">Gratis • Tidak perlu App Store</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={installPwa}
+                  disabled={pwaInstalling}
+                  className="w-full sm:w-auto"
+                >
+                  {pwaInstalling ? (
+                    <>
+                      <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      Menginstall...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Install Sekarang
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {pwaStatus === "ios" && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">Ikuti langkah berikut di Safari:</p>
+                <ol className="space-y-2">
+                  {[
+                    { icon: <Share className="h-4 w-4 flex-shrink-0 text-blue-500" />, text: 'Ketuk tombol "Bagikan" (ikon kotak dengan panah ke atas) di toolbar Safari' },
+                    { icon: <span className="text-base">📋</span>, text: 'Scroll ke bawah dan pilih "Tambah ke Layar Utama"' },
+                    { icon: <Check className="h-4 w-4 flex-shrink-0 text-emerald-500" />, text: 'Ketuk "Tambah" di pojok kanan atas — selesai!' },
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <span className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-background">
+                        {step.icon}
+                      </span>
+                      <span className="text-sm">{step.text}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Account Actions */}
       <Card>
