@@ -634,12 +634,18 @@ export function SwipeFlashcardSession({
                       <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
-                    {!isFastMode && card.exampleSentence && (
+                    {!isFastMode && (
                       <div className="mt-4 pt-4 border-t border-border/40">
                         <div className="text-xs text-muted-foreground mb-2">CONTOH PENGGUNAAN</div>
-                        <div className="text-sm text-foreground mb-1 font-hanzi">{card.exampleSentence}</div>
-                        {card.examplePinyin && <div className="text-sm text-muted-foreground mb-1 font-italic">{card.examplePinyin}</div>}
-                        <div className="text-sm text-foreground">{card.exampleTranslation}</div>
+                        {card.exampleSentence ? (
+                          <>
+                            <div className="text-sm text-foreground mb-1 font-hanzi">{card.exampleSentence}</div>
+                            {card.examplePinyin && <div className="text-sm text-muted-foreground mb-1 font-italic">{card.examplePinyin}</div>}
+                            <div className="text-sm text-foreground">{card.exampleTranslation}</div>
+                          </>
+                        ) : (
+                          <div className="text-sm text-muted-foreground italic">Contoh kalimat tidak tersedia untuk kata ini</div>
+                        )}
                       </div>
                     )}
                   </div>

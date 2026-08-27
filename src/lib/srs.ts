@@ -101,8 +101,6 @@ export async function fetchDueFlashcards(
           .order("id")
           .limit(1)
 
-        console.log(`Fetching example for ${hanzi}:`, directRes)
-
         // If no exact match, try partial match
         if (!directRes || directRes.length === 0) {
           const { data: partialRes } = await supa
@@ -111,8 +109,6 @@ export async function fetchDueFlashcards(
             .ilike("hanzi", `%${hanzi}%`)
             .order("id")
             .limit(1)
-
-          console.log(`Partial match for ${hanzi}:`, partialRes)
 
           if (partialRes && partialRes.length > 0) {
             exampleMap.set(hanzi, {
@@ -134,7 +130,6 @@ export async function fetchDueFlashcards(
     for (const card of data ?? []) {
       const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
       const example = card.hanzi ? exampleMap.get(card.hanzi) : null
-      console.log(`Card ${card.hanzi} example:`, example)
       cards.push({
         id: String(card.id),
         hanzi: card.hanzi ?? "",
