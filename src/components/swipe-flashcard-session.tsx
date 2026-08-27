@@ -200,8 +200,9 @@ export function SwipeFlashcardSession({
       setFlip(1)
     } else if (flip === 1) {
       setFlip(2)
+    } else if (card) {
+      speakMandarin(card.hanzi)
     }
-    // Removed TTS on flip 2 to avoid conflict with example sentence TTS
   }
 
   React.useEffect(() => {
@@ -209,23 +210,17 @@ export function SwipeFlashcardSession({
       if (!userId) return
       const today = new Date().toISOString().slice(0, 10)
 
-      console.log("Fetching header stats for user:", userId, "today:", today)
-
       // Fetch due today - cards that need review today
       const { data: dueData } = await supa
         .from("user_card_progress")
-        .select("card_id, next_review")
+        .select("card_id")
         .eq("user_id", userId)
         .lte("next_review", today)
-
-      console.log("Due data:", dueData)
 
       // Filter by deck if deckCardIds provided
       const filteredDueData = deckCardIds
         ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
         : dueData ?? []
-
-      console.log("Filtered due data:", filteredDueData)
 
       // Calculate total cards in current session
       const totalCardsInSession = cards.length
@@ -255,7 +250,7 @@ export function SwipeFlashcardSession({
       })
     }
     fetchHeaderStats()
-  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds, sessionMastered])
+  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -519,7 +514,8 @@ export function SwipeFlashcardSession({
               </Button>
             )}
           </div>
-          <style dangerouslySetInnerHTML={{ __html: `
+          <style dangerouslySetInnerHTML={{
+            __html: `
             .flashcard-result { animation: fcResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
             .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
             .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
@@ -558,7 +554,7 @@ export function SwipeFlashcardSession({
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col min-h-screen">
+      <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
@@ -645,9 +641,8 @@ export function SwipeFlashcardSession({
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
-              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard ${
-                isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
-              }`}
+              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
+                }`}
               style={{
                 transform: flyOut
                   ? `translate(${flyOut.x}px, ${flyOut.y}px) rotate(${flyOut.x * 0.05}deg) rotateY(360deg)`
@@ -656,8 +651,8 @@ export function SwipeFlashcardSession({
                     : `rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`,
                 opacity: flyOut ? 0 : 1,
                 transition: flyOut ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' :
-                            isDragging ? 'none' :
-                            'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  isDragging ? 'none' :
+                    'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
               onClick={handleCardClick}
               onPointerDown={onPointerDown}
@@ -671,13 +666,13 @@ export function SwipeFlashcardSession({
                     className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
-                        <Volume2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
                     <div className="flex-1 flex flex-col items-center justify-center">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
+                          <Volume2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                       <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
@@ -774,44 +769,40 @@ export function SwipeFlashcardSession({
                 <div className="grid grid-cols-4 gap-2 w-full">
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
-                      selectedRating === 0
+                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 0
                         ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
                         : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
-                    }`}
+                      }`}
                     onClick={() => { setSelectedRating(0); advance(0) }}
                   >
                     Lupa
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
-                      selectedRating === 3
+                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 3
                         ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
                         : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
-                    }`}
+                      }`}
                     onClick={() => { setSelectedRating(3); advance(3) }}
                   >
                     Ragu
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
-                      selectedRating === 4
+                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 4
                         ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
                         : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
-                    }`}
+                      }`}
                     onClick={() => { setSelectedRating(4); advance(4) }}
                   >
                     Sulit
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
-                      selectedRating === 5
+                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 5
                         ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
                         : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
-                    }`}
+                      }`}
                     onClick={() => { setSelectedRating(5); advance(5) }}
                   >
                     Mudah
@@ -844,12 +835,11 @@ export function SwipeFlashcardSession({
             )}
 
             {feedback && (
-              <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-lg mx-auto shadow-sm ${
-                feedback.type === "ok" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
-                feedback.type === "warn" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
-                feedback.type === "interim" ? "text-muted-foreground border-transparent" :
-                "bg-red-500/10 border-red-500/20 text-red-500"
-              }`}>
+              <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-lg mx-auto shadow-sm ${feedback.type === "ok" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
+                  feedback.type === "warn" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
+                    feedback.type === "interim" ? "text-muted-foreground border-transparent" :
+                      "bg-red-500/10 border-red-500/20 text-red-500"
+                }`}>
                 <div className="font-medium text-sm">{feedback.msg}</div>
                 {feedback.hanzi && <div className="font-hanzi mt-1 text-xl">&quot;{feedback.hanzi}&quot;</div>}
               </div>
@@ -857,7 +847,8 @@ export function SwipeFlashcardSession({
           </div>
         </div>
 
-        <style dangerouslySetInnerHTML={{ __html: `
+        <style dangerouslySetInnerHTML={{
+          __html: `
           .perspective-\\[800px\\] { perspective: 800px; }
           .transform-style-3d { transform-style: preserve-3d; }
           .backface-hidden { backface-visibility: hidden; }
