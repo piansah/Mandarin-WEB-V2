@@ -113,6 +113,7 @@ export function SwipeFlashcardSession({
   const [ragu, setRagu] = React.useState(0)
   const [sulit, setSulit] = React.useState(0)
   const [done, setDone] = React.useState(false)
+  const [sessionMastered, setSessionMastered] = React.useState(0)
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -244,7 +245,7 @@ export function SwipeFlashcardSession({
         dueToday: filteredDueData.length,
         totalCards: totalCardsInSession,
         accuracy: accuracy,
-        mastered: filteredMasteredData.length,
+        mastered: sessionMastered + filteredMasteredData.length,
         rated: hafal + sulit + ragu + lupa,
       })
     }
@@ -291,6 +292,7 @@ export function SwipeFlashcardSession({
       rated: prev.rated + 1,
       mastered: quality === 5 ? prev.mastered + 1 : prev.mastered,
     }))
+    setSessionMastered(prev => quality === 5 ? prev + 1 : prev)
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
@@ -466,7 +468,7 @@ export function SwipeFlashcardSession({
   if (loading) {
     return (
       <div className={styles.page}>
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
         </div>
       </div>
@@ -554,7 +556,7 @@ export function SwipeFlashcardSession({
       <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
-          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
@@ -610,7 +612,7 @@ export function SwipeFlashcardSession({
             </div>
           </div>
         ) : (
-          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
@@ -634,7 +636,7 @@ export function SwipeFlashcardSession({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          <div className="relative w-full max-w-lg perspective-[800px] h-[400px] md:h-[500px]">
+          <div className="relative w-full max-w-lg perspective-[800px] h-[280px] md:h-[320px]">
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
@@ -665,28 +667,28 @@ export function SwipeFlashcardSession({
                     style={{ opacity: contentOpacity }}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className="font-hanzi text-7xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
-                          <Volume2 className="h-4 w-4" />
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
+                          <Volume2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
-                      <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
+                      <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
+                      <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
                     {!isFastMode && (
-                      <div className="mt-4 pt-4 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
+                      <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
                           {card.exampleSentence && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => speakMandarin(card.exampleSentence!)}>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full ml-auto" onClick={() => speakMandarin(card.exampleSentence!)}>
                               <Volume2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
                         {card.exampleSentence ? (
                           <>
-                            <div className="text-sm text-foreground mb-1 font-hanzi text-2xl cursor-pointer hover:text-primary transition-colors" onClick={() => speakMandarin(card.exampleSentence!)}>{card.exampleSentence}</div>
+                            <div className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors">{card.exampleSentence}</div>
                             {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
                             <div className="text-sm text-foreground">{card.exampleTranslation}</div>
                           </>
