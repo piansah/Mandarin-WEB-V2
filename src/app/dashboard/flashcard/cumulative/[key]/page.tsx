@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Mic, Flag } from "lucide-react"
+import { ChevronsLeft, RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
@@ -10,6 +10,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { checkUserContentReport } from "@/lib/bug-reports"
+import styles from "./page.module.css"
 
 type HanziSet = {
   key: string
@@ -154,16 +155,19 @@ export default function CumulativeFlashcardSessionPage() {
   if (error || !set) return <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
   return (
-    <div className="flex min-h-full flex-col bg-background">
+    <div className={styles.fullscreenContainer}>
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
+          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard/flashcard/cumulative")}>
+            <ChevronsLeft className="h-5 w-5" />
+          </Button>
           <div className="min-w-0 flex-1"><h1 className="truncate text-base font-bold">{set.title}</h1><p className="truncate text-xs text-muted-foreground">{set.sub}</p></div>
           <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">{completedCount}/{items.length}</span>
         </div>
         <div className="h-1 bg-muted"><div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} /></div>
       </header>
 
-      <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-28 sm:px-6">
+      <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6">
         <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
         {groups.map((group) => (
           <section key={`${group.tag}-${group.label}`}>

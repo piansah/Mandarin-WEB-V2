@@ -22,6 +22,7 @@ import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
+import styles from "./page.module.css"
 
 type QuizQuestion = {
   q: string
@@ -67,9 +68,9 @@ type Popover = { word: string; pinyin: string; arti: string; x: number; y: numbe
 const FONT_LEVELS = [16, 20, 24, 28, 32]
 
 const AUTOPLAY_SPEEDS = [
-  { rate: 1, label: "1×" },
-  { rate: 0.75, label: "0.75×" },
+  { rate: 0.7, label: "0.7×" },
   { rate: 0.5, label: "0.5×" },
+  { rate: 0.3, label: "0.3×" },
 ]
 const AUTOPLAY_SPEED_KEY = "cerita_autoplay_speed"
 
@@ -386,23 +387,23 @@ export default function CeritaReadPage() {
   const fontSize = FONT_LEVELS[fontLevel]
 
   return (
-    <div ref={rootRef} className="flex min-h-full flex-col bg-background">
-      <header className="fixed inset-x-0 top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
+    <div ref={rootRef} className={styles.fullscreenContainer}>
+      <div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-4 sm:px-6">
+        {/* Back button and progress */}
+        <div className="flex items-center gap-3 mb-4">
           <Link href="/dashboard/cerita" className={buttonVariants({ variant: "ghost", size: "icon-sm" })} aria-label="Kembali">
             <ArrowLeft className="h-4 w-4" />
           </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-bold">{data.title}</h1>
-            {data.title_zh && <p className="truncate font-hanzi text-xs text-muted-foreground">{data.title_zh}</p>}
+          <div className="flex-1 h-1 bg-muted">
+            <div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${pct}%` }} />
           </div>
         </div>
-        <div className="h-1 bg-muted">
-          <div className="h-full bg-primary transition-[width] duration-150" style={{ width: `${pct}%` }} />
-        </div>
-      </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-28 pt-20 sm:px-6">
+        {/* Title and subtitle in main content */}
+        <div className="mb-6">
+          <h1 className="font-hanzi text-2xl font-bold">{data.title_zh || data.title}</h1>
+          <p className="text-muted-foreground">{data.title_zh ? data.title : data.title_zh}</p>
+        </div>
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
           const isActive = autoplayIdx === pi

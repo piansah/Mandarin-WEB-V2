@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Mic, Volume2, Check, X, RotateCcw, SkipForward } from "lucide-react"
+import { ArrowLeft, Mic, Volume2, Check, X, RotateCcw, SkipForward, ChevronsLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
+import styles from "./page.module.css"
 
 type HanziSet = {
   key: string
@@ -206,12 +207,12 @@ export default function SpeakingPracticePage() {
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-background">
+    <div className={styles.fullscreenContainer}>
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
           <Button variant="ghost" size="icon" onClick={handleBack}>
-            <ArrowLeft className="h-5 w-5" />
+            <ChevronsLeft className="h-5 w-5" />
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-base font-bold">Latihan Speaking</h1>
