@@ -3,6 +3,11 @@ export type Card = {
   hanzi: string
   pinyin: string
   arti: string
+  hsk_level?: number | null
+  badge?: string | null
+  word_class?: string | null
+  catatan?: string | null
+  set_id?: string | number
 }
 
 export type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"

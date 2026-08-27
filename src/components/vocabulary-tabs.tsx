@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { speakMandarin } from "@/lib/tts"
+import { HskBadge } from "@/components/hsk-badge"
 
 const HISTORY_KEY = "hanzi_search_history"
 const HISTORY_LIMIT = 8
@@ -320,25 +321,11 @@ function VocabularyRow({ item, index, hskLevel, arti, onOpen }: { item: GlobalWo
   const hanzi = item.hanzi
   const pinyin = 'pinyin' in item ? item.pinyin : null
 
-  // Determine class label based on hskLevel
-  const getClassLabel = () => {
-    if (hskLevel === null) return null
-    if (hskLevel === 0) return 'Common'
-    if (hskLevel > 0 && hskLevel <= 6) return `HSK ${hskLevel}`
-    return 'Native'
-  }
-
-  const classLabel = getClassLabel()
-
   return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen() }}>
     <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{hanzi}</div>
     <div className="flex min-w-0 flex-1 flex-col">{pinyin && typeof pinyin === 'string' && <TonePinyin text={pinyin} className="text-sm font-medium" />}{arti && <span className="truncate text-sm text-muted-foreground">{arti}</span>}</div>
     <div className="ml-1 flex shrink-0 items-center gap-2">
-      {classLabel && (
-        <Badge variant="outline" className="text-xs">
-          {classLabel}
-        </Badge>
-      )}
+      <HskBadge hskLevel={hskLevel === 0 ? undefined : hskLevel} badge={hskLevel === 0 ? "common" : hskLevel === null ? "native" : undefined} />
       <Volume2 className="h-4 w-4 text-muted-foreground" />
     </div>
   </div>

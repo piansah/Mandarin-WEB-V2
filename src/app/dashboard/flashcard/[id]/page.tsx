@@ -22,6 +22,7 @@ import { getTone, isHanzi, IDS_LABELS, decompParts } from "@/lib/hanzi-utils"
 import { useSidebar } from "@/components/ui/sidebar"
 import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
 import { ColorPinyin } from "./components"
+import { HskBadge } from "@/components/hsk-badge"
 
 const idsLabels = IDS_LABELS
 
@@ -321,11 +322,24 @@ function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onO
 
   React.useEffect(() => clearPress, [])
 
-  return <div className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30" onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }} onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }} onPointerUp={clearPress} onPointerCancel={clearPress} onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}>
-    <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
-    <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
-    <div className="ml-1 flex shrink-0 items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /><span className="text-xs font-medium text-muted-foreground">#{index + 1}</span></div>
-  </div>
+  return (
+    <div
+      className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
+      onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }}
+      onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }}
+      onPointerUp={clearPress}
+      onPointerCancel={clearPress}
+      onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}
+    >
+      <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
+      <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
+      <div className="ml-1 flex shrink-0 items-center gap-2">
+        <HskBadge hskLevel={card.hsk_level} />
+        <Volume2 className="h-4 w-4 text-muted-foreground" />
+        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
+      </div>
+    </div>
+  )
 }
 
 function WordDetailPortal({ children }: { children: React.ReactNode }) {

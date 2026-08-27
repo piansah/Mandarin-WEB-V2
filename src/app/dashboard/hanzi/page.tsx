@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
 import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { HskBadge } from "@/components/hsk-badge"
 
 const HISTORY_KEY = "hanzi_search_history"
 const HISTORY_LIMIT = 8
@@ -259,16 +260,7 @@ export default function HanziPage() {
                     <div className="text-sm text-muted-foreground truncate">{word.arti}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    {word.hsk && (
-                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
-                        HSK {word.hsk}
-                      </span>
-                    )}
-                    {word.badge && (
-                      <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase border border-orange-500/20">
-                        {word.badge}
-                      </span>
-                    )}
+                    <HskBadge hskLevel={word.hsk} badge={word.badge} />
                   </div>
                 </div>
               ))}
@@ -304,16 +296,7 @@ export default function HanziPage() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
-              {word.hsk_level && (
-                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
-                  HSK {word.hsk_level}
-                </span>
-              )}
-              {word.badge && (
-                <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase border border-orange-500/20">
-                  {word.badge}
-                </span>
-              )}
+              <HskBadge hskLevel={word.hsk_level} badge={word.badge} />
             </div>
           </div>
         ))}
