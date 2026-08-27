@@ -325,8 +325,15 @@ function VocabularyRow({ item, index, hskLevel, arti, onOpen }: { item: GlobalWo
     <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{hanzi}</div>
     <div className="flex min-w-0 flex-1 flex-col">{pinyin && typeof pinyin === 'string' && <TonePinyin text={pinyin} className="text-sm font-medium" />}{arti && <span className="truncate text-sm text-muted-foreground">{arti}</span>}</div>
     <div className="ml-1 flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={e => { e.stopPropagation(); speakMandarin(hanzi) }}
+        className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        aria-label="Dengar"
+      >
+        <Volume2 className="h-4 w-4" />
+      </button>
       <HskBadge hskLevel={hskLevel === 0 ? undefined : hskLevel} badge={hskLevel === 0 ? "common" : hskLevel === null ? "native" : undefined} />
-      <Volume2 className="h-4 w-4 text-muted-foreground" />
     </div>
   </div>
 }

@@ -8,6 +8,7 @@ import { OCRScanner } from "@/components/ocr-scanner"
 import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
+import { speakMandarin } from "@/lib/tts"
 
 const HISTORY_KEY = "hanzi_search_history"
 const HISTORY_LIMIT = 8
@@ -295,7 +296,16 @@ export default function HanziPage() {
                 {word.arti}
               </div>
             </div>
-            <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); speakMandarin(word.hanzi) }}
+                className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                aria-label="Dengar"
+              >
+                <Search className="h-3.5 w-3.5 hidden" />
+                <span className="text-sm">🔊</span>
+              </button>
               <HskBadge hskLevel={word.hsk_level} badge={word.badge} />
             </div>
           </div>
