@@ -59,7 +59,10 @@ export async function fetchDueFlashcards(
   const progressByCard = new Map<string, { srs_level: number }>()
   for (const row of progressRows) {
     if (!row.card_id) continue
-    progressByCard.set(row.card_id, { srs_level: row.srs_level ?? 0 })
+    // NOTE: key is always normalized to string here, and read back with
+    // String(card.id) below. Previously this stored the raw card_id type,
+    // which could silently fail to match if card_id came back as a number.
+    progressByCard.set(String(row.card_id), { srs_level: row.srs_level ?? 0 })
   }
 
   const cardIds = [...progressByCard.keys()]
