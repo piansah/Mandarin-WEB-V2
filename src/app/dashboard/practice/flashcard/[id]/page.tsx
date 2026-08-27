@@ -21,7 +21,37 @@ export default function FlashcardPracticePage() {
         .select("id, hanzi, pinyin, arti")
         .eq("set_id", deckId)
         .order("created_at", { ascending: true })
-      setCards(data ?? [])
+
+      const rawCards = data ?? []
+      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+
+      if (hanziList.length > 0) {
+        await Promise.all(
+          hanziList.map(async (hanzi) => {
+            const [directRes, partialRes] = await Promise.all([
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
+            ])
+            const first = directRes.data?.[0] ?? partialRes.data?.[0]
+            if (first) {
+              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
+            }
+          })
+        )
+      }
+
+      const cardsWithExamples: SwipeFlashcard[] = rawCards.map(card => {
+        const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
+        return {
+          ...card,
+          exampleSentence: ex?.hanzi,
+          examplePinyin: ex?.pinyin,
+          exampleTranslation: ex?.arti,
+        }
+      })
+
+      setCards(cardsWithExamples)
       setLoading(false)
     }
     load()
