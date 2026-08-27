@@ -95,6 +95,7 @@ export default function FlashcardPracticePage() {
       deckTitle={deckTitle}
       deckLevel={deckLevel}
       userId={userId}
+      deckCardIds={cards.map(c => String(c.id))}
     />
   )
 }

@@ -85,6 +85,7 @@ type SwipeFlashcardSessionProps = {
   userId?: string | null
   disableSwipe?: boolean
   isFastMode?: boolean
+  deckCardIds?: string[] // For filtering stats by deck
 }
 
 export function SwipeFlashcardSession({
@@ -100,6 +101,7 @@ export function SwipeFlashcardSession({
   userId,
   disableSwipe = false,
   isFastMode = false,
+  deckCardIds,
 }: SwipeFlashcardSessionProps) {
   const router = useRouter()
   const supa = useSupabase()
@@ -214,6 +216,11 @@ export function SwipeFlashcardSession({
         .eq("user_id", userId)
         .lte("next_review", today)
 
+      // Filter by deck if deckCardIds provided
+      const filteredDueData = deckCardIds
+        ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
+        : dueData ?? []
+
       // Calculate total cards in current session
       const totalCardsInSession = cards.length
 
@@ -224,20 +231,25 @@ export function SwipeFlashcardSession({
       // Fetch mastered cards (srs_level >= 5)
       const { data: masteredData } = await supa
         .from("user_card_progress")
-        .select("id")
+        .select("id, card_id")
         .eq("user_id", userId)
         .gte("srs_level", 5)
 
+      // Filter by deck if deckCardIds provided
+      const filteredMasteredData = deckCardIds
+        ? masteredData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
+        : masteredData ?? []
+
       setHeaderStats({
-        dueToday: dueData?.length ?? 0,
+        dueToday: filteredDueData.length,
         totalCards: totalCardsInSession,
         accuracy: accuracy,
-        mastered: masteredData?.length ?? 0,
+        mastered: filteredMasteredData.length,
         rated: hafal + sulit + ragu + lupa,
       })
     }
     fetchHeaderStats()
-  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa])
+  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -549,10 +561,6 @@ export function SwipeFlashcardSession({
                 <p className="text-xs text-muted-foreground">{deckLevel}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
-                  <List className="h-3.5 w-3.5" />
-                  Total kata {currentTotal}
-                </Button>
                 <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
                   <X className="h-4 w-4" />
                 </Button>
@@ -626,11 +634,11 @@ export function SwipeFlashcardSession({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          <div className="relative w-full max-w-lg aspect-[4/3] max-h-[400px] perspective-[800px]">
+          <div className="relative w-full max-w-lg perspective-[800px] md:max-h-[500px] h-auto">
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
-              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none ${
+              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard ${
                 isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
               }`}
               style={{
@@ -657,13 +665,25 @@ export function SwipeFlashcardSession({
                     style={{ opacity: contentOpacity }}
                   >
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="font-hanzi mb-4 text-7xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="font-hanzi text-7xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
+                          <Mic className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
                     {!isFastMode && (
                       <div className="mt-4 pt-4 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
-                        <div className="text-xs text-muted-foreground mb-2">CONTOH PENGGUNAAN</div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
+                          {card.exampleSentence && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => speakMandarin(card.exampleSentence!)}>
+                              <Mic className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                         {card.exampleSentence ? (
                           <>
                             <div className="text-sm text-foreground mb-1 font-hanzi text-2xl cursor-pointer hover:text-primary transition-colors" onClick={() => speakMandarin(card.exampleSentence!)}>{card.exampleSentence}</div>
