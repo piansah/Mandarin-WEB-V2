@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, Mic, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward } from "lucide-react"
+import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -634,7 +634,7 @@ export function SwipeFlashcardSession({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          <div className="relative w-full max-w-lg perspective-[800px] md:max-h-[500px] h-auto">
+          <div className="relative w-full max-w-lg perspective-[800px] h-[400px] md:h-[500px]">
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
@@ -668,7 +668,7 @@ export function SwipeFlashcardSession({
                       <div className="flex items-center gap-2 mb-4">
                         <div className="font-hanzi text-7xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
-                          <Mic className="h-4 w-4" />
+                          <Volume2 className="h-4 w-4" />
                         </Button>
                       </div>
                       <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
@@ -680,7 +680,7 @@ export function SwipeFlashcardSession({
                           <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
                           {card.exampleSentence && (
                             <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => speakMandarin(card.exampleSentence!)}>
-                              <Mic className="h-3 w-3" />
+                              <Volume2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
