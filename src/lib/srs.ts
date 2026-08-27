@@ -9,6 +9,8 @@ export type DueFlashcard = {
   srsLevel: number
   deckTitle?: string
   deckHskLevel?: number
+  exampleSentence?: string
+  exampleTranslation?: string
 }
 
 function todayStr() {
@@ -84,8 +86,32 @@ export async function fetchDueFlashcards(
       }
     }
 
+    // Fetch example sentences from word_compounds
+    const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
+    const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+
+    if (hanziList.length > 0) {
+      for (const hanzi of hanziList) {
+        // Try to get example from word_compounds first
+        const { data: compoundData } = await supa
+          .from("word_compounds")
+          .select("hanzi, pinyin, arti")
+          .ilike("hanzi", `%${hanzi}%`)
+          .limit(1)
+
+        if (compoundData && compoundData.length > 0) {
+          exampleMap.set(hanzi, {
+            hanzi: compoundData[0].hanzi ?? "",
+            pinyin: compoundData[0].pinyin ?? "",
+            arti: compoundData[0].arti ?? "",
+          })
+        }
+      }
+    }
+
     for (const card of data ?? []) {
       const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
+      const example = card.hanzi ? exampleMap.get(card.hanzi) : null
       cards.push({
         id: String(card.id),
         hanzi: card.hanzi ?? "",
@@ -95,6 +121,8 @@ export async function fetchDueFlashcards(
         srsLevel: progressByCard.get(String(card.id))?.srs_level ?? 0,
         deckTitle: deckInfo?.title,
         deckHskLevel: deckInfo?.hsk_level,
+        exampleSentence: example?.hanzi,
+        exampleTranslation: example?.arti,
       })
     }
   }
