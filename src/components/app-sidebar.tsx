@@ -289,8 +289,8 @@ export function AppSidebar({
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="w-fit"
-                side="right"
+                className="w-[--radix-dropdown-menu-trigger-width] min-w-56"
+                side={isMobile ? "top" : "right"}
                 align="end"
                 sideOffset={4}
               >
