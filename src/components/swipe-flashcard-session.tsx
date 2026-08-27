@@ -17,7 +17,10 @@ export type SwipeFlashcard = {
   setId?: string | number | null
   srsLevel?: number
   exampleSentence?: string
+  examplePinyin?: string
   exampleTranslation?: string
+  deckTitle?: string
+  deckHskLevel?: number
 }
 
 type SpeechRecognitionLike = {
@@ -631,11 +634,12 @@ export function SwipeFlashcardSession({
                       <TonePinyin text={card.pinyin} className="mb-3 text-2xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
-                    {!isFastMode && (
+                    {!isFastMode && card.exampleSentence && (
                       <div className="mt-4 pt-4 border-t border-border/40">
                         <div className="text-xs text-muted-foreground mb-2">CONTOH PENGGUNAAN</div>
-                        <div className="text-sm text-foreground mb-1 font-hanzi">{card.exampleSentence || "Contoh kalimat dengan " + card.hanzi}</div>
-                        <div className="text-sm text-muted-foreground">{card.exampleTranslation || "Terjemahan contoh kalimat"}</div>
+                        <div className="text-sm text-foreground mb-1 font-hanzi">{card.exampleSentence}</div>
+                        {card.examplePinyin && <div className="text-sm text-muted-foreground mb-1 font-italic">{card.examplePinyin}</div>}
+                        <div className="text-sm text-foreground">{card.exampleTranslation}</div>
                       </div>
                     )}
                   </div>

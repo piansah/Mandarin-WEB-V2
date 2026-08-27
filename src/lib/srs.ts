@@ -10,6 +10,7 @@ export type DueFlashcard = {
   deckTitle?: string
   deckHskLevel?: number
   exampleSentence?: string
+  examplePinyin?: string
   exampleTranslation?: string
 }
 
@@ -92,7 +93,7 @@ export async function fetchDueFlashcards(
 
     if (hanziList.length > 0) {
       for (const hanzi of hanziList) {
-        // Try to get example from word_compounds first
+        // Try to get example from word_compounds
         const { data: compoundData } = await supa
           .from("word_compounds")
           .select("hanzi, pinyin, arti")
@@ -122,6 +123,7 @@ export async function fetchDueFlashcards(
         deckTitle: deckInfo?.title,
         deckHskLevel: deckInfo?.hsk_level,
         exampleSentence: example?.hanzi,
+        examplePinyin: example?.pinyin,
         exampleTranslation: example?.arti,
       })
     }

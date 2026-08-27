@@ -7,7 +7,7 @@ import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-f
 
 export default function FastReviewPage() {
   const supa = useSupabase()
-  const [cards, setCards] = React.useState<DueFlashcard[]>([])
+  const [cards, setCards] = React.useState<SwipeFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
   const [userId, setUserId] = React.useState<string | null>(null)
 
@@ -20,7 +20,21 @@ export default function FastReviewPage() {
       }
       setUserId(user.id)
       const due = await fetchDueFlashcards(supa, user.id)
-      setCards(due)
+      // Convert DueFlashcard to SwipeFlashcard
+      const swipeCards: SwipeFlashcard[] = due.map(card => ({
+        id: card.id,
+        hanzi: card.hanzi,
+        pinyin: card.pinyin,
+        arti: card.arti,
+        setId: card.setId,
+        srsLevel: card.srsLevel,
+        exampleSentence: card.exampleSentence,
+        examplePinyin: card.examplePinyin,
+        exampleTranslation: card.exampleTranslation,
+        deckTitle: card.deckTitle,
+        deckHskLevel: card.deckHskLevel,
+      }))
+      setCards(swipeCards)
       setLoading(false)
     }
     load()
@@ -45,8 +59,8 @@ export default function FastReviewPage() {
       emptyEmoji="✅"
       wordDetailPath={wordDetailPath}
       onReview={handleReview}
-      deckTitle={cards[0]?.deckTitle || "Review Kartu"}
-      deckLevel={cards[0]?.deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "SRS - Kartu Jatuh Tempo"}
+      deckTitle="Review Kartu"
+      deckLevel="Mode Cepat - SRS"
       userId={userId}
       disableSwipe={false}
       isFastMode={true}
