@@ -9,6 +9,7 @@ export default function ReviewPage() {
   const supa = useSupabase()
   const [cards, setCards] = React.useState<DueFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [userId, setUserId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     async function load() {
@@ -17,6 +18,7 @@ export default function ReviewPage() {
         setLoading(false)
         return
       }
+      setUserId(user.id)
       const due = await fetchDueFlashcards(supa, user.id)
       setCards(due)
       setLoading(false)
@@ -24,7 +26,7 @@ export default function ReviewPage() {
     load()
   }, [supa])
 
-  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 5) => {
+  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
     const { data: { user } } = await supa.auth.getUser()
     if (!user) return
     await recordSrsReview(supa, user.id, String(card.id), quality, card.srsLevel ?? 0)
@@ -43,6 +45,9 @@ export default function ReviewPage() {
       emptyEmoji="✅"
       wordDetailPath={wordDetailPath}
       onReview={handleReview}
+      deckTitle="Review Kartu"
+      deckLevel="SRS - Kartu Jatuh Tempo"
+      userId={userId}
     />
   )
 }

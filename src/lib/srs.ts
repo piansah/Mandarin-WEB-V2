@@ -21,13 +21,17 @@ function addDays(n: number) {
 
 const INTERVALS = [1, 1, 2, 4, 7, 15, 30, 60, 90, 180]
 
-export function computeSrsUpdate(currentLevel: number, quality: 0 | 3 | 5) {
+export function computeSrsUpdate(currentLevel: number, quality: 0 | 3 | 4 | 5) {
   if (quality === 0) {
     return { srs_level: 0, next_review: addDays(1) }
   }
   if (quality === 3) {
     const level = Math.max(0, currentLevel)
     return { srs_level: level, next_review: addDays(1) }
+  }
+  if (quality === 4) {
+    const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel))
+    return { srs_level: level, next_review: addDays(INTERVALS[level] ?? 90) }
   }
   const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel) + 1)
   return { srs_level: level, next_review: addDays(INTERVALS[level] ?? 180) }
@@ -82,7 +86,7 @@ export async function recordSrsReview(
   supa: SupabaseClient,
   userId: string,
   cardId: string,
-  quality: 0 | 3 | 5,
+  quality: 0 | 3 | 4 | 5,
   currentLevel: number
 ) {
   const update = computeSrsUpdate(currentLevel, quality)

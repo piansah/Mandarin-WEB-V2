@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, Mic } from "lucide-react"
+import { X, Mic, Zap, List, ChevronDown, ChevronUp, TrendingUp, Star, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { useSupabase } from "@/hooks/use-supabase"
 import styles from "./swipe-flashcard-session.module.css"
 
 export type SwipeFlashcard = {
@@ -63,7 +64,8 @@ function getSimilarity(a: string, b: string) {
   return Math.max(0, Math.round((1 - dist / maxLen) * 100))
 }
 
-type SessionStats = { hafal: number; lupa: number; ragu: number }
+type SessionStats = { hafal: number; lupa: number; ragu: number; sulit: number }
+type SessionHeaderStats = { dueToday: number; totalCards: number; accuracy: number; mastered: number; rated: number }
 
 type SwipeFlashcardSessionProps = {
   cards: SwipeFlashcard[]
@@ -71,8 +73,11 @@ type SwipeFlashcardSessionProps = {
   emptyTitle?: string
   emptyEmoji?: string
   wordDetailPath?: (card: SwipeFlashcard) => string | null
-  onReview?: (card: SwipeFlashcard, quality: 0 | 3 | 5) => void | Promise<void>
+  onReview?: (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => void | Promise<void>
   onComplete?: (stats: SessionStats) => void
+  deckTitle?: string
+  deckLevel?: string
+  userId?: string | null
 }
 
 export function SwipeFlashcardSession({
@@ -83,14 +88,19 @@ export function SwipeFlashcardSession({
   wordDetailPath,
   onReview,
   onComplete,
+  deckTitle = "Kartu Hafalan",
+  deckLevel = "Level A1",
+  userId,
 }: SwipeFlashcardSessionProps) {
   const router = useRouter()
+  const supa = useSupabase()
 
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
   const [hafal, setHafal] = React.useState(0)
   const [lupa, setLupa] = React.useState(0)
   const [ragu, setRagu] = React.useState(0)
+  const [sulit, setSulit] = React.useState(0)
   const [done, setDone] = React.useState(false)
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
@@ -107,6 +117,15 @@ export function SwipeFlashcardSession({
   const [flyOut, setFlyOut] = React.useState<{ x: number; y: number } | null>(null)
   const [sessionKey, setSessionKey] = React.useState(0)
   const scoreSavedRef = React.useRef(false)
+  const [statsExpanded, setStatsExpanded] = React.useState(false)
+  const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
+    dueToday: 0,
+    totalCards: 0,
+    accuracy: 0,
+    mastered: 0,
+    rated: 0,
+  })
+  const [selectedRating, setSelectedRating] = React.useState<0 | 3 | 4 | 5 | null>(null)
 
   React.useEffect(() => {
     setIdx(0)
@@ -114,6 +133,7 @@ export function SwipeFlashcardSession({
     setHafal(0)
     setLupa(0)
     setRagu(0)
+    setSulit(0)
     setDone(false)
     setRepeatQueue([])
     setDragX(0)
@@ -122,6 +142,7 @@ export function SwipeFlashcardSession({
     setFlyOut(null)
     setFeedback(null)
     scoreSavedRef.current = false
+    setSelectedRating(null)
   }, [sessionKey])
 
   const totalOriginal = cards.length
@@ -144,8 +165,45 @@ export function SwipeFlashcardSession({
   React.useEffect(() => {
     if (!done || cards.length === 0 || scoreSavedRef.current) return
     scoreSavedRef.current = true
-    onComplete?.({ hafal, lupa, ragu })
-  }, [done, cards.length, hafal, lupa, ragu, onComplete])
+    onComplete?.({ hafal, lupa, ragu, sulit })
+  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete])
+
+  React.useEffect(() => {
+    async function fetchHeaderStats() {
+      if (!userId) return
+      const today = new Date().toISOString().slice(0, 10)
+
+      // Fetch due today
+      const { data: dueData } = await supa
+        .from("user_card_progress")
+        .select("card_id")
+        .eq("user_id", userId)
+        .lte("next_review", today)
+
+      // Fetch total rated cards
+      const { data: ratedData } = await supa
+        .from("user_card_progress")
+        .select("id")
+        .eq("user_id", userId)
+        .not("last_reviewed", "is", null)
+
+      // Fetch mastered cards (srs_level >= 5)
+      const { data: masteredData } = await supa
+        .from("user_card_progress")
+        .select("id")
+        .eq("user_id", userId)
+        .gte("srs_level", 5)
+
+      setHeaderStats({
+        dueToday: dueData?.length ?? 0,
+        totalCards: cards.length,
+        accuracy: totalOriginal > 0 ? Math.round(((hafal + sulit) / (hafal + lupa + ragu + sulit)) * 100) : 0,
+        mastered: masteredData?.length ?? 0,
+        rated: ratedData?.length ?? 0,
+      })
+    }
+    fetchHeaderStats()
+  }, [userId, cards.length, hafal, lupa, ragu, supa])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -169,7 +227,7 @@ export function SwipeFlashcardSession({
     }
   }
 
-  function animateFlyOutAndAdvance(quality: 0 | 3 | 5, toX: number, toY: number) {
+  function animateFlyOutAndAdvance(quality: 0 | 3 | 4 | 5, toX: number, toY: number) {
     setIsDragging(false)
     setFlyOut({ x: toX, y: toY })
     setTimeout(() => {
@@ -178,10 +236,11 @@ export function SwipeFlashcardSession({
     }, 250)
   }
 
-  function advance(quality: 0 | 3 | 5) {
+  function advance(quality: 0 | 3 | 4 | 5) {
     if (!card) return
     onReview?.(card, quality)
     if (quality === 5) setHafal((h) => h + 1)
+    else if (quality === 4) setSulit((s) => s + 1)
     else if (quality === 3) setRagu((r) => r + 1)
     else {
       setLupa((l) => l + 1)
@@ -192,6 +251,7 @@ export function SwipeFlashcardSession({
     setDragY(0)
     setFlip(0)
     setFeedback(null)
+    setSelectedRating(null)
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
@@ -239,6 +299,8 @@ export function SwipeFlashcardSession({
 
     if (dragY > absX && dragY > 80) {
       animateFlyOutAndAdvance(3, 0, 500)
+    } else if (dragY < -absX && dragY < -80) {
+      animateFlyOutAndAdvance(4, 0, -500)
     } else if (absX > dragY && absX > 80) {
       if (dragX > 0) animateFlyOutAndAdvance(5, 500, 0)
       else animateFlyOutAndAdvance(0, -500, 0)
@@ -346,17 +408,21 @@ export function SwipeFlashcardSession({
           <div className="flashcard-result-emoji text-6xl">{cards.length === 0 ? emptyEmoji : "🎉"}</div>
           <h2 className="flashcard-result-title text-3xl font-bold">{cards.length === 0 ? emptyTitle : "Sesi Selesai!"}</h2>
           {cards.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 w-full max-w-md">
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                <span className="text-3xl font-bold text-emerald-500">{hafal}</span>
-                <span className="text-xs text-muted-foreground">Hafal</span>
+            <div className="grid grid-cols-4 gap-3 w-full max-w-lg">
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                <span className="text-2xl font-bold text-emerald-500">{hafal}</span>
+                <span className="text-xs text-muted-foreground">Mudah</span>
               </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-                <span className="text-3xl font-bold text-amber-500">{ragu}</span>
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30">
+                <span className="text-2xl font-bold text-blue-500">{sulit}</span>
+                <span className="text-xs text-muted-foreground">Sulit</span>
+              </div>
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <span className="text-2xl font-bold text-amber-500">{ragu}</span>
                 <span className="text-xs text-muted-foreground">Ragu</span>
               </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-5 rounded-2xl bg-red-500/10 border border-red-500/30">
-                <span className="text-3xl font-bold text-red-500">{lupa}</span>
+              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
+                <span className="text-2xl font-bold text-red-500">{lupa}</span>
                 <span className="text-xs text-muted-foreground">Lupa</span>
               </div>
             </div>
@@ -374,8 +440,9 @@ export function SwipeFlashcardSession({
             .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
             .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
             .flashcard-result-stat { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) both; }
-            .flashcard-result-stat:nth-child(2) { animation-delay: 80ms; }
-            .flashcard-result-stat:nth-child(3) { animation-delay: 160ms; }
+            .flashcard-result-stat:nth-child(2) { animation-delay: 60ms; }
+            .flashcard-result-stat:nth-child(3) { animation-delay: 120ms; }
+            .flashcard-result-stat:nth-child(4) { animation-delay: 180ms; }
             @keyframes fcResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
             @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
             @keyframes fcResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
@@ -387,13 +454,15 @@ export function SwipeFlashcardSession({
 
   if (!card) return null
 
-  let swipeStatus: "none" | "hafal" | "lupa" | "ragu" = "none"
+  let swipeStatus: "none" | "hafal" | "lupa" | "ragu" | "sulit" = "none"
   const absX = Math.abs(dragX)
   const absY = Math.abs(dragY)
 
   if (isDragging && flip === 2 && (absX > 20 || absY > 20)) {
     if (dragY > absX) {
       swipeStatus = "ragu"
+    } else if (dragY < -absX) {
+      swipeStatus = "sulit"
     } else if (absX > dragY) {
       if (dragX > 0) swipeStatus = "hafal"
       else swipeStatus = "lupa"
@@ -405,11 +474,86 @@ export function SwipeFlashcardSession({
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-hidden select-none bg-background">
-        <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0">
-            <X className="h-5 w-5" />
+      <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
+        {/* Header with Title, Subtitle, and Action Buttons */}
+        <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+              <p className="text-xs text-muted-foreground">{deckLevel}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
+                <Zap className="h-3.5 w-3.5" />
+                Mode cepat
+              </Button>
+              <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
+                <List className="h-3.5 w-3.5" />
+                Daftar kartu {idx + 1}/{currentTotal}
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Collapsible Stats Section */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setStatsExpanded(!statsExpanded)}
+            className="w-full flex items-center justify-between py-2 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <span>Statistik Session</span>
+            {statsExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
+
+          {statsExpanded && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+              <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <TrendingUp className="h-3 w-3" />
+                  Jatuh Tempo Hari Ini
+                </div>
+                <div className="text-sm font-semibold text-foreground">
+                  {headerStats.dueToday} dari {headerStats.totalCards} tersimpan
+                </div>
+              </div>
+              <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Akurasi Sesi
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${headerStats.accuracy}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">{headerStats.accuracy}%</span>
+                </div>
+              </div>
+              <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Star className="h-3 w-3" />
+                  Sudah Dikuasai
+                </div>
+                <div className="text-sm font-semibold text-foreground">{headerStats.mastered}</div>
+              </div>
+              <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Dinilai
+                </div>
+                <div className="text-sm font-semibold text-foreground">{headerStats.rated}</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Progress Bar */}
+        <div className="flex items-center gap-3 px-4 py-2 shrink-0">
           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
@@ -421,7 +565,7 @@ export function SwipeFlashcardSession({
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
-              className={`absolute inset-0 w-full h-full rounded-3xl border border-border bg-card shadow-xl flex flex-col transform-style-3d touch-none ${
+              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none ${
                 isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
               }`}
               style={{
@@ -431,6 +575,9 @@ export function SwipeFlashcardSession({
                     ? `translate(${dragX}px, ${dragY}px) rotate(${cardRotation}deg) rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`
                     : `rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`,
                 opacity: flyOut ? 0 : 1,
+                transition: flyOut ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' :
+                            isDragging ? 'none' :
+                            'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
               }}
               onClick={handleCardClick}
               onPointerDown={onPointerDown}
@@ -438,49 +585,103 @@ export function SwipeFlashcardSession({
               onPointerCancel={onPointerCancel}
               onPointerUp={onPointerUp}
             >
-              <div className="absolute inset-0 backface-hidden rounded-3xl">
+              <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
                 {flip === 2 ? (
                   <div
-                    className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-secondary/30 rounded-3xl transition-opacity duration-200"
+                    className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
-                    <div className="font-hanzi mb-6 text-6xl leading-none text-foreground">{card.hanzi}</div>
-                    <TonePinyin text={card.pinyin} className="mb-2 text-2xl font-sans font-medium" />
-                    <span className="text-xl font-semibold text-center text-foreground">{card.arti}</span>
+                    <div className="font-hanzi mb-6 text-6xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                    <TonePinyin text={card.pinyin} className="mb-2 text-2xl font-sans font-medium drop-shadow-sm" />
+                    <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                   </div>
                 ) : (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-card rounded-3xl">
-                    <div className="font-hanzi text-8xl leading-none text-foreground">{card.hanzi}</div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl">
+                    <div className="font-hanzi text-8xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
                   </div>
                 )}
               </div>
 
-              <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-card rounded-3xl rotate-y-180">
-                <div className="font-hanzi mb-6 text-6xl leading-none text-foreground">{card.hanzi}</div>
-                <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium" />
+              <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden">
+                <div className="font-hanzi mb-6 text-6xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium drop-shadow-sm" />
               </div>
 
               <div
                 className={`absolute inset-0 rounded-3xl pointer-events-none flex items-center justify-center text-4xl font-bold tracking-wider z-20 backface-hidden transition-all duration-200 ${swipeStatus !== "none" ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
                 style={{
-                  background: swipeStatus === "hafal" ? "rgba(26, 122, 74, 0.25)" : swipeStatus === "lupa" ? "rgba(192, 57, 43, 0.25)" : swipeStatus === "ragu" ? "rgba(245, 158, 11, 0.25)" : "transparent",
-                  color: swipeStatus === "hafal" ? "#4ade80" : swipeStatus === "lupa" ? "#f87171" : swipeStatus === "ragu" ? "#f59e0b" : "transparent",
-                  border: swipeStatus === "hafal" ? "2px solid rgba(74, 222, 128, 0.4)" : swipeStatus === "lupa" ? "2px solid rgba(248, 113, 113, 0.4)" : swipeStatus === "ragu" ? "2px solid rgba(245, 158, 11, 0.4)" : "none",
+                  background: swipeStatus === "hafal" ? "rgba(26, 122, 74, 0.25)" : swipeStatus === "lupa" ? "rgba(192, 57, 43, 0.25)" : swipeStatus === "ragu" ? "rgba(245, 158, 11, 0.25)" : swipeStatus === "sulit" ? "rgba(59, 130, 246, 0.25)" : "transparent",
+                  color: swipeStatus === "hafal" ? "#4ade80" : swipeStatus === "lupa" ? "#f87171" : swipeStatus === "ragu" ? "#f59e0b" : swipeStatus === "sulit" ? "#60a5fa" : "transparent",
+                  border: swipeStatus === "hafal" ? "2px solid rgba(74, 222, 128, 0.4)" : swipeStatus === "lupa" ? "2px solid rgba(248, 113, 113, 0.4)" : swipeStatus === "ragu" ? "2px solid rgba(245, 158, 11, 0.4)" : swipeStatus === "sulit" ? "2px solid rgba(96, 165, 250, 0.4)" : "none",
                   display: flip === 2 ? "flex" : "none",
                 }}
               >
                 <span className="drop-shadow-lg">
-                  {swipeStatus === "hafal" ? "HAFAL ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "RAGU ?" : ""}
+                  {swipeStatus === "hafal" ? "MUDAH ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "RAGU ?" : swipeStatus === "sulit" ? "SULIT !" : ""}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-4 mt-2 h-32 w-full max-w-sm">
+          <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-sm">
             {!feedback && (
               <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
-                <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-emerald-500">Hafal →</span>
+                <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-blue-400">Sulit ↑</span> • <span className="text-emerald-500">Mudah →</span>
               </p>
+            )}
+
+            {/* Visible Rating Buttons */}
+            {flip === 2 && (
+              <div className="grid grid-cols-4 gap-2 w-full px-2">
+                <Button
+                  variant="outline"
+                  className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
+                    selectedRating === 0
+                      ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
+                      : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+                  }`}
+                  onClick={() => { setSelectedRating(0); advance(0) }}
+                >
+                  <span className="text-lg">🙈</span>
+                  Lupa
+                </Button>
+                <Button
+                  variant="outline"
+                  className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
+                    selectedRating === 3
+                      ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
+                      : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
+                  }`}
+                  onClick={() => { setSelectedRating(3); advance(3) }}
+                >
+                  <span className="text-lg">🤔</span>
+                  Ragu
+                </Button>
+                <Button
+                  variant="outline"
+                  className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
+                    selectedRating === 4
+                      ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
+                      : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
+                  }`}
+                  onClick={() => { setSelectedRating(4); advance(4) }}
+                >
+                  <span className="text-lg">😓</span>
+                  Sulit
+                </Button>
+                <Button
+                  variant="outline"
+                  className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
+                    selectedRating === 5
+                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
+                      : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
+                  }`}
+                  onClick={() => { setSelectedRating(5); advance(5) }}
+                >
+                  <span className="text-lg">😎</span>
+                  Mudah
+                </Button>
+              </div>
             )}
 
             <div className="flex justify-center w-full">

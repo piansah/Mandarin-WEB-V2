@@ -42,7 +42,7 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  color: #7779d9;
+  color: var(--c-sub);
   font: inherit;
   font-size: 14px;
   font-weight: 700;
