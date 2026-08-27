@@ -1,20 +1,30 @@
-/* Quiz page — fullscreen, dark theme */
+/* Quiz page — fullscreen, theme-aware */
 .page {
   --t1: #e05555;
   --t2: #e8d23e;
   --t3: #65df4d;
   --t4: #60a5fa;
   --t0: #7f8c8d;
-  --c-ok: #42d6a4;
-  --c-wrong: #f87171;
-  --c-border: #17344a;
-  --c-bg: #061523;
-  --c-card: #091928;
+  --c-ok: #09a87a;
+  --c-wrong: #d94f4f;
+  /* Light mode defaults */
+  --c-border: var(--border);
+  --c-bg: var(--background);
+  --c-card: var(--card);
+  --c-text: var(--foreground);
+  --c-sub: var(--muted-foreground);
+  --c-opt-border: var(--border);
+  --c-opt-bg: var(--card);
+  --c-opt-text: var(--foreground);
+  --c-header-bg: color-mix(in srgb, var(--background) 88%, transparent);
+  --c-tabs-bg: color-mix(in srgb, var(--card) 90%, transparent);
+  --c-submit-bg: var(--card);
+  --c-section-bg: var(--card);
   height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--c-bg);
-  color: #f5f7fa;
+  color: var(--c-text);
   font-family: var(--font-poppins), Arial, sans-serif;
   overscroll-behavior: contain;
 }
@@ -28,7 +38,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 14px 10px 10px;
-  background: #061523cc;
+  background: var(--c-header-bg);
   backdrop-filter: blur(10px);
 }
 .closeBtn {
@@ -80,11 +90,11 @@
   margin: 12px auto 0;
   padding: 8px;
   gap: 8px;
-  border: 1px solid rgba(23, 52, 74, .75);
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
   border-radius: 999px;
-  background: rgba(6, 21, 35, .78);
+  background: var(--c-tabs-bg);
   backdrop-filter: blur(14px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .18);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .08);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -96,7 +106,7 @@
   border: 1px solid transparent;
   border-radius: 999px;
   background: transparent;
-  color: #5d86a8;
+  color: var(--c-sub);
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -114,6 +124,76 @@
   border-color: rgba(66,214,164,.5);
   background: rgba(66,214,164,.13);
   color: var(--c-ok);
+}
+
+/* ── Filter dropdown (replaces tabs) ── */
+.filterWrap {
+  position: sticky;
+  top: 58px;
+  z-index: 29;
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px 6px;
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--primary) 40%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.filterBtn:hover {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.filterMenu {
+  position: absolute;
+  top: calc(100% - 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 180px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  z-index: 50;
+}
+
+.filterItem {
+  display: block;
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.filterItem:hover {
+  background: var(--muted);
+}
+
+.filterItemActive {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
 }
 
 /* ── Main content ── */
@@ -136,7 +216,7 @@
   padding: 14px 18px;
   border: 1px solid var(--c-border);
   border-radius: 14px;
-  background: #081725;
+  background: var(--c-section-bg);
 }
 .sectionNum {
   display: grid;
@@ -151,8 +231,8 @@
   font-weight: 800;
 }
 .sectionTitle { font-size: 15px; font-weight: 700; line-height: 1.3; }
-.sectionSub { color: #7a9ab5; font-size: 12px; margin-top: 2px; }
-.sectionRange { margin-left: auto; flex-shrink: 0; color: #4d7a9e; font-size: 12px; font-weight: 600; }
+.sectionSub { color: var(--c-sub); font-size: 12px; margin-top: 2px; }
+.sectionRange { margin-left: auto; flex-shrink: 0; color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
 
 /* ── Question card ── */
 .qCard {
@@ -232,10 +312,10 @@
   gap: 10px;
   width: 100%;
   padding: 10px 13px;
-  border: 1.5px solid #1e4060;
+  border: 1.5px solid var(--c-opt-border);
   border-radius: 10px;
-  background: #0b1f30;
-  color: #c8daec;
+  background: var(--c-opt-bg);
+  color: var(--c-opt-text);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
@@ -290,7 +370,7 @@
   padding: 16px 18px;
   border: 1px solid var(--c-border);
   border-radius: 14px;
-  background: #081725;
+  background: var(--c-section-bg);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -301,7 +381,7 @@
   flex-direction: column;
   gap: 3px;
 }
-.liveTxt { font-size: 13px; color: #7a9ab5; }
+.liveTxt { font-size: 13px; color: var(--c-sub); }
 .liveScore { font-size: 20px; font-weight: 800; color: var(--c-ok); }
 .submitBtn {
   flex-shrink: 0;
@@ -431,4 +511,22 @@
   .submitBtn { width: 100%; }
   .options { grid-template-columns: 1fr; }
   .qHanzi { font-size: 30px; }
+}
+
+/* ── Dark mode overrides ── */
+:global(.dark) .page {
+  --c-ok: #42d6a4;
+  --c-wrong: #f87171;
+  --c-border: #17344a;
+  --c-bg: #061523;
+  --c-card: #091928;
+  --c-text: #f5f7fa;
+  --c-sub: #7a9ab5;
+  --c-opt-border: #1e4060;
+  --c-opt-bg: #0b1f30;
+  --c-opt-text: #c8daec;
+  --c-header-bg: #061523cc;
+  --c-tabs-bg: rgba(6, 21, 35, .78);
+  --c-submit-bg: #081725;
+  --c-section-bg: #081725;
 }

@@ -132,6 +132,17 @@ export default function CumulativeQuizPracticePage() {
   const [submitted, setSubmitted] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
 
+  const [filterOpen, setFilterOpen] = React.useState(false)
+  const filterRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const handler = (e: PointerEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false)
+    }
+    document.addEventListener("pointerdown", handler)
+    return () => document.removeEventListener("pointerdown", handler)
+  }, [])
+
   const total = allQ.length
   const totalAnswered = Object.keys(answered).length
   const totalCorrect = Object.values(answered).filter(Boolean).length
@@ -304,12 +315,35 @@ export default function CumulativeQuizPracticePage() {
         onClose={() => router.back()}
       />
 
-      <div className={styles.tabs}>
-        {([["all", "Semua"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
-          <button key={String(t)} className={`${styles.tab} ${activeTab === t ? styles.tabActive : ""}`} onClick={() => setActiveTab(t)}>
-            {lbl}
-          </button>
-        ))}
+      <div ref={filterRef} className={styles.filterWrap}>
+        <button
+          type="button"
+          className={styles.filterBtn}
+          onClick={() => setFilterOpen(o => !o)}
+          aria-haspopup="listbox"
+          aria-expanded={filterOpen}
+        >
+          {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
+            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
+        {filterOpen && (
+          <div className={styles.filterMenu} role="listbox">
+            {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
+              <button
+                key={String(t)}
+                type="button"
+                role="option"
+                aria-selected={activeTab === t}
+                className={`${styles.filterItem} ${activeTab === t ? styles.filterItemActive : ""}`}
+                onClick={() => { setActiveTab(t); setFilterOpen(false) }}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className={styles.main}>

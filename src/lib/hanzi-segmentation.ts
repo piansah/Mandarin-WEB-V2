@@ -176,7 +176,7 @@ export function getCachedSearchData(): GlobalWord[] {
   return _globalSearchCache || []
 }
 
-export async function performSmartSearch(raw: string, filter: "all" | "hsk" | "common" | "native" = "all"): Promise<GlobalWord[]> {
+export async function performSmartSearch(raw: string, filter: "all" | "hsk" | "common" | "native" = "all", searchType: "all" | "hanzi" | "pinyin" | "arti" = "all"): Promise<GlobalWord[]> {
   if (!raw) return []
   const q = raw.trim().toLowerCase()
   if (!q) return []
@@ -196,6 +196,40 @@ export async function performSmartSearch(raw: string, filter: "all" | "hsk" | "c
     const arti = (c.arti || "").toLowerCase()
     const py = (c.pinyin || "").toLowerCase()
 
+    // Strict type filter — only search one field
+    if (searchType === "hanzi") {
+      return hanzi.includes(q)
+    }
+
+    if (searchType === "pinyin") {
+      if (hasTone) return matchPinyinTokens(py, queryTokens)
+      const qStrip = stripTones(q)
+      const qCompact = qStrip.replace(/\s+/g, "")
+      const pyStrip = stripTones(py)
+      if (matchPinyinTokens(py, queryTokens)) return true
+      if (pyStrip.replace(/\s+/g, "").includes(qCompact)) return true
+      const queryParts = qStrip.split(/\s+/).filter(Boolean)
+      const syllables = pyStrip.split(/\s+/).filter(Boolean)
+      if (queryParts.length > 1) {
+        return syllables.some((_, i) =>
+          queryParts.every((qp, j) => syllables[i + j]?.startsWith(qp))
+        )
+      }
+      return syllables.some((s) => s.startsWith(qStrip))
+    }
+
+    if (searchType === "arti") {
+      const artiWords = arti.split(/[\s\/,;\-\(\)]+/).filter(Boolean)
+      const queryParts = q.split(/\s+/).filter(Boolean)
+      if (queryParts.length > 1) {
+        return artiWords.some((_, i) =>
+          queryParts.every((qp, j) => artiWords[i + j]?.startsWith(qp))
+        )
+      }
+      return artiWords.some((w) => w.startsWith(q)) || arti.includes(q)
+    }
+
+    // Default "all": smart multi-field search
     if (hanzi.includes(q)) return true
     
     if (hasTone) {

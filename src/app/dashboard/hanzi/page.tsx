@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { Search, Camera, Loader2, Clock, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
@@ -19,14 +19,31 @@ function isSentenceQuery(raw: string) {
 }
 
 export default function HanziPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <HanziPageInner />
+    </React.Suspense>
+  )
+}
+
+function HanziPageInner() {
   const router = useRouter()
-  const [query, setQuery] = React.useState("")
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  // Initialize state from URL params (so Back button restores state)
+  const [query, setQuery] = React.useState(() => searchParams.get("q") ?? "")
   const [results, setResults] = React.useState<GlobalWord[]>([])
   const [segmented, setSegmented] = React.useState<SegmentedWord[]>([])
   const [isSentenceMode, setIsSentenceMode] = React.useState(false)
   const [isSearching, setIsSearching] = React.useState(false)
   const [showScanner, setShowScanner] = React.useState(false)
-  const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
+  const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">(
+    (searchParams.get("f") as "all" | "hsk" | "common" | "native") ?? "all"
+  )
+  const [searchType, setSearchType] = React.useState<"all" | "hanzi" | "pinyin" | "arti">(
+    (searchParams.get("t") as "all" | "hanzi" | "pinyin" | "arti") ?? "all"
+  )
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [searchHistory, setSearchHistory] = React.useState<string[]>([])
   const historyRef = React.useRef<HTMLDivElement>(null)
@@ -55,7 +72,7 @@ export default function HanziPage() {
     return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
   }, [])
 
-  const handleSearch = React.useCallback(async (q: string, filter: "all" | "hsk" | "common" | "native") => {
+  const handleSearch = React.useCallback(async (q: string, filter: "all" | "hsk" | "common" | "native", type: "all" | "hanzi" | "pinyin" | "arti") => {
     const trimmed = q.trim()
     if (!trimmed) {
       setResults([])
@@ -74,7 +91,7 @@ export default function HanziPage() {
         setSegmented(segs)
         setResults([])
       } else {
-        const data = await performSmartSearch(trimmed, filter)
+        const data = await performSmartSearch(trimmed, filter, type)
         setResults(data)
         setSegmented([])
       }
@@ -103,22 +120,30 @@ export default function HanziPage() {
 
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      handleSearch(query, searchFilter)
+      handleSearch(query, searchFilter, searchType)
       const clean = query.trim()
       if (clean.length > 0) saveHistory(clean)
     }, 300)
     return () => clearTimeout(timer)
-  }, [query, searchFilter, handleSearch, saveHistory])
+  }, [query, searchFilter, searchType, handleSearch, saveHistory])
 
   const openWord = (hanzi: string) => {
-    // If it's a string from OCR
     if (hanzi) {
-      handleSearch(hanzi, searchFilter).then(() => {
-        // Just let it show in results, or set query
-        setQuery(hanzi)
-      })
+      setQuery(hanzi)
     }
   }
+
+  // Sync state to URL so Back button restores search
+  React.useEffect(() => {
+    const params = new URLSearchParams()
+    if (query.trim()) params.set("q", query.trim())
+    if (searchFilter !== "all") params.set("f", searchFilter)
+    if (searchType !== "all") params.set("t", searchType)
+    const qs = params.toString()
+    const newUrl = qs ? `${pathname}?${qs}` : pathname
+    // Replace state without re-render to avoid infinite loop
+    window.history.replaceState(null, "", newUrl)
+  }, [query, searchFilter, searchType, pathname])
 
   const openWordDetail = (word: { id?: string | number; set_id?: number; source?: "hsk" | "compound" }) => {
     const path = getWordDetailPath(word)
@@ -199,31 +224,36 @@ export default function HanziPage() {
           </div>
         </div>
 
+        {/* HSK filter pills */}
         <div className="flex items-center justify-center gap-2 mt-4">
-          <button 
-            onClick={() => setSearchFilter("all")} 
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "all" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
-          >
-            Semua
-          </button>
-          <button 
-            onClick={() => setSearchFilter("hsk")} 
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "hsk" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
-          >
-            HSK
-          </button>
-          <button 
-            onClick={() => setSearchFilter("common")} 
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "common" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
-          >
-            Common
-          </button>
-          <button 
-            onClick={() => setSearchFilter("native")} 
-            className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchFilter === "native" ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"}`}
-          >
-            Native
-          </button>
+          {(["all", "hsk", "common", "native"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setSearchFilter(f)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+                searchFilter === f ? "bg-[#FDE047] text-black" : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"
+              }`}
+            >
+              {f === "all" ? "Semua" : f === "hsk" ? "HSK" : f === "common" ? "Common" : "Native"}
+            </button>
+          ))}
+        </div>
+
+        {/* Search type filter pills */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          {(["all", "hanzi", "pinyin", "arti"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setSearchType(t)}
+              className={`px-4 py-1.5 text-xs font-semibold rounded-full transition-colors ${
+                searchType === t
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground border border-border/50 hover:bg-muted/80"
+              }`}
+            >
+              {t === "all" ? "Semua Tipe" : t === "hanzi" ? "汉字" : t === "pinyin" ? "Pinyin" : "Arti"}
+            </button>
+          ))}
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import { LearningHeader } from "@/components/learning-header"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
-import { checkUserContentReport } from "@/lib/bug-reports"
+import { checkUserContentReports } from "@/lib/bug-reports"
 import styles from "./page.module.css"
 
 type HanziSet = {
@@ -76,13 +76,10 @@ export default function CumulativeFlashcardSessionPage() {
       setItems(itemsResult.data ?? [])
       setStateById(restored)
       
-      // Check which items have been reported by user
-      const reportedIds = new Set<number>()
-      for (const item of (itemsResult.data ?? [])) {
-        const hasReported = await checkUserContentReport(item.id)
-        if (hasReported) reportedIds.add(item.id)
-      }
-      setReportedItems(reportedIds)
+      // Batch-check which items have been reported by user (single query)
+      const allIds = (itemsResult.data ?? []).map((item) => item.id)
+      const reportedSet = await checkUserContentReports(allIds)
+      setReportedItems(reportedSet)
       
       setLoading(false)
     }

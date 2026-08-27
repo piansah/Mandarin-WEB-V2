@@ -170,10 +170,12 @@ export function AppSidebar({
   }
 
   async function handleProfileClick() {
+    if (isMobile) setOpen(false)
     router.push("/dashboard/profile")
   }
 
   async function handleSettingsClick() {
+    if (isMobile) setOpen(false)
     router.push("/dashboard/settings")
   }
 
@@ -209,7 +211,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.title}</span>
@@ -230,7 +232,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
@@ -254,7 +256,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} />}
+                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">

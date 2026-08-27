@@ -80,3 +80,33 @@ export async function checkUserContentReport(
 
   return !!data
 }
+
+/**
+ * Batch version: check which of the given content IDs have been reported
+ * by the current user. Returns a Set of reported IDs.
+ * Uses a single DB query instead of one query per item.
+ */
+export async function checkUserContentReports(
+  contentIds: number[]
+): Promise<Set<number>> {
+  if (contentIds.length === 0) return new Set()
+  const { supa, user } = await requireUser()
+  if (!user) return new Set()
+
+  const targetIds = contentIds.map(String)
+  const { data } = await supa
+    .from("bug_reports")
+    .select("target_id")
+    .eq("user_id", user.id)
+    .eq("report_type", "content")
+    .in("target_id", targetIds)
+
+  const reported = new Set<number>()
+  for (const row of data ?? []) {
+    if (row.target_id != null) {
+      const parsed = Number(row.target_id)
+      if (!isNaN(parsed)) reported.add(parsed)
+    }
+  }
+  return reported
+}
