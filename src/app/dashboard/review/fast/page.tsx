@@ -51,6 +51,9 @@ export default function FastReviewPage() {
     return `/dashboard/flashcard/${card.setId}/word/${card.id}`
   }, [])
 
+  const deckTitle = cards.length > 0 ? cards[0].deckTitle : "Review Kartu"
+  const deckLevel = cards.length > 0 && cards[0].deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "Mode Cepat - SRS"
+
   return (
     <SwipeFlashcardSession
       cards={cards}
@@ -59,8 +62,8 @@ export default function FastReviewPage() {
       emptyEmoji="✅"
       wordDetailPath={wordDetailPath}
       onReview={handleReview}
-      deckTitle="Review Kartu"
-      deckLevel="Mode Cepat - SRS"
+      deckTitle={deckTitle}
+      deckLevel={deckLevel}
       userId={userId}
       disableSwipe={false}
       isFastMode={true}

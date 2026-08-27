@@ -52,7 +52,7 @@ export default function ReviewPage() {
   }, [])
 
   const deckTitle = cards.length > 0 ? cards[0].deckTitle : "Review Kartu"
-  const deckLevel = cards.length > 0 && cards[0].deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "SRS - Kartu Jatuh Tempo"
+  const deckLevel = cards.length > 0 && cards[0].deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "Level A1"
 
   return (
     <SwipeFlashcardSession

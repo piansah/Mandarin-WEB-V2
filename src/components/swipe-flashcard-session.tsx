@@ -207,19 +207,19 @@ export function SwipeFlashcardSession({
       if (!userId) return
       const today = new Date().toISOString().slice(0, 10)
 
-      // Fetch due today
+      // Fetch due today - cards that need review today
       const { data: dueData } = await supa
         .from("user_card_progress")
         .select("card_id")
         .eq("user_id", userId)
         .lte("next_review", today)
 
-      // Fetch total rated cards
-      const { data: ratedData } = await supa
-        .from("user_card_progress")
-        .select("id")
-        .eq("user_id", userId)
-        .not("last_reviewed", "is", null)
+      // Calculate total cards in current session
+      const totalCardsInSession = cards.length
+
+      // Calculate session accuracy (correct ratings / total ratings)
+      const totalRatings = hafal + sulit + ragu + lupa
+      const accuracy = totalRatings > 0 ? Math.round(((hafal + sulit) / totalRatings) * 100) : 0
 
       // Fetch mastered cards (srs_level >= 5)
       const { data: masteredData } = await supa
@@ -230,14 +230,14 @@ export function SwipeFlashcardSession({
 
       setHeaderStats({
         dueToday: dueData?.length ?? 0,
-        totalCards: cards.length,
-        accuracy: totalOriginal > 0 ? Math.round(((hafal + sulit) / (hafal + lupa + ragu + sulit)) * 100) : 0,
+        totalCards: totalCardsInSession,
+        accuracy: accuracy,
         mastered: masteredData?.length ?? 0,
-        rated: ratedData?.length ?? 0,
+        rated: hafal + sulit + ragu + lupa,
       })
     }
     fetchHeaderStats()
-  }, [userId, cards.length, hafal, lupa, ragu, supa])
+  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -273,7 +273,7 @@ export function SwipeFlashcardSession({
     setFeedback(null)
     setSelectedRating(null)
 
-    // Update header stats - "dinilai" increases when any rating is selected
+    // Update stats for real-time accuracy calculation
     setHeaderStats(prev => ({
       ...prev,
       rated: prev.rated + 1,
@@ -524,7 +524,7 @@ export function SwipeFlashcardSession({
                 </Button>
                 <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
                   <List className="h-3.5 w-3.5" />
-                  Daftar kartu
+                  Total kata {currentTotal}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
                   <X className="h-4 w-4" />
@@ -635,12 +635,12 @@ export function SwipeFlashcardSession({
                       <span className="text-xl font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
                     {!isFastMode && (
-                      <div className="mt-4 pt-4 border-t border-border/40">
+                      <div className="mt-4 pt-4 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
                         <div className="text-xs text-muted-foreground mb-2">CONTOH PENGGUNAAN</div>
                         {card.exampleSentence ? (
                           <>
-                            <div className="text-sm text-foreground mb-1 font-hanzi">{card.exampleSentence}</div>
-                            {card.examplePinyin && <div className="text-sm text-muted-foreground mb-1 font-italic">{card.examplePinyin}</div>}
+                            <div className="text-sm text-foreground mb-1 font-hanzi text-2xl cursor-pointer hover:text-primary transition-colors" onClick={() => speakMandarin(card.exampleSentence!)}>{card.exampleSentence}</div>
+                            {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
                             <div className="text-sm text-foreground">{card.exampleTranslation}</div>
                           </>
                         ) : (
