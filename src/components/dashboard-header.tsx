@@ -42,6 +42,7 @@ export function DashboardHeader() {
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
   const [searchOpen, setSearchOpen] = React.useState(false)
+  const [mobileSearchActive, setMobileSearchActive] = React.useState(false)
   const searchRef = React.useRef<HTMLDivElement>(null)
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -162,21 +163,25 @@ export function DashboardHeader() {
   }
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b px-4 py-3">
-      <Button
-        type="button"
-        onClick={togglePinned}
-        variant="ghost"
-        className="flex h-9 w-9 items-center justify-center rounded-md transition-colors hover:bg-muted"
-        aria-label={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
-        aria-pressed={pinned}
-        title={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
-      >
-        <PanelLeft className="h-5 w-5" />
-      </Button>
+    <header className="flex items-center justify-between gap-4 border-b px-4 py-3 relative">
+      {!mobileSearchActive && (
+        <Button
+          type="button"
+          onClick={togglePinned}
+          variant="ghost"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+          aria-label={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+          aria-pressed={pinned}
+          title={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+        >
+          <PanelLeft className="h-5 w-5" />
+        </Button>
+      )}
 
-      <div className="flex items-center gap-2" ref={searchRef}>
-        <div className="relative">
+      <div className={`flex items-center gap-2 ${mobileSearchActive ? 'w-full' : ''}`} ref={searchRef}>
+        
+        {/* Input Search - Hidden on mobile unless active */}
+        <div className={`relative ${mobileSearchActive ? 'w-full flex-1' : 'hidden md:block'}`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -187,7 +192,7 @@ export function DashboardHeader() {
               setSearchOpen(true)
             }}
             onFocus={() => setSearchOpen(true)}
-            className="pl-9 h-9 pr-16 w-64"
+            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-64'}`}
           />
           {searchQuery && (
             <button
@@ -208,7 +213,7 @@ export function DashboardHeader() {
 
           {/* Search Results Dropdown */}
           {searchOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 overflow-auto">
+            <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-[70vh] overflow-auto">
               {isSearching ? (
                 <div className="p-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -221,7 +226,10 @@ export function DashboardHeader() {
                       <button
                         key={i}
                         type="button"
-                        onClick={() => handleResultClick(result)}
+                        onClick={() => {
+                          handleResultClick(result)
+                          setMobileSearchActive(false)
+                        }}
                         className="w-full text-left p-3 hover:bg-muted rounded-md flex items-start gap-3 transition-colors"
                       >
                         <div className="mt-0.5 text-muted-foreground">
@@ -231,7 +239,7 @@ export function DashboardHeader() {
                           <div className="flex items-center gap-2">
                             <div className="font-medium truncate">{result.title}</div>
                             {result.category && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5">
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 shrink-0">
                                 {result.category}
                               </Badge>
                             )}
@@ -252,13 +260,33 @@ export function DashboardHeader() {
             </div>
           )}
         </div>
-        <DashboardThemeToggle />
-        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative">
-          <Bell className="h-4 w-4" />
-          <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px]">
-            •
-          </Badge>
-        </Button>
+
+        {/* Mobile Search Trigger Icon */}
+        {!mobileSearchActive && (
+          <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden rounded-full shrink-0" onClick={() => setMobileSearchActive(true)}>
+            <Search className="h-4 w-4" />
+          </Button>
+        )}
+
+        {/* Mobile Cancel Search */}
+        {mobileSearchActive && (
+          <Button variant="ghost" size="sm" className="md:hidden shrink-0 px-2" onClick={() => { setMobileSearchActive(false); setSearchOpen(false); }}>
+            Batal
+          </Button>
+        )}
+
+        {/* Theme Toggle & Bell - Sembunyikan jika mobile search aktif */}
+        {!mobileSearchActive && (
+          <>
+            <DashboardThemeToggle />
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative shrink-0">
+              <Bell className="h-4 w-4" />
+              <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px]">
+                •
+              </Badge>
+            </Button>
+          </>
+        )}
       </div>
     </header>
   )
