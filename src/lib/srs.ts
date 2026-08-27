@@ -87,24 +87,41 @@ export async function fetchDueFlashcards(
       }
     }
 
-    // Fetch example sentences from word_examples
+    // Fetch example sentences from word_examples (similar to detail kosakata logic)
     const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
     const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
     if (hanziList.length > 0) {
       for (const hanzi of hanziList) {
-        // Try to get example from word_examples
-        const { data: exampleData } = await supa
+        // Try to get example from word_examples with exact match first (like detail kosakata)
+        const { data: directRes } = await supa
           .from("word_examples")
           .select("hanzi, pinyin, arti")
           .eq("word_hanzi", hanzi)
+          .order("id")
           .limit(1)
 
-        if (exampleData && exampleData.length > 0) {
+        // If no exact match, try partial match
+        if (!directRes || directRes.length === 0) {
+          const { data: partialRes } = await supa
+            .from("word_examples")
+            .select("hanzi, pinyin, arti")
+            .ilike("hanzi", `%${hanzi}%`)
+            .order("id")
+            .limit(1)
+
+          if (partialRes && partialRes.length > 0) {
+            exampleMap.set(hanzi, {
+              hanzi: partialRes[0].hanzi ?? "",
+              pinyin: partialRes[0].pinyin ?? "",
+              arti: partialRes[0].arti ?? "",
+            })
+          }
+        } else if (directRes && directRes.length > 0) {
           exampleMap.set(hanzi, {
-            hanzi: exampleData[0].hanzi ?? "",
-            pinyin: exampleData[0].pinyin ?? "",
-            arti: exampleData[0].arti ?? "",
+            hanzi: directRes[0].hanzi ?? "",
+            pinyin: directRes[0].pinyin ?? "",
+            arti: directRes[0].arti ?? "",
           })
         }
       }
