@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, Mic, Zap, List, TrendingUp, Star, CheckCircle2 } from "lucide-react"
+import { X, Mic, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -287,6 +287,37 @@ export function SwipeFlashcardSession({
     }
   }
 
+  function goToPrevious() {
+    if (idx === 0) return
+    setDragX(0)
+    setDragY(0)
+    setFlip(0)
+    setFeedback(null)
+    setSelectedRating(null)
+    setIdx((i) => Math.max(0, i - 1))
+  }
+
+  function hideAnswer() {
+    setFlip(0)
+    setFeedback(null)
+    setSelectedRating(null)
+  }
+
+  function skipCard() {
+    if (!card) return
+    setDragX(0)
+    setDragY(0)
+    setFlip(0)
+    setFeedback(null)
+    setSelectedRating(null)
+
+    if (idx + 1 >= currentTotal) {
+      setDone(true)
+    } else {
+      setIdx((i) => i + 1)
+    }
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     if (flyOut || !card) return
     // If swipe is disabled, don't allow dragging
@@ -518,10 +549,6 @@ export function SwipeFlashcardSession({
                 <p className="text-xs text-muted-foreground">{deckLevel}</p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.push('/dashboard/review/fast')}>
-                  <Zap className="h-3.5 w-3.5" />
-                  Mode cepat
-                </Button>
                 <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs">
                   <List className="h-3.5 w-3.5" />
                   Total kata {currentTotal}
@@ -677,18 +704,47 @@ export function SwipeFlashcardSession({
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-sm">
+          <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg">
             {isFastMode && !feedback && (
               <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
                 <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-blue-400">Sulit ↑</span> • <span className="text-emerald-500">Mudah →</span>
               </p>
             )}
 
-            {/* Visible Rating Buttons */}
-            {flip === 2 && !isFastMode && (
+            {!isFastMode && (
               <>
-                <div className="text-sm font-semibold text-foreground mb-2">Seberapa mudah kamu mengingatnya?</div>
-                <div className="grid grid-cols-4 gap-2 w-full px-2 mb-3">
+                {/* Sebelumnya / Sembunyi / Lewati */}
+                <div className="grid grid-cols-3 gap-2 w-full">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl h-10 gap-1.5 text-xs font-medium"
+                    onClick={goToPrevious}
+                    disabled={idx === 0}
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Sebelumnya
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl h-10 gap-1.5 text-xs font-medium"
+                    onClick={hideAnswer}
+                  >
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Sembunyi
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="rounded-xl h-10 gap-1.5 text-xs font-medium"
+                    onClick={skipCard}
+                  >
+                    <SkipForward className="h-3.5 w-3.5" />
+                    Lewati
+                  </Button>
+                </div>
+
+                {/* Visible Rating Buttons */}
+                <div className="text-sm font-semibold text-foreground">Seberapa mudah kamu mengingatnya?</div>
+                <div className="grid grid-cols-4 gap-2 w-full">
                   <Button
                     variant="outline"
                     className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${
@@ -736,29 +792,32 @@ export function SwipeFlashcardSession({
                 </div>
 
                 {/* Rating Explanations */}
-                <div className="w-full px-2 text-xs text-muted-foreground space-y-1">
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-red-400 w-12">Lupa:</span>
-                    <span>Kartu akan muncul lagi besok</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-amber-400 w-12">Ragu:</span>
-                    <span>Kartu akan muncul lagi besok</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-blue-400 w-12">Sulit:</span>
-                    <span>Kartu akan muncul lagi dalam beberapa hari</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="font-semibold text-emerald-400 w-12">Mudah:</span>
-                    <span>Kartu akan muncul lagi dalam waktu yang lebih lama</span>
+                <div className="w-full rounded-xl border border-border/40 bg-muted/20 p-3">
+                  <div className="text-xs font-semibold text-muted-foreground mb-2">Arti setiap penilaian</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-semibold text-red-400 shrink-0">Lupa ·</span>
+                      <span className="text-muted-foreground">belum ingat, muncul lagi besok</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-semibold text-amber-400 shrink-0">Ragu ·</span>
+                      <span className="text-muted-foreground">hampir lupa, muncul lagi besok</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-semibold text-blue-400 shrink-0">Sulit ·</span>
+                      <span className="text-muted-foreground">ingat dengan usaha, jeda beberapa hari</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="font-semibold text-emerald-400 shrink-0">Mudah ·</span>
+                      <span className="text-muted-foreground">sangat mudah, jeda lebih lama</span>
+                    </div>
                   </div>
                 </div>
               </>
             )}
 
             {feedback && (
-              <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-sm mx-auto shadow-sm ${
+              <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-lg mx-auto shadow-sm ${
                 feedback.type === "ok" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
                 feedback.type === "warn" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
                 feedback.type === "interim" ? "text-muted-foreground border-transparent" :

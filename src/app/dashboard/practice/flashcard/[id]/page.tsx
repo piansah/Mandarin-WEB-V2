@@ -13,9 +13,27 @@ export default function FlashcardPracticePage() {
 
   const [cards, setCards] = React.useState<SwipeFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [userId, setUserId] = React.useState<string | null>(null)
+  const [deckTitle, setDeckTitle] = React.useState<string>("Kartu Hafalan")
+  const [deckLevel, setDeckLevel] = React.useState<string>("Level A1")
 
   React.useEffect(() => {
     async function load() {
+      const { data: { user } } = await supa.auth.getUser()
+      setUserId(user?.id ?? null)
+
+      const { data: setData } = await supa
+        .from("flashcard_sets")
+        .select("title, description, hsk_level")
+        .eq("id", deckId)
+        .maybeSingle()
+
+      if (setData) {
+        setDeckTitle(setData.title ?? "Kartu Hafalan")
+        const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
+        setDeckLevel(parts.length > 0 ? parts.join(" - ") : "Level A1")
+      }
+
       const { data } = await supa
         .from("flashcard_cards")
         .select("id, hanzi, pinyin, arti")
@@ -65,7 +83,7 @@ export default function FlashcardPracticePage() {
   const handleComplete = React.useCallback((stats: { hafal: number; lupa: number; ragu: number }) => {
     const total = stats.hafal + stats.lupa + stats.ragu
     const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
-    saveUserScore("fc_session", String(deckId), pct).catch(() => {})
+    saveUserScore("fc_session", String(deckId), pct).catch(() => { })
   }, [deckId])
 
   return (
@@ -74,6 +92,9 @@ export default function FlashcardPracticePage() {
       loading={loading}
       wordDetailPath={wordDetailPath}
       onComplete={handleComplete}
+      deckTitle={deckTitle}
+      deckLevel={deckLevel}
+      userId={userId}
     />
   )
 }
