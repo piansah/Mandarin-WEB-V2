@@ -126,7 +126,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, pinned, togglePinned } = useSidebar()
+  const { isMobile, setOpen, setOpenMobile, pinned, togglePinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
   const supabase = useSupabase()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -149,6 +149,14 @@ export function AppSidebar({
 
   React.useEffect(() => clearCloseTimeout, [clearCloseTimeout])
 
+  const closeMobileSidebar = React.useCallback(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [isMobile, setOpenMobile])
+
+  React.useEffect(() => {
+    closeMobileSidebar()
+  }, [pathname, closeMobileSidebar])
+
   function handleMouseEnter() {
     if (isMobile) return
     clearCloseTimeout()
@@ -170,12 +178,12 @@ export function AppSidebar({
   }
 
   async function handleProfileClick() {
-    if (isMobile) setOpen(false)
+    closeMobileSidebar()
     router.push("/dashboard/profile")
   }
 
   async function handleSettingsClick() {
-    if (isMobile) setOpen(false)
+    closeMobileSidebar()
     router.push("/dashboard/settings")
   }
 
@@ -211,7 +219,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
+                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.title}</span>
@@ -232,7 +240,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
+                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">
@@ -256,7 +264,7 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={pathname === item.url}
-                  render={<Link href={item.url} onClick={() => { if (isMobile) setOpen(false) }} />}
+                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
                   className="p-3"
                 >
                   <div className="flex items-center gap-2 w-full">

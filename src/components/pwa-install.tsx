@@ -4,51 +4,22 @@ import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Download, X } from "lucide-react"
+import { usePwaInstall } from "@/hooks/use-pwa-install"
 
 export function PWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = React.useState<any>(null)
-  const [showInstallPrompt, setShowInstallPrompt] = React.useState(false)
+  const { status, installing, installPwa } = usePwaInstall()
+  const [dismissed, setDismissed] = React.useState(true)
 
   React.useEffect(() => {
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setShowInstallPrompt(true)
-    }
-
-    window.addEventListener("beforeinstallprompt", handler)
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handler)
-    }
+    setDismissed(localStorage.getItem("pwa-install-dismissed") === "true")
   }, [])
 
-  const handleInstall = async () => {
-    if (!deferredPrompt) return
-
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-
-    if (outcome === "accepted") {
-      setShowInstallPrompt(false)
-    }
-
-    setDeferredPrompt(null)
-  }
-
   const handleDismiss = () => {
-    setShowInstallPrompt(false)
+    setDismissed(true)
     localStorage.setItem("pwa-install-dismissed", "true")
   }
 
-  React.useEffect(() => {
-    const dismissed = localStorage.getItem("pwa-install-dismissed")
-    if (dismissed === "true") {
-      setShowInstallPrompt(false)
-    }
-  }, [])
-
-  if (!showInstallPrompt || !deferredPrompt) return null
+  if (dismissed || status !== "installable") return null
 
   return (
     <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50">
@@ -67,9 +38,9 @@ export function PWAInstall() {
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <Button onClick={handleInstall} className="w-full">
+          <Button onClick={installPwa} disabled={installing} className="w-full">
             <Download className="h-4 w-4 mr-2" />
-            Install Sekarang
+            {installing ? "Menginstall..." : "Install Sekarang"}
           </Button>
         </CardContent>
       </Card>

@@ -9,76 +9,120 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export type PwaInstallStatus =
-  | "loading"       // Masih menunggu event browser
-  | "installable"   // Browser mendukung & prompt tersedia
-  | "ios"           // iOS Safari — perlu instruksi manual
-  | "installed"     // Sudah berjalan sebagai PWA / sudah diinstall
-  | "unsupported"   // Browser tidak mendukung PWA install
+  | "loading"
+  | "installable"
+  | "ios"
+  | "installed"
+  | "unsupported"
+
+type Store = {
+  status: PwaInstallStatus
+  prompt: BeforeInstallPromptEvent | null
+}
+
+const store: Store = {
+  status: "loading",
+  prompt: null,
+}
+
+const listeners = new Set<() => void>()
+let captureStarted = false
+let fallbackTimer: ReturnType<typeof setTimeout> | null = null
+
+function emit() {
+  listeners.forEach((listener) => listener())
+}
+
+function setStatus(status: PwaInstallStatus) {
+  if (store.status === status) return
+  store.status = status
+  emit()
+}
+
+function isStandalone() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true
+  )
+}
+
+function isIosSafari() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as { MSStream?: unknown }).MSStream
+}
+
+/** Daftarkan listener sekali di root app agar `beforeinstallprompt` tidak terlewat. */
+export function initPwaInstallCapture() {
+  if (typeof window === "undefined" || captureStarted) return
+  captureStarted = true
+
+  if (isStandalone()) {
+    store.prompt = null
+    setStatus("installed")
+    return
+  }
+
+  if (isIosSafari()) {
+    setStatus("ios")
+    return
+  }
+
+  const onBeforeInstall = (event: Event) => {
+    event.preventDefault()
+    store.prompt = event as BeforeInstallPromptEvent
+    if (fallbackTimer) {
+      clearTimeout(fallbackTimer)
+      fallbackTimer = null
+    }
+    setStatus("installable")
+  }
+
+  const onInstalled = () => {
+    store.prompt = null
+    setStatus("installed")
+  }
+
+  window.addEventListener("beforeinstallprompt", onBeforeInstall)
+  window.addEventListener("appinstalled", onInstalled)
+
+  fallbackTimer = setTimeout(() => {
+    if (store.status === "loading") setStatus("unsupported")
+  }, 2500)
+}
 
 export function usePwaInstall() {
-  const [status, setStatus] = React.useState<PwaInstallStatus>("loading")
+  const [, rerender] = React.useReducer((count: number) => count + 1, 0)
   const [installing, setInstalling] = React.useState(false)
-  const promptRef = React.useRef<BeforeInstallPromptEvent | null>(null)
 
   React.useEffect(() => {
-    // Cek apakah sudah running sebagai standalone (installed)
-    const isStandalone =
-      window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as { standalone?: boolean }).standalone === true
-
-    if (isStandalone) {
-      setStatus("installed")
-      return
-    }
-
-    // Deteksi iOS
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) && !(window as { MSStream?: unknown }).MSStream
-    if (isIos) {
-      setStatus("ios")
-      return
-    }
-
-    // Tangkap beforeinstallprompt (Android / Desktop Chrome/Edge)
-    const handler = (e: Event) => {
-      e.preventDefault()
-      promptRef.current = e as BeforeInstallPromptEvent
-      setStatus("installable")
-    }
-
-    window.addEventListener("beforeinstallprompt", handler)
-
-    // Jika setelah 3 detik tidak ada event → unsupported (Firefox, Safari desktop, dll)
-    const timer = setTimeout(() => {
-      if (!promptRef.current) setStatus("unsupported")
-    }, 3000)
-
-    // Tangkap event setelah berhasil diinstall
-    const installedHandler = () => setStatus("installed")
-    window.addEventListener("appinstalled", installedHandler)
-
+    initPwaInstallCapture()
+    const onChange = () => rerender()
+    listeners.add(onChange)
     return () => {
-      window.removeEventListener("beforeinstallprompt", handler)
-      window.removeEventListener("appinstalled", installedHandler)
-      clearTimeout(timer)
+      listeners.delete(onChange)
     }
   }, [])
 
   const installPwa = React.useCallback(async () => {
-    if (!promptRef.current) return
+    if (!store.prompt) return
     setInstalling(true)
     try {
-      await promptRef.current.prompt()
-      const { outcome } = await promptRef.current.userChoice
+      await store.prompt.prompt()
+      const { outcome } = await store.prompt.userChoice
       if (outcome === "accepted") {
+        store.prompt = null
         setStatus("installed")
-        promptRef.current = null
       }
     } catch {
-      // User dismissed atau error
+      // User dismissed or browser error
     } finally {
       setInstalling(false)
     }
   }, [])
 
-  return { status, installing, installPwa }
+  return {
+    status: store.status,
+    installing,
+    installPwa,
+    canInstall: store.status === "installable" && Boolean(store.prompt),
+  }
 }
