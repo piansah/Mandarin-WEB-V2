@@ -256,7 +256,21 @@ export default function CeritaReadPage() {
       if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
       setAutoplayIdx(i)
       paragraphRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "center" })
+      
+      const startTime = Date.now()
       await speakParagraph(data.paragraphs[i], AUTOPLAY_SPEEDS[speedIdxRef.current].rate)
+      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
+
+      // Hitung durasi membaca minimum disesuaikan dengan rate speed
+      const rate = AUTOPLAY_SPEEDS[speedIdxRef.current].rate
+      const textLength = data.paragraphs[i].length
+      const speedFactor = 0.7 / rate
+      const minDuration = (2500 + textLength * 250) * speedFactor
+
+      const elapsed = Date.now() - startTime
+      if (elapsed < minDuration) {
+        await new Promise((resolve) => setTimeout(resolve, minDuration - elapsed))
+      }
       if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
     }
 
@@ -401,8 +415,8 @@ export default function CeritaReadPage() {
 
         {/* Title and subtitle in main content */}
         <div className="mb-6">
-          <h1 className="font-hanzi text-2xl font-bold">{data.title_zh || data.title}</h1>
-          <p className="text-muted-foreground">{data.title_zh ? data.title : data.title_zh}</p>
+          <h1 className="font-hanzi text-3xl font-bold text-foreground mb-2">{data.title_zh || data.title}</h1>
+          {data.title_zh && <p className="text-sm text-muted-foreground">{data.title}</p>}
         </div>
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
@@ -476,7 +490,7 @@ export default function CeritaReadPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       <footer className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 sm:px-6">
         <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-border/60 bg-card/95 px-2 py-1.5 shadow-lg shadow-black/15 backdrop-blur supports-[backdrop-filter]:bg-card/80">

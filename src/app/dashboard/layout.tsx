@@ -1,15 +1,7 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { AppSidebar } from "@/components/app-sidebar"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
 import { createClient } from "@/lib/supabase/server"
-import { PWAInstall } from "@/components/pwa-install"
-import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
-import { SidebarMobileOpenButton } from "@/components/sidebar-trigger"
-import { DashboardHeader } from "@/components/dashboard-header"
+import { DashboardLayoutClient } from "@/components/dashboard-layout-client"
 import "@/lib/global-bug-report"
 
 export default async function DashboardLayout({
@@ -34,17 +26,8 @@ export default async function DashboardLayout({
   const defaultPinned = cookieStore.get("sidebar_pinned")?.value === "true"
 
   return (
-    <SidebarProvider defaultOpen={true} defaultPinned={defaultPinned}>
-      <SidebarHoverTrigger />
-      <SidebarMobileOpenButton />
-      <AppSidebar user={sidebarUser} />
-      <SidebarInset className="flex flex-col min-h-screen">
-        <DashboardHeader />
-        <div className="flex-1 overflow-auto">
-          {children}
-        </div>
-      </SidebarInset>
-      <PWAInstall />
-    </SidebarProvider>
+    <DashboardLayoutClient sidebarUser={sidebarUser} defaultPinned={defaultPinned}>
+      {children}
+    </DashboardLayoutClient>
   )
 }
