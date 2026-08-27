@@ -5,7 +5,6 @@ import {
   Layers,
   Zap,
   RotateCcw,
-  Clock,
   CheckCircle2,
   BookOpen,
   Flame,
@@ -16,14 +15,6 @@ import { Button } from "@/components/ui/button"
 
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
 import { useSupabase } from "@/hooks/use-supabase"
-
-type DueCard = {
-  id: string
-  hanzi: string
-  pinyin: string
-  arti: string
-  dueDate: string
-}
 
 type SrsStats = {
   total: number
@@ -39,7 +30,6 @@ export default function DashboardPage() {
   const supa = useSupabase()
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
-  const [dueCards, setDueCards] = React.useState<DueCard[]>([])
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
 
   React.useEffect(() => {
@@ -47,51 +37,8 @@ export default function DashboardPage() {
       setStats(s)
       setLoading(false)
     })
-    loadDueCards()
     loadSrsStats()
   }, [])
-
-  async function loadDueCards() {
-    try {
-      const { data: { user } } = await supa.auth.getUser()
-      if (!user) return
-
-      const today = new Date().toISOString().slice(0, 10)
-
-      // Query kartu yang due dari user_card_progress
-      const { data: progressRows } = await supa
-        .from("user_card_progress")
-        .select("card_id, next_review")
-        .eq("user_id", user.id)
-        .lte("next_review", today)
-        .order("next_review", { ascending: true })
-        .limit(5)
-
-      if (!progressRows || progressRows.length === 0) return
-
-      const cardIds = progressRows.map((r) => r.card_id).filter(Boolean)
-      if (cardIds.length === 0) return
-
-      // Ambil detail kartu dari flashcard_cards
-      const { data: cards } = await supa
-        .from("flashcard_cards")
-        .select("id, hanzi, pinyin, arti")
-        .in("id", cardIds)
-
-      if (cards) {
-        const reviewMap = new Map(progressRows.map((r) => [r.card_id, r.next_review]))
-        setDueCards(cards.map((card) => ({
-          id: card.id,
-          hanzi: card.hanzi ?? "",
-          pinyin: card.pinyin ?? "",
-          arti: card.arti ?? "",
-          dueDate: reviewMap.get(card.id) ?? today,
-        })))
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }
 
   async function loadSrsStats() {
     try {
@@ -299,14 +246,7 @@ export default function DashboardPage() {
       {/* Review Section */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
-            {srsStats && srsStats.due > 0 && (
-              <Badge variant="outline" className="text-xs">
-                {srsStats.due} kartu due
-              </Badge>
-            )}
-          </div>
+          <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
         </CardHeader>
         <CardContent>
           {srsStats ? (
@@ -363,23 +303,6 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  {dueCards.length > 0 && (
-                    <div className="space-y-1.5">
-                      {dueCards.map((card) => (
-                        <div
-                          key={card.id}
-                          className="flex items-center gap-3 rounded-md border border-border/40 bg-background/60 px-3 py-2"
-                        >
-                          <p className="font-medium text-sm">{card.hanzi}</p>
-                          <p className="text-xs text-muted-foreground flex-1">{card.pinyin} · {card.arti}</p>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {new Date(card.dueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                   <Button
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
                     onClick={() => window.location.href = '/dashboard/review'}

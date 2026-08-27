@@ -2,120 +2,47 @@
 
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Loader2, Clock, CheckCircle2, RotateCcw } from "lucide-react"
-
-type DueCard = {
-  id: string
-  hanzi: string
-  pinyin: string
-  arti: string
-  dueDate: string
-  interval: number
-  easeFactor: number
-}
+import { fetchDueFlashcards, recordSrsReview, type DueFlashcard } from "@/lib/srs"
+import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function ReviewPage() {
   const supa = useSupabase()
-  const [dueCards, setDueCards] = React.useState<DueCard[]>([])
+  const [cards, setCards] = React.useState<DueFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [reviewing, setReviewing] = React.useState(false)
 
   React.useEffect(() => {
-    loadDueCards()
-  }, [])
-
-  async function loadDueCards() {
-    setLoading(true)
-    try {
+    async function load() {
       const { data: { user } } = await supa.auth.getUser()
-      if (!user) return
-
-      // Fetch cards due for review from SRS system
-      const { data: cards } = await supa
-        .from("srs_cards")
-        .select("id, hanzi, pinyin, arti, due_date, interval, ease_factor")
-        .eq("user_id", user.id)
-        .lte("due_date", new Date().toISOString())
-        .order("due_date", { ascending: true })
-        .limit(20)
-
-      if (cards) {
-        setDueCards(cards.map(card => ({
-          id: card.id,
-          hanzi: card.hanzi,
-          pinyin: card.pinyin,
-          arti: card.arti,
-          dueDate: card.due_date,
-          interval: card.interval,
-          easeFactor: card.ease_factor,
-        })))
+      if (!user) {
+        setLoading(false)
+        return
       }
-    } catch (e) {
-      console.error(e)
-    } finally {
+      const due = await fetchDueFlashcards(supa, user.id)
+      setCards(due)
       setLoading(false)
     }
-  }
+    load()
+  }, [supa])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 5) => {
+    const { data: { user } } = await supa.auth.getUser()
+    if (!user) return
+    await recordSrsReview(supa, user.id, String(card.id), quality, card.srsLevel ?? 0)
+  }, [supa])
+
+  const wordDetailPath = React.useCallback((card: SwipeFlashcard) => {
+    if (card.setId == null) return null
+    return `/dashboard/flashcard/${card.setId}/word/${card.id}`
+  }, [])
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold mb-2">Review Kosakata</h1>
-        <p className="text-muted-foreground">
-          {dueCards.length > 0
-            ? `${dueCards.length} kartu harus direview hari ini`
-            : "Tidak ada kartu yang harus direview"}
-        </p>
-      </div>
-
-      {dueCards.length === 0 ? (
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
-            <p className="text-muted-foreground">Semua kartu sudah direview!</p>
-            <Button variant="outline" onClick={loadDueCards}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {dueCards.map((card) => (
-            <Card key={card.id} className="border-border/50 bg-card/50">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{card.hanzi}</CardTitle>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    {new Date(card.dueDate).toLocaleDateString('id-ID')}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p className="text-muted-foreground">{card.pinyin}</p>
-                  <p className="font-medium">{card.arti}</p>
-                  <div className="flex gap-4 text-xs text-muted-foreground mt-2">
-                    <span>Interval: {card.interval} hari</span>
-                    <span>EF: {card.easeFactor.toFixed(2)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+    <SwipeFlashcardSession
+      cards={cards}
+      loading={loading}
+      emptyTitle="Semua kartu sudah direview!"
+      emptyEmoji="✅"
+      wordDetailPath={wordDetailPath}
+      onReview={handleReview}
+    />
   )
 }
