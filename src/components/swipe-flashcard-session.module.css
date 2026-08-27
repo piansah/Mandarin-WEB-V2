@@ -1,5 +1,5 @@
 .page {
-  height: 100dvh;
+  min-height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
   background: linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--background) 100%);

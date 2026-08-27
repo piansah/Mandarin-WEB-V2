@@ -200,9 +200,8 @@ export function SwipeFlashcardSession({
       setFlip(1)
     } else if (flip === 1) {
       setFlip(2)
-    } else if (card) {
-      speakMandarin(card.hanzi)
     }
+    // Removed TTS on flip 2 to avoid conflict with example sentence TTS
   }
 
   React.useEffect(() => {
@@ -210,17 +209,23 @@ export function SwipeFlashcardSession({
       if (!userId) return
       const today = new Date().toISOString().slice(0, 10)
 
+      console.log("Fetching header stats for user:", userId, "today:", today)
+
       // Fetch due today - cards that need review today
       const { data: dueData } = await supa
         .from("user_card_progress")
-        .select("card_id")
+        .select("card_id, next_review")
         .eq("user_id", userId)
         .lte("next_review", today)
+
+      console.log("Due data:", dueData)
 
       // Filter by deck if deckCardIds provided
       const filteredDueData = deckCardIds
         ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
         : dueData ?? []
+
+      console.log("Filtered due data:", filteredDueData)
 
       // Calculate total cards in current session
       const totalCardsInSession = cards.length
@@ -250,7 +255,7 @@ export function SwipeFlashcardSession({
       })
     }
     fetchHeaderStats()
-  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds])
+  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds, sessionMastered])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -553,7 +558,7 @@ export function SwipeFlashcardSession({
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
+      <div className="flex flex-col min-h-screen">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
@@ -666,13 +671,13 @@ export function SwipeFlashcardSession({
                     className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
+                        <Volume2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
-                          <Volume2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
                       <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
