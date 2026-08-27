@@ -200,9 +200,11 @@ export function SwipeFlashcardSession({
       setFlip(1)
     } else if (flip === 1) {
       setFlip(2)
-    } else if (card) {
-      speakMandarin(card.hanzi)
     }
+    // At flip === 2 (detail view with example sentence), tapping the card
+    // no longer speaks the vocab hanzi — that caused it to fight with the
+    // example sentence's own speaker button/tap. Use the dedicated
+    // speaker buttons instead.
   }
 
   React.useEffect(() => {
@@ -666,13 +668,16 @@ export function SwipeFlashcardSession({
                     className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-3 right-3 h-7 w-7 rounded-full z-10"
+                      onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+                    >
+                      <Volume2 className="h-3.5 w-3.5" />
+                    </Button>
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => speakMandarin(card.hanzi)}>
-                          <Volume2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+                      <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm mb-2">{card.hanzi}</div>
                       <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
@@ -681,14 +686,24 @@ export function SwipeFlashcardSession({
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
                           {card.exampleSentence && (
-                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full ml-auto" onClick={() => speakMandarin(card.exampleSentence!)}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 rounded-full ml-auto"
+                              onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
+                            >
                               <Volume2 className="h-3 w-3" />
                             </Button>
                           )}
                         </div>
                         {card.exampleSentence ? (
                           <>
-                            <div className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors">{card.exampleSentence}</div>
+                            <div
+                              className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors"
+                              onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
+                            >
+                              {card.exampleSentence}
+                            </div>
                             {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
                             <div className="text-sm text-foreground">{card.exampleTranslation}</div>
                           </>
@@ -770,8 +785,8 @@ export function SwipeFlashcardSession({
                   <Button
                     variant="outline"
                     className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 0
-                        ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
-                        : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
+                      ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
+                      : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
                       }`}
                     onClick={() => { setSelectedRating(0); advance(0) }}
                   >
@@ -780,8 +795,8 @@ export function SwipeFlashcardSession({
                   <Button
                     variant="outline"
                     className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 3
-                        ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
-                        : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
+                      ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
+                      : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
                       }`}
                     onClick={() => { setSelectedRating(3); advance(3) }}
                   >
@@ -790,8 +805,8 @@ export function SwipeFlashcardSession({
                   <Button
                     variant="outline"
                     className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 4
-                        ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
-                        : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
+                      ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
+                      : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
                       }`}
                     onClick={() => { setSelectedRating(4); advance(4) }}
                   >
@@ -800,8 +815,8 @@ export function SwipeFlashcardSession({
                   <Button
                     variant="outline"
                     className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 5
-                        ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
-                        : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
+                      ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
+                      : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
                       }`}
                     onClick={() => { setSelectedRating(5); advance(5) }}
                   >
@@ -836,9 +851,9 @@ export function SwipeFlashcardSession({
 
             {feedback && (
               <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-lg mx-auto shadow-sm ${feedback.type === "ok" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
-                  feedback.type === "warn" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
-                    feedback.type === "interim" ? "text-muted-foreground border-transparent" :
-                      "bg-red-500/10 border-red-500/20 text-red-500"
+                feedback.type === "warn" ? "bg-amber-500/10 border-amber-500/20 text-amber-500" :
+                  feedback.type === "interim" ? "text-muted-foreground border-transparent" :
+                    "bg-red-500/10 border-red-500/20 text-red-500"
                 }`}>
                 <div className="font-medium text-sm">{feedback.msg}</div>
                 {feedback.hanzi && <div className="font-hanzi mt-1 text-xl">&quot;{feedback.hanzi}&quot;</div>}
