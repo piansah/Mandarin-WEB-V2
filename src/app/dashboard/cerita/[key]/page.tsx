@@ -25,6 +25,7 @@ import { shuffle } from "@/lib/array-utils"
 import { LearningHeader } from "@/components/learning-header"
 import styles from "./page.module.css"
 
+
 type QuizQuestion = {
   q: string
   options: string[]
