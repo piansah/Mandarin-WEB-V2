@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
@@ -151,6 +151,7 @@ function getGrade(pct: number, title: string) {
 export default function QuizPage() {
   const { key } = useParams<{ key: string }>()
   const router = useRouter()
+  const supa = useSupabase()
 
   const [loading, setLoading] = React.useState(true)
   const [quizTitle, setQuizTitle] = React.useState("")
@@ -169,7 +170,6 @@ export default function QuizPage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const supa = createClient()
 
       // Try restore from localStorage first
       try {
@@ -224,7 +224,7 @@ export default function QuizPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [key])
+  }, [key, supa])
 
   /* ── Select answer ── */
   function selectAns(gi: number, sel: number, cor: number) {
@@ -277,7 +277,6 @@ export default function QuizPage() {
     delete saved[key]
     localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     // Re-shuffle
-    const supa = createClient()
     const reload = async () => {
       const questRes = await supa.from("quiz_questions")
         .select("section,sort_order,question,options,answer_index")

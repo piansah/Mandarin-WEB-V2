@@ -61,6 +61,7 @@ export default function FlashcardPracticePage() {
   const params = useParams()
   const router = useRouter()
   const deckId = Number(params.id)
+  const supa = useSupabase()
 
   const [cards, setCards] = React.useState<Card[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -94,7 +95,6 @@ export default function FlashcardPracticePage() {
 
   React.useEffect(() => {
     async function load() {
-      const supa = createClient()
       const { data } = await supa
         .from("flashcard_cards")
         .select("id, hanzi, pinyin, arti")
@@ -104,7 +104,7 @@ export default function FlashcardPracticePage() {
       setLoading(false)
     }
     load()
-  }, [deckId])
+  }, [deckId, supa])
 
   const totalOriginal = cards.length
   // Current active cards list depends on whether we are in main list or repeat queue

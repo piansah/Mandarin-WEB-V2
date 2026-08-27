@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Loader2, Clock, CheckCircle2, RotateCcw } from "lucide-react"
@@ -17,6 +17,7 @@ type DueCard = {
 }
 
 export default function ReviewPage() {
+  const supa = useSupabase()
   const [dueCards, setDueCards] = React.useState<DueCard[]>([])
   const [loading, setLoading] = React.useState(true)
   const [reviewing, setReviewing] = React.useState(false)
@@ -28,7 +29,6 @@ export default function ReviewPage() {
   async function loadDueCards() {
     setLoading(true)
     try {
-      const supa = createClient()
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
 

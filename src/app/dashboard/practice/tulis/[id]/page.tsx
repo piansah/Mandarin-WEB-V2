@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X, RotateCcw, Eye, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import styles from "./page.module.css"
 
@@ -22,6 +22,7 @@ export default function TulisHanziPage() {
   const params = useParams()
   const router = useRouter()
   const deckId = Number(params.id)
+  const supa = useSupabase()
 
   const [cards, setCards] = React.useState<Card[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -43,7 +44,6 @@ export default function TulisHanziPage() {
 
   React.useEffect(() => {
     async function load() {
-      const supa = createClient()
       const { data } = await supa
         .from("flashcard_cards")
         .select("id, hanzi, pinyin, arti")
@@ -63,7 +63,7 @@ export default function TulisHanziPage() {
       setLoading(false)
     }
     load()
-  }, [deckId])
+  }, [deckId, supa])
 
   const card = cards[idx]
   const total = cards.length

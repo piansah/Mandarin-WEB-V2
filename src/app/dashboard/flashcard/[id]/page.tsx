@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import { useParams, useRouter } from "next/navigation"
 import { ChevronsLeft, Flag, Heart, Plus, X, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import {
   Drawer,
   DrawerClose,
@@ -35,6 +35,7 @@ export default function FlashcardDeckPage() {
   // Calculate offset based on sidebar state
   const sidebarOffset = pinned ? '280px' : '0px'
 
+  const supa = useSupabase()
   const [deck, setDeck] = React.useState<DeckMeta | null>(null)
   const [cards, setCards] = React.useState<Card[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -47,7 +48,6 @@ export default function FlashcardDeckPage() {
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
 
   React.useEffect(() => {
-    const supa = createClient()
     async function load() {
       setLoading(true)
       setError(null)
@@ -102,7 +102,6 @@ export default function FlashcardDeckPage() {
   React.useEffect(() => {
     if (!selectedCard) return
 
-    const supa = createClient()
     const activeCard = selectedCard
     let cancelled = false
 
@@ -152,7 +151,6 @@ export default function FlashcardDeckPage() {
   React.useEffect(() => {
     if (!selectedCard || detailTab !== "kata") return
 
-    const supa = createClient()
     const activeCard = selectedCard
     let cancelled = false
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Lock, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
 
@@ -37,6 +37,7 @@ function getLocalScores(): ScoreMap {
 
 export default function QuizListPage() {
   const router = useRouter()
+  const supa = useSupabase()
   const [sets, setSets] = React.useState<QuizSet[]>([])
   const [scores, setScores] = React.useState<ScoreMap>({})
   const [loading, setLoading] = React.useState(true)
@@ -47,7 +48,6 @@ export default function QuizListPage() {
   }, [])
 
   React.useEffect(() => {
-    const supa = createClient()
     supa
       .from("quiz_sets")
       .select("id, key, title, sub, badge, hsk_level")
@@ -56,7 +56,7 @@ export default function QuizListPage() {
         setSets(data ?? [])
         setLoading(false)
       })
-  }, [])
+  }, [supa])
 
   const unlockedHSK = useUnlockedHSK()
   const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])

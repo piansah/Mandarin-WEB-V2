@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
@@ -100,6 +100,7 @@ export default function GrammarPracticePage() {
   const params = useParams()
   const router = useRouter()
   const slug = String(params.slug)
+  const supa = useSupabase()
   const [loading, setLoading] = React.useState(true)
   const [pattern, setPattern] = React.useState<Pattern | null>(null)
   const [questions, setQuestions] = React.useState<Question[]>([])
@@ -128,7 +129,6 @@ export default function GrammarPracticePage() {
   }, [questions, states, idx, correctCount, wrongCount, slug])
 
   React.useEffect(() => {
-    const supa = createClient()
     let cancelled = false
     async function load() {
       setLoading(true)
@@ -168,7 +168,7 @@ export default function GrammarPracticePage() {
     }
     load()
     return () => { cancelled = true }
-  }, [slug])
+  }, [slug, supa])
 
   const question = questions[idx]
   const examples = pattern?.example_json ?? []

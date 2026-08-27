@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { BookOpen, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { getGrammarScores } from "@/lib/grammar-scores"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
@@ -21,6 +21,7 @@ type GrammarPattern = {
 
 export default function GrammarListPage() {
   const router = useRouter()
+  const supa = useSupabase()
   const [patterns, setPatterns] = React.useState<GrammarPattern[]>([])
   const [scores, setScores] = React.useState<Record<string, number>>({})
   const [loading, setLoading] = React.useState(true)
@@ -31,7 +32,6 @@ export default function GrammarListPage() {
   }, [])
 
   React.useEffect(() => {
-    const supa = createClient()
     supa
       .from("grammar_patterns")
       .select("id, title, slug, hsk_level, sub_title, badge, sort_order")
@@ -41,7 +41,7 @@ export default function GrammarListPage() {
         setPatterns((data ?? []) as GrammarPattern[])
         setLoading(false)
       })
-  }, [])
+  }, [supa])
 
   const unlockedHSK = useUnlockedHSK()
   const levels = React.useMemo(() => [...new Set(patterns.map((item) => item.hsk_level))].sort((a, b) => a - b), [patterns])

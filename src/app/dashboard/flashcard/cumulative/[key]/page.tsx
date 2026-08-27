@@ -6,7 +6,7 @@ import { RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { checkUserContentReport } from "@/lib/bug-reports"
@@ -32,6 +32,7 @@ export default function CumulativeFlashcardSessionPage() {
   const params = useParams<{ key: string }>()
   const router = useRouter()
   const key = params.key
+  const supa = useSupabase()
   const [set, setSet] = React.useState<HanziSet | null>(null)
   const [items, setItems] = React.useState<HanziItem[]>([])
   const [reportedItems, setReportedItems] = React.useState<Set<number>>(new Set())
@@ -42,7 +43,6 @@ export default function CumulativeFlashcardSessionPage() {
 
   React.useEffect(() => {
     let cancelled = false
-    const supa = createClient()
 
     async function load() {
       const [setResult, itemsResult] = await Promise.all([

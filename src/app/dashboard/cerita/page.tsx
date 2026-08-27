@@ -5,7 +5,7 @@ import Link from "next/link"
 import { BookMarked } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { getCeritaProgress } from "@/lib/cerita-progress"
 import { getUserScoresByType } from "@/lib/user-scores"
@@ -21,6 +21,7 @@ type CeritaSet = {
 }
 
 export default function CeritaListPage() {
+  const supa = useSupabase()
   const [sets, setSets] = React.useState<CeritaSet[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -34,7 +35,6 @@ export default function CeritaListPage() {
   }, [])
 
   React.useEffect(() => {
-    const supa = createClient()
     supa
       .from("cerita_sets")
       .select("key, title, title_zh, description, badge, hsk_level, total_chars, sort_order")
@@ -49,7 +49,7 @@ export default function CeritaListPage() {
         }
         setLoading(false)
       })
-  }, [])
+  }, [supa])
 
   const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])
   const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]

@@ -3,11 +3,11 @@
 import * as React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
-  const supabase = createClient()
+  const supabase = useSupabase()
 
   async function onSubmit() {
     setIsLoading(true)

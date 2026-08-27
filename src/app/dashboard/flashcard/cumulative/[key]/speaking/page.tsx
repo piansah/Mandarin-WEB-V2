@@ -6,7 +6,7 @@ import { ArrowLeft, Mic, Volume2, Check, X, RotateCcw, SkipForward } from "lucid
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { TonePinyin } from "@/components/tone-pinyin"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 
@@ -30,7 +30,8 @@ export default function SpeakingPracticePage() {
   const params = useParams<{ key: string }>()
   const router = useRouter()
   const key = params.key
-  
+  const supa = useSupabase()
+
   const [set, setSet] = React.useState<HanziSet | null>(null)
   const [items, setItems] = React.useState<HanziItem[]>([])
   const [currentIndex, setCurrentIndex] = React.useState(0)
@@ -47,7 +48,6 @@ export default function SpeakingPracticePage() {
 
   React.useEffect(() => {
     let cancelled = false
-    const supa = createClient()
 
     async function load() {
       const [setResult, itemsResult] = await Promise.all([

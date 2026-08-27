@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Flag, Heart, Plus, ArrowLeft } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
@@ -73,6 +73,7 @@ export default function WordDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const cardId = String(params.cardId)
+  const supa = useSupabase()
   const [tab, setTab] = React.useState<DetailTab>("kalimat")
   const [card, setCard] = React.useState<Card | null>(null)
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
@@ -87,7 +88,7 @@ export default function WordDetailPage() {
   const fromSearch = searchParams.get('from') === 'search'
 
   React.useEffect(() => {
-    const supa = createClient(); let cancelled = false
+    let cancelled = false
     async function load() {
       setLoading(true)
       let cardRes = await supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti, catatan, word_class").eq("id", cardId).single()
@@ -125,7 +126,7 @@ export default function WordDetailPage() {
   React.useEffect(() => {
     if (!card) return
     const activeCard = card
-    const supa = createClient(); let cancelled = false
+    let cancelled = false
     async function loadVocabulary() {
       const [cardsRes, compoundsRes] = await Promise.all([supa.from("flashcard_cards").select("hanzi").limit(2000), supa.from("word_compounds").select("hanzi").limit(2000)])
       if (cancelled) return
@@ -143,7 +144,7 @@ export default function WordDetailPage() {
   React.useEffect(() => {
     if (!card) return
     const activeCard = card
-    const supa = createClient(); let cancelled = false
+    let cancelled = false
     async function loadExamples() {
       setTabLoading(true)
       const [hanziRes, directRes, sentenceRes] = await Promise.all([
@@ -162,7 +163,7 @@ export default function WordDetailPage() {
   React.useEffect(() => {
     if (!card || tab !== "kata") return
     const activeCard = card
-    const supa = createClient(); let cancelled = false
+    let cancelled = false
     async function loadCompounds() {
       setTabLoading(true)
       const select = "hanzi, pinyin, arti, badge"
@@ -231,7 +232,6 @@ export default function WordDetailPage() {
     // Reload the vocabulary data to refresh examples
     const controller = new AbortController()
     const signal = controller.signal
-    const supa = createClient()
     
     const loadVocabulary = async () => {
       if (!cardId) return

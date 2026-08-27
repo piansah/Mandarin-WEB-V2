@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Lock, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 
 type KalimatSet = {
@@ -40,6 +40,7 @@ function getLocalScores(): ScoreMap {
 
 export default function CumulativeQuizListPage() {
   const router = useRouter()
+  const supa = useSupabase()
   const [sets, setSets] = React.useState<KalimatSet[]>([])
   const [scores, setScores] = React.useState<ScoreMap>({})
   const [loading, setLoading] = React.useState(true)
@@ -50,7 +51,6 @@ export default function CumulativeQuizListPage() {
   }, [])
 
   React.useEffect(() => {
-    const supa = createClient()
     supa
       .from("kalimat_sets")
       .select("key, title, sub, hsk_level, unlock_after")
@@ -60,7 +60,7 @@ export default function CumulativeQuizListPage() {
         setSets(data ?? [])
         setLoading(false)
       })
-  }, [])
+  }, [supa])
 
   const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])
   const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]

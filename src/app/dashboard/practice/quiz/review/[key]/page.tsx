@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
@@ -122,6 +122,7 @@ function getGrade(pct: number, title: string) {
 export default function CumulativeQuizPracticePage() {
   const { key } = useParams<{ key: string }>()
   const router = useRouter()
+  const supa = useSupabase()
 
   const [loading, setLoading] = React.useState(true)
   const [quizTitle, setQuizTitle] = React.useState("")
@@ -139,7 +140,6 @@ export default function CumulativeQuizPracticePage() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const supa = createClient()
 
       try {
         const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
@@ -187,7 +187,7 @@ export default function CumulativeQuizPracticePage() {
     }
     load()
     return () => { cancelled = true }
-  }, [key])
+  }, [key, supa])
 
   function selectAns(gi: number, sel: number, cor: number) {
     if (answered[gi] !== undefined) return

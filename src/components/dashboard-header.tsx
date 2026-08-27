@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 
 type SearchResult = {
   type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar'
@@ -37,6 +37,7 @@ const menuItems: SearchResult[] = [
 export function DashboardHeader() {
   const { pinned, togglePinned } = useSidebar()
   const router = useRouter()
+  const supabase = useSupabase()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [searchResults, setSearchResults] = React.useState<SearchResult[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
@@ -81,7 +82,7 @@ export function DashboardHeader() {
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true)
       try {
-        const supa = createClient()
+        const supa = supabase
         const results: SearchResult[] = []
 
         // Search flashcard sets

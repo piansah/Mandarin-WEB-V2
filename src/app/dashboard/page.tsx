@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 
 type DueCard = {
   id: string
@@ -36,6 +36,7 @@ type SrsStats = {
 }
 
 export default function DashboardPage() {
+  const supa = useSupabase()
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [dueCards, setDueCards] = React.useState<DueCard[]>([])
@@ -52,7 +53,6 @@ export default function DashboardPage() {
 
   async function loadDueCards() {
     try {
-      const supa = createClient()
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
 
@@ -80,7 +80,6 @@ export default function DashboardPage() {
 
   async function loadSrsStats() {
     try {
-      const supa = createClient()
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
 

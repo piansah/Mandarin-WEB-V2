@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
@@ -76,6 +76,7 @@ const AUTOPLAY_SPEED_KEY = "cerita_autoplay_speed"
 export default function CeritaReadPage() {
   const params = useParams<{ key: string }>()
   const key = params.key
+  const supa = useSupabase()
 
   const [data, setData] = React.useState<CeritaDetail | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -122,7 +123,6 @@ export default function CeritaReadPage() {
   /* ── Load data ── */
   React.useEffect(() => {
     let cancelled = false
-    const supa = createClient()
 
     async function load() {
       const [metaRes, parasRes, vocabRes] = await Promise.all([

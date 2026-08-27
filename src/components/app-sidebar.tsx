@@ -46,7 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/browser"
+import { useSupabase } from "@/hooks/use-supabase"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 
 const todayItems = [
@@ -128,6 +128,7 @@ export function AppSidebar({
   const router = useRouter()
   const { isMobile, setOpen, pinned, togglePinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
+  const supabase = useSupabase()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Save pinned state to cookie
@@ -163,7 +164,6 @@ export function AppSidebar({
   }
 
   async function handleLogout() {
-    const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/login")
     router.refresh()
