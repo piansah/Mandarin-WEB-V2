@@ -196,16 +196,18 @@ export default function FlashcardPracticePage() {
   }, [supa, userId, deckId])
 
   return (
-    <SwipeFlashcardSession
-      cards={cards}
-      loading={loading}
-      wordDetailPath={wordDetailPath}
-      onReview={handleReview}
-      onComplete={handleComplete}
-      deckTitle={deckTitle}
-      deckLevel={deckLevel}
-      userId={userId}
-      deckCardIds={cards.map(c => String(c.id))}
-    />
+    <div className="flex h-full w-full flex-1 flex-col min-h-0 overflow-hidden">
+      <SwipeFlashcardSession
+        cards={cards}
+        loading={loading}
+        wordDetailPath={wordDetailPath}
+        onReview={handleReview}
+        onComplete={handleComplete}
+        deckTitle={deckTitle}
+        deckLevel={deckLevel}
+        userId={userId}
+        deckCardIds={cards.map(c => String(c.id))}
+      />
+    </div>
   )
 }
