@@ -924,7 +924,7 @@ export function SwipeFlashcardSession({
         ancestor yang benar-benar scroll, sehingga sticky terlihat seperti
         tidak berfungsi (header ikut ter-scroll bersama isinya).
       */}
-      <div className="flex flex-col flex-1 select-none relative z-10">
+      <div className="flashcard-quiz flex flex-col flex-1 select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">

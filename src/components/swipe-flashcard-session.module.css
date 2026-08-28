@@ -24,7 +24,8 @@
   spinner & layar quiz utama) tetap transparan terhadap .page, jadi tidak
   disentuh oleh selector ini dan tidak berubah sama sekali.
 */
-.page:has(> :global(.flashcard-result)) {
+.page:has(> :global(.flashcard-result)),
+.page:has(> :global(.flashcard-quiz)) {
   padding-bottom: 0;
 }
 
