@@ -44,7 +44,7 @@ export function DashboardLayoutClient({
       <SidebarHoverTrigger />
       <SidebarMobileOpenButton />
       <AppSidebar user={sidebarUser} />
-      <SidebarInset className="flex flex-col min-h-screen">
+      <SidebarInset className="flex h-svh flex-col overflow-hidden">
         <DashboardHeader />
 
         <div className="flex-1 min-h-0 overflow-auto">
