@@ -870,7 +870,7 @@ export function SwipeFlashcardSession({
                 </div>
                 <div className="flex items-center h-1.5">
                   <span className="text-xs font-semibold text-foreground whitespace-nowrap">
-                    {headerStats.dueToday}/{headerStats.totalCards} tersimpan
+                    {headerStats.dueToday} dari {headerStats.totalCards} tersimpan
                   </span>
                 </div>
               </div>
