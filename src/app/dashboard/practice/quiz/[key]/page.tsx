@@ -385,7 +385,7 @@ export default function QuizPage() {
         rightContent={`${totalCorrect}/${totalAnswered}`}
       />
 
-      {/* Section filter dropdown - fixed at top, doesn't scroll */}
+      {/* Section filter dropdown - scrolls together with the questions */}
       <div
         ref={filterRef}
         className={styles.filterWrap}

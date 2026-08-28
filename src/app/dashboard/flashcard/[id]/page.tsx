@@ -228,7 +228,7 @@ export default function FlashcardDeckPage() {
         <Drawer>
           <DrawerTrigger
             render={
-              <Button className="w-full h-13 rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />
+              <Button className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />
             }
           >
             Mulai Latihan

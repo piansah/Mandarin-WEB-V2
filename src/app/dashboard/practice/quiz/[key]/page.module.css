@@ -140,8 +140,7 @@
 
 /* ── Filter dropdown (replaces tabs) ── */
 .filterWrap {
-  position: sticky;
-  top: 58px;
+  position: relative;
   z-index: 29;
   display: flex;
   justify-content: center;

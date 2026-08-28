@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
+import { List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -798,22 +798,6 @@ export function SwipeFlashcardSession({
           {card.hanzi}
         </div>
         <CardTopBar card={card} />
-        {/*
-          Speaker #1 — vocab TTS. Always speaks card.hanzi (e.g. 您 / nín),
-          independent from the example sentence speaker below. Marked
-          data-no-drag so onPointerDown on the card doesn't call
-          setPointerCapture and swallow this button's click. Digeser ke
-          top-10 supaya tidak bertabrakan dengan CardTopBar di top-3.
-        */}
-        <Button
-          variant="ghost"
-          size="icon"
-          data-no-drag
-          className="absolute top-10 right-3 h-7 w-7 rounded-full z-10"
-          onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
-        >
-          <Volume2 className="h-3.5 w-3.5" />
-        </Button>
         <div className="flex-1 flex flex-col items-center justify-center mt-4">
           <div
             className="font-hanzi text-4xl sm:text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
@@ -829,22 +813,6 @@ export function SwipeFlashcardSession({
           <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
-              {/*
-                Speaker #2 — example-sentence TTS. Always speaks
-                card.exampleSentence, completely separate from the vocab
-                speaker above. Also data-no-drag.
-              */}
-              {card.exampleSentence && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  data-no-drag
-                  className="h-6 w-6 rounded-full ml-auto"
-                  onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
-                >
-                  <Volume2 className="h-3 w-3" />
-                </Button>
-              )}
             </div>
             {card.exampleSentence ? (
               <>
@@ -900,8 +868,10 @@ export function SwipeFlashcardSession({
                   <TrendingUp className="h-3 w-3" />
                   Jatuh Tempo Hari Ini
                 </div>
-                <div className="text-sm font-semibold text-foreground">
-                  {headerStats.dueToday} dari {headerStats.totalCards} tersimpan
+                <div className="flex items-center h-1.5">
+                  <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+                    {headerStats.dueToday}/{headerStats.totalCards} tersimpan
+                  </span>
                 </div>
               </div>
               <div className={`${styles.statsCard} flex flex-col gap-1`}>
@@ -916,7 +886,7 @@ export function SwipeFlashcardSession({
                       style={{ width: `${headerStats.accuracy}%` }}
                     />
                   </div>
-                  <span className="text-sm font-semibold text-foreground">{headerStats.accuracy}%</span>
+                  <span className="text-xs font-semibold text-foreground">{headerStats.accuracy}%</span>
                 </div>
               </div>
               <div className={`${styles.statsCard} flex flex-col gap-1`}>
