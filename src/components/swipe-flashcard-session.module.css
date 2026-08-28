@@ -1,6 +1,5 @@
 .page {
   flex: 1;
-  min-height: 0;
   min-height: 100%;
   display: flex;
   flex-direction: column;
@@ -20,12 +19,18 @@
   termasuk bottom) di JSX-nya, jadi menolkan padding-bottom `.page` khusus
   di state ini TIDAK mengurangi spacing visual apa pun — cuma memindahkan
   siapa yang "menutup" 2rem terakhir itu, dari .page (gradient, bocor) ke
-  .flashcard-result (solid, aman). State lain yang pakai .page (loading
-  spinner & layar quiz utama) tetap transparan terhadap .page, jadi tidak
-  disentuh oleh selector ini dan tidak berubah sama sekali.
+  .flashcard-result (solid, aman).
+
+  PENTING: selector ini HANYA untuk `.flashcard-result`, TIDAK digabung
+  dengan `.flashcard-quiz`. Layar quiz utama (kartu + tombol rating +
+  panel "Arti setiap penilaian") tidak punya padding-bottom pengganti
+  sendiri di JSX-nya — kalau padding .page ikut dinolkan di situ juga,
+  konten paling bawah (panel penjelasan rating) jadi nempel rata ke tepi
+  layar tanpa napas sama sekali. State lain yang pakai .page (loading
+  spinner) juga tidak disentuh oleh selector ini dan tidak berubah sama
+  sekali.
 */
-.page:has(> :global(.flashcard-result)),
-.page:has(> :global(.flashcard-quiz)) {
+.page:has(> :global(.flashcard-result)) {
   padding-bottom: 0;
 }
 
