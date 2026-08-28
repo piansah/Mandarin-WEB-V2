@@ -3,7 +3,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { useParams, useRouter } from "next/navigation"
-import { ChevronsLeft, Flag, Heart, Plus, X, Volume2 } from "lucide-react"
+import { ChevronsLeft, Flag, Heart, Plus, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import {
@@ -205,19 +205,9 @@ export default function FlashcardDeckPage() {
   return (
     <div className="flex flex-col min-h-screen pb-28 relative">
       {/* Header sticky */}
-      <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/40 px-6 py-4 flex items-center justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-primary truncate">{deck?.title}</h1>
-          <p className="text-xs text-muted-foreground">{deck?.description}</p>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push("/dashboard/flashcard")}
-          className="h-8 w-8 rounded-full bg-muted/50 shrink-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+      <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/40 px-6 py-4">
+        <h1 className="text-lg font-bold text-primary truncate">{deck?.title}</h1>
+        <p className="text-xs text-muted-foreground">{deck?.description}</p>
       </div>
 
       {/* Card List */}
@@ -231,9 +221,9 @@ export default function FlashcardDeckPage() {
       </div>
 
       {/* Sticky Bottom Bar */}
-      <div 
-        className="fixed bottom-0 right-0 z-30 p-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
-        style={{ left: sidebarOffset }}
+      <div
+        className="fixed bottom-0 right-0 z-30 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
+        style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <Drawer>
           <DrawerTrigger

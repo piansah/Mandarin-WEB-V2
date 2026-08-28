@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
+import { List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -103,12 +103,12 @@ function CardTopBar({ card }: { card: SwipeFlashcard }) {
   if (!levelLabel && !card.isNew) return null
 
   return (
-    <div className="absolute top-3 left-4 right-4 flex items-start justify-between z-10 pointer-events-none">
-      <span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+    <div className="absolute top-2 left-3 right-3 sm:top-3 sm:left-4 sm:right-4 flex items-start justify-between gap-2 z-10 pointer-events-none">
+      <span className="text-[9px] sm:text-[11px] font-medium text-muted-foreground tracking-wide bg-background/50 backdrop-blur-sm px-1.5 py-0.5 sm:px-2 rounded-full truncate">
         {levelLabel}
       </span>
       {card.isNew && (
-        <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+        <span className="text-[9px] sm:text-[11px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 sm:px-2 rounded-full shrink-0">
           Kartu Baru
         </span>
       )}
@@ -120,8 +120,8 @@ function CardTopBar({ card }: { card: SwipeFlashcard }) {
 // card 2 (belakang, hanzi+pinyin), sesuai referensi.
 function CardHint() {
   return (
-    <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground/80 text-center">
-      <Eye className="h-3.5 w-3.5 shrink-0" />
+    <p className="mt-3 sm:mt-4 flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs text-muted-foreground/80 text-center px-4">
+      <Eye className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
       Klik kartu atau tekan Space untuk lihat jawaban
     </p>
   )
@@ -888,16 +888,9 @@ export function SwipeFlashcardSession({
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-                <p className="text-xs text-muted-foreground">{deckLevel}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full h-8 w-8">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+            <div className="mb-2">
+              <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+              <p className="text-xs text-muted-foreground">{deckLevel}</p>
             </div>
 
             {/* Always Visible Stats Section */}
@@ -944,17 +937,9 @@ export function SwipeFlashcardSession({
           </div>
         ) : (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-                <p className="text-xs text-muted-foreground">{deckLevel} - Mode Cepat</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.back()}>
-                  <X className="h-3.5 w-3.5" />
-                  Keluar
-                </Button>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+              <p className="text-xs text-muted-foreground">{deckLevel} - Mode Cepat</p>
             </div>
           </div>
         )}
