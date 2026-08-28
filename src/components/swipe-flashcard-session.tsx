@@ -643,71 +643,25 @@ export function SwipeFlashcardSession({
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          {/* Header with Title, Subtitle, and Action Buttons */}
-          {!isFastMode ? (
+          {/*
+            Header (judul deck/subjudul + grid statistik "Jatuh Tempo/
+            Akurasi Sesi/Sudah Dikuasai/Dinilai") SENGAJA dihilangkan dari
+            layar "Sesi Selesai". Statistik itu berguna selama sesi masih
+            berjalan (memantau progres saat itu juga), tapi begitu sesi
+            tuntas, ring akurasi + chip rincian di bawah sudah menyajikan
+            ringkasan yang sama secara lebih fokus — menampilkan header
+            lama di sini hanya mengulang info dan menambah dead-space di
+            layar hasil (lihat area yang di-highlight di DevTools).
+            Fast mode tetap mempertahankan satu tombol "Keluar" kecil agar
+            user masih bisa keluar sesi tanpa header penuh.
+          */}
+          {isFastMode && (
             <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-              <div className="mb-2">
-                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-                <p className="text-xs text-muted-foreground">{deckLevel}</p>
-              </div>
-
-              {/* Always Visible Stats Section */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-                <div className={`${styles.statsCard} flex flex-col gap-1`}>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <TrendingUp className="h-3 w-3" />
-                    Jatuh Tempo Hari Ini
-                  </div>
-                  <div className="flex items-center h-1.5">
-                    <span className="text-xs font-semibold text-foreground whitespace-nowrap">
-                      {headerStats.dueToday} dari {headerStats.totalCards} tersimpan
-                    </span>
-                  </div>
-                </div>
-                <div className={`${styles.statsCard} flex flex-col gap-1`}>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Akurasi Sesi
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                        style={{ width: `${headerStats.accuracy}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-semibold text-foreground">{headerStats.accuracy}%</span>
-                  </div>
-                </div>
-                <div className={`${styles.statsCard} flex flex-col gap-1`}>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Star className="h-3 w-3" />
-                    Sudah Dikuasai
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">{headerStats.mastered}</div>
-                </div>
-                <div className={`${styles.statsCard} flex flex-col gap-1`}>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Dinilai
-                  </div>
-                  <div className="text-sm font-semibold text-foreground">{headerStats.rated}</div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-                  <p className="text-xs text-muted-foreground">{deckLevel} - Mode Cepat</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.back()}>
-                    <X className="h-3.5 w-3.5" />
-                    Keluar
-                  </Button>
-                </div>
+              <div className="flex items-center justify-end">
+                <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.back()}>
+                  <X className="h-3.5 w-3.5" />
+                  Keluar
+                </Button>
               </div>
             </div>
           )}
@@ -715,92 +669,92 @@ export function SwipeFlashcardSession({
           {/* Result Content */}
           <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {isEmpty ? (
-              <>
-                <div className="flashcard-result-emoji text-6xl">{emptyEmoji}</div>
-                <h2 className="flashcard-result-title text-3xl font-bold text-center">{emptyTitle}</h2>
-                <Button variant="outline" className="rounded-2xl px-8" onClick={() => router.back()}>Kembali</Button>
-              </>
-            ) : (
-              <>
-                {/*
+            <>
+              <div className="flashcard-result-emoji text-6xl">{emptyEmoji}</div>
+              <h2 className="flashcard-result-title text-3xl font-bold text-center">{emptyTitle}</h2>
+              <Button variant="outline" className="rounded-2xl px-8" onClick={() => router.back()}>Kembali</Button>
+            </>
+          ) : (
+            <>
+              {/*
                 Signature: watermark hanzi besar di belakang ring, gaya
                 sama persis dengan watermark yang muncul di setiap sisi
                 kartu sepanjang sesi (lihat renderDetailFaceInner & Card
                 1). 完 = "selesai/tuntas" — layar ini jadi terasa seperti
                 kartu penutup dari sesi yang sama, bukan komponen lepas.
               */}
-                <div
-                  aria-hidden="true"
-                  className="flashcard-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-                  style={{
-                    fontSize: "16rem",
-                    lineHeight: 1,
-                    top: "50%",
-                    left: "50%",
-                    // Sebelumnya cuma `top: "6%"` tanpa penyeimbang
-                    // horizontal, jadi watermark selalu nempel di kiri atas
-                    // (posisi statis defaultnya sebagai elemen absolute
-                    // tanpa `left`), bukan di tengah layar seperti yang
-                    // dimaksud. translate(-50%, -50%) dari titik tengah
-                    // (top/left 50%) yang benar-benar menengahkan glyph-nya
-                    // secara horizontal DAN vertikal relatif terhadap
-                    // seluruh layar hasil.
-                    transform: "translate(-50%, -50%)",
-                  }}
-                >
-                  完
-                </div>
+              <div
+                aria-hidden="true"
+                className="flashcard-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
+                style={{
+                  fontSize: "16rem",
+                  lineHeight: 1,
+                  top: "50%",
+                  left: "50%",
+                  // Sebelumnya cuma `top: "6%"` tanpa penyeimbang
+                  // horizontal, jadi watermark selalu nempel di kiri atas
+                  // (posisi statis defaultnya sebagai elemen absolute
+                  // tanpa `left`), bukan di tengah layar seperti yang
+                  // dimaksud. translate(-50%, -50%) dari titik tengah
+                  // (top/left 50%) yang benar-benar menengahkan glyph-nya
+                  // secara horizontal DAN vertikal relatif terhadap
+                  // seluruh layar hasil.
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                完
+              </div>
 
-                <div className="flashcard-result-title flex flex-col items-center gap-1 relative z-10">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
-                  <p className="text-sm text-muted-foreground">{totalRated} kata dinilai</p>
-                </div>
+              <div className="flashcard-result-title flex flex-col items-center gap-1 relative z-10">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
+                <p className="text-sm text-muted-foreground">{totalRated} kata dinilai</p>
+              </div>
 
-                {/* Ring akurasi — echo dari "Akurasi Sesi" di header sesi */}
-                <div className="flashcard-result-ring relative z-10 flex items-center justify-center">
-                  <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                    <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                    <circle
-                      cx="60" cy="60" r="54" fill="none"
-                      stroke={ringColor}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={ringOffset}
-                      style={{ transition: "stroke 400ms ease" }}
-                    />
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-                  </div>
+              {/* Ring akurasi — echo dari "Akurasi Sesi" di header sesi */}
+              <div className="flashcard-result-ring relative z-10 flex items-center justify-center">
+                <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                  <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                  <circle
+                    cx="60" cy="60" r="54" fill="none"
+                    stroke={ringColor}
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={ringOffset}
+                    style={{ transition: "stroke 400ms ease" }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
                 </div>
+              </div>
 
-                {/* Rincian penilaian — chip per kategori, warnanya sama
+              {/* Rincian penilaian — chip per kategori, warnanya sama
                   dengan tombol rating di sesi latihan supaya bahasa
                   visualnya konsisten (bukan cuma kotak angka datar). */}
-                <div className="flashcard-result-stats flex flex-wrap justify-center gap-2 relative z-10">
-                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><Zap className="h-3.5 w-3.5" /></span>
-                    <span className="text-sm font-semibold text-emerald-500 tabular-nums">{hafal}</span>
-                    <span className="text-xs text-muted-foreground">Mudah</span>
-                  </div>
-                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Brain className="h-3.5 w-3.5" /></span>
-                    <span className="text-sm font-semibold text-blue-500 tabular-nums">{sulit}</span>
-                    <span className="text-xs text-muted-foreground">Ingat</span>
-                  </div>
-                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><HelpCircle className="h-3.5 w-3.5" /></span>
-                    <span className="text-sm font-semibold text-amber-500 tabular-nums">{ragu}</span>
-                    <span className="text-xs text-muted-foreground">Sulit</span>
-                  </div>
-                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
-                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
-                    <span className="text-sm font-semibold text-red-500 tabular-nums">{lupa}</span>
-                    <span className="text-xs text-muted-foreground">Lupa</span>
-                  </div>
+              <div className="flashcard-result-stats flex flex-wrap justify-center gap-2 relative z-10">
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><Zap className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{hafal}</span>
+                  <span className="text-xs text-muted-foreground">Mudah</span>
                 </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Brain className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-blue-500 tabular-nums">{sulit}</span>
+                  <span className="text-xs text-muted-foreground">Ingat</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><HelpCircle className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-amber-500 tabular-nums">{ragu}</span>
+                  <span className="text-xs text-muted-foreground">Sulit</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-red-500 tabular-nums">{lupa}</span>
+                  <span className="text-xs text-muted-foreground">Lupa</span>
+                </div>
+              </div>
 
                 <div className="flashcard-result-actions flex gap-3 w-full max-w-xs relative z-10 mb-6">
                   <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
@@ -1227,7 +1181,7 @@ export function SwipeFlashcardSession({
                 {/* Hint navigasi keyboard: 1-4 untuk menilai langsung, ← →
                     untuk Sebelumnya/Lewati. Disembunyikan di layar mobile
                     karena keyboard fisik jarang dipakai di sana. */}
-                <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
+                {/* <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">1</kbd>
                   <span>–</span>
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">4</kbd>
@@ -1236,7 +1190,7 @@ export function SwipeFlashcardSession({
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">←</kbd>
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">→</kbd>
                   <span>navigasi</span>
-                </p>
+                </p> */}
 
                 {/* Rating Explanations */}
                 <div className="w-full rounded-xl border border-border/40 bg-muted/20 p-3">
