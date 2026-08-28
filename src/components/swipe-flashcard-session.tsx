@@ -617,7 +617,15 @@ export function SwipeFlashcardSession({
   if (loading) {
     return (
       <div className={styles.page}>
-        <div className="flex flex-1 items-center justify-center min-h-screen">
+        {/*
+          `min-h-screen` sengaja dihapus dari sini: .page sekarang sudah
+          display:flex + flex-direction:column dan tingginya fixed
+          100dvh, jadi `flex-1` saja sudah cukup membuat div ini mengisi
+          tinggi penuh .page. `min-h-screen` (min-height:100vh) di sini
+          justru bisa memaksa div ini lebih tinggi dari box .page
+          (100dvh), yang berpotensi menambah scroll/gap yang tidak perlu.
+        */}
+        <div className="flex flex-1 items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
         </div>
       </div>
