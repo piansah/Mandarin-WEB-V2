@@ -657,6 +657,91 @@ export function SwipeFlashcardSession({
   const contentOpacity = swipeStatus !== "none" ? 0 : 1
   const cardRotation = dragX * 0.05
 
+  // Konten inti Card 3 (sisi detail: arti + contoh kalimat) diekstrak jadi
+  // fungsi supaya bisa dipakai dua kali: sekali untuk tampilan asli
+  // (absolute, dengan semua interaksi/tombol speaker), dan sekali lagi
+  // sebagai "sizer" tak terlihat yang menentukan tinggi seluruh stack
+  // kartu (lihat komentar di wrapper grid di bawah).
+  function renderDetailFaceInner() {
+    return (
+      <>
+        <div
+          aria-hidden="true"
+          className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+          style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+        >
+          {card.hanzi}
+        </div>
+        <CardTopBar card={card} />
+        {/*
+          Speaker #1 — vocab TTS. Always speaks card.hanzi (e.g. 您 / nín),
+          independent from the example sentence speaker below. Marked
+          data-no-drag so onPointerDown on the card doesn't call
+          setPointerCapture and swallow this button's click. Digeser ke
+          top-10 supaya tidak bertabrakan dengan CardTopBar di top-3.
+        */}
+        <Button
+          variant="ghost"
+          size="icon"
+          data-no-drag
+          className="absolute top-10 right-3 h-7 w-7 rounded-full z-10"
+          onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+        >
+          <Volume2 className="h-3.5 w-3.5" />
+        </Button>
+        <div className="flex-1 flex flex-col items-center justify-center mt-4">
+          <div
+            className="font-hanzi text-4xl sm:text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
+            data-no-drag
+            onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+          >
+            {card.hanzi}
+          </div>
+          <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
+          <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
+        </div>
+        {!isFastMode && (
+          <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
+              {/*
+                Speaker #2 — example-sentence TTS. Always speaks
+                card.exampleSentence, completely separate from the vocab
+                speaker above. Also data-no-drag.
+              */}
+              {card.exampleSentence && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-no-drag
+                  className="h-6 w-6 rounded-full ml-auto"
+                  onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
+                >
+                  <Volume2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+            {card.exampleSentence ? (
+              <>
+                <div
+                  className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors"
+                  data-no-drag
+                  onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
+                >
+                  {card.exampleSentence}
+                </div>
+                {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
+                <div className="text-sm text-foreground">{card.exampleTranslation}</div>
+              </>
+            ) : (
+              <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
+            )}
+          </div>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className={styles.page}>
       {/*
@@ -760,134 +845,110 @@ export function SwipeFlashcardSession({
             Diperlebar di layar besar: max-w-lg (mobile) -> max-w-2xl (md) ->
             max-w-3xl (lg), agar kartu tidak terlihat kekecilan saat dibuka
             di PC, sesuai referensi.
+
+            Tinggi TIDAK lagi di-hardcode (dulu h-[340px] md:h-[360px]
+            lg:h-[400px]) — itu yang menyebabkan Card 3 (arti + contoh
+            kalimat) kepotong dan harus di-scroll sendiri di dalam kartu,
+            sehingga bentrok dengan gestur swipe.
+
+            Solusi: CSS Grid stacking trick. `.grid` di bawah punya dua
+            child yang sama-sama diberi grid-area 1/1, jadi saling
+            menumpuk di sel yang sama:
+            1) "sizer" — invisible, normal-flow, berisi render Card 3 yang
+               identik. Karena normal-flow, tingginya dihitung apa adanya
+               oleh browser dan itulah yang menentukan tinggi baris grid.
+            2) stack kartu (Card 1/2/3 + efek tumpukan) — semuanya absolute,
+               tapi ikut stretch mengisi tinggi sel grid (default
+               align-items: stretch), jadi tingginya otomatis mengikuti
+               sizer tanpa perlu JS/ResizeObserver.
+            Setiap kali `card` berganti dan kalimat contohnya lebih
+            panjang/pendek, tinggi seluruh kartu ikut menyesuaikan.
           */}
-          <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px] h-[340px] md:h-[360px] lg:h-[400px]">
-            {/*
-              Efek tumpukan kartu: dua lapis "kartu hantu" statis di
-              belakang kartu utama, sedikit digeser & lebih kecil, supaya
-              terlihat seperti ada kartu lain menumpuk di belakangnya
-              (bukan blur/shadow biasa).
-            */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
-              style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
-              style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
-            />
-            <div
-              key={idx + "-" + card.id}
-              ref={cardRef}
-              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
-                }`}
-              style={{
-                transform: flyOut
-                  ? `translate(${flyOut.x}px, ${flyOut.y}px) rotate(${flyOut.x * 0.05}deg) rotateY(360deg)`
-                  : isDragging
-                    ? `translate(${dragX}px, ${dragY}px) rotate(${cardRotation}deg) rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`
-                    : `rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`,
-                opacity: flyOut ? 0 : 1,
-                transition: flyOut ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' :
-                  isDragging ? 'none' :
-                    'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-              onClick={handleCardClick}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerCancel={onPointerCancel}
-              onPointerUp={onPointerUp}
-            >
-              <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
-                {flip === 2 ? (
-                  // Card 3: tampilan detail (arti + contoh kalimat), dengan
-                  // watermark hanzi besar yang sama dengan Card 1 & 2.
-                  <div
-                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200 overflow-x-hidden overflow-y-auto"
-                    style={{ opacity: contentOpacity }}
-                  >
-                    <div
-                      aria-hidden="true"
-                      className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
-                      style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
-                    >
-                      {card.hanzi}
-                    </div>
-                    <CardTopBar card={card} />
-                    {/*
-                      Speaker #1 — vocab TTS. Always speaks card.hanzi
-                      (e.g. 您 / nín), independent from the example sentence
-                      speaker below. Marked data-no-drag so onPointerDown on
-                      the card doesn't call setPointerCapture and swallow
-                      this button's click. Digeser ke top-10 supaya tidak
-                      bertabrakan dengan CardTopBar di top-3.
-                    */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      data-no-drag
-                      className="absolute top-10 right-3 h-7 w-7 rounded-full z-10"
-                      onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
-                    >
-                      <Volume2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <div className="flex-1 flex flex-col items-center justify-center mt-4">
+          <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px]">
+            <div className="grid">
+              {/* Sizer tak terlihat — menentukan tinggi baris grid */}
+              <div
+                aria-hidden="true"
+                className="invisible pointer-events-none flex flex-col p-6 rounded-3xl [grid-area:1/1]"
+              >
+                {renderDetailFaceInner()}
+              </div>
+
+              {/* Stack kartu asli, stretch mengikuti tinggi sizer di atas */}
+              <div className="relative w-full [grid-area:1/1]">
+                {/*
+                  Efek tumpukan kartu: dua lapis "kartu hantu" statis di
+                  belakang kartu utama, sedikit digeser & lebih kecil, supaya
+                  terlihat seperti ada kartu lain menumpuk di belakangnya
+                  (bukan blur/shadow biasa).
+                */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
+                  style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
+                  style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
+                />
+                <div
+                  key={idx + "-" + card.id}
+                  ref={cardRef}
+                  className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
+                    }`}
+                  style={{
+                    transform: flyOut
+                      ? `translate(${flyOut.x}px, ${flyOut.y}px) rotate(${flyOut.x * 0.05}deg) rotateY(360deg)`
+                      : isDragging
+                        ? `translate(${dragX}px, ${dragY}px) rotate(${cardRotation}deg) rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`
+                        : `rotateY(${flip === 0 ? 0 : flip === 1 ? 180 : 360}deg)`,
+                    opacity: flyOut ? 0 : 1,
+                    transition: flyOut ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease' :
+                      isDragging ? 'none' :
+                        'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                  onClick={handleCardClick}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerCancel={onPointerCancel}
+                  onPointerUp={onPointerUp}
+                >
+                  <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
+                    {flip === 2 ? (
+                      // Card 3: tampilan detail (arti + contoh kalimat), dengan
+                      // watermark hanzi besar yang sama dengan Card 1 & 2. Tidak
+                      // ada lagi overflow-y-auto di sini — tinggi kartu sudah
+                      // otomatis cukup untuk seluruh konten lewat sizer di atas.
                       <div
-                        className="font-hanzi text-4xl sm:text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
-                        data-no-drag
-                        onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+                        className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
+                        style={{ opacity: contentOpacity }}
                       >
-                        {card.hanzi}
+                        {renderDetailFaceInner()}
                       </div>
-                      <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
-                      <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
-                    </div>
-                    {!isFastMode && (
-                      <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
-                          {/*
-                            Speaker #2 — example-sentence TTS. Always speaks
-                            card.exampleSentence, completely separate from
-                            the vocab speaker above. Also data-no-drag.
-                          */}
-                          {card.exampleSentence && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              data-no-drag
-                              className="h-6 w-6 rounded-full ml-auto"
-                              onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
-                            >
-                              <Volume2 className="h-3 w-3" />
-                            </Button>
-                          )}
+                    ) : (
+                      // Card 1: tampilan depan (hanya hanzi), dengan watermark
+                      // hanzi besar yang sama dengan Card 2 & 3 supaya konsisten
+                      // di setiap kondisi kartu.
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl overflow-hidden">
+                        <div
+                          aria-hidden="true"
+                          className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+                          style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+                        >
+                          {card.hanzi}
                         </div>
-                        {card.exampleSentence ? (
-                          <>
-                            <div
-                              className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors"
-                              data-no-drag
-                              onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
-                            >
-                              {card.exampleSentence}
-                            </div>
-                            {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
-                            <div className="text-sm text-foreground">{card.exampleTranslation}</div>
-                          </>
-                        ) : (
-                          <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
-                        )}
+                        <CardTopBar card={card} />
+                        <div className="font-hanzi text-6xl sm:text-7xl md:text-8xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
+                        <CardHint />
                       </div>
                     )}
                   </div>
-                ) : (
-                  // Card 1: tampilan depan (hanya hanzi), dengan watermark
-                  // hanzi besar yang sama dengan Card 2 & 3 supaya konsisten
-                  // di setiap kondisi kartu.
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl overflow-hidden">
+
+                  {/* Card 2: tampilan belakang (hanzi + pinyin), dengan watermark
+                      hanzi besar yang di-mirror horizontal dan warnanya gelap
+                      transparan di pojok kanan-bawah, mirip watermark referensi. */}
+                  <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden">
                     <div
                       aria-hidden="true"
                       className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
@@ -896,41 +957,25 @@ export function SwipeFlashcardSession({
                       {card.hanzi}
                     </div>
                     <CardTopBar card={card} />
-                    <div className="font-hanzi text-6xl sm:text-7xl md:text-8xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
+                    <div className="font-hanzi mb-6 text-4xl sm:text-5xl md:text-6xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
+                    <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium drop-shadow-sm" />
                     <CardHint />
                   </div>
-                )}
-              </div>
 
-              {/* Card 2: tampilan belakang (hanzi + pinyin), dengan watermark
-                  hanzi besar yang di-mirror horizontal dan warnanya gelap
-                  transparan di pojok kanan-bawah, mirip watermark referensi. */}
-              <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden">
-                <div
-                  aria-hidden="true"
-                  className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
-                  style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
-                >
-                  {card.hanzi}
+                  <div
+                    className={`absolute inset-0 rounded-3xl pointer-events-none flex items-center justify-center text-4xl font-bold tracking-wider z-20 backface-hidden transition-all duration-200 ${swipeStatus !== "none" ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+                    style={{
+                      background: swipeStatus === "hafal" ? "rgba(26, 122, 74, 0.25)" : swipeStatus === "lupa" ? "rgba(192, 57, 43, 0.25)" : swipeStatus === "ragu" ? "rgba(245, 158, 11, 0.25)" : swipeStatus === "sulit" ? "rgba(59, 130, 246, 0.25)" : "transparent",
+                      color: swipeStatus === "hafal" ? "#4ade80" : swipeStatus === "lupa" ? "#f87171" : swipeStatus === "ragu" ? "#f59e0b" : swipeStatus === "sulit" ? "#60a5fa" : "transparent",
+                      border: swipeStatus === "hafal" ? "2px solid rgba(74, 222, 128, 0.4)" : swipeStatus === "lupa" ? "2px solid rgba(248, 113, 113, 0.4)" : swipeStatus === "ragu" ? "2px solid rgba(245, 158, 11, 0.4)" : swipeStatus === "sulit" ? "2px solid rgba(96, 165, 250, 0.4)" : "none",
+                      display: flip === 2 ? "flex" : "none",
+                    }}
+                  >
+                    <span className="drop-shadow-lg">
+                      {swipeStatus === "hafal" ? "MUDAH ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "SULIT ?" : swipeStatus === "sulit" ? "INGAT !" : ""}
+                    </span>
+                  </div>
                 </div>
-                <CardTopBar card={card} />
-                <div className="font-hanzi mb-6 text-4xl sm:text-5xl md:text-6xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
-                <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium drop-shadow-sm" />
-                <CardHint />
-              </div>
-
-              <div
-                className={`absolute inset-0 rounded-3xl pointer-events-none flex items-center justify-center text-4xl font-bold tracking-wider z-20 backface-hidden transition-all duration-200 ${swipeStatus !== "none" ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
-                style={{
-                  background: swipeStatus === "hafal" ? "rgba(26, 122, 74, 0.25)" : swipeStatus === "lupa" ? "rgba(192, 57, 43, 0.25)" : swipeStatus === "ragu" ? "rgba(245, 158, 11, 0.25)" : swipeStatus === "sulit" ? "rgba(59, 130, 246, 0.25)" : "transparent",
-                  color: swipeStatus === "hafal" ? "#4ade80" : swipeStatus === "lupa" ? "#f87171" : swipeStatus === "ragu" ? "#f59e0b" : swipeStatus === "sulit" ? "#60a5fa" : "transparent",
-                  border: swipeStatus === "hafal" ? "2px solid rgba(74, 222, 128, 0.4)" : swipeStatus === "lupa" ? "2px solid rgba(248, 113, 113, 0.4)" : swipeStatus === "ragu" ? "2px solid rgba(245, 158, 11, 0.4)" : swipeStatus === "sulit" ? "2px solid rgba(96, 165, 250, 0.4)" : "none",
-                  display: flip === 2 ? "flex" : "none",
-                }}
-              >
-                <span className="drop-shadow-lg">
-                  {swipeStatus === "hafal" ? "MUDAH ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "SULIT ?" : swipeStatus === "sulit" ? "INGAT !" : ""}
-                </span>
               </div>
             </div>
           </div>
