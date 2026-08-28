@@ -9,28 +9,7 @@
   padding-bottom: 2rem;
 }
 
-/*
-  Fix seam di layar "Sesi Selesai": `.flashcard-result` punya bg-background
-  SOLID tapi cuma flex-1, jadi padding-bottom 2rem milik `.page` di atas
-  selalu jatuh DI LUAR box solidnya dan menampilkan potongan mentah dari
-  gradient `.page` (bukan warna solid) sebagai garis/pita di paling bawah.
-
-  `.flashcard-result` sendiri sudah punya p-8 (Tailwind, 2rem semua sisi
-  termasuk bottom) di JSX-nya, jadi menolkan padding-bottom `.page` khusus
-  di state ini TIDAK mengurangi spacing visual apa pun — cuma memindahkan
-  siapa yang "menutup" 2rem terakhir itu, dari .page (gradient, bocor) ke
-  .flashcard-result (solid, aman).
-
-  PENTING: selector ini HANYA untuk `.flashcard-result`, TIDAK digabung
-  dengan `.flashcard-quiz`. Layar quiz utama (kartu + tombol rating +
-  panel "Arti setiap penilaian") tidak punya padding-bottom pengganti
-  sendiri di JSX-nya — kalau padding .page ikut dinolkan di situ juga,
-  konten paling bawah (panel penjelasan rating) jadi nempel rata ke tepi
-  layar tanpa napas sama sekali. State lain yang pakai .page (loading
-  spinner) juga tidak disentuh oleh selector ini dan tidak berubah sama
-  sekali.
-*/
-.page:has(> :global(.flashcard-result)) {
+.page:has(:global(.flashcard-result)) {
   padding-bottom: 0;
 }
 
@@ -53,14 +32,6 @@
     0 2px 4px -1px rgba(0, 0, 0, 0.06),
     0 0 0 1px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.3s ease;
-  /*
-    min-height fixed (dulu 340px) sengaja dihapus. Tinggi kartu sekarang
-    murni ditentukan oleh trik CSS Grid stacking di komponen (sizer
-    invisible berisi konten Card 3 di grid-area yang sama), sehingga
-    kartu 1/2/3 selalu setinggi konten Card 3 yang sedang tampil — tidak
-    kurang (jadi tidak perlu scroll internal) dan tidak lebih (jadi tidak
-    ada ruang kosong berlebih untuk kata tanpa contoh kalimat).
-  */
 }
 
 .flashcardCard:hover {
