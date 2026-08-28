@@ -25,7 +25,15 @@ export function DashboardLayoutClient({
   const segments = pathname.split("/").filter(Boolean)
   const isCeritaRead = segments.length >= 3 && segments[0] === "dashboard" && segments[1] === "cerita"
   const isCumulativeRead = segments.length >= 4 && segments[0] === "dashboard" && segments[1] === "flashcard" && segments[2] === "cumulative"
-  const isFullscreen = isCeritaRead || isCumulativeRead
+  // Sesi latihan kartu per-deck (/dashboard/practice/flashcard/[id]) juga
+  // harus fullscreen — halaman ini punya header + scroll sendiri (.page,
+  // height: 100dvh di swipe-flashcard-session.module.css) yang didesain
+  // jadi satu-satunya scroll container. Kalau tidak masuk isFullscreen,
+  // DashboardHeader + wrapper `flex-1 overflow-auto` di bawah ikut
+  // membungkusnya, sehingga tinggi 100dvh itu meluber dari wrapper-nya
+  // dan bikin dua scrollbar aktif sekaligus (scroll ganda).
+  const isFlashcardPractice = segments.length >= 4 && segments[0] === "dashboard" && segments[1] === "practice" && segments[2] === "flashcard"
+  const isFullscreen = isCeritaRead || isCumulativeRead || isFlashcardPractice
 
   if (isFullscreen) {
     return (
