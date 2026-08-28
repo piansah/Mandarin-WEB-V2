@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2 } from "lucide-react"
+import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -21,6 +21,11 @@ export type SwipeFlashcard = {
   exampleTranslation?: string
   deckTitle?: string
   deckHskLevel?: number
+  // Kolom `word_class` dari tabel flashcard_cards (mis. "kata benda", "kata kerja").
+  wordClass?: string
+  // true jika user belum pernah membuat progress review untuk kartu ini
+  // (tidak ada baris di user_card_progress), dipakai untuk badge "Kartu Baru".
+  isNew?: boolean
 }
 
 type SpeechRecognitionLike = {
@@ -67,6 +72,42 @@ function getSimilarity(a: string, b: string) {
   const maxLen = Math.max(a.length, b.length)
   const dist = levenshtein(a, b)
   return Math.max(0, Math.round((1 - dist / maxLen) * 100))
+}
+
+// Label "HSK {level} - {word_class}" + badge "Kartu Baru" di pojok atas
+// setiap sisi kartu (card 1, 2, dan 3).
+function CardTopBar({ card }: { card: SwipeFlashcard }) {
+  const levelLabel = card.deckHskLevel
+    ? card.wordClass
+      ? `HSK ${card.deckHskLevel} - ${card.wordClass}`
+      : `HSK ${card.deckHskLevel}`
+    : card.wordClass ?? ""
+
+  if (!levelLabel && !card.isNew) return null
+
+  return (
+    <div className="absolute top-3 left-4 right-4 flex items-start justify-between z-10 pointer-events-none">
+      <span className="text-[11px] font-medium text-muted-foreground tracking-wide bg-background/50 backdrop-blur-sm px-2 py-0.5 rounded-full">
+        {levelLabel}
+      </span>
+      {card.isNew && (
+        <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+          Kartu Baru
+        </span>
+      )}
+    </div>
+  )
+}
+
+// Hint "klik kartu / tekan space" — hanya dipakai di card 1 (depan) dan
+// card 2 (belakang, hanzi+pinyin), sesuai referensi.
+function CardHint() {
+  return (
+    <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground/80 text-center">
+      <Eye className="h-3.5 w-3.5 shrink-0" />
+      Klik kartu atau tekan Space untuk lihat jawaban
+    </p>
+  )
 }
 
 type SessionStats = { hafal: number; lupa: number; ragu: number; sulit: number }
@@ -188,6 +229,23 @@ export function SwipeFlashcardSession({
       cardRef.current.style.touchAction = 'auto'
     }
   }, [disableSwipe])
+
+  // Dukungan tombol Space: sama seperti klik kartu, membalik dari card 1 ->
+  // 2 -> 3. Diabaikan saat sedang fokus di input/textarea, saat kartu
+  // sedang fly-out, atau saat sesi sudah selesai.
+  React.useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space") return
+      const target = e.target as HTMLElement | null
+      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return
+      if (!card || flyOut || done) return
+      if (flip === 2) return
+      e.preventDefault()
+      setFlip((f) => (f === 0 ? 1 : f === 1 ? 2 : f))
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [flip, flyOut, done, card])
 
   function handleCardClick() {
     if (didLongPress.current) {
@@ -563,17 +621,20 @@ export function SwipeFlashcardSession({
   return (
     <div className={styles.page}>
       {/*
-        This element is the scroll container for everything below the outer
-        page shell. The header uses `sticky top-0`, which only sticks
-        relative to its nearest scrollable ancestor. Previously this div had
-        `overflow-hidden` (not scrollable), so when content overflowed the
-        viewport the *page* itself scrolled instead of this div — and the
-        header's sticky positioning had no scroll container to stick
-        against, so it scrolled away with everything else. Making this div
-        `overflow-y-auto` fixes that: it becomes the actual scroll container,
-        and the sticky header now stays pinned to its top as intended.
+        `.page` (see swipe-flashcard-session.module.css) is the real scroll
+        container: height: 100dvh + overflow-y: auto. This inner wrapper
+        must NOT set its own overflow-y (auto/hidden/scroll) — doing so
+        turns it into a second scroll container per CSS spec (any element
+        with overflow other than `visible` counts, even if nothing actually
+        overflows inside it). Since this div's height is auto/content-sized,
+        it never scrolls internally, so any `position: sticky` descendant
+        (the header below) would stick relative to *this* static div instead
+        of `.page`, which is visually indistinguishable from sticky doing
+        nothing — the header just scrolls away with `.page`. Leaving this
+        div overflow-visible lets the header's sticky positioning correctly
+        resolve against `.page`, the ancestor that's actually scrolling.
       */}
-      <div className="flex flex-col flex-1 overflow-y-auto select-none relative z-10">
+      <div className="flex flex-col flex-1 select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
@@ -656,7 +717,12 @@ export function SwipeFlashcardSession({
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          <div className="relative w-full max-w-lg perspective-[800px] h-[280px] md:h-[320px]">
+          {/*
+            Diperlebar di layar besar: max-w-lg (mobile) -> max-w-2xl (md) ->
+            max-w-3xl (lg), agar kartu tidak terlihat kekecilan saat dibuka
+            di PC, sesuai referensi.
+          */}
+          <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px] h-[280px] md:h-[340px] lg:h-[380px]">
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
@@ -681,28 +747,37 @@ export function SwipeFlashcardSession({
             >
               <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
                 {flip === 2 ? (
+                  // Card 3: tampilan detail (arti + contoh kalimat)
                   <div
                     className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
+                    <CardTopBar card={card} />
                     {/*
                       Speaker #1 — vocab TTS. Always speaks card.hanzi
                       (e.g. 您 / nín), independent from the example sentence
                       speaker below. Marked data-no-drag so onPointerDown on
                       the card doesn't call setPointerCapture and swallow
-                      this button's click.
+                      this button's click. Digeser ke top-10 supaya tidak
+                      bertabrakan dengan CardTopBar di top-3.
                     */}
                     <Button
                       variant="ghost"
                       size="icon"
                       data-no-drag
-                      className="absolute top-3 right-3 h-7 w-7 rounded-full z-10"
+                      className="absolute top-10 right-3 h-7 w-7 rounded-full z-10"
                       onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
                     >
                       <Volume2 className="h-3.5 w-3.5" />
                     </Button>
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                      <div className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm mb-2">{card.hanzi}</div>
+                    <div className="flex-1 flex flex-col items-center justify-center mt-4">
+                      <div
+                        className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors"
+                        data-no-drag
+                        onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+                      >
+                        {card.hanzi}
+                      </div>
                       <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
                       <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
                     </div>
@@ -746,15 +821,30 @@ export function SwipeFlashcardSession({
                     )}
                   </div>
                 ) : (
+                  // Card 1: tampilan depan (hanya hanzi)
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl">
+                    <CardTopBar card={card} />
                     <div className="font-hanzi text-8xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                    <CardHint />
                   </div>
                 )}
               </div>
 
+              {/* Card 2: tampilan belakang (hanzi + pinyin), dengan watermark
+                  hanzi besar yang di-mirror horizontal dan warnanya gelap
+                  transparan di pojok kanan-bawah, mirip watermark referensi. */}
               <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden">
+                <div
+                  aria-hidden="true"
+                  className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+                  style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+                >
+                  {card.hanzi}
+                </div>
+                <CardTopBar card={card} />
                 <div className="font-hanzi mb-6 text-6xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
                 <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium drop-shadow-sm" />
+                <CardHint />
               </div>
 
               <div
@@ -773,7 +863,7 @@ export function SwipeFlashcardSession({
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg">
+          <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl">
             {isFastMode && !feedback && (
               <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
                 <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-blue-400">Sulit ↑</span> • <span className="text-emerald-500">Mudah →</span>

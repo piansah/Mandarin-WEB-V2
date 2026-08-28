@@ -29,15 +29,19 @@ export default function FlashcardPracticePage() {
         .eq("id", deckId)
         .maybeSingle()
 
+      const deckHskLevel: number | undefined = setData?.hsk_level ?? undefined
+
       if (setData) {
         setDeckTitle(setData.title ?? "Kartu Hafalan")
         const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
         setDeckLevel(parts.length > 0 ? parts.join(" - ") : "Level A1")
       }
 
+      // word_class ditambahkan agar bisa ditampilkan sebagai
+      // "HSK {level} - {word_class}" di atas kartu.
       const { data } = await supa
         .from("flashcard_cards")
-        .select("id, hanzi, pinyin, arti")
+        .select("id, hanzi, pinyin, arti, word_class")
         .eq("set_id", deckId)
         .order("created_at", { ascending: true })
 
@@ -45,7 +49,11 @@ export default function FlashcardPracticePage() {
 
       // Fetch this user's existing SRS progress for these cards so reviews
       // continue from the correct level instead of always resetting to 0.
+      // Baris yang ADA di sini juga dipakai untuk menandai kartu yang
+      // "belum pernah dibuka" (isNew) — kartu tanpa baris progress sama
+      // sekali dianggap baru, terlepas dari nilai srs_level-nya.
       const srsLevelByCard = new Map<string, number>()
+      const reviewedCardIds = new Set<string>()
       if (user?.id && rawCards.length > 0) {
         const { data: progressRows } = await supa
           .from("user_card_progress")
@@ -54,7 +62,10 @@ export default function FlashcardPracticePage() {
           .in("card_id", rawCards.map(c => String(c.id)))
 
         for (const row of progressRows ?? []) {
-          if (row.card_id) srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
+          if (row.card_id) {
+            srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
+            reviewedCardIds.add(String(row.card_id))
+          }
         }
       }
 
@@ -84,6 +95,11 @@ export default function FlashcardPracticePage() {
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,
+          deckHskLevel,
+          wordClass: card.word_class ?? undefined,
+          // Kartu baru = belum pernah punya baris di user_card_progress.
+          // Jika belum login, semua kartu ditampilkan sebagai kartu baru.
+          isNew: user?.id ? !reviewedCardIds.has(String(card.id)) : true,
         }
       })
 
