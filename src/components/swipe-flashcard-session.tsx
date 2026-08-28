@@ -1181,7 +1181,7 @@ export function SwipeFlashcardSession({
                 {/* Hint navigasi keyboard: 1-4 untuk menilai langsung, ← →
                     untuk Sebelumnya/Lewati. Disembunyikan di layar mobile
                     karena keyboard fisik jarang dipakai di sana. */}
-                {/* <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
+                <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">1</kbd>
                   <span>–</span>
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">4</kbd>
@@ -1190,7 +1190,7 @@ export function SwipeFlashcardSession({
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">←</kbd>
                   <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">→</kbd>
                   <span>navigasi</span>
-                </p> */}
+                </p>
 
                 {/* Rating Explanations */}
                 <div className="w-full rounded-xl border border-border/40 bg-muted/20 p-3">
