@@ -336,6 +336,12 @@ export function SwipeFlashcardSession({
 
   function onPointerDown(e: React.PointerEvent) {
     if (flyOut || !card) return
+    // Don't start a drag/long-press when the tap originates from an
+    // interactive control inside the card (e.g. the vocab speaker button,
+    // or the example-sentence speaker/text). Otherwise setPointerCapture()
+    // below hijacks the pointer stream and the button's click never fires,
+    // so TTS silently does nothing when tapped in the flip===2 view.
+    if ((e.target as HTMLElement).closest("[data-no-drag]")) return
     // If swipe is disabled, don't allow dragging
     if (disableSwipe) {
       // Still allow click, but no drag
@@ -556,7 +562,18 @@ export function SwipeFlashcardSession({
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-x-hidden select-none relative z-10">
+      {/*
+        This element is the scroll container for everything below the outer
+        page shell. The header uses `sticky top-0`, which only sticks
+        relative to its nearest scrollable ancestor. Previously this div had
+        `overflow-hidden` (not scrollable), so when content overflowed the
+        viewport the *page* itself scrolled instead of this div — and the
+        header's sticky positioning had no scroll container to stick
+        against, so it scrolled away with everything else. Making this div
+        `overflow-y-auto` fixes that: it becomes the actual scroll container,
+        and the sticky header now stays pinned to its top as intended.
+      */}
+      <div className="flex flex-col flex-1 overflow-y-auto select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
@@ -668,9 +685,17 @@ export function SwipeFlashcardSession({
                     className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
                     style={{ opacity: contentOpacity }}
                   >
+                    {/*
+                      Speaker #1 — vocab TTS. Always speaks card.hanzi
+                      (e.g. 您 / nín), independent from the example sentence
+                      speaker below. Marked data-no-drag so onPointerDown on
+                      the card doesn't call setPointerCapture and swallow
+                      this button's click.
+                    */}
                     <Button
                       variant="ghost"
                       size="icon"
+                      data-no-drag
                       className="absolute top-3 right-3 h-7 w-7 rounded-full z-10"
                       onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
                     >
@@ -685,10 +710,16 @@ export function SwipeFlashcardSession({
                       <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
+                          {/*
+                            Speaker #2 — example-sentence TTS. Always speaks
+                            card.exampleSentence, completely separate from
+                            the vocab speaker above. Also data-no-drag.
+                          */}
                           {card.exampleSentence && (
                             <Button
                               variant="ghost"
                               size="icon"
+                              data-no-drag
                               className="h-6 w-6 rounded-full ml-auto"
                               onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
                             >
@@ -700,6 +731,7 @@ export function SwipeFlashcardSession({
                           <>
                             <div
                               className="text-sm text-foreground mb-1 font-hanzi text-xl cursor-pointer hover:text-primary transition-colors"
+                              data-no-drag
                               onClick={(e) => { e.stopPropagation(); speakMandarin(card.exampleSentence!) }}
                             >
                               {card.exampleSentence}
