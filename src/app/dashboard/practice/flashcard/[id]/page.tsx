@@ -7,6 +7,47 @@ import { saveUserScore } from "@/lib/user-scores"
 import { recordSrsReview } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
+// Key localStorage untuk menandai kartu mana saja yang sudah dinilai
+// dalam sesi yang BELUM selesai, per user + per deck. Dipakai supaya
+// kalau user keluar di tengah sesi lalu buka deck yang sama lagi,
+// kartu yang sudah dinilai tidak muncul dan ke-rating dobel.
+function sessionStorageKey(userId: string, deckId: number) {
+  return `mj_practice_session_${userId}_${deckId}`
+}
+
+function readRatedCardIds(userId: string, deckId: number): Set<string> {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const raw = window.localStorage.getItem(sessionStorageKey(userId, deckId))
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? new Set(arr.map(String)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function addRatedCardId(userId: string, deckId: number, cardId: string) {
+  if (typeof window === "undefined") return
+  try {
+    const key = sessionStorageKey(userId, deckId)
+    const current = readRatedCardIds(userId, deckId)
+    current.add(cardId)
+    window.localStorage.setItem(key, JSON.stringify(Array.from(current)))
+  } catch {
+    // localStorage penuh/diblokir browser — abaikan, tidak fatal
+  }
+}
+
+function clearRatedCardIds(userId: string, deckId: number) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.removeItem(sessionStorageKey(userId, deckId))
+  } catch {
+    // abaikan
+  }
+}
+
 export default function FlashcardPracticePage() {
   const params = useParams()
   const deckId = Number(params.id)
@@ -103,7 +144,23 @@ export default function FlashcardPracticePage() {
         }
       })
 
-      setCards(cardsWithExamples)
+      // Skip kartu yang sudah dinilai dalam sesi sebelumnya yang belum
+      // selesai (misal user keluar di tengah jalan). Kartu-kartu itu
+      // dicatat di localStorage per user+deck saat dinilai (lihat
+      // handleReview), dan dihapus begitu sesi benar-benar tuntas (lihat
+      // handleComplete). Kalau ternyata SEMUA kartu sudah masuk daftar itu
+      // (edge case: localStorage tidak sempat ke-clear), tetap tampilkan
+      // deck penuh daripada layar kosong.
+      let finalCards = cardsWithExamples
+      if (user?.id) {
+        const ratedIds = readRatedCardIds(user.id, deckId)
+        if (ratedIds.size > 0) {
+          const remaining = cardsWithExamples.filter(c => !ratedIds.has(String(c.id)))
+          finalCards = remaining.length > 0 ? remaining : cardsWithExamples
+        }
+      }
+
+      setCards(finalCards)
       setLoading(false)
     }
     load()
@@ -118,7 +175,13 @@ export default function FlashcardPracticePage() {
     const total = stats.hafal + stats.lupa + stats.ragu
     const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
-  }, [deckId])
+
+    // Sesi tuntas — hapus catatan kartu-yang-sudah-dinilai supaya attempt
+    // berikutnya (besok, atau lewat tombol "Ulangi") mulai dari deck penuh.
+    if (userId) {
+      clearRatedCardIds(userId, deckId)
+    }
+  }, [deckId, userId])
 
   // Persists each rating to user_card_progress (srs_level + next_review).
   // Without this, "Jatuh Tempo Hari Ini" never updates because no due date
@@ -126,7 +189,11 @@ export default function FlashcardPracticePage() {
   const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
     if (!userId) return
     await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0)
-  }, [supa, userId])
+    // Catat kartu ini sudah dinilai di sesi yang sedang berjalan, supaya
+    // kalau user keluar sebelum sesi selesai lalu buka deck ini lagi,
+    // kartu ini di-skip dan tidak ke-rating dobel.
+    addRatedCardId(userId, deckId, String(card.id))
+  }, [supa, userId, deckId])
 
   return (
     <SwipeFlashcardSession
