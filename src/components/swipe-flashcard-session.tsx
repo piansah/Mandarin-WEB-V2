@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye } from "lucide-react"
+import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Volume2, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -195,6 +195,18 @@ export function SwipeFlashcardSession({
     rated: 0,
   })
   const [selectedRating, setSelectedRating] = React.useState<0 | 3 | 4 | 5 | null>(null)
+  // Nilai yang sedang dianimasikan untuk ring akurasi di layar "Sesi
+  // Selesai" — naik dari 0 ke akurasi final begitu sesi selesai, lalu
+  // di-reset ke 0 saat sesi baru dimulai (lihat effect di bawah dan
+  // effect reset sessionKey).
+  const [resultRingValue, setResultRingValue] = React.useState(0)
+  const prefersReducedMotionRef = React.useRef(false)
+
+  React.useEffect(() => {
+    prefersReducedMotionRef.current =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  }, [])
 
   React.useEffect(() => {
     setIdx(0)
@@ -236,6 +248,38 @@ export function SwipeFlashcardSession({
     scoreSavedRef.current = true
     onComplete?.({ hafal, lupa, ragu, sulit })
   }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete])
+
+  // Animasikan ring akurasi di layar "Sesi Selesai" begitu sesi tuntas.
+  // hafal/sulit/ragu/lupa sudah final di render yang sama dengan
+  // done=true (semuanya di-set dalam satu advance() sebelum idx terakhir),
+  // jadi aman dipakai langsung sebagai dependency tanpa animasi
+  // ke-trigger ulang saat kartu masih berjalan.
+  React.useEffect(() => {
+    if (!done || cards.length === 0) {
+      setResultRingValue(0)
+      return
+    }
+    const total = hafal + sulit + ragu + lupa
+    const target = total > 0 ? Math.round(((hafal + sulit) / total) * 100) : 0
+
+    if (prefersReducedMotionRef.current) {
+      setResultRingValue(target)
+      return
+    }
+
+    setResultRingValue(0)
+    let raf = 0
+    const start = performance.now()
+    const duration = 900
+    function tick(now: number) {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setResultRingValue(Math.round(eased * target))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
+    return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
+  }, [done, cards.length, hafal, sulit, ragu, lupa])
 
   // Override pointer events when swipe is disabled
   React.useEffect(() => {
@@ -581,56 +625,115 @@ export function SwipeFlashcardSession({
   }
 
   if (done || cards.length === 0) {
+    const isEmpty = cards.length === 0
+    const totalRated = hafal + sulit + ragu + lupa
+    const finalAccuracy = totalRated > 0 ? Math.round(((hafal + sulit) / totalRated) * 100) : 0
+    const ringColor = finalAccuracy >= 80 ? "#34d399" : finalAccuracy >= 50 ? "#f59e0b" : "#f87171"
+    const circumference = 2 * Math.PI * 54
+    const ringOffset = circumference - (resultRingValue / 100) * circumference
+
     return (
       <div className={styles.page}>
-        <div className="flashcard-result flex flex-col flex-1 items-center justify-center gap-8 p-8 bg-background">
-          <div className="absolute top-4 left-4">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          <div className="flashcard-result-emoji text-6xl">{cards.length === 0 ? emptyEmoji : "🎉"}</div>
-          <h2 className="flashcard-result-title text-3xl font-bold">{cards.length === 0 ? emptyTitle : "Sesi Selesai!"}</h2>
-          {cards.length > 0 && (
-            <div className="grid grid-cols-4 gap-3 w-full max-w-lg">
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                <span className="text-2xl font-bold text-emerald-500">{hafal}</span>
-                <span className="text-xs text-muted-foreground">Mudah</span>
+        <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden">
+          {isEmpty ? (
+            <>
+              <div className="flashcard-result-emoji text-6xl">{emptyEmoji}</div>
+              <h2 className="flashcard-result-title text-3xl font-bold text-center">{emptyTitle}</h2>
+              <Button variant="outline" className="rounded-2xl px-8" onClick={() => router.back()}>Kembali</Button>
+            </>
+          ) : (
+            <>
+              {/*
+                Signature: watermark hanzi besar di belakang ring, gaya
+                sama persis dengan watermark yang muncul di setiap sisi
+                kartu sepanjang sesi (lihat renderDetailFaceInner & Card
+                1). 完 = "selesai/tuntas" — layar ini jadi terasa seperti
+                kartu penutup dari sesi yang sama, bukan komponen lepas.
+              */}
+              <div
+                aria-hidden="true"
+                className="flashcard-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
+                style={{ fontSize: "16rem", lineHeight: 1, top: "6%" }}
+              >
+                完
               </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30">
-                <span className="text-2xl font-bold text-blue-500">{sulit}</span>
-                <span className="text-xs text-muted-foreground">Ingat</span>
+
+              <div className="flashcard-result-title flex flex-col items-center gap-1 relative z-10">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
+                <p className="text-sm text-muted-foreground">{totalRated} kata dinilai</p>
               </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
-                <span className="text-2xl font-bold text-amber-500">{ragu}</span>
-                <span className="text-xs text-muted-foreground">Sulit</span>
+
+              {/* Ring akurasi — echo dari "Akurasi Sesi" di header sesi */}
+              <div className="flashcard-result-ring relative z-10 flex items-center justify-center">
+                <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                  <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                  <circle
+                    cx="60" cy="60" r="54" fill="none"
+                    stroke={ringColor}
+                    strokeWidth="10"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={ringOffset}
+                    style={{ transition: "stroke 400ms ease" }}
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                </div>
               </div>
-              <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
-                <span className="text-2xl font-bold text-red-500">{lupa}</span>
-                <span className="text-xs text-muted-foreground">Lupa</span>
+
+              {/* Rincian penilaian — chip per kategori, warnanya sama
+                  dengan tombol rating di sesi latihan supaya bahasa
+                  visualnya konsisten (bukan cuma kotak angka datar). */}
+              <div className="flashcard-result-stats flex flex-wrap justify-center gap-2 relative z-10">
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><Zap className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{hafal}</span>
+                  <span className="text-xs text-muted-foreground">Mudah</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Brain className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-blue-500 tabular-nums">{sulit}</span>
+                  <span className="text-xs text-muted-foreground">Ingat</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><HelpCircle className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-amber-500 tabular-nums">{ragu}</span>
+                  <span className="text-xs text-muted-foreground">Sulit</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-red-500 tabular-nums">{lupa}</span>
+                  <span className="text-xs text-muted-foreground">Lupa</span>
+                </div>
               </div>
-            </div>
+
+              <div className="flashcard-result-actions flex gap-3 w-full max-w-xs relative z-10">
+                <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
+                <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={() => setSessionKey((k) => k + 1)}>Ulangi</Button>
+              </div>
+            </>
           )}
-          <div className="flex gap-3 w-full max-w-xs">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-            {cards.length > 0 && (
-              <Button className="flex-1 rounded-xl" onClick={() => setSessionKey((k) => k + 1)}>
-                Ulangi
-              </Button>
-            )}
-          </div>
+
           <style dangerouslySetInnerHTML={{
             __html: `
             .flashcard-result { animation: fcResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
             .flashcard-result-emoji { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
+            .flashcard-result-watermark { animation: fcWatermarkFade 900ms ease 80ms both; }
             .flashcard-result-title { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
-            .flashcard-result-stat { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) both; }
-            .flashcard-result-stat:nth-child(2) { animation-delay: 60ms; }
-            .flashcard-result-stat:nth-child(3) { animation-delay: 120ms; }
-            .flashcard-result-stat:nth-child(4) { animation-delay: 180ms; }
+            .flashcard-result-ring { animation: fcResultPop 620ms cubic-bezier(.2,1.4,.4,1) 200ms both; }
+            .flashcard-result-stats { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 360ms both; }
+            .flashcard-result-actions { animation: fcResultRise 420ms cubic-bezier(.22,1,.36,1) 460ms both; }
             @keyframes fcResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+            @keyframes fcResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.8); } 70% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
             @keyframes fcResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes fcWatermarkFade { from { opacity: 0; } to { opacity: 1; } }
+            @media (prefers-reduced-motion: reduce) {
+              .flashcard-result, .flashcard-result-emoji, .flashcard-result-watermark, .flashcard-result-title, .flashcard-result-ring, .flashcard-result-stats, .flashcard-result-actions {
+                animation: none !important;
+              }
+            }
           ` }} />
         </div>
       </div>
