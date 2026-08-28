@@ -661,7 +661,21 @@ export function SwipeFlashcardSession({
               <div
                 aria-hidden="true"
                 className="flashcard-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-                style={{ fontSize: "16rem", lineHeight: 1, top: "6%" }}
+                style={{
+                  fontSize: "16rem",
+                  lineHeight: 1,
+                  top: "50%",
+                  left: "50%",
+                  // Sebelumnya cuma `top: "6%"` tanpa penyeimbang
+                  // horizontal, jadi watermark selalu nempel di kiri atas
+                  // (posisi statis defaultnya sebagai elemen absolute
+                  // tanpa `left`), bukan di tengah layar seperti yang
+                  // dimaksud. translate(-50%, -50%) dari titik tengah
+                  // (top/left 50%) yang benar-benar menengahkan glyph-nya
+                  // secara horizontal DAN vertikal relatif terhadap
+                  // seluruh layar hasil.
+                  transform: "translate(-50%, -50%)",
+                }}
               >
                 完
               </div>
@@ -856,18 +870,19 @@ export function SwipeFlashcardSession({
   return (
     <div className={styles.page}>
       {/*
-        `.page` (see swipe-flashcard-session.module.css) is the real scroll
-        container: height: 100dvh + overflow-y: auto. This inner wrapper
-        must NOT set its own overflow-y (auto/hidden/scroll) — doing so
-        turns it into a second scroll container per CSS spec (any element
-        with overflow other than `visible` counts, even if nothing actually
-        overflows inside it). Since this div's height is auto/content-sized,
-        it never scrolls internally, so any `position: sticky` descendant
-        (the header below) would stick relative to *this* static div instead
-        of `.page`, which is visually indistinguishable from sticky doing
-        nothing — the header just scrolls away with `.page`. Leaving this
-        div overflow-visible lets the header's sticky positioning correctly
-        resolve against `.page`, the ancestor that's actually scrolling.
+        `.page` sendiri TIDAK lagi jadi scroll container (lihat
+        swipe-flashcard-session.module.css) — halaman ini sekarang
+        dirender di dalam layout dashboard normal, dan satu-satunya scroll
+        container adalah wrapper `flex-1 overflow-auto` di
+        dashboard-layout-client.tsx (sidebar & DashboardHeader tetap
+        terlihat/diam di tempat).
+
+        Inner wrapper ini pun TIDAK boleh memasang overflow-y sendiri
+        (auto/hidden/scroll) — itu akan membuatnya jadi scroll container
+        ketiga, dan `position: sticky` pada header di bawah akan resolve
+        relatif ke wrapper ini (statis, tidak scroll) alih-alih ke
+        ancestor yang benar-benar scroll, sehingga sticky terlihat seperti
+        tidak berfungsi (header ikut ter-scroll bersama isinya).
       */}
       <div className="flex flex-col flex-1 select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}

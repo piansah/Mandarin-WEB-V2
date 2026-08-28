@@ -25,15 +25,25 @@ export function DashboardLayoutClient({
   const segments = pathname.split("/").filter(Boolean)
   const isCeritaRead = segments.length >= 3 && segments[0] === "dashboard" && segments[1] === "cerita"
   const isCumulativeRead = segments.length >= 4 && segments[0] === "dashboard" && segments[1] === "flashcard" && segments[2] === "cumulative"
-  // Sesi latihan kartu per-deck (/dashboard/practice/flashcard/[id]) juga
-  // harus fullscreen — halaman ini punya header + scroll sendiri (.page,
-  // height: 100dvh di swipe-flashcard-session.module.css) yang didesain
-  // jadi satu-satunya scroll container. Kalau tidak masuk isFullscreen,
-  // DashboardHeader + wrapper `flex-1 overflow-auto` di bawah ikut
-  // membungkusnya, sehingga tinggi 100dvh itu meluber dari wrapper-nya
-  // dan bikin dua scrollbar aktif sekaligus (scroll ganda).
-  const isFlashcardPractice = segments.length >= 4 && segments[0] === "dashboard" && segments[1] === "practice" && segments[2] === "flashcard"
-  const isFullscreen = isCeritaRead || isCumulativeRead || isFlashcardPractice
+  // Sesi latihan kartu per-deck (/dashboard/practice/flashcard/[id])
+  // SENGAJA TIDAK fullscreen — sidebar & DashboardHeader tetap tampil
+  // seperti halaman dashboard lain, sesuai ekspektasi pengguna.
+  //
+  // Sebelumnya rute ini dipaksa fullscreen (sidebar/header disembunyikan)
+  // karena `.page` di swipe-flashcard-session.module.css memakai
+  // `height: 100dvh` + `overflow-y: auto` sebagai scroll container-nya
+  // sendiri. Kalau dipasang di dalam wrapper `flex-1 overflow-auto` di
+  // bawah, tinggi 100dvh yang FIXED itu bisa meluber dari tinggi wrapper
+  // (yang sudah dipotong oleh DashboardHeader) sehingga muncul dua
+  // scrollbar aktif sekaligus (scroll ganda).
+  //
+  // Sekarang `.page` sudah diubah memakai `min-height: 100dvh` TANPA
+  // overflow sendiri (lihat swipe-flashcard-session.module.css), jadi
+  // `.page` tidak lagi jadi scroll container kedua — satu-satunya yang
+  // scroll adalah wrapper `flex-1 overflow-auto` di bawah, persis sama
+  // seperti halaman dashboard lainnya. Dengan begitu rute ini aman
+  // dirender di jalur normal (sidebar + header tetap terlihat).
+  const isFullscreen = isCeritaRead || isCumulativeRead
 
   if (isFullscreen) {
     return (
