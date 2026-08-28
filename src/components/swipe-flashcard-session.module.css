@@ -1,31 +1,7 @@
 .page {
-  /*
-    min-height (BUKAN height fixed) + TANPA overflow sendiri.
-
-    Halaman ini sekarang dirender di dalam layout dashboard normal
-    (sidebar + DashboardHeader tetap terlihat, lihat
-    dashboard-layout-client.tsx), di dalam wrapper `flex-1 overflow-auto`
-    yang sudah jadi satu-satunya scroll container di seluruh app. Kalau
-    .page ikut memasang `overflow-y: auto` + `height: 100dvh` sendiri,
-    itu bikin DUA scroll container bertumpuk (scroll ganda) — makanya
-    keduanya dihapus di sini.
-
-    `min-height: 100%` (BUKAN 100dvh) dipakai supaya .page mengisi
-    setidaknya setinggi wrapper scroll ancestor-nya (yang sudah dikurangi
-    tinggi DashboardHeader di atasnya), bukan setinggi viewport perangkat
-    secara mentah. Sebelumnya pakai `100dvh` — itu selalu setinggi PENUH
-    layar meskipun ancestor-nya sendiri sudah lebih pendek dari itu
-    (karena DashboardHeader ambil sebagian tinggi di atas), jadi .page
-    selalu "kelebihan" tinggi sebesar tinggi header itu dan bikin wrapper
-    ancestor jadi bisa di-scroll walau konten sebenarnya sudah pas di
-    layar. `min-height: 100%` tetap memastikan background gradient
-    menutupi seluruh area yang terlihat untuk konten pendek (mis. layar
-    "Sesi Selesai"), sekaligus otomatis tumbuh melebihi itu kalau
-    kontennya sendiri lebih tinggi (mis. daftar kartu panjang) — ancestor
-    `flex-1 overflow-auto` yang scroll, sidebar & header tetap diam di
-    tempat.
-  */
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
