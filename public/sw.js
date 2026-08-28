@@ -8,8 +8,22 @@ const urlsToCache = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) => {
+      // Precache setiap aset satu-satu (bukan cache.addAll) supaya satu
+      // aset yang gagal (404/network error) tidak bikin SELURUH proses
+      // install reject — sebelumnya ini penyebab
+      // "Uncaught (in promise) TypeError: Failed to fetch" di console,
+      // karena addAll() menolak semuanya begitu satu URL saja gagal.
+      return Promise.all(
+        urlsToCache.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn("SW: gagal precache", url, err)
+          })
+        )
+      )
+    })
   )
+  self.skipWaiting()
 })
 
 self.addEventListener("fetch", (event) => {
@@ -18,7 +32,11 @@ self.addEventListener("fetch", (event) => {
       if (response) {
         return response
       }
-      return fetch(event.request)
+      return fetch(event.request).catch(() => {
+        // Kalau offline & tidak ada di cache, biarkan request gagal
+        // secara wajar alih-alih melempar unhandled rejection.
+        return new Response("", { status: 504, statusText: "Offline" })
+      })
     })
   )
 })
@@ -35,4 +53,5 @@ self.addEventListener("activate", (event) => {
       )
     })
   )
+  self.clients.claim()
 })

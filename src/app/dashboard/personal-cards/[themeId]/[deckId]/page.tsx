@@ -106,9 +106,6 @@ export default function DeckDetailPage() {
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex-1">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <span>{theme.icon} {theme.name}</span>

@@ -330,8 +330,6 @@ export default function GrammarPracticePage() {
         subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
         progress={phase !== "theory" ? progress : undefined}
         rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
-        icon="x"
-        onClose={() => router.push("/dashboard/grammar")}
       />
 
       <div className={styles.body}>

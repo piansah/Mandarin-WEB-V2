@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, RotateCcw, Mic, Flag } from "lucide-react"
+import { RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
@@ -159,8 +159,6 @@ export default function CumulativeFlashcardSessionPage() {
         subtitle={set.sub}
         progress={progress}
         rightContent={`${completedCount}/${items.length}`}
-        icon="arrow"
-        onClose={() => router.push("/dashboard/flashcard/cumulative")}
       />
 
       <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6">

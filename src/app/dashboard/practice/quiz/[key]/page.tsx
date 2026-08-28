@@ -383,8 +383,6 @@ export default function QuizPage() {
         subtitle={quizSub || `Level ${key.replace("level-", "")}`}
         progress={progress}
         rightContent={`${totalCorrect}/${totalAnswered}`}
-        icon="x"
-        onClose={() => router.back()}
       />
 
       {/* Section filter dropdown - fixed at top, doesn't scroll */}

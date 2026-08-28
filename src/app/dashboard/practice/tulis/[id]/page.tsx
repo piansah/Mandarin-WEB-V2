@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X, RotateCcw, Eye, Shield } from "lucide-react"
+import { RotateCcw, Eye, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -182,11 +182,6 @@ export default function TulisHanziPage() {
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
-          <div className="absolute top-4 left-4">
-            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full">
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
           <div className="text-6xl">{total === 0 ? "📭" : "✍️"}</div>
           <h2 className="text-3xl font-bold">{total === 0 ? "Belum Ada Kartu" : "Latihan Selesai!"}</h2>
           {total > 0 && (
@@ -213,9 +208,6 @@ export default function TulisHanziPage() {
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full shrink-0">
-          <X className="h-5 w-5" />
-        </Button>
         <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
           <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>

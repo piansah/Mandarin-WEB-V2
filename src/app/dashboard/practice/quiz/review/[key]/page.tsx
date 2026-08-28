@@ -311,8 +311,6 @@ export default function CumulativeQuizPracticePage() {
         subtitle={`Level ${key.replace("level-", "")}`}
         progress={progress}
         rightContent={`${totalCorrect}/${totalAnswered}`}
-        icon="x"
-        onClose={() => router.back()}
       />
 
       <div ref={filterRef} className={styles.filterWrap}>

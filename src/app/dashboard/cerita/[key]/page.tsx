@@ -4,7 +4,6 @@ import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import {
-  ArrowLeft,
   Minus,
   Plus,
   RotateCcw,
@@ -410,8 +409,6 @@ export default function CeritaReadPage() {
         title={data.title_zh || data.title}
         subtitle={data.title_zh ? data.title : undefined}
         progress={pct}
-        icon="arrow"
-        onClose={() => router.push("/dashboard/cerita")}
       />
       <div className="mx-auto w-full max-w-3xl px-4 pb-28 pt-6 sm:px-6">
         {data.paragraphs.map((para, pi) => {
