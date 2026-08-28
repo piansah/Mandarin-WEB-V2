@@ -59,7 +59,7 @@ export function speakMandarin(text: string, options: { silent?: boolean } = {}) 
   if (!isSupported() || !text.trim()) return
 
   const now = Date.now()
-  if (now - lastSpeakAt < 300) return
+  if (text === currentText && now - lastSpeakAt < 300) return
   lastSpeakAt = now
 
   ensureVoiceListener()

@@ -556,7 +556,7 @@ export function SwipeFlashcardSession({
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-hidden select-none relative z-10">
+      <div className="flex flex-col flex-1 overflow-x-hidden select-none relative z-10">
         {/* Header with Title, Subtitle, and Action Buttons */}
         {!isFastMode ? (
           <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
