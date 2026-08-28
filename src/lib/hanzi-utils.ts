@@ -48,6 +48,8 @@ export const WORD_CLASS_LABELS: Record<string, string> = {
   pron: "Pronomina · 代词 (dàicí)",
   num: "Numeralia · 数词 (shùcí)",
   classifier: "Klasifikator · 量词 (liàngcí)",
+  meas: "Kata Ukur · 量词 (liàngcí)",
+  prefix: "Prefiks · 前缀 (qiánzhuì)",
   prep: "Preposisi · 介词 (jiècí)",
   interj: "Interjeksi · 叹词 (tàncí)",
 }

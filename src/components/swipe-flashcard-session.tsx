@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
+import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import styles from "./swipe-flashcard-session.module.css"
 
 export type SwipeFlashcard = {
@@ -21,7 +22,10 @@ export type SwipeFlashcard = {
   exampleTranslation?: string
   deckTitle?: string
   deckHskLevel?: number
-  // Kolom `word_class` dari tabel flashcard_cards (mis. "kata benda", "kata kerja").
+  // Kode mentah dari kolom `word_class` tabel flashcard_cards (mis. "verb",
+  // "adj", "num", "noun", "classifier", "particle", "adv", "prefix",
+  // "meas"). Diperluas jadi label lengkap lewat WORD_CLASS_LABELS —
+  // sama seperti yang dipakai di halaman detail kosakata.
   wordClass?: string
   // true jika user belum pernah membuat progress review untuk kartu ini
   // (tidak ada baris di user_card_progress), dipakai untuk badge "Kartu Baru".
@@ -77,11 +81,19 @@ function getSimilarity(a: string, b: string) {
 // Label "HSK {level} - {word_class}" + badge "Kartu Baru" di pojok atas
 // setiap sisi kartu (card 1, 2, dan 3).
 function CardTopBar({ card }: { card: SwipeFlashcard }) {
+  // Sama seperti di halaman detail kosakata: kode mentah ("adj", "noun",
+  // dst.) diperluas jadi label lengkap ("Adjektiva · 形容词 (xíngróngcí)").
+  // Kalau kodenya belum ada di WORD_CLASS_LABELS, tampilkan apa adanya
+  // supaya tidak hilang begitu saja.
+  const wordClassLabel = card.wordClass
+    ? WORD_CLASS_LABELS[card.wordClass] ?? card.wordClass
+    : undefined
+
   const levelLabel = card.deckHskLevel
-    ? card.wordClass
-      ? `HSK ${card.deckHskLevel} - ${card.wordClass}`
+    ? wordClassLabel
+      ? `HSK ${card.deckHskLevel} - ${wordClassLabel}`
       : `HSK ${card.deckHskLevel}`
-    : card.wordClass ?? ""
+    : wordClassLabel ?? ""
 
   if (!levelLabel && !card.isNew) return null
 
