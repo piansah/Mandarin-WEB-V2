@@ -1,367 +1,211 @@
 "use client"
 
 import * as React from "react"
-import {
-  Layers,
-  Zap,
-  RotateCcw,
-  CheckCircle2,
-  BookOpen,
-  Flame,
-} from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-
-import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
+import { useParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
+import { saveUserScore } from "@/lib/user-scores"
+import { recordSrsReview } from "@/lib/srs"
+import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
-type SrsStats = {
-  total: number
-  mature: number
-  due: number
-  hafalToday: number
-  lupaToday: number
-  pctToday: number
-  totalToday: number
+// Key localStorage untuk menandai kartu mana saja yang sudah dinilai
+// dalam sesi yang BELUM selesai, per user + per deck. Dipakai supaya
+// kalau user keluar di tengah sesi lalu buka deck yang sama lagi,
+// kartu yang sudah dinilai tidak muncul dan ke-rating dobel.
+function sessionStorageKey(userId: string, deckId: number) {
+  return `mj_practice_session_${userId}_${deckId}`
 }
 
-export default function DashboardPage() {
+function readRatedCardIds(userId: string, deckId: number): Set<string> {
+  if (typeof window === "undefined") return new Set()
+  try {
+    const raw = window.localStorage.getItem(sessionStorageKey(userId, deckId))
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return Array.isArray(arr) ? new Set(arr.map(String)) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function addRatedCardId(userId: string, deckId: number, cardId: string) {
+  if (typeof window === "undefined") return
+  try {
+    const key = sessionStorageKey(userId, deckId)
+    const current = readRatedCardIds(userId, deckId)
+    current.add(cardId)
+    window.localStorage.setItem(key, JSON.stringify(Array.from(current)))
+  } catch {
+    // localStorage penuh/diblokir browser — abaikan, tidak fatal
+  }
+}
+
+function clearRatedCardIds(userId: string, deckId: number) {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.removeItem(sessionStorageKey(userId, deckId))
+  } catch {
+    // abaikan
+  }
+}
+
+export default function FlashcardPracticePage() {
+  const params = useParams()
+  const deckId = Number(params.id)
   const supa = useSupabase()
-  const [stats, setStats] = React.useState<DashboardStats | null>(null)
+
+  const [cards, setCards] = React.useState<SwipeFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
+  const [userId, setUserId] = React.useState<string | null>(null)
+  const [deckTitle, setDeckTitle] = React.useState<string>("Kartu Hafalan")
+  const [deckLevel, setDeckLevel] = React.useState<string>("Level A1")
 
   React.useEffect(() => {
-    fetchDashboardStats().then((s) => {
-      setStats(s)
-      setLoading(false)
-    })
-    loadSrsStats()
-  }, [])
-
-  async function loadSrsStats() {
-    try {
+    async function load() {
       const { data: { user } } = await supa.auth.getUser()
-      if (!user) return
+      setUserId(user?.id ?? null)
 
-      const today = new Date().toISOString().slice(0, 10)
+      const { data: setData } = await supa
+        .from("flashcard_sets")
+        .select("title, description, hsk_level")
+        .eq("id", deckId)
+        .maybeSingle()
 
-      const { data: progress } = await supa
-        .from("user_card_progress")
-        .select("card_id, srs_level, next_review, last_reviewed")
-        .eq("user_id", user.id)
+      const deckHskLevel: number | undefined = setData?.hsk_level ?? undefined
 
-      if (!progress) return
-
-      const progressByCard = new Map()
-      progress.forEach((row) => {
-        if (!row.card_id) return
-        const prev = progressByCard.get(row.card_id)
-        const prevKey = `${prev?.last_reviewed || ""}|${prev?.next_review || ""}`
-        const rowKey = `${row.last_reviewed || ""}|${row.next_review || ""}`
-        if (!prev || rowKey >= prevKey) progressByCard.set(row.card_id, row)
-      })
-
-      const reviewed = [...progressByCard.values()]
-      const total = reviewed.length
-
-      const todayCards = reviewed.filter((r) => r.last_reviewed === today)
-      const hafalToday = todayCards.filter((r) => r.srs_level >= 1).length
-      const lupaToday = todayCards.filter((r) => r.srs_level === 0).length
-      const totalToday = hafalToday + lupaToday
-      const totalHafal = reviewed.filter((r) => r.srs_level >= 1).length
-      const dueRows = reviewed.filter((r) => r.next_review <= today && r.card_id)
-
-      let dueCount = dueRows.length
-      if (dueRows.length > 0) {
-        const validDueIds = new Set()
-        const dueIds = dueRows.map((r) => r.card_id)
-        for (let i = 0; i < dueIds.length; i += 100) {
-          const chunk = dueIds.slice(i, i + 100)
-          const result = await supa
-            .from("flashcard_cards")
-            .select("id")
-            .in("id", chunk)
-          if (result.data) {
-            result.data.forEach((card: { id: string }) => validDueIds.add(card.id))
-          }
-        }
-        dueCount = dueRows.filter((r) => validDueIds.has(r.card_id)).length
+      if (setData) {
+        setDeckTitle(setData.title ?? "Kartu Hafalan")
+        const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
+        setDeckLevel(parts.length > 0 ? parts.join(" - ") : "Level A1")
       }
 
-      const pct = totalToday > 0 ? Math.round((hafalToday / totalToday) * 100) : 0
+      // word_class ditambahkan agar bisa ditampilkan sebagai
+      // "HSK {level} - {word_class}" di atas kartu.
+      const { data } = await supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti, word_class")
+        .eq("set_id", deckId)
+        .order("created_at", { ascending: true })
 
-      setSrsStats({
-        total,
-        mature: totalHafal,
-        due: dueCount,
-        hafalToday,
-        lupaToday,
-        pctToday: pct,
-        totalToday,
+      const rawCards = data ?? []
+
+      // Fetch this user's existing SRS progress for these cards so reviews
+      // continue from the correct level instead of always resetting to 0.
+      // Baris yang ADA di sini juga dipakai untuk menandai kartu yang
+      // "belum pernah dibuka" (isNew) — kartu tanpa baris progress sama
+      // sekali dianggap baru, terlepas dari nilai srs_level-nya.
+      const srsLevelByCard = new Map<string, number>()
+      const reviewedCardIds = new Set<string>()
+      if (user?.id && rawCards.length > 0) {
+        const { data: progressRows } = await supa
+          .from("user_card_progress")
+          .select("card_id, srs_level")
+          .eq("user_id", user.id)
+          .in("card_id", rawCards.map(c => String(c.id)))
+
+        for (const row of progressRows ?? []) {
+          if (row.card_id) {
+            srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
+            reviewedCardIds.add(String(row.card_id))
+          }
+        }
+      }
+
+      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+
+      if (hanziList.length > 0) {
+        await Promise.all(
+          hanziList.map(async (hanzi) => {
+            const [directRes, partialRes] = await Promise.all([
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
+            ])
+            const first = directRes.data?.[0] ?? partialRes.data?.[0]
+            if (first) {
+              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
+            }
+          })
+        )
+      }
+
+      const cardsWithExamples: SwipeFlashcard[] = rawCards.map(card => {
+        const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
+        return {
+          ...card,
+          srsLevel: srsLevelByCard.get(String(card.id)) ?? 0,
+          exampleSentence: ex?.hanzi,
+          examplePinyin: ex?.pinyin,
+          exampleTranslation: ex?.arti,
+          deckHskLevel,
+          wordClass: card.word_class ?? undefined,
+          // Kartu baru = belum pernah punya baris di user_card_progress.
+          // Jika belum login, semua kartu ditampilkan sebagai kartu baru.
+          isNew: user?.id ? !reviewedCardIds.has(String(card.id)) : true,
+        }
       })
-    } catch (e) {
-      console.error(e)
+
+      // Skip kartu yang sudah dinilai dalam sesi sebelumnya yang belum
+      // selesai (misal user keluar di tengah jalan). Kartu-kartu itu
+      // dicatat di localStorage per user+deck saat dinilai (lihat
+      // handleReview), dan dihapus begitu sesi benar-benar tuntas (lihat
+      // handleComplete). Kalau ternyata SEMUA kartu sudah masuk daftar itu
+      // (edge case: localStorage tidak sempat ke-clear), tetap tampilkan
+      // deck penuh daripada layar kosong.
+      let finalCards = cardsWithExamples
+      if (user?.id) {
+        const ratedIds = readRatedCardIds(user.id, deckId)
+        if (ratedIds.size > 0) {
+          const remaining = cardsWithExamples.filter(c => !ratedIds.has(String(c.id)))
+          finalCards = remaining.length > 0 ? remaining : cardsWithExamples
+        }
+      }
+
+      setCards(finalCards)
+      setLoading(false)
     }
-  }
+    load()
+  }, [deckId, supa])
 
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? "Selamat Pagi" : hour < 17 ? "Selamat Siang" : "Selamat Malam"
+  const wordDetailPath = React.useCallback(
+    (card: SwipeFlashcard) => `/dashboard/flashcard/${deckId}/word/${card.id}`,
+    [deckId]
+  )
 
-  if (loading) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
-      </div>
-    )
-  }
+  const handleComplete = React.useCallback((stats: { hafal: number; lupa: number; ragu: number }) => {
+    const total = stats.hafal + stats.lupa + stats.ragu
+    const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
+    saveUserScore("fc_session", String(deckId), pct).catch(() => { })
 
-  if (!stats) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <p className="text-sm text-muted-foreground">Kamu belum login.</p>
-      </div>
-    )
-  }
+    // Sesi tuntas — hapus catatan kartu-yang-sudah-dinilai supaya attempt
+    // berikutnya (besok, atau lewat tombol "Ulangi") mulai dari deck penuh.
+    if (userId) {
+      clearRatedCardIds(userId, deckId)
+    }
+  }, [deckId, userId])
 
-  const quickAccess = [
-    {
-      label: "Lanjutkan Flashcard",
-      desc: stats.flashcardDue > 0 ? `${stats.flashcardDue} kartu menunggu` : "Tidak ada kartu jatuh tempo",
-      href: "/dashboard/flashcard",
-      color: "bg-primary/10 text-primary",
-      icon: Layers,
-    },
-    {
-      label: "Quiz Harian",
-      desc: "kerjakan quiz harian setiap hari",
-      href: "/dashboard/quiz",
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      icon: Zap,
-    },
-    {
-      label: "Belajar Hanzi",
-      desc: "Jelajahi karakter baru",
-      href: "/dashboard/hanzi",
-      color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-      icon: BookOpen,
-    },
-  ]
+  // Persists each rating to user_card_progress (srs_level + next_review).
+  // Without this, "Jatuh Tempo Hari Ini" never updates because no due date
+  // is ever written for cards reviewed in this practice session.
+  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
+    if (!userId) return
+    await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0)
+    // Catat kartu ini sudah dinilai di sesi yang sedang berjalan, supaya
+    // kalau user keluar sebelum sesi selesai lalu buka deck ini lagi,
+    // kartu ini di-skip dan tidak ke-rating dobel.
+    addRatedCardId(userId, deckId, String(card.id))
+  }, [supa, userId, deckId])
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header Greeting */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{greeting} 👋</p>
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">{stats.displayName}</h1>
-        <div className="flex items-center gap-2 mt-1">
-          <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
-            {stats.tierLabel}
-          </Badge>
-          <Badge variant="outline" className="border-muted-foreground/30">
-            {stats.tierHsk}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Streak Widget Mingguan & Quick Access */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Streak Widget */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden relative lg:col-span-2">
-          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
-            <Flame className="w-32 h-32 text-primary" />
-          </div>
-
-          <CardContent className="p-6 relative z-10">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-primary">{stats.streak}</span>
-                <span className="text-sm font-medium text-muted-foreground">Hari Beruntun!</span>
-              </div>
-              <Flame className="h-6 w-6 text-primary drop-shadow-md" />
-            </div>
-
-            <div className="grid grid-cols-7 gap-2 mb-6">
-              {stats.weekDots.map((dot, i) => (
-                <div
-                  key={i}
-                  className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${
-                    dot.isToday
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : dot.active
-                        ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-muted/30 text-muted-foreground border border-border/30"
-                  }`}
-                >
-                  <div className="text-sm font-bold mb-1.5">
-                    {dot.isToday ? "•" : dot.active ? "✓" : "-"}
-                  </div>
-                  <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 p-4">
-                <span className="text-xl font-bold text-primary">{stats.bestStreak}</span>
-                <span className="text-xs text-muted-foreground mt-1">Streak terbaik</span>
-              </div>
-              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 p-4">
-                <span className="text-xl font-bold text-primary">{stats.consistency}%</span>
-                <span className="text-xs text-muted-foreground mt-1">Konsistensi</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Access */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm h-full flex flex-col lg:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Akses Cepat</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 flex-1">
-            {quickAccess.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors group flex-1"
-              >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${item.color}`}>
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium group-hover:text-primary transition-colors">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
-                </div>
-                <span className="text-muted-foreground text-xs group-hover:translate-x-1 transition-transform">→</span>
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Review Section */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {srsStats ? (
-            <div className="space-y-4">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <div className="text-2xl font-bold text-foreground">{srsStats.total}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-2xl font-bold text-emerald-500">{srsStats.mature}</div>
-                  <div className="text-xs text-muted-foreground">Hafal</div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <div className="text-2xl font-bold text-amber-500">{srsStats.due}</div>
-                  <div className="text-xs text-muted-foreground">Due</div>
-                </div>
-              </div>
-
-              {/* Today's Progress */}
-              {srsStats.totalToday > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress Hari Ini</span>
-                    <span className="font-medium">{srsStats.pctToday}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
-                      style={{ width: `${srsStats.pctToday}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{srsStats.hafalToday} hafal hari ini</span>
-                    <span>{srsStats.lupaToday} lupa hari ini</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Due Cards CTA */}
-              {srsStats.due > 0 ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-amber-500/20">
-                      <RotateCcw className="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold">
-                        {srsStats.due} kartu siap direview
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Review sekarang agar tidak lupa
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
-                    onClick={() => window.location.href = '/dashboard/review'}
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Mulai Review ({srsStats.due} kartu)
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-4 gap-3 text-muted-foreground">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">
-                    {srsStats.totalToday > 0
-                      ? "Sesi hari ini selesai!"
-                      : "Tidak ada kartu yang harus direview"}
-                  </span>
-                </div>
-              )}
-
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
-              <span className="text-sm">Memuat statistik...</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Aktivitas Terbaru */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Aktivitas Terbaru</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stats.recentActivity.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Belum ada aktivitas.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {stats.recentActivity.map((act, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    {act.score}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{act.typeLabel}</p>
-                    <p className="text-xs text-muted-foreground">{act.key} · {act.timeAgo}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {act.typeLabel}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <SwipeFlashcardSession
+      cards={cards}
+      loading={loading}
+      wordDetailPath={wordDetailPath}
+      onReview={handleReview}
+      onComplete={handleComplete}
+      deckTitle={deckTitle}
+      deckLevel={deckLevel}
+      userId={userId}
+      deckCardIds={cards.map(c => String(c.id))}
+    />
   )
 }
