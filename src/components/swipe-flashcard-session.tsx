@@ -8,6 +8,7 @@ import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
+import { previewIntervalDays } from "@/lib/srs"
 import styles from "./swipe-flashcard-session.module.css"
 
 export type SwipeFlashcard = {
@@ -50,6 +51,10 @@ type SpeechRecognitionResultEventLike = {
       0: { transcript: string }
     }
   }
+}
+
+function formatIntervalDays(days: number) {
+  return days === 1 ? "1 hari" : `${days} hari`
 }
 
 function normalizeChinese(str: string) {
@@ -572,11 +577,11 @@ export function SwipeFlashcardSession({
               </div>
               <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/30">
                 <span className="text-2xl font-bold text-blue-500">{sulit}</span>
-                <span className="text-xs text-muted-foreground">Sulit</span>
+                <span className="text-xs text-muted-foreground">Ingat</span>
               </div>
               <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
                 <span className="text-2xl font-bold text-amber-500">{ragu}</span>
-                <span className="text-xs text-muted-foreground">Ragu</span>
+                <span className="text-xs text-muted-foreground">Sulit</span>
               </div>
               <div className="flashcard-result-stat flex flex-col items-center gap-1 p-4 rounded-2xl bg-red-500/10 border border-red-500/30">
                 <span className="text-2xl font-bold text-red-500">{lupa}</span>
@@ -735,10 +740,26 @@ export function SwipeFlashcardSession({
             di PC, sesuai referensi.
           */}
           <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px] h-[280px] md:h-[340px] lg:h-[380px]">
+            {/*
+              Efek tumpukan kartu: dua lapis "kartu hantu" statis di
+              belakang kartu utama, sedikit digeser & lebih kecil, supaya
+              terlihat seperti ada kartu lain menumpuk di belakangnya
+              (bukan blur/shadow biasa).
+            */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
+              style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
+              style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
+            />
             <div
               key={idx + "-" + card.id}
               ref={cardRef}
-              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
+              className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
                 }`}
               style={{
                 transform: flyOut
@@ -759,11 +780,19 @@ export function SwipeFlashcardSession({
             >
               <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
                 {flip === 2 ? (
-                  // Card 3: tampilan detail (arti + contoh kalimat)
+                  // Card 3: tampilan detail (arti + contoh kalimat), dengan
+                  // watermark hanzi besar yang sama dengan Card 1 & 2.
                   <div
-                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200"
+                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200 overflow-hidden"
                     style={{ opacity: contentOpacity }}
                   >
+                    <div
+                      aria-hidden="true"
+                      className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+                      style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+                    >
+                      {card.hanzi}
+                    </div>
                     <CardTopBar card={card} />
                     {/*
                       Speaker #1 — vocab TTS. Always speaks card.hanzi
@@ -833,8 +862,17 @@ export function SwipeFlashcardSession({
                     )}
                   </div>
                 ) : (
-                  // Card 1: tampilan depan (hanya hanzi)
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl">
+                  // Card 1: tampilan depan (hanya hanzi), dengan watermark
+                  // hanzi besar yang sama dengan Card 2 & 3 supaya konsisten
+                  // di setiap kondisi kartu.
+                  <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl overflow-hidden">
+                    <div
+                      aria-hidden="true"
+                      className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+                      style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+                    >
+                      {card.hanzi}
+                    </div>
                     <CardTopBar card={card} />
                     <div className="font-hanzi text-8xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
                     <CardHint />
@@ -869,7 +907,7 @@ export function SwipeFlashcardSession({
                 }}
               >
                 <span className="drop-shadow-lg">
-                  {swipeStatus === "hafal" ? "MUDAH ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "RAGU ?" : swipeStatus === "sulit" ? "SULIT !" : ""}
+                  {swipeStatus === "hafal" ? "MUDAH ✓" : swipeStatus === "lupa" ? "LUPA ✕" : swipeStatus === "ragu" ? "SULIT ?" : swipeStatus === "sulit" ? "INGAT !" : ""}
                 </span>
               </div>
             </div>
@@ -878,7 +916,7 @@ export function SwipeFlashcardSession({
           <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl">
             {isFastMode && !feedback && (
               <p className="text-xs text-muted-foreground/80 font-medium flex items-center justify-center gap-3 tracking-widest uppercase">
-                <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Ragu ↓</span> • <span className="text-blue-400">Sulit ↑</span> • <span className="text-emerald-500">Mudah →</span>
+                <span className="text-red-400">← Lupa</span> • <span className="text-amber-500">Sulit ↓</span> • <span className="text-blue-400">Ingat ↑</span> • <span className="text-emerald-500">Mudah →</span>
               </p>
             )}
 
@@ -918,43 +956,47 @@ export function SwipeFlashcardSession({
                 <div className="grid grid-cols-4 gap-2 w-full">
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 0
+                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 0
                       ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
                       : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
                       }`}
                     onClick={() => { setSelectedRating(0); advance(0) }}
                   >
-                    Lupa
+                    <span>Lupa</span>
+                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 0))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 3
+                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 3
                       ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
                       : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
                       }`}
                     onClick={() => { setSelectedRating(3); advance(3) }}
                   >
-                    Ragu
+                    <span>Sulit</span>
+                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 3))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 4
+                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 4
                       ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
                       : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
                       }`}
                     onClick={() => { setSelectedRating(4); advance(4) }}
                   >
-                    Sulit
+                    <span>Ingat</span>
+                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 4))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-12 flex flex-col items-center justify-center gap-1 text-xs font-semibold transition-all ${selectedRating === 5
+                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 5
                       ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
                       : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
                       }`}
                     onClick={() => { setSelectedRating(5); advance(5) }}
                   >
-                    Mudah
+                    <span>Mudah</span>
+                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 5))}</span>
                   </Button>
                 </div>
 
@@ -967,11 +1009,11 @@ export function SwipeFlashcardSession({
                       <span className="text-muted-foreground">belum ingat, muncul lagi besok</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="font-semibold text-amber-400 shrink-0">Ragu ·</span>
+                      <span className="font-semibold text-amber-400 shrink-0">Sulit ·</span>
                       <span className="text-muted-foreground">hampir lupa, muncul lagi besok</span>
                     </div>
                     <div className="flex items-baseline gap-1">
-                      <span className="font-semibold text-blue-400 shrink-0">Sulit ·</span>
+                      <span className="font-semibold text-blue-400 shrink-0">Ingat ·</span>
                       <span className="text-muted-foreground">ingat dengan usaha, jeda beberapa hari</span>
                     </div>
                     <div className="flex items-baseline gap-1">

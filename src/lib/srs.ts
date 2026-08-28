@@ -26,6 +26,21 @@ function addDays(n: number) {
 
 const INTERVALS = [1, 1, 2, 4, 7, 15, 30, 60, 90, 180]
 
+// Menghitung berapa hari sampai review berikutnya untuk setiap pilihan
+// penilaian (quality), berdasarkan srs_level kartu saat ini. Dipakai untuk
+// menampilkan preview interval di tombol rating (mis. "4 hari") sebelum
+// user benar-benar memilih.
+export function previewIntervalDays(currentLevel: number, quality: 0 | 3 | 4 | 5): number {
+  if (quality === 0) return 1
+  if (quality === 3) return 1
+  if (quality === 4) {
+    const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel))
+    return INTERVALS[level] ?? 90
+  }
+  const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel) + 1)
+  return INTERVALS[level] ?? 180
+}
+
 export function computeSrsUpdate(currentLevel: number, quality: 0 | 3 | 4 | 5) {
   if (quality === 0) {
     return { srs_level: 0, next_review: addDays(1) }
