@@ -264,6 +264,28 @@ export function SwipeFlashcardSession({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [flip, flyOut, done, card])
 
+  // Dukungan keyboard untuk tombol rating (mode tidak-cepat saja, sesuai
+  // hint "1-4 nilai · ← → navigasi"): angka 1-4 menilai langsung kartu yang
+  // sedang tampil (1=Lupa, 2=Sulit, 3=Ingat, 4=Mudah), sementara ← / →
+  // meniru tombol Sebelumnya / Lewati.
+  React.useEffect(() => {
+    if (isFastMode) return
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return
+      if (!card || flyOut || done) return
+
+      if (e.key === "1") { e.preventDefault(); setSelectedRating(0); advance(0); return }
+      if (e.key === "2") { e.preventDefault(); setSelectedRating(3); advance(3); return }
+      if (e.key === "3") { e.preventDefault(); setSelectedRating(4); advance(4); return }
+      if (e.key === "4") { e.preventDefault(); setSelectedRating(5); advance(5); return }
+      if (e.key === "ArrowLeft") { e.preventDefault(); goToPrevious(); return }
+      if (e.key === "ArrowRight") { e.preventDefault(); skipCard(); return }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [isFastMode, card, flyOut, done, idx])
+
   function handleCardClick() {
     if (didLongPress.current) {
       didLongPress.current = false
@@ -739,7 +761,7 @@ export function SwipeFlashcardSession({
             max-w-3xl (lg), agar kartu tidak terlihat kekecilan saat dibuka
             di PC, sesuai referensi.
           */}
-          <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px] h-[280px] md:h-[340px] lg:h-[380px]">
+          <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px] h-[340px] md:h-[360px] lg:h-[400px]">
             {/*
               Efek tumpukan kartu: dua lapis "kartu hantu" statis di
               belakang kartu utama, sedikit digeser & lebih kecil, supaya
@@ -783,7 +805,7 @@ export function SwipeFlashcardSession({
                   // Card 3: tampilan detail (arti + contoh kalimat), dengan
                   // watermark hanzi besar yang sama dengan Card 1 & 2.
                   <div
-                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200 overflow-hidden"
+                    className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200 overflow-x-hidden overflow-y-auto"
                     style={{ opacity: contentOpacity }}
                   >
                     <div
@@ -813,7 +835,7 @@ export function SwipeFlashcardSession({
                     </Button>
                     <div className="flex-1 flex flex-col items-center justify-center mt-4">
                       <div
-                        className="font-hanzi text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors"
+                        className="font-hanzi text-4xl sm:text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
                         data-no-drag
                         onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
                       >
@@ -874,7 +896,7 @@ export function SwipeFlashcardSession({
                       {card.hanzi}
                     </div>
                     <CardTopBar card={card} />
-                    <div className="font-hanzi text-8xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                    <div className="font-hanzi text-6xl sm:text-7xl md:text-8xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
                     <CardHint />
                   </div>
                 )}
@@ -892,7 +914,7 @@ export function SwipeFlashcardSession({
                   {card.hanzi}
                 </div>
                 <CardTopBar card={card} />
-                <div className="font-hanzi mb-6 text-6xl leading-none text-foreground drop-shadow-sm">{card.hanzi}</div>
+                <div className="font-hanzi mb-6 text-4xl sm:text-5xl md:text-6xl leading-none text-foreground drop-shadow-sm whitespace-nowrap">{card.hanzi}</div>
                 <TonePinyin text={card.pinyin} className="text-3xl font-sans font-medium drop-shadow-sm" />
                 <CardHint />
               </div>
@@ -956,49 +978,67 @@ export function SwipeFlashcardSession({
                 <div className="grid grid-cols-4 gap-2 w-full">
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 0
+                    className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 0
                       ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105"
                       : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"
                       }`}
                     onClick={() => { setSelectedRating(0); advance(0) }}
                   >
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">1</span>
                     <span>Lupa</span>
-                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 0))}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 0))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 3
+                    className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 3
                       ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105"
                       : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"
                       }`}
                     onClick={() => { setSelectedRating(3); advance(3) }}
                   >
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
                     <span>Sulit</span>
-                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 3))}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 3))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 4
+                    className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 4
                       ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105"
                       : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"
                       }`}
                     onClick={() => { setSelectedRating(4); advance(4) }}
                   >
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
                     <span>Ingat</span>
-                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 4))}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 4))}</span>
                   </Button>
                   <Button
                     variant="outline"
-                    className={`${styles.ratingButton} rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 5
+                    className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${selectedRating === 5
                       ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105"
                       : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"
                       }`}
                     onClick={() => { setSelectedRating(5); advance(5) }}
                   >
+                    <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>
                     <span>Mudah</span>
-                    <span className="text-[10px] font-normal opacity-75">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 5))}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(card?.srsLevel ?? 0, 5))}</span>
                   </Button>
                 </div>
+
+                {/* Hint navigasi keyboard: 1-4 untuk menilai langsung, ← →
+                    untuk Sebelumnya/Lewati. Disembunyikan di layar mobile
+                    karena keyboard fisik jarang dipakai di sana. */}
+                <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
+                  <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">1</kbd>
+                  <span>–</span>
+                  <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">4</kbd>
+                  <span>nilai</span>
+                  <span className="mx-1">·</span>
+                  <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">←</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">→</kbd>
+                  <span>navigasi</span>
+                </p>
 
                 {/* Rating Explanations */}
                 <div className="w-full rounded-xl border border-border/40 bg-muted/20 p-3">
