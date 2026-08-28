@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
+import { X, List, TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -642,8 +642,79 @@ export function SwipeFlashcardSession({
 
     return (
       <div className={styles.page}>
-        <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden">
-          {isEmpty ? (
+        <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+          {/* Header with Title, Subtitle, and Action Buttons */}
+          {!isFastMode ? (
+            <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
+              <div className="mb-2">
+                <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+                <p className="text-xs text-muted-foreground">{deckLevel}</p>
+              </div>
+
+              {/* Always Visible Stats Section */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <TrendingUp className="h-3 w-3" />
+                    Jatuh Tempo Hari Ini
+                  </div>
+                  <div className="flex items-center h-1.5">
+                    <span className="text-xs font-semibold text-foreground whitespace-nowrap">
+                      {headerStats.dueToday} dari {headerStats.totalCards} tersimpan
+                    </span>
+                  </div>
+                </div>
+                <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Akurasi Sesi
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${headerStats.accuracy}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">{headerStats.accuracy}%</span>
+                  </div>
+                </div>
+                <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Star className="h-3 w-3" />
+                    Sudah Dikuasai
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">{headerStats.mastered}</div>
+                </div>
+                <div className={`${styles.statsCard} flex flex-col gap-1`}>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Dinilai
+                  </div>
+                  <div className="text-sm font-semibold text-foreground">{headerStats.rated}</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+                  <p className="text-xs text-muted-foreground">{deckLevel} - Mode Cepat</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="rounded-lg gap-1.5 text-xs" onClick={() => router.back()}>
+                    <X className="h-3.5 w-3.5" />
+                    Keluar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Result Content */}
+          <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+            {isEmpty ? (
             <>
               <div className="flashcard-result-emoji text-6xl">{emptyEmoji}</div>
               <h2 className="flashcard-result-title text-3xl font-bold text-center">{emptyTitle}</h2>
@@ -731,12 +802,13 @@ export function SwipeFlashcardSession({
                 </div>
               </div>
 
-              <div className="flashcard-result-actions flex gap-3 w-full max-w-xs relative z-10">
-                <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
-                <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={() => setSessionKey((k) => k + 1)}>Ulangi</Button>
-              </div>
-            </>
-          )}
+                <div className="flashcard-result-actions flex gap-3 w-full max-w-xs relative z-10">
+                  <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
+                  <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={() => setSessionKey((k) => k + 1)}>Ulangi</Button>
+                </div>
+              </>
+            )}
+          </div>
 
           <style dangerouslySetInnerHTML={{
             __html: `
@@ -812,7 +884,7 @@ export function SwipeFlashcardSession({
         {!isFastMode && (
           <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-xs text-muted-foreground">CONTOH PENGGUNAAN</div>
+              <div className="text-xs text-muted-foreground">CONTOH · penggunaan</div>
             </div>
             {card.exampleSentence ? (
               <>

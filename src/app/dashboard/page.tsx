@@ -134,8 +134,8 @@ export default function DashboardPage() {
       icon: Layers,
     },
     {
-      label: "Latihan Kalimat",
-      desc: "Quiz Kalimat Harian",
+      label: "Quiz Harian",
+      desc: "kerjakan quiz harian setiap hari",
       href: "/dashboard/quiz",
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       icon: Zap,
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                   <span className="text-sm">
                     {srsStats.totalToday > 0
-                      ? "Sesi hari ini selesai! 🎉"
+                      ? "Sesi hari ini selesai!"
                       : "Tidak ada kartu yang harus direview"}
                   </span>
                 </div>
