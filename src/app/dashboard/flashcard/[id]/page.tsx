@@ -30,11 +30,14 @@ export default function FlashcardDeckPage() {
   const params = useParams()
   const router = useRouter()
   const deckId = Number(params.id)
-  const { pinned } = useSidebar()
+  const { pinned, isMobile } = useSidebar()
 
-  // The sidebar floats as an overlay, but when pinned it takes up space
-  // Calculate offset based on sidebar state
-  const sidebarOffset = pinned ? '280px' : '0px'
+  // The sidebar floats as an overlay, but when pinned open on desktop it
+  // takes up real layout space — offset the fixed footer to match.
+  // On mobile the sidebar is always an overlay (Sheet), so the persisted
+  // `pinned` cookie must NOT push the footer off-screen there, otherwise
+  // this bar collapses to a thin strip pinned to the right edge.
+  const sidebarOffset = pinned && !isMobile ? '280px' : '0px'
 
   const supa = useSupabase()
   const [deck, setDeck] = React.useState<DeckMeta | null>(null)
