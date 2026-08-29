@@ -6,20 +6,15 @@ import { Volume2, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
+import { TonePinyin } from "@/components/tone-pinyin"
 import styles from "./page.module.css"
 
 type Card = {
   id: number
-  hanzi: string
-  pinyin: string
+  hanzi: string        // kata utuh, bisa 1+ suku kata (mis. "你好")
+  pinyin: string        // pinyin utuh kata (mis. "nǐ hǎo")
   arti: string
-  nada: number
-  originalWord: string
-  // Contoh kalimat diambil dari tabel `word_examples`, dikaitkan lewat
-  // `originalWord` (kata utuh, mis. "你好") — BUKAN per-suku-kata/karakter
-  // tunggal (`hanzi` di sini adalah satu karakter hasil split dari kata
-  // utuh untuk keperluan soal nada). Optional karena tidak semua kata
-  // punya contoh kalimat di database.
+  tones: number[]        // nada tiap suku kata, urut sesuai hanzi (mis. [3, 3])
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
@@ -27,6 +22,9 @@ type Card = {
 
 const TONE_COLORS: Record<number, string> = {
   1: "text-red-400", 2: "text-amber-400", 3: "text-green-400", 4: "text-sky-400", 0: "text-muted-foreground",
+}
+const TONE_MARKS: Record<number, string> = {
+  1: "‾", 2: "↗", 3: "↗↘", 4: "↘", 0: "·",
 }
 const TONE_LABELS: Record<number, string> = {
   1: "Nada 1 — Datar ‾", 2: "Nada 2 — Naik ↗", 3: "Nada 3 — Naik-Turun ↗↘", 4: "Nada 4 — Turun ↘", 0: "Nada 0 — Ringan ·",
@@ -83,7 +81,18 @@ function splitPinyinSyllables(pinyin: string): string[] {
   return syllables.length ? syllables : [trimmed]
 }
 
-function splitToneCards(
+function isHanziChar(char: string): boolean {
+  const code = char.charCodeAt(0)
+  return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
+}
+
+// Kartu tetap utuh sebagai kata (bisa multi-suku-kata), bukan dipecah
+// per-karakter. Tiap kata dapat array nada per suku kata, mis. "你好" ->
+// [3, 3]. Kata yang punya suku kata bernada 0 (ringan / tidak terbaca),
+// atau jumlah suku kata pinyin tidak pas dengan jumlah karakter hanzi,
+// dibuang dari kuis — karena pilihan jawaban dibatasi ke kombinasi nada
+// 1-4 saja.
+function buildWordCards(
   cards: Array<{
     id: number
     hanzi: string
@@ -95,27 +104,71 @@ function splitToneCards(
   }>
 ): Card[] {
   return cards.flatMap(card => {
-    const hanziChars = [...card.hanzi].filter(char => {
-      const code = char.charCodeAt(0)
-      return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
-    })
+    const hanziChars = [...card.hanzi].filter(isHanziChar)
     const syllables = splitPinyinSyllables(card.pinyin)
+    if (hanziChars.length === 0) return []
 
-    return hanziChars.map((hanzi, index) => {
-      const pinyin = syllables[index] ?? syllables[0] ?? card.pinyin
-      return {
-        id: card.id,
-        hanzi,
-        pinyin,
-        arti: card.arti,
-        nada: extractTone(pinyin),
-        originalWord: card.hanzi,
-        exampleSentence: card.exampleSentence,
-        examplePinyin: card.examplePinyin,
-        exampleTranslation: card.exampleTranslation,
-      }
+    const tones = hanziChars.map((_, index) => {
+      const syl = syllables[index] ?? syllables[0] ?? card.pinyin
+      return extractTone(syl)
     })
-  }).filter(card => card.nada > 0)
+
+    if (tones.some(t => t === 0)) return []
+
+    return [{
+      id: card.id,
+      hanzi: card.hanzi,
+      pinyin: card.pinyin,
+      arti: card.arti,
+      tones,
+      exampleSentence: card.exampleSentence,
+      examplePinyin: card.examplePinyin,
+      exampleTranslation: card.exampleTranslation,
+    }]
+  })
+}
+
+function toneComboKey(combo: number[]): string {
+  return combo.join("-")
+}
+
+function randomToneCombo(length: number): number[] {
+  return Array.from({ length }, () => Math.floor(Math.random() * 4) + 1)
+}
+
+// Kata 1 suku kata: tetap 4 pilihan tunggal nada 1-4 (perilaku lama).
+// Kata multi-suku-kata: jawaban adalah kombinasi nada penuh (mis. [3,3]),
+// dan 3 distraktor kombinasi acak di-generate — dijamin beda dari jawaban
+// benar & beda satu sama lain (dedup lewat Set), lalu diacak urutannya.
+function generateChoices(correctTones: number[]): number[][] {
+  if (correctTones.length === 1) {
+    return [[1], [2], [3], [4]]
+  }
+
+  const seen = new Set<string>([toneComboKey(correctTones)])
+  const distractors: number[][] = []
+  let attempts = 0
+  const maxAttempts = 500
+
+  while (distractors.length < 3 && attempts < maxAttempts) {
+    attempts++
+    const combo = randomToneCombo(correctTones.length)
+    const key = toneComboKey(combo)
+    if (seen.has(key)) continue
+    seen.add(key)
+    distractors.push(combo)
+  }
+
+  const all = [correctTones, ...distractors]
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[all[i], all[j]] = [all[j], all[i]]
+  }
+  return all
+}
+
+function toneCombosEqual(a: number[], b: number[]): boolean {
+  return a.length === b.length && a.every((t, i) => t === b[i])
 }
 
 export default function NadaPracticePage() {
@@ -127,7 +180,7 @@ export default function NadaPracticePage() {
   const [cards, setCards] = React.useState<Card[]>([])
   const [loading, setLoading] = React.useState(true)
   const [idx, setIdx] = React.useState(0)
-  const [selected, setSelected] = React.useState<number | null>(null)
+  const [selected, setSelected] = React.useState<number[] | null>(null)
   const [showResult, setShowResult] = React.useState(false)
   const [correct, setCorrect] = React.useState(0)
   const [done, setDone] = React.useState(false)
@@ -142,11 +195,6 @@ export default function NadaPracticePage() {
 
       const rawCards = data ?? []
 
-      // Contoh kalimat dicari per KATA UTUH (mis. "你好"), sama seperti di
-      // halaman flashcard — bukan per-karakter, karena tabel word_examples
-      // dikaitkan lewat `word_hanzi` (kata utuh). Kartu nada nanti dipecah
-      // per-karakter oleh splitToneCards, tapi contoh kalimatnya tetap
-      // milik kata utuh asalnya supaya konteksnya tidak hilang.
       const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
       const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
@@ -175,7 +223,7 @@ export default function NadaPracticePage() {
         }
       })
 
-      setCards(splitToneCards(cardsWithExamples))
+      setCards(buildWordCards(cardsWithExamples))
       setLoading(false)
     }
     load()
@@ -184,14 +232,18 @@ export default function NadaPracticePage() {
   const total = cards.length
   const q = cards[idx]
   const progress = total > 0 ? (idx / total) * 100 : 0
-  const choices = [1, 2, 3, 4]
 
-  function handleSelect(tone: number) {
+  const choices = React.useMemo(() => {
+    if (!q) return []
+    return generateChoices(q.tones)
+  }, [idx, q])
+
+  function handleSelect(combo: number[]) {
     if (showResult) return
-    setSelected(tone)
+    setSelected(combo)
     setShowResult(true)
     speakMandarin(q.hanzi)
-    if (tone === q.nada) setCorrect(c => c + 1)
+    if (toneCombosEqual(combo, q.tones)) setCorrect(c => c + 1)
   }
 
   function handleNext() {
@@ -234,6 +286,10 @@ export default function NadaPracticePage() {
     )
   }
 
+  const isMulti = q.tones.length > 1
+  const isCorrectAnswer = selected ? toneCombosEqual(selected, q.tones) : false
+  const hanziSizeClass = q.hanzi.length <= 2 ? "text-8xl" : q.hanzi.length <= 4 ? "text-6xl" : "text-4xl"
+
   return (
     <div className={styles.page}>
       <div className="flex flex-col flex-1 overflow-hidden">
@@ -245,19 +301,21 @@ export default function NadaPracticePage() {
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6">
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Pilih nada yang benar</p>
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+            {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
+          </p>
 
           <div className="flex flex-col items-center gap-3">
-            <div className="font-hanzi text-8xl">{q.hanzi}</div>
+            <div className={`font-hanzi ${hanziSizeClass}`}>{q.hanzi}</div>
             <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
               <Volume2 className="h-4 w-4" /> Dengar
             </Button>
           </div>
 
           <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-            {choices.map(tone => {
-              const isCorrect = tone === q.nada
-              const isSelected = selected === tone
+            {choices.map((combo, i) => {
+              const isCorrect = toneCombosEqual(combo, q.tones)
+              const isSelected = selected ? toneCombosEqual(selected, combo) : false
               let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all "
               if (!showResult) cls += "border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
               else if (isCorrect) cls += "border-emerald-500 bg-emerald-500/10 text-emerald-500"
@@ -265,37 +323,44 @@ export default function NadaPracticePage() {
               else cls += "border-border/30 bg-card/20 opacity-50"
 
               return (
-                <button key={tone} className={cls} onClick={() => handleSelect(tone)} disabled={showResult}>
+                <button key={i} className={cls} onClick={() => handleSelect(combo)} disabled={showResult}>
                   <div className="flex items-center gap-1.5">
                     {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                     {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
-                    <span className={`text-lg font-bold ${TONE_COLORS[tone]}`}>{tone}</span>
+                    <span className="flex items-center gap-1">
+                      {combo.map((t, ti) => (
+                        <React.Fragment key={ti}>
+                          {ti > 0 && <span className="text-muted-foreground">-</span>}
+                          <span className={`text-lg font-bold ${TONE_COLORS[t]}`}>{t}</span>
+                        </React.Fragment>
+                      ))}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">{TONE_LABELS[tone]}</span>
+                  <span className="text-xs text-muted-foreground text-center leading-tight">
+                    {combo.length === 1 ? TONE_LABELS[combo[0]] : combo.map(t => TONE_MARKS[t]).join(" ")}
+                  </span>
                 </button>
               )
             })}
           </div>
 
           {showResult && (
-            <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full max-w-sm border ${selected === q.nada ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
-              <p className={`font-bold text-lg ${selected === q.nada ? "text-emerald-500" : "text-red-400"}`}>
-                {selected === q.nada ? "🎉 Benar!" : "❌ Salah"}
+            <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full max-w-sm border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
+              <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
+                {isCorrectAnswer ? "🎉 Benar!" : "❌ Salah"}
               </p>
-              <p className="text-sm text-muted-foreground">
-                <span className={`font-bold ${TONE_COLORS[q.nada]}`}>{q.pinyin}</span> - {TONE_LABELS[q.nada]}
+              <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap justify-center">
+                <span className="font-bold">{q.pinyin}</span>
+                <span>-</span>
+                <span className="flex items-center gap-1">
+                  {q.tones.map((t, ti) => (
+                    <span key={ti} className={`font-bold ${TONE_COLORS[t]}`}>{t}{ti < q.tones.length - 1 ? "-" : ""}</span>
+                  ))}
+                </span>
               </p>
             </div>
           )}
 
-          {/*
-          Contoh kalimat SENGAJA baru muncul setelah showResult (bukan
-          bareng dengan hanzi target di atas) — kalau ditampilkan dari
-          awal, pinyin di contoh kalimat bisa membocorkan nada dari
-          karakter yang sedang ditanya sebelum user sempat menjawab.
-          Ditampilkan hanya kalau ada datanya (tidak semua kata punya
-          contoh kalimat di database).
-        */}
           {showResult && q.exampleSentence && (
             <div className="flex flex-col gap-1.5 p-4 rounded-2xl w-full max-w-sm border border-border/40 bg-muted/20">
               <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -308,7 +373,7 @@ export default function NadaPracticePage() {
                 {q.exampleSentence}
               </div>
               {q.examplePinyin && (
-                <div className="text-sm text-primary font-medium">{q.examplePinyin}</div>
+                <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />
               )}
               {q.exampleTranslation && (
                 <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
