@@ -6,6 +6,7 @@ import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, 
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { PageLoader } from "@/components/page-loader"
 import { useSupabase } from "@/hooks/use-supabase"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import { previewIntervalDays } from "@/lib/srs"
@@ -614,17 +615,7 @@ export function SwipeFlashcardSession({
   if (loading) {
     return (
       <div className={styles.page}>
-        {/*
-          `min-h-screen` sengaja dihapus dari sini: .page sekarang sudah
-          display:flex + flex-direction:column dan tingginya fixed
-          100dvh, jadi `flex-1` saja sudah cukup membuat div ini mengisi
-          tinggi penuh .page. `min-h-screen` (min-height:100vh) di sini
-          justru bisa memaksa div ini lebih tinggi dari box .page
-          (100dvh), yang berpotensi menambah scroll/gap yang tidak perlu.
-        */}
-        <div className="flex flex-1 items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-        </div>
+        <PageLoader />
       </div>
     )
   }

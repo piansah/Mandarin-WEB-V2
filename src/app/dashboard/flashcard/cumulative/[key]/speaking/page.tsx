@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PracticeHeader } from "@/components/practice-header"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { FullscreenLoader } from "@/components/page-loader"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -38,6 +39,7 @@ export default function SpeakingPracticePage() {
   const [items, setItems] = React.useState<HanziItem[]>([])
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
+  const [reloading, setReloading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [isRecording, setIsRecording] = React.useState(false)
   const [recordedAudio, setRecordedAudio] = React.useState<string | null>(null)
@@ -153,11 +155,13 @@ export default function SpeakingPracticePage() {
   }
 
   function handleRestart() {
+    setReloading(true)
     setCurrentIndex(0)
     setCompletedCount(0)
     setPracticeComplete(false)
     setRecordedAudio(null)
     setShowResult(false)
+    window.location.reload()
   }
 
   function handleBack() {
@@ -165,11 +169,7 @@ export default function SpeakingPracticePage() {
   }
 
   if (loading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
+    return <FullscreenLoader />
   }
 
   if (error || !set) {
@@ -189,6 +189,7 @@ export default function SpeakingPracticePage() {
 
     return (
       <div className={styles.fullscreenContainer}>
+        {reloading && <FullscreenLoader />}
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
           {/* Result Content */}
           <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">

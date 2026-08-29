@@ -6,6 +6,7 @@ import { X, RotateCcw, CheckCircle2, Star } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { PracticeHeader } from "@/components/practice-header"
+import { PageLoader, FullscreenLoader } from "@/components/page-loader"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
@@ -103,6 +104,7 @@ export default function GrammarPracticePage() {
   const slug = String(params.slug)
   const supa = useSupabase()
   const [loading, setLoading] = React.useState(true)
+  const [reloading, setReloading] = React.useState(false)
   const [pattern, setPattern] = React.useState<Pattern | null>(null)
   const [questions, setQuestions] = React.useState<Question[]>([])
   const [phase, setPhase] = React.useState<Phase>("theory")
@@ -309,11 +311,12 @@ export default function GrammarPracticePage() {
     if (!pattern) return
     window.localStorage.removeItem(sessionKey(slug))
     deleteGrammarScore(slug)
+    setReloading(true)
     window.location.reload()
   }
 
   if (loading) {
-    return <div className={styles.page}><div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div></div>
+    return <div className={styles.page}><PageLoader /></div>
   }
 
   if (!pattern) {
@@ -325,6 +328,7 @@ export default function GrammarPracticePage() {
 
   return (
     <div className={styles.page}>
+      {reloading && <FullscreenLoader />}
       <div className="flex flex-col flex-1 select-none relative z-10 min-h-0 overflow-y-auto overflow-x-hidden">
         <PracticeHeader
           title={pattern.title}

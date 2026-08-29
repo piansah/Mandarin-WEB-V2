@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
 import { PracticeHeader } from "@/components/practice-header"
+import { FullscreenLoader } from "@/components/page-loader"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -40,6 +41,7 @@ export default function CumulativeFlashcardSessionPage() {
   const [reportedItems, setReportedItems] = React.useState<Set<number>>(new Set())
   const [stateById, setStateById] = React.useState<Record<number, 0 | 1 | 2>>({})
   const [loading, setLoading] = React.useState(true)
+  const [reloading, setReloading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
 
@@ -127,9 +129,10 @@ export default function CumulativeFlashcardSessionPage() {
   }
 
   function resetProgress() {
+    setReloading(true)
     window.localStorage.removeItem(`hanzi_read_progress:${key}`)
     setStateById({})
-    window.scrollTo({ top: 0, behavior: "smooth" })
+    window.location.reload()
   }
 
   function navigateToSpeakingPractice() {
@@ -149,11 +152,12 @@ export default function CumulativeFlashcardSessionPage() {
     setReportModal({ isOpen: false, itemId: null, itemLabel: "" })
   }
 
-  if (loading) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+  if (loading) return <FullscreenLoader />
   if (error || !set) return <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
   return (
     <div className={styles.fullscreenContainer}>
+      {reloading && <FullscreenLoader />}
       <div className="flex flex-col flex-1 select-none relative z-10 min-h-0 overflow-y-auto overflow-x-hidden">
         <PracticeHeader
           title={set.title}

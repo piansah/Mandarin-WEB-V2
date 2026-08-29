@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { Button } from "@/components/ui/button"
 import { PracticeHeader } from "@/components/practice-header"
+import { PageLoader, FullscreenLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
@@ -156,6 +157,7 @@ export default function QuizPage() {
   const supa = useSupabase()
 
   const [loading, setLoading] = React.useState(true)
+  const [reloading, setReloading] = React.useState(false)
   const [quizTitle, setQuizTitle] = React.useState("")
   const [quizSub, setQuizSub] = React.useState("")
   const [allQ, setAllQ] = React.useState<QuizQuestion[]>([])
@@ -292,6 +294,7 @@ export default function QuizPage() {
     localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     // Re-shuffle
     const reload = async () => {
+      setReloading(true)
       const questRes = await supa.from("quiz_questions")
         .select("section,sort_order,question,options,answer_index")
         .eq("quiz_key", key).order("section").order("sort_order")
@@ -308,6 +311,7 @@ export default function QuizPage() {
       setAnswered({})
       setSubmitted(false)
       setActiveTab("all")
+      setReloading(false)
       window.scrollTo(0, 0)
     }
     reload()
@@ -325,6 +329,7 @@ export default function QuizPage() {
 
     return (
       <div className={styles.page}>
+        {reloading && <FullscreenLoader />}
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
           {/* Result Content */}
           <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
@@ -403,9 +408,8 @@ export default function QuizPage() {
   /* ── Loading ── */
   if (loading) {
     return (
-      <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #17344a", borderTopColor: "#42d6a4", animation: "spin 0.8s linear infinite" }} />
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <div className={styles.page}>
+        <PageLoader />
       </div>
     )
   }
