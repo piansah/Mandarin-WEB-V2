@@ -296,8 +296,9 @@ function ResultBadge({ correct }: { correct: boolean }) {
         </svg>
       )}
       <div
-        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${correct ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500"
-          }`}
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
+          correct ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500"
+        }`}
       >
         {correct ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
       </div>
@@ -770,68 +771,81 @@ export default function NadaPracticePage() {
             </div>
 
             {/*
-              Blok feedback benar/salah — full SVG (ResultBadge, bukan
-              emoji), pinyin lewat TonePinyin (tanda nada asli, bukan
-              angka), plus chip bulat per suku kata pakai TONE_MARKS +
-              TONE_COLORS (match visual sama grid pilihan di atas), dan
-              indikator streak kalau lagi on-fire (>= 2 beruntun). `key={idx}`
-              + `animate-in` bikin blok ini "pop" tiap ganti soal, bukan
-              nongol statis kayak sebelumnya.
+              Blok feedback digabung jadi SATU card 2 kolom bareng "Contoh
+              penggunaan" — sebelumnya feedback (badge+status+pinyin) itu
+              card sendiri yang isinya cuma dikit tapi lebar penuh, jadi
+              banyak ruang kosong kiri-kanan pas di desktop. Sekarang:
+              kolom kiri = hasil (ResultBadge SVG, status, streak chip,
+              TonePinyin + chip nada per suku kata), kolom kanan = contoh
+              kalimat. Kalau kartu itu kebetulan tidak punya contoh di DB,
+              grid otomatis balik ke 1 kolom (`sm:grid-cols-2` cuma aktif
+              kalau `q.exampleSentence` ada) jadi kolom hasil tetap full-
+              width, tidak nyisain kolom kanan kosong. Di mobile (`grid-
+              cols-1` default) tetap ditumpuk vertikal biar tidak sempit.
             */}
             {showResult && (
               <div
                 key={idx}
-                className={`animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center gap-3 p-5 rounded-2xl w-full border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"
-                  }`}
+                className={`animate-in fade-in zoom-in-95 duration-300 w-full rounded-2xl border overflow-hidden ${
+                  isCorrectAnswer ? "border-emerald-500/30" : "border-red-500/30"
+                }`}
               >
-                <ResultBadge correct={isCorrectAnswer} />
+                <div className={`grid grid-cols-1 ${q.exampleSentence ? "sm:grid-cols-2" : ""}`}>
+                  <div
+                    className={`flex flex-col items-center justify-center gap-2 p-4 ${
+                      isCorrectAnswer ? "bg-emerald-500/10" : "bg-red-500/10"
+                    } ${q.exampleSentence ? "border-b sm:border-b-0 sm:border-r border-border/20" : ""}`}
+                  >
+                    <ResultBadge correct={isCorrectAnswer} />
 
-                <div className="flex flex-col items-center gap-1">
-                  <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
-                    {isCorrectAnswer ? "Benar!" : "Belum Tepat"}
-                  </p>
+                    <div className="flex flex-col items-center gap-1">
+                      <p className={`font-bold text-base ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
+                        {isCorrectAnswer ? "Benar!" : "Belum Tepat"}
+                      </p>
 
-                  {isCorrectAnswer && streak >= 2 && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs font-semibold">
-                      <Flame className="h-3 w-3" />
-                      {streak} beruntun
-                    </span>
+                      {isCorrectAnswer && streak >= 2 && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs font-semibold">
+                          <Flame className="h-3 w-3" />
+                          {streak} beruntun
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1.5">
+                      <TonePinyin text={q.pinyin} className="text-lg font-bold" />
+                      <div className="flex items-center gap-1.5">
+                        {q.tones.map((t, ti) => (
+                          <span
+                            key={ti}
+                            className={`inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-muted/60 text-[11px] font-bold ${TONE_COLORS[t]}`}
+                          >
+                            {TONE_MARKS[t]}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {q.exampleSentence && (
+                    <div className="flex flex-col justify-center gap-1.5 p-4 bg-muted/10">
+                      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                        Contoh · penggunaan
+                      </div>
+                      <div
+                        className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => speakMandarin(q.exampleSentence!)}
+                      >
+                        {q.exampleSentence}
+                      </div>
+                      {q.examplePinyin && (
+                        <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />
+                      )}
+                      {q.exampleTranslation && (
+                        <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
+                      )}
+                    </div>
                   )}
                 </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <TonePinyin text={q.pinyin} className="text-xl font-bold" />
-                  <div className="flex items-center gap-1.5">
-                    {q.tones.map((t, ti) => (
-                      <span
-                        key={ti}
-                        className={`inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-muted/60 text-xs font-bold ${TONE_COLORS[t]}`}
-                      >
-                        {TONE_MARKS[t]}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {showResult && q.exampleSentence && (
-              <div className="flex flex-col gap-1.5 p-4 rounded-2xl w-full border border-border/40 bg-muted/20">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  Contoh · penggunaan
-                </div>
-                <div
-                  className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => speakMandarin(q.exampleSentence!)}
-                >
-                  {q.exampleSentence}
-                </div>
-                {q.examplePinyin && (
-                  <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />
-                )}
-                {q.exampleTranslation && (
-                  <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
-                )}
               </div>
             )}
 
