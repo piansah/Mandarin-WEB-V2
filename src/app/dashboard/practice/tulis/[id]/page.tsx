@@ -607,28 +607,21 @@ export default function TulisHanziPage() {
         <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4">
           <div className="w-full max-w-sm md:max-w-md mx-auto flex flex-col items-center gap-4">
             <div className="flex flex-col items-center gap-1 text-center">
-              <div className="flex items-center gap-2">
-                <span className="font-hanzi text-3xl text-foreground">{card.hanzi}</span>
-                {strokeCount !== null && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 text-[11px] font-semibold text-muted-foreground">
-                    <Layers className="h-3 w-3" />
-                    {strokeCount} Goresan
-                  </span>
-                )}
-              </div>
               {/*
                 Kosakata multi-karakter (mis. "你好") ditulis satu-satu di
                 kanvas yang sama tapi tetap dihitung SATU kartu — indikator
-                ini menandai karakter mana yang sedang aktif ditulis.
+                ini SEKALIGUS jadi tampilan hanzi utama (bukan lagi
+                duplikat di bawah teks besar terpisah) yang menandai
+                karakter mana yang sedang aktif ditulis.
               */}
-              {card.chars.length > 1 && (
-                <div className="flex items-center gap-1.5 font-hanzi text-lg">
+              {card.chars.length > 1 ? (
+                <div className="flex items-center gap-1.5 font-hanzi text-3xl">
                   {card.chars.map((ch, i) => (
                     <span
                       key={i}
                       className={
                         i === charIdx
-                          ? "text-primary font-semibold"
+                          ? "text-foreground"
                           : i < charIdx
                             ? "text-muted-foreground/40"
                             : "text-muted-foreground/70"
@@ -638,9 +631,18 @@ export default function TulisHanziPage() {
                     </span>
                   ))}
                 </div>
+              ) : (
+                <span className="font-hanzi text-3xl text-foreground">{card.hanzi}</span>
               )}
               <TonePinyin text={card.pinyin} className="text-lg text-primary font-medium" />
               <span className="text-base text-muted-foreground">{card.arti}</span>
+              {/* Badge jumlah goresan — diposisikan presisi di bawah arti, bukan nempel di sebelah hanzi */}
+              {strokeCount !== null && (
+                <span className="flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-muted/50 text-[11px] font-semibold text-muted-foreground">
+                  <Layers className="h-3 w-3" />
+                  {strokeCount} Goresan
+                </span>
+              )}
             </div>
 
             {/*
