@@ -966,12 +966,12 @@ export function SwipeFlashcardSession({
                 <div
                   aria-hidden="true"
                   className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
-                  style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
+                  style={{ transform: "translate(0px, 22px) scale(0.96)", zIndex: 0 }}
                 />
                 <div
                   aria-hidden="true"
                   className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
-                  style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
+                  style={{ transform: "translate(0px, 40px) scale(0.92)", zIndex: -1 }}
                 />
                 <div
                   key={idx + "-" + card.id}
