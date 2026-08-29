@@ -28,3 +28,18 @@
   pointer-events: none;
   z-index: 0;
 }
+
+/*
+  Transisi halus untuk kotak statistik di header (Akurasi Sesi/Benar
+  Beruntun/Sisa Soal), sama seperti .statsCard di
+  swipe-flashcard-session.module.css — biar bahasa visualnya konsisten
+  dengan halaman flashcard.
+*/
+.statsCard {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.statsCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
