@@ -97,11 +97,12 @@ export default function TulisHanziPage() {
   const [deckTitle, setDeckTitle] = React.useState("Latihan Menulis")
   const [deckLevel, setDeckLevel] = React.useState("")
 
-  // `correct` = total karakter yang sudah DISELESAIKAN (benar/salah tetap
-  // dihitung selesai). `cleanCount` = subset yang selesai TANPA satu pun
-  // kesalahan goresan — inilah yang dipakai sebagai "akurasi" sesungguhnya,
-  // karena writer.quiz tetap membiarkan user coba lagi sampai benar, jadi
-  // "selesai" saja tidak berarti "bersih".
+  // `correct` = total kosakata yang sudah DISELESAIKAN (benar/salah tetap
+  // dihitung selesai). `cleanCount` = subset yang selesai dalam batas
+  // toleransi kesalahan (lihat WORD_MISTAKE_TOLERANCE) — inilah yang
+  // dipakai sebagai "akurasi" sesungguhnya, karena writer.quiz tetap
+  // membiarkan user coba lagi sampai benar, jadi "selesai" saja tidak
+  // berarti "bersih".
   const [correct, setCorrect] = React.useState(0)
   const [cleanCount, setCleanCount] = React.useState(0)
   const [answered, setAnswered] = React.useState(0)
@@ -216,6 +217,14 @@ export default function TulisHanziPage() {
   const progress = total > 0 ? (idx / total) * 100 : 0
   const accuracy = answered > 0 ? Math.round((cleanCount / answered) * 100) : 0
 
+  // Toleransi kesalahan per KOSAKATA (bukan per karakter) buat status
+  // "Bersih"/streak. Kosakata multi-karakter jauh lebih rawan kena 1-2
+  // salah goresan kecil dibanding kosakata 1 karakter, jadi syarat
+  // "harus 100% tanpa salah sama sekali" kerasa nggak adil buat pemula.
+  // Toleransi ini dihitung dari TOTAL kesalahan di semua karakter
+  // penyusun kosakata itu, bukan per karakter.
+  const WORD_MISTAKE_TOLERANCE = 3
+
   function startQuiz(writer: HanziWriterLike, currentCard: Card, chIdx: number) {
     if (!writer) return
     mistakeRef.current = 0
@@ -262,7 +271,7 @@ export default function TulisHanziPage() {
         // dihitung "selesai" dan pengucapan kata UTUH diputar.
         speakMandarin(currentCard.hanzi)
 
-        const isClean = wordMistakesRef.current + charMistakesRef.current === 0
+        const isClean = wordMistakesRef.current + charMistakesRef.current <= WORD_MISTAKE_TOLERANCE
         setAnswered(a => a + 1)
         setCorrect(c => c + 1)
         if (isClean) {
@@ -497,11 +506,11 @@ export default function TulisHanziPage() {
                 </div>
 
                 {/*
-                  "Bersih" (selesai tanpa satu pun kesalahan goresan) vs
-                  "Ada Salah" (selesai tapi sempat salah goresan) — biner
-                  yang lebih relevan buat latihan menulis dibanding cuma
-                  "total selesai", sama semangatnya dengan Benar/Salah di
-                  Nada.
+                  "Bersih" (selesai dalam batas toleransi kesalahan, lihat
+                  WORD_MISTAKE_TOLERANCE) vs "Ada Salah" (kesalahan
+                  melebihi toleransi itu) — biner yang lebih relevan buat
+                  latihan menulis dibanding cuma "total selesai", sama
+                  semangatnya dengan Benar/Salah di Nada.
                 */}
                 <div className="tulis-result-stats flex flex-wrap justify-center gap-2 relative z-10">
                   <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
@@ -740,7 +749,7 @@ export default function TulisHanziPage() {
 
               {/* Contoh penggunaan — di bawah tombol, cuma render kalau ada datanya */}
               {card.exampleSentence && (
-                <div className="w-full flex flex-col gap-1.5 p-4 rounded-2xl border border-border/40 bg-muted/20">
+                <div className="w-full flex flex-col gap-1.5 p-4 rounded-2xl border border-border/50 bg-card/60">
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Contoh · penggunaan
                   </div>
