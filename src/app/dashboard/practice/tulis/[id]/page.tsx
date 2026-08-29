@@ -650,7 +650,7 @@ export default function TulisHanziPage() {
               kanan kanvas — lebih ringkas & sisa ruang vertikal dipakai
               buat contoh kalimat di bawah tanpa perlu scroll.
             */}
-            <div className="flex flex-col md:flex-row items-center md:items-stretch gap-3 w-full">
+            <div className="flex flex-col md:flex-row items-center md:items-stretch md:justify-between gap-3 w-full">
               {/* Canvas */}
               <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl shrink-0">
                 <div ref={containerRef} className="w-[260px] h-[260px]" />
