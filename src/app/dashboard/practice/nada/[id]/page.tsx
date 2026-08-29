@@ -263,6 +263,48 @@ function toneCombosEqual(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((t, i) => t === b[i])
 }
 
+// Badge hasil (benar/salah) full SVG — pengganti emoji. Saat benar,
+// muncul "burst" garis radial 8 arah di belakang lingkaran ikon, warnanya
+// ngikutin palet emerald/red yang sudah dipakai di seluruh halaman ini,
+// jadi tidak menambah asset/warna baru. Saat salah, cuma lingkaran ikon X
+// tanpa burst — biar feedback gagal tetap tenang, tidak berlebihan.
+function ResultBadge({ correct }: { correct: boolean }) {
+  return (
+    <div className="relative flex items-center justify-center h-14 w-14">
+      {correct && (
+        <svg
+          viewBox="0 0 100 100"
+          className="absolute inset-0 h-full w-full text-emerald-500 animate-in zoom-in-50 fade-in duration-500"
+        >
+          {Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i / 8) * Math.PI * 2
+            const x1 = 50 + Math.cos(angle) * 36
+            const y1 = 50 + Math.sin(angle) * 36
+            const x2 = 50 + Math.cos(angle) * 47
+            const y2 = 50 + Math.sin(angle) * 47
+            return (
+              <line
+                key={i}
+                x1={x1} y1={y1} x2={x2} y2={y2}
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                opacity={0.55}
+              />
+            )
+          })}
+        </svg>
+      )}
+      <div
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${correct ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500"
+          }`}
+      >
+        {correct ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+      </div>
+    </div>
+  )
+}
+
 export default function NadaPracticePage() {
   const params = useParams()
   const router = useRouter()
@@ -633,9 +675,9 @@ export default function NadaPracticePage() {
           di bawah dibiarkan (lihat catatan di respons chat soal ini).
         */}
         <div className="flex-1 flex flex-col items-center justify-start gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
-          {/* <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
-          </p> */}
+          </p>
 
           {/*
             Layout responsif: 1 kolom di mobile (persis perilaku lama —
@@ -716,8 +758,6 @@ export default function NadaPracticePage() {
                   return (
                     <button key={i} className={cls} onClick={() => handleSelect(combo)} disabled={showResult}>
                       <div className="flex items-center gap-1.5">
-                        {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                        {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
                         <TonePinyin text={choicePinyin} className="text-lg font-bold" />
                       </div>
                       <span className="text-xs text-muted-foreground text-center leading-tight">
@@ -729,20 +769,49 @@ export default function NadaPracticePage() {
               </div>
             </div>
 
+            {/*
+              Blok feedback benar/salah — full SVG (ResultBadge, bukan
+              emoji), pinyin lewat TonePinyin (tanda nada asli, bukan
+              angka), plus chip bulat per suku kata pakai TONE_MARKS +
+              TONE_COLORS (match visual sama grid pilihan di atas), dan
+              indikator streak kalau lagi on-fire (>= 2 beruntun). `key={idx}`
+              + `animate-in` bikin blok ini "pop" tiap ganti soal, bukan
+              nongol statis kayak sebelumnya.
+            */}
             {showResult && (
-              <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
-                <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
-                  {isCorrectAnswer ? "🎉 Benar!" : "❌ Salah"}
-                </p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap justify-center">
-                  <span className="font-bold">{q.pinyin}</span>
-                  <span>-</span>
-                  <span className="flex items-center gap-1">
+              <div
+                key={idx}
+                className={`animate-in fade-in zoom-in-95 duration-300 flex flex-col items-center gap-3 p-5 rounded-2xl w-full border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"
+                  }`}
+              >
+                <ResultBadge correct={isCorrectAnswer} />
+
+                <div className="flex flex-col items-center gap-1">
+                  <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
+                    {isCorrectAnswer ? "Benar!" : "Belum Tepat"}
+                  </p>
+
+                  {isCorrectAnswer && streak >= 2 && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs font-semibold">
+                      <Flame className="h-3 w-3" />
+                      {streak} beruntun
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <TonePinyin text={q.pinyin} className="text-xl font-bold" />
+                  <div className="flex items-center gap-1.5">
                     {q.tones.map((t, ti) => (
-                      <span key={ti} className={`font-bold ${TONE_COLORS[t]}`}>{t}{ti < q.tones.length - 1 ? "-" : ""}</span>
+                      <span
+                        key={ti}
+                        className={`inline-flex items-center justify-center h-6 min-w-6 px-1.5 rounded-full bg-muted/60 text-xs font-bold ${TONE_COLORS[t]}`}
+                      >
+                        {TONE_MARKS[t]}
+                      </span>
                     ))}
-                  </span>
-                </p>
+                  </div>
+                </div>
               </div>
             )}
 
