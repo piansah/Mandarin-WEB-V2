@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X } from "lucide-react"
+import { X, RotateCcw, CheckCircle2, Star } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { PracticeHeader } from "@/components/practice-header"
@@ -325,111 +325,174 @@ export default function GrammarPracticePage() {
 
   return (
     <div className={styles.page}>
-      <PracticeHeader
-        title={pattern.title}
-        subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
-        progress={phase !== "theory" ? progress : undefined}
-        rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
-        stats={
-          phase !== "theory"
-            ? {
-                accuracy: questions.length ? Math.round((correctCount / questions.length) * 100) : 0,
-                rated: correctCount + wrongCount,
-              }
-            : undefined
-        }
-        showStats={phase !== "theory"}
-      />
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        <PracticeHeader
+          title={pattern.title}
+          subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
+          progress={phase !== "theory" ? progress : undefined}
+          rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
+          stats={
+            phase !== "theory"
+              ? {
+                  accuracy: questions.length ? Math.round((correctCount / questions.length) * 100) : 0,
+                  rated: correctCount + wrongCount,
+                }
+              : undefined
+          }
+          showStats={phase !== "theory"}
+        />
 
-      <div className={styles.body}>
-        {phase === "theory" && (
-          <div className={styles.theoryGrid}>
-            <section className={styles.theoryCard}>
-              <div className={styles.kicker}>Penjelasan</div>
-              <p className={styles.theoryText}>{pattern.theory_text || "Belum ada teori untuk pola ini."}</p>
-            </section>
-            {examples.length > 0 && (
-              <section className={styles.exampleCard}>
-                <div className={styles.kicker}>Contoh</div>
-                <div className={styles.exampleList}>
-                  {examples.map((example, index) => (
-                    <button key={`${example.hz}-${index}`} type="button" className={styles.exampleItem} onClick={() => example.hz && speakMandarin(example.hz)}>
-                      <div className={styles.exampleHz}>{example.hz}</div>
-                      {example.py ? <div className={styles.examplePy}><ColorPy text={example.py} /></div> : null}
-                      {example.id ? <div className={styles.exampleId}>{example.id}</div> : null}
-                    </button>
-                  ))}
-                </div>
+        <div className={styles.body}>
+          {phase === "theory" && (
+            <div className={styles.theoryGrid}>
+              <section className={styles.theoryCard}>
+                <div className={styles.kicker}>Penjelasan</div>
+                <p className={styles.theoryText}>{pattern.theory_text || "Belum ada teori untuk pola ini."}</p>
               </section>
-            )}
-          </div>
-        )}
+              {examples.length > 0 && (
+                <section className={styles.exampleCard}>
+                  <div className={styles.kicker}>Contoh</div>
+                  <div className={styles.exampleList}>
+                    {examples.map((example, index) => (
+                      <button key={`${example.hz}-${index}`} type="button" className={styles.exampleItem} onClick={() => example.hz && speakMandarin(example.hz)}>
+                        <div className={styles.exampleHz}>{example.hz}</div>
+                        {example.py ? <div className={styles.examplePy}><ColorPy text={example.py} /></div> : null}
+                        {example.id ? <div className={styles.exampleId}>{example.id}</div> : null}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
 
-        {phase === "soal" && question && (
-          <>
-            <section className={styles.soalCard}>
-              <div className={styles.kicker}>{reviewRound > 0 ? `Review R${reviewRound + 1} — Soal ${idx + 1} dari ${questions.length}` : `Soal ${idx + 1} dari ${questions.length} — Susun Kata`}</div>
-              <div className={styles.target}>{question.translation}</div>
-            </section>
-            <div className={styles.answerZone}>
-              {answer.length === 0 ? (
-                <span className={styles.placeholder}>Ketuk kata di bawah untuk menyusun...</span>
-              ) : answer.map((item, index) => (
-                <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} onClick={() => removeWord(index)} />
-              ))}
-            </div>
-            <div className={styles.bank}>
-              {bankWords.map((item, index) => (
-                <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} used={used[index]} disabled={checked} onClick={() => addWord(index)} />
-              ))}
-            </div>
-            {checked && (
-              <div className={`${styles.resultBox} ${ok ? styles.resultOk : styles.resultBad}`}>
-                <button type="button" className={styles.resultMain} onClick={() => speakMandarin(question.correct_order.join(""))}>
-                  {ok ? `Benar! ${question.correct_order.join("")} — ${question.translation}` : `Belum tepat. Urutan benar: ${question.correct_order.join("")}`}
-                </button>
-                {question.explanation ? <div className={styles.explain}>{question.explanation}</div> : null}
+          {phase === "soal" && question && (
+            <>
+              <section className={styles.soalCard}>
+                <div className={styles.kicker}>{reviewRound > 0 ? `Review R${reviewRound + 1} — Soal ${idx + 1} dari ${questions.length}` : `Soal ${idx + 1} dari ${questions.length} — Susun Kata`}</div>
+                <div className={styles.target}>{question.translation}</div>
+              </section>
+              <div className={styles.answerZone}>
+                {answer.length === 0 ? (
+                  <span className={styles.placeholder}>Ketuk kata di bawah untuk menyusun...</span>
+                ) : answer.map((item, index) => (
+                  <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} onClick={() => removeWord(index)} />
+                ))}
               </div>
-            )}
-          </>
-        )}
+              <div className={styles.bank}>
+                {bankWords.map((item, index) => (
+                  <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} used={used[index]} disabled={checked} onClick={() => addWord(index)} />
+                ))}
+              </div>
+              {checked && (
+                <div className={`${styles.resultBox} ${ok ? styles.resultOk : styles.resultBad}`}>
+                  <button type="button" className={styles.resultMain} onClick={() => speakMandarin(question.correct_order.join(""))}>
+                    {ok ? `Benar! ${question.correct_order.join("")} — ${question.translation}` : `Belum tepat. Urutan benar: ${question.correct_order.join("")}`}
+                  </button>
+                  {question.explanation ? <div className={styles.explain}>{question.explanation}</div> : null}
+                </div>
+              )}
+            </>
+          )}
 
-        {phase === "done" && (
-          <section className={styles.doneCard}>
-            <div className={styles.kicker}>Selesai</div>
-            <div className={styles.donePct}>{questions.length ? Math.round((correctCount / questions.length) * 100) : 0}%</div>
-            <div className={styles.doneStats}>
-              <div className={styles.stat}><span className={`${styles.statNum} ${styles.ok}`}>{correctCount}</span><span className={styles.statLbl}>Benar</span></div>
-              <div className={styles.stat}><span className={`${styles.statNum} ${styles.bad}`}>{wrongCount}</span><span className={styles.statLbl}>Salah</span></div>
-              <div className={styles.stat}><span className={styles.statNum}>{questions.length}</span><span className={styles.statLbl}>Total</span></div>
+          {phase === "done" && (
+            <div className="flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+              {/*
+                Signature: watermark emoji besar di belakang ring, gaya
+                sama persis dengan watermark yang muncul di flashcard session.
+              */}
+              <div
+                aria-hidden="true"
+                className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+                style={{
+                  fontSize: "16rem",
+                  lineHeight: 1,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                ✅
+              </div>
+
+              <div className="flex flex-col items-center gap-1 relative z-10">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
+                <p className="text-sm text-muted-foreground">{questions.length} soal selesai</p>
+              </div>
+
+              {/* Ring akurasi */}
+              <div className="relative z-10 flex items-center justify-center">
+                {(() => {
+                  const pct = questions.length ? Math.round((correctCount / questions.length) * 100) : 0
+                  const circumference = 2 * Math.PI * 54
+                  const ringOffset = circumference - (pct / 100) * circumference
+                  const pctColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
+                  return (
+                    <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                      <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                      <circle
+                        cx="60" cy="60" r="54" fill="none"
+                        stroke={pctColor}
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={ringOffset}
+                        style={{ transition: "stroke 400ms ease" }}
+                      />
+                    </svg>
+                  )
+                })()}
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">{questions.length ? Math.round((correctCount / questions.length) * 100) : 0}%</span>
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                </div>
+              </div>
+
+              {/* Rincian penilaian */}
+              <div className="flex flex-wrap justify-center gap-2 relative z-10">
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{correctCount}</span>
+                  <span className="text-xs text-muted-foreground">Benar</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-red-500 tabular-nums">{wrongCount}</span>
+                  <span className="text-xs text-muted-foreground">Salah</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Star className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-blue-500 tabular-nums">{questions.length}</span>
+                  <span className="text-xs text-muted-foreground">Total</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 w-full max-w-xs relative z-10">
+                <button type="button" className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.push("/dashboard/grammar")}>Kembali</button>
+                <button type="button" className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={restart}>Ulangi</button>
+              </div>
             </div>
-          </section>
-        )}
-      </div>
+          )}
+        </div>
 
-      <footer className={styles.footer}>
-        {phase === "theory" && (
-          <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
-        )}
-        {phase === "soal" && (
-          <>
-            <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
-            {!checked ? (
-              <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
-            ) : (
-              <button type="button" className={styles.btnPrimary} onClick={goNext}>
-                {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
-              </button>
-            )}
-          </>
-        )}
-        {phase === "done" && (
-          <>
-            <button type="button" className={styles.btnGhost} onClick={() => router.push("/dashboard/grammar")}>Kembali</button>
-            <button type="button" className={styles.btnPrimary} onClick={restart}>Ulangi</button>
-          </>
-        )}
-      </footer>
+        <footer className={styles.footer}>
+          {phase === "theory" && (
+            <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
+          )}
+          {phase === "soal" && (
+            <>
+              <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
+              {!checked ? (
+                <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
+              ) : (
+                <button type="button" className={styles.btnPrimary} onClick={goNext}>
+                  {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
+                </button>
+              )}
+            </>
+          )}
+        </footer>
+      </div>
     </div>
   )
 }

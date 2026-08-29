@@ -2,9 +2,10 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward } from "lucide-react"
+import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { PracticeHeader } from "@/components/practice-header"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -181,132 +182,237 @@ export default function SpeakingPracticePage() {
   }
 
   if (practiceComplete) {
+    const pct = items.length ? Math.round((completedCount / items.length) * 100) : 0
+    const circumference = 2 * Math.PI * 54
+    const ringOffset = circumference - (pct / 100) * circumference
+    const pctColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
+
     return (
-      <div className="flex min-h-full flex-col items-center justify-center p-6">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="p-8 space-y-4">
-            <div className="text-6xl">🎉</div>
-            <h2 className="text-2xl font-bold">Latihan Selesai!</h2>
-            <p className="text-muted-foreground">
-              Kamu telah menyelesaikan {completedCount} dari {items.length} kalimat.
-            </p>
-            <div className="flex gap-2 justify-center">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Kembali
-              </Button>
-              <Button onClick={handleRestart}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Ulangi
-              </Button>
+      <div className={styles.fullscreenContainer}>
+        <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+          {/* Header with Title, Subtitle, and Action Buttons */}
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
+            <div className="mb-2">
+              <h1 className="text-lg font-bold text-foreground">Latihan Speaking</h1>
+              <p className="text-xs text-muted-foreground">{set.title}</p>
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Always Visible Stats Section */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Akurasi Sesi
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-foreground">{pct}%</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Star className="h-3 w-3" />
+                  Sudah Dikuasai
+                </div>
+                <div className="text-sm font-semibold text-foreground">{completedCount}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Dinilai
+                </div>
+                <div className="text-sm font-semibold text-foreground">{completedCount}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Star className="h-3 w-3" />
+                  Total
+                </div>
+                <div className="text-sm font-semibold text-foreground">{items.length}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Result Content */}
+          <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+            {/*
+              Signature: watermark emoji besar di belakang ring, gaya
+              sama persis dengan watermark yang muncul di flashcard session.
+            */}
+            <div
+              aria-hidden="true"
+              className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+              style={{
+                fontSize: "16rem",
+                lineHeight: 1,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              🎉
+            </div>
+
+            <div className="flex flex-col items-center gap-1 relative z-10">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>
+              <p className="text-sm text-muted-foreground">{completedCount} dari {items.length} kalimat selesai</p>
+            </div>
+
+            {/* Ring akurasi */}
+            <div className="relative z-10 flex items-center justify-center">
+              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                <circle
+                  cx="60" cy="60" r="54" fill="none"
+                  stroke={pctColor}
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={ringOffset}
+                  style={{ transition: "stroke 400ms ease" }}
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center">
+                <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+              </div>
+            </div>
+
+            {/* Rincian penilaian */}
+            <div className="flex flex-wrap justify-center gap-2 relative z-10">
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-emerald-500 tabular-nums">{completedCount}</span>
+                <span className="text-xs text-muted-foreground">Selesai</span>
+              </div>
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Star className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-blue-500 tabular-nums">{items.length}</span>
+                <span className="text-xs text-muted-foreground">Total</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 w-full max-w-xs relative z-10">
+              <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={handleBack}>
+                <ArrowLeft className="h-4 w-4 mr-2 inline" />
+                Kembali
+              </button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={handleRestart}>
+                <RotateCcw className="h-4 w-4 mr-2 inline" />
+                Ulangi
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className={styles.fullscreenContainer}>
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-4 py-3 sm:px-6">
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-base font-bold">Latihan Speaking</h1>
-            <p className="truncate text-xs text-muted-foreground">{set.title}</p>
-          </div>
-          <span className="shrink-0 text-sm font-medium tabular-nums text-muted-foreground">
-            {currentIndex + 1}/{items.length}
-          </span>
-        </div>
-        <div className="h-1 bg-muted">
-          <div className="h-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} />
-        </div>
-      </header>
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        {/* Header */}
+        <PracticeHeader
+          title="Latihan Speaking"
+          subtitle={set.title}
+          progress={progress}
+          rightContent={`${currentIndex + 1}/${items.length}`}
+          stats={{
+            mastered: completedCount,
+            rated: completedCount,
+          }}
+          showStats={true}
+        />
 
-      {/* Main Content */}
-      <main className="flex flex-1 flex-col items-center justify-center p-6">
-        <Card className="w-full max-w-2xl">
-          <CardContent className="p-8 space-y-6">
-            {/* Sentence Display */}
-            <div className="text-center space-y-4">
-              <div className="font-hanzi text-4xl font-bold leading-relaxed">
-                {currentItem?.hanzi}
-              </div>
-              <TonePinyin text={currentItem?.pinyin || ""} className="text-xl" />
-              <div className="text-lg text-muted-foreground">
-                {currentItem?.arti}
-              </div>
-            </div>
-
-            {/* Audio Controls */}
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => speakMandarin(currentItem?.hanzi || "")}
-              >
-                <Volume2 className="h-5 w-5 mr-2" />
-                Dengar Contoh
-              </Button>
-            </div>
-
-            {/* Recording Section */}
-            {!showResult ? (
-              <div className="space-y-4">
-                <div className="text-center text-sm text-muted-foreground">
-                  Tekan tombol mikrofon dan bacalah kalimat di atas
+        {/* Main Content */}
+        <main className="flex flex-1 flex-col items-center justify-center p-6 overflow-x-hidden">
+          <Card className="w-full max-w-2xl">
+            <CardContent className="p-8 space-y-6">
+              {/* Sentence Display */}
+              <div className="text-center space-y-4">
+                <div className="font-hanzi text-4xl font-bold leading-relaxed">
+                  {currentItem?.hanzi}
                 </div>
-                <div className="flex justify-center">
-                  <Button
-                    size="lg"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
-                  >
-                    <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
-                  </Button>
-                </div>
-                {isRecording && (
-                  <div className="text-center text-sm text-red-400">
-                    Merekam...
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="text-center text-sm text-muted-foreground">
-                  Hasil rekamanmu:
-                </div>
-                {recordedAudio && (
-                  <div className="flex justify-center">
-                    <audio controls src={recordedAudio} className="w-full max-w-md" />
-                  </div>
-                )}
-                <div className="flex gap-2 justify-center">
-                  <Button variant="outline" onClick={handleRecordAgain}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Rekam Ulang
-                  </Button>
-                  <Button onClick={handleNext}>
-                    <Check className="h-4 w-4 mr-2" />
-                    Lanjut
-                  </Button>
+                <TonePinyin text={currentItem?.pinyin || ""} className="text-xl" />
+                <div className="text-lg text-muted-foreground">
+                  {currentItem?.arti}
                 </div>
               </div>
-            )}
 
-            {/* Skip Button */}
-            {!showResult && (
+              {/* Audio Controls */}
               <div className="flex justify-center">
-                <Button variant="ghost" onClick={handleSkip}>
-                  <SkipForward className="h-4 w-4 mr-2" />
-                  Lewati
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => speakMandarin(currentItem?.hanzi || "")}
+                >
+                  <Volume2 className="h-5 w-5 mr-2" />
+                  Dengar Contoh
                 </Button>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+
+              {/* Recording Section */}
+              {!showResult ? (
+                <div className="space-y-4">
+                  <div className="text-center text-sm text-muted-foreground">
+                    Tekan tombol mikrofon dan bacalah kalimat di atas
+                  </div>
+                  <div className="flex justify-center">
+                    <Button
+                      size="lg"
+                      onClick={isRecording ? stopRecording : startRecording}
+                      className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
+                    >
+                      <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
+                    </Button>
+                  </div>
+                  {isRecording && (
+                    <div className="text-center text-sm text-red-400">
+                      Merekam...
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-center text-sm text-muted-foreground">
+                    Hasil rekamanmu:
+                  </div>
+                  {recordedAudio && (
+                    <div className="flex justify-center">
+                      <audio controls src={recordedAudio} className="w-full max-w-md" />
+                    </div>
+                  )}
+                  <div className="flex gap-2 justify-center">
+                    <Button variant="outline" onClick={handleRecordAgain}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Rekam Ulang
+                    </Button>
+                    <Button onClick={handleNext}>
+                      <Check className="h-4 w-4 mr-2" />
+                      Lanjut
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Skip Button */}
+              {!showResult && (
+                <div className="flex justify-center">
+                  <Button variant="ghost" onClick={handleSkip}>
+                    <SkipForward className="h-4 w-4 mr-2" />
+                    Lewati
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     </div>
   )
 }

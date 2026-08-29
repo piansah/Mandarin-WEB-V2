@@ -32,8 +32,9 @@
   --c-result-msg: var(--muted-foreground);
   --c-back-border: var(--border);
   --c-back-text: var(--muted-foreground);
-  height: 100dvh;
-  overflow-y: auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
   background: var(--c-bg);
   color: var(--c-text);

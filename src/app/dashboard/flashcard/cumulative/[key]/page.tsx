@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Mic, Flag } from "lucide-react"
+import { RotateCcw, Mic, Flag, CheckCircle2, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
@@ -154,98 +154,155 @@ export default function CumulativeFlashcardSessionPage() {
 
   return (
     <div className={styles.fullscreenContainer}>
-      <PracticeHeader
-        title={set.title}
-        subtitle={set.sub}
-        progress={progress}
-        rightContent={`${completedCount}/${items.length}`}
-        stats={{
-          mastered: completedCount,
-          rated: completedCount,
-        }}
-        showStats={true}
-      />
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        <PracticeHeader
+          title={set.title}
+          subtitle={set.sub}
+          progress={progress}
+          rightContent={`${completedCount}/${items.length}`}
+          stats={{
+            mastered: completedCount,
+            rated: completedCount,
+          }}
+          showStats={true}
+        />
 
-      <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6">
-        <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
-        {groups.map((group) => (
-          <section key={`${group.tag}-${group.label}`}>
-            <div className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{group.tag}</span>{group.label}</div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {group.items.map((item, index) => {
-                const state = stateById[item.id] ?? 0
-                return (
-                  <div key={item.id} className="relative group">
-                    <button 
-                      type="button" 
-                      onClick={() => advance(item)} 
-                      className={`min-h-36 w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
-                        <div className="flex items-center gap-2">
-                          {item.user_contribution && (
-                            <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">
-                              User
-                            </span>
-                          )}
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
-                        </div>
-                      </div>
-                      {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
-                      {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
-                      {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
-                    </button>
-                    {!reportedItems.has(item.id) && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); openReportModal(item) }}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Report kalimat"
+        <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
+          <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
+          {groups.map((group) => (
+            <section key={`${group.tag}-${group.label}`}>
+              <div className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{group.tag}</span>{group.label}</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {group.items.map((item, index) => {
+                  const state = stateById[item.id] ?? 0
+                  return (
+                    <div key={item.id} className="relative group">
+                      <button 
+                        type="button" 
+                        onClick={() => advance(item)} 
+                        className={`min-h-36 w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
                       >
-                        <Flag className="h-3 w-3 text-orange-500" />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
+                          <div className="flex items-center gap-2">
+                            {item.user_contribution && (
+                              <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">
+                                User
+                              </span>
+                            )}
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
+                          </div>
+                        </div>
+                        {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
+                        {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
+                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
                       </button>
-                    )}
-                  </div>
-                )
-              })}
+                      {!reportedItems.has(item.id) && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openReportModal(item) }}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Report kalimat"
+                        >
+                          <Flag className="h-3 w-3 text-orange-500" />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          ))}
+          {completedCount === items.length && items.length > 0 && (
+            <div className="flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+              {/*
+                Signature: watermark emoji besar di belakang ring, gaya
+                sama persis dengan watermark yang muncul di flashcard session.
+              */}
+              <div
+                aria-hidden="true"
+                className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+                style={{
+                  fontSize: "16rem",
+                  lineHeight: 1,
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                }}
+              >
+                🎉
+              </div>
+
+              <div className="flex flex-col items-center gap-1 relative z-10">
+                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Semua kalimat telah dibaca!</h2>
+                <p className="text-sm text-muted-foreground">{completedCount} dari {items.length} kalimat selesai</p>
+              </div>
+
+              {/* Ring akurasi */}
+              <div className="relative z-10 flex items-center justify-center">
+                {(() => {
+                  const circumference = 2 * Math.PI * 54
+                  return (
+                    <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                      <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                      <circle
+                        cx="60" cy="60" r="54" fill="none"
+                        stroke="#34d399"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={0}
+                        style={{ transition: "stroke 400ms ease" }}
+                      />
+                    </svg>
+                  )
+                })()}
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">100%</span>
+                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                </div>
+              </div>
+
+              {/* Rincian penilaian */}
+              <div className="flex flex-wrap justify-center gap-2 relative z-10">
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{completedCount}</span>
+                  <span className="text-xs text-muted-foreground">Selesai</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Star className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-blue-500 tabular-nums">{items.length}</span>
+                  <span className="text-xs text-muted-foreground">Total</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 w-full max-w-xs relative z-10">
+                <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress}><RotateCcw className="h-4 w-4 mr-2" />Ulangi dari awal</Button>
+              </div>
             </div>
-          </section>
-        ))}
-        {completedCount === items.length && items.length > 0 && (
-          <div className="cumulative-finish flex flex-col items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center">
-            <div className="cumulative-finish-emoji text-4xl">🎉</div>
-            <p className="font-semibold text-emerald-600 dark:text-emerald-400">Semua kalimat telah dibaca.</p>
-            <Button variant="outline" className="gap-2" onClick={resetProgress}><RotateCcw className="h-4 w-4" />Ulangi dari awal</Button>
+          )}
+        </main>
+
+        {/* Fixed Footer with Practice Button */}
+        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4">
+          <div className="mx-auto max-w-4xl">
+            <Button onClick={navigateToSpeakingPractice} className="w-full" size="lg">
+              <Mic className="h-5 w-5 mr-2" />
+              Latihan Speaking
+            </Button>
           </div>
-        )}
-      </main>
-
-      {/* Fixed Footer with Practice Button */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4">
-        <div className="mx-auto max-w-4xl">
-          <Button onClick={navigateToSpeakingPractice} className="w-full" size="lg">
-            <Mic className="h-5 w-5 mr-2" />
-            Latihan Speaking
-          </Button>
         </div>
+
+        {/* Report Modal */}
+        <ReportModal
+          isOpen={reportModal.isOpen}
+          onClose={closeReportModal}
+          contentType="kalimat"
+          contentId={reportModal.itemId || 0}
+          contentLabel={reportModal.itemLabel}
+        />
       </div>
-
-      <style dangerouslySetInnerHTML={{__html: `
-        .cumulative-finish { animation: cumulativeFinishEnter 520ms cubic-bezier(.22,1,.36,1) both; }
-        .cumulative-finish-emoji { animation: cumulativeFinishPop 620ms cubic-bezier(.2,1.4,.4,1) 120ms both; }
-        @keyframes cumulativeFinishEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-        @keyframes cumulativeFinishPop { 0% { opacity: 0; transform: translateY(10px) scale(.6) rotate(-10deg); } 70% { opacity: 1; transform: translateY(0) scale(1.12) rotate(4deg); } 100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
-      `}} />
-
-      {/* Report Modal */}
-      <ReportModal
-        isOpen={reportModal.isOpen}
-        onClose={closeReportModal}
-        contentType="kalimat"
-        contentId={reportModal.itemId || 0}
-        contentLabel={reportModal.itemLabel}
-      />
     </div>
   )
 }

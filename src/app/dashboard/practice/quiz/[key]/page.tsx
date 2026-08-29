@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X } from "lucide-react"
+import { X, RotateCcw, SkipForward, CheckCircle2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { Button } from "@/components/ui/button"
@@ -320,31 +320,128 @@ export default function QuizPage() {
     const pct = Math.round((totalCorrect / 100) * 100)
     const { emoji, grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
+    const circumference = 2 * Math.PI * 54
+    const ringOffset = circumference - (pct / 100) * circumference
 
     return (
       <div className={styles.page}>
-        <div className={styles.result}>
-          <div className={styles.resultEmoji}>{emoji}</div>
-          <div style={{ color: pctColor, fontSize: 52, fontWeight: 900 }}>{pct}%</div>
-          <div className={styles.resultGrade}>{grade}</div>
-          <div className={styles.resultMsg}>{msg}</div>
-          <div className={styles.resultStats}>
-            <div className={styles.resultStat}>
-              <span className={`${styles.resultStatNum} ${styles.resultScore}`}>{totalCorrect}</span>
-              <span className={styles.resultStatLbl}>Benar</span>
+        <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+          {/* Header with Title, Subtitle, and Action Buttons */}
+          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
+            <div className="mb-2">
+              <h1 className="text-lg font-bold text-foreground">{quizTitle || "Quiz Harian"}</h1>
+              <p className="text-xs text-muted-foreground">{quizSub || `Level ${key.replace("level-", "")}`}</p>
             </div>
-            <div className={styles.resultStat}>
-              <span className={`${styles.resultStatNum} ${styles.resultWrong}`}>{wrong}</span>
-              <span className={styles.resultStatLbl}>Salah</span>
-            </div>
-            <div className={styles.resultStat}>
-              <span className={`${styles.resultStatNum} ${styles.resultSkip}`}>{skip}</span>
-              <span className={styles.resultStatLbl}>Dilewati</span>
+
+            {/* Always Visible Stats Section */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Akurasi Sesi
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-foreground">{pct}%</span>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Benar
+                </div>
+                <div className="text-sm font-semibold text-foreground">{totalCorrect}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <RotateCcw className="h-3 w-3" />
+                  Salah
+                </div>
+                <div className="text-sm font-semibold text-foreground">{wrong}</div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <SkipForward className="h-3 w-3" />
+                  Dilewati
+                </div>
+                <div className="text-sm font-semibold text-foreground">{skip}</div>
+              </div>
             </div>
           </div>
-          <div className={styles.resultBtns}>
-            <button className={styles.btnBack} onClick={() => router.back()}>Kembali</button>
-            <button className={styles.btnRetry} onClick={handleRetry}>Ulangi</button>
+
+          {/* Result Content */}
+          <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+            {/*
+              Signature: watermark emoji besar di belakang ring, gaya
+              sama persis dengan watermark yang muncul di flashcard session.
+            */}
+            <div
+              aria-hidden="true"
+              className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+              style={{
+                fontSize: "16rem",
+                lineHeight: 1,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              {emoji}
+            </div>
+
+            <div className="flex flex-col items-center gap-1 relative z-10">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{grade}</h2>
+              <p className="text-sm text-muted-foreground">{msg}</p>
+            </div>
+
+            {/* Ring akurasi */}
+            <div className="relative z-10 flex items-center justify-center">
+              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                <circle
+                  cx="60" cy="60" r="54" fill="none"
+                  stroke={pctColor}
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={ringOffset}
+                  style={{ transition: "stroke 400ms ease" }}
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center">
+                <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+              </div>
+            </div>
+
+            {/* Rincian penilaian */}
+            <div className="flex flex-wrap justify-center gap-2 relative z-10">
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
+                <span className="text-xs text-muted-foreground">Benar</span>
+              </div>
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
+                <span className="text-xs text-muted-foreground">Salah</span>
+              </div>
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
+                <span className="text-xs text-muted-foreground">Dilewati</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3 w-full max-w-xs relative z-10">
+              <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={handleRetry}>Ulangi</button>
+            </div>
           </div>
         </div>
       </div>
@@ -377,103 +474,105 @@ export default function QuizPage() {
 
   return (
     <div className={styles.page}>
-      {/* Header */}
-      <PracticeHeader
-        title={quizTitle || "Quiz Harian"}
-        subtitle={quizSub || `Level ${key.replace("level-", "")}`}
-        progress={progress}
-        rightContent={`${totalCorrect}/${totalAnswered}`}
-        stats={{
-          accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
-          rated: totalAnswered,
-        }}
-        showStats={true}
-      />
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        {/* Header */}
+        <PracticeHeader
+          title={quizTitle || "Quiz Harian"}
+          subtitle={quizSub || `Level ${key.replace("level-", "")}`}
+          progress={progress}
+          rightContent={`${totalCorrect}/${totalAnswered}`}
+          stats={{
+            accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
+            rated: totalAnswered,
+          }}
+          showStats={true}
+        />
 
-      {/* Section filter dropdown - scrolls together with the questions */}
-      <div
-        ref={filterRef}
-        className={styles.filterWrap}
-      >
-        <button
-          type="button"
-          className={styles.filterBtn}
-          onClick={() => setFilterOpen(o => !o)}
-          aria-haspopup="listbox"
-          aria-expanded={filterOpen}
+        {/* Section filter dropdown - scrolls together with the questions */}
+        <div
+          ref={filterRef}
+          className={styles.filterWrap}
         >
-          {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
-            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        {filterOpen && (
-          <div className={styles.filterMenu} role="listbox">
-            {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
-              <button
-                key={String(t)}
-                type="button"
-                role="option"
-                aria-selected={activeTab === t}
-                className={`${styles.filterItem} ${activeTab === t ? styles.filterItemActive : ""}`}
-                onClick={() => { setActiveTab(t); setFilterOpen(false) }}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Warn box (skip warning) — shown after submit attempt */}
-      {submitted === false && totalAnswered < 100 && allQ.length === 100 && (
-        <div className={`${styles.warnBox}`} id="warn-box" />
-      )}
-
-      {/* Questions */}
-      <div className={styles.main}>
-        {visibleSections.map(si => {
-          const sq = allQ.filter(q => q.si === si)
-          if (!sq.length) return null
-          const offset = activeTab === "all" ? si * 25 : 0
-          const meta = SECTION_META[si]
-
-          return (
-            <React.Fragment key={si}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionNum}>{meta.label}</div>
-                <div>
-                  <div className={styles.sectionTitle}>{meta.title}</div>
-                  <div className={styles.sectionSub}>{meta.sub}</div>
-                </div>
-                <div className={styles.sectionRange}>
-                  {activeTab === "all" ? `${si * 25 + 1}–${si * 25 + 25}` : "1–25"}
-                </div>
-              </div>
-
-              {sq.map((q, li) => (
-                <QuizCard
-                  key={q.gi}
-                  q={q}
-                  num={offset + li + 1}
-                  isAnswered={answered[q.gi] !== undefined}
-                  isCorrect={answered[q.gi]}
-                  onSelect={sel => selectAns(q.gi, sel, q.ans)}
-                  onReplay={() => replayQuestion(q.gi)}
-                />
-              ))}
-            </React.Fragment>
-          )
-        })}
-
-        <div className={styles.submitPanel}>
-          <div className={styles.liveInfo}>
-            <div className={styles.liveTxt}>{totalAnswered} / 100 dijawab</div>
-            <div className={styles.liveScore}>{totalCorrect} benar</div>
-          </div>
-          <button className={styles.submitBtn} onClick={handleSubmit}>
-            Selesai
+          <button
+            type="button"
+            className={styles.filterBtn}
+            onClick={() => setFilterOpen(o => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={filterOpen}
+          >
+            {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </button>
+          {filterOpen && (
+            <div className={styles.filterMenu} role="listbox">
+              {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
+                <button
+                  key={String(t)}
+                  type="button"
+                  role="option"
+                  aria-selected={activeTab === t}
+                  className={`${styles.filterItem} ${activeTab === t ? styles.filterItemActive : ""}`}
+                  onClick={() => { setActiveTab(t); setFilterOpen(false) }}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Warn box (skip warning) — shown after submit attempt */}
+        {submitted === false && totalAnswered < 100 && allQ.length === 100 && (
+          <div className={`${styles.warnBox}`} id="warn-box" />
+        )}
+
+        {/* Questions */}
+        <div className={styles.main}>
+          {visibleSections.map(si => {
+            const sq = allQ.filter(q => q.si === si)
+            if (!sq.length) return null
+            const offset = activeTab === "all" ? si * 25 : 0
+            const meta = SECTION_META[si]
+
+            return (
+              <React.Fragment key={si}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionNum}>{meta.label}</div>
+                  <div>
+                    <div className={styles.sectionTitle}>{meta.title}</div>
+                    <div className={styles.sectionSub}>{meta.sub}</div>
+                  </div>
+                  <div className={styles.sectionRange}>
+                    {activeTab === "all" ? `${si * 25 + 1}–${si * 25 + 25}` : "1–25"}
+                  </div>
+                </div>
+
+                {sq.map((q, li) => (
+                  <QuizCard
+                    key={q.gi}
+                    q={q}
+                    num={offset + li + 1}
+                    isAnswered={answered[q.gi] !== undefined}
+                    isCorrect={answered[q.gi]}
+                    onSelect={sel => selectAns(q.gi, sel, q.ans)}
+                    onReplay={() => replayQuestion(q.gi)}
+                  />
+                ))}
+              </React.Fragment>
+            )
+          })}
+
+          <div className={styles.submitPanel}>
+            <div className={styles.liveInfo}>
+              <div className={styles.liveTxt}>{totalAnswered} / 100 dijawab</div>
+              <div className={styles.liveScore}>{totalCorrect} benar</div>
+            </div>
+            <button className={styles.submitBtn} onClick={handleSubmit}>
+              Selesai
+            </button>
+          </div>
         </div>
       </div>
     </div>

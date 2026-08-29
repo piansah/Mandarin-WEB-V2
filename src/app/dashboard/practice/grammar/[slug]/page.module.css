@@ -18,12 +18,10 @@
   --c-chip-bg: var(--card);
   --c-chip-border: var(--border);
   --c-stat-bg: var(--muted);
+  min-height: 100%;
   display: flex;
-  height: 100dvh;
-  max-height: 100dvh;
-  min-height: 0;
   flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   background: var(--c-bg);
   color: var(--c-text);
@@ -112,7 +110,6 @@
   gap: 16px;
   margin-inline: auto;
   overflow-x: hidden;
-  overflow-y: auto;
   padding: 18px 16px 24px;
   -webkit-overflow-scrolling: touch;
 }
