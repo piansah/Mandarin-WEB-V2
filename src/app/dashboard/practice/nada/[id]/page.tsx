@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Volume2, CheckCircle2, XCircle, Flame, ListChecks } from "lucide-react"
+import { CheckCircle2, XCircle, Flame, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -296,9 +296,8 @@ function ResultBadge({ correct }: { correct: boolean }) {
         </svg>
       )}
       <div
-        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
-          correct ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500"
-        }`}
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${correct ? "bg-emerald-500/15 text-emerald-500" : "bg-red-500/15 text-red-500"
+          }`}
       >
         {correct ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
       </div>
@@ -676,9 +675,9 @@ export default function NadaPracticePage() {
           di bawah dibiarkan (lihat catatan di respons chat soal ini).
         */}
         <div className="flex-1 flex flex-col items-center justify-start gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+          {/* <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
-          </p>
+          </p> */}
 
           {/*
             Layout responsif: 1 kolom di mobile (persis perilaku lama —
@@ -723,7 +722,28 @@ export default function NadaPracticePage() {
                   style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
                 />
 
-                <div className="relative z-10 flex flex-col items-center justify-center gap-3 py-10 px-8 md:h-full rounded-3xl border border-border/40 bg-gradient-to-br from-card to-card/80 shadow-2xl overflow-hidden">
+                {/*
+                  Kartu hanzi sekarang jadi trigger TTS-nya sendiri (bukan
+                  tombol "Dengar" terpisah yang sudah dihapus) — tap/klik
+                  di mana pun di kartu ini langsung speakMandarin(). Warna
+                  hanzi berubah ke `text-primary` saat hover (desktop) atau
+                  aktif ditekan (mobile via `active:`), pola yang sama
+                  persis dengan hover kalimat contoh di bawah, biar terasa
+                  konsisten sebagai "elemen yang bisa disuarakan".
+                */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Dengarkan pelafalan ${q.hanzi}`}
+                  className="group relative z-10 flex flex-col items-center justify-center gap-3 py-10 px-8 md:h-full rounded-3xl border border-border/40 bg-gradient-to-br from-card to-card/80 shadow-2xl overflow-hidden cursor-pointer transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+                  onClick={() => speakMandarin(q.hanzi)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      speakMandarin(q.hanzi)
+                    }
+                  }}
+                >
                   <div
                     aria-hidden="true"
                     className="absolute -right-6 -bottom-8 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
@@ -731,10 +751,11 @@ export default function NadaPracticePage() {
                   >
                     {q.hanzi}
                   </div>
-                  <div className={`relative font-hanzi ${hanziSizeClass}`}>{q.hanzi}</div>
-                  <Button variant="ghost" size="sm" className="relative gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
-                    <Volume2 className="h-4 w-4" /> Dengar
-                  </Button>
+                  <div
+                    className={`relative font-hanzi ${hanziSizeClass} text-foreground transition-colors duration-200 group-hover:text-primary group-active:text-primary`}
+                  >
+                    {q.hanzi}
+                  </div>
                 </div>
               </div>
 
@@ -786,15 +807,13 @@ export default function NadaPracticePage() {
             {showResult && (
               <div
                 key={idx}
-                className={`animate-in fade-in zoom-in-95 duration-300 w-full rounded-2xl border overflow-hidden ${
-                  isCorrectAnswer ? "border-emerald-500/30" : "border-red-500/30"
-                }`}
+                className={`animate-in fade-in zoom-in-95 duration-300 w-full rounded-2xl border overflow-hidden ${isCorrectAnswer ? "border-emerald-500/30" : "border-red-500/30"
+                  }`}
               >
                 <div className={`grid grid-cols-1 ${q.exampleSentence ? "sm:grid-cols-2" : ""}`}>
                   <div
-                    className={`flex flex-col items-center justify-center gap-2 p-4 ${
-                      isCorrectAnswer ? "bg-emerald-500/10" : "bg-red-500/10"
-                    } ${q.exampleSentence ? "border-b sm:border-b-0 sm:border-r border-border/20" : ""}`}
+                    className={`flex flex-col items-center justify-center gap-2 p-4 ${isCorrectAnswer ? "bg-emerald-500/10" : "bg-red-500/10"
+                      } ${q.exampleSentence ? "border-b sm:border-b-0 sm:border-r border-border/20" : ""}`}
                   >
                     <ResultBadge correct={isCorrectAnswer} />
 
