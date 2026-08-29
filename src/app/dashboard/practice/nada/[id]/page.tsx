@@ -602,7 +602,7 @@ export default function NadaPracticePage() {
             <div className={`${styles.statsCard} flex flex-col gap-1`}>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Flame className="h-3 w-3" />
-                Benar Beruntun
+                <span className="hidden sm:inline">Benar </span>Beruntun
               </div>
               <div className="text-sm font-semibold text-foreground">{streak}</div>
             </div>
@@ -623,7 +623,16 @@ export default function NadaPracticePage() {
           <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 md:gap-8 px-4 sm:px-6 py-4">
+        {/*
+          `justify-start` (bukan `justify-center`): di layar tinggi/lebar
+          (desktop), `justify-center` bikin konten soal ke-dorong jauh ke
+          tengah layar dengan jarak kosong besar di atasnya (antara
+          progress bar dan kartu soal) — sesuai screenshot referensi.
+          `justify-start` + `pt-6 md:pt-10` bikin soal nempel dekat
+          progress bar, konsisten di semua tinggi layar, sisa ruang kosong
+          di bawah dibiarkan (lihat catatan di respons chat soal ini).
+        */}
+        <div className="flex-1 flex flex-col items-center justify-start gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
           <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
           </p>
@@ -637,7 +646,19 @@ export default function NadaPracticePage() {
             bukannya kepusat sempit di tengah dengan banyak ruang kosong
             kiri-kanan.
           */}
-          <div className="w-full max-w-sm md:max-w-4xl mx-auto flex flex-col gap-4 md:gap-5">
+          {/*
+            `zoom` (bukan padding per elemen) sengaja dipakai di sini:
+            permintaannya adalah seluruh grup (kartu hanzi + pilihan +
+            feedback + contoh + tombol) diperlakukan sebagai SATU unit
+            visual lalu diperkecil proporsinya secara rata — persis kayak
+            nge-zoom out sebuah gambar (mis. 50 -> 47), bukan merapatkan
+            jarak/padding antar elemennya satu-satu (itu sudah dicoba
+            sebelumnya dan ditolak). `zoom` menyusutkan font-size, padding,
+            border, gap, radius — semuanya — dengan rasio yang sama persis,
+            dan (beda dari `transform: scale`) tetap ikut reflow layout,
+            jadi nggak nyisain kotak kosong di sekitarnya.
+          */}
+          <div className="w-full max-w-sm md:max-w-4xl mx-auto flex flex-col gap-4 md:gap-5" style={{ zoom: 0.94 }}>
             <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr] gap-4 md:gap-5">
               {/* Kartu Hanzi */}
               <div className="relative w-full max-w-sm mx-auto md:max-w-none md:mx-0">
