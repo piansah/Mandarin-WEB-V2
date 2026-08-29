@@ -15,6 +15,9 @@ type Card = {
   pinyin: string        // pinyin utuh kata (mis. "nǐ hǎo")
   arti: string
   tones: number[]        // nada tiap suku kata, urut sesuai hanzi (mis. [3, 3])
+  syllables: string[]    // base syllable TANPA tanda nada, sejajar dgn `tones`
+                          // (mis. ["ni", "hao"]) — dipakai buat regenerate
+                          // pinyin bertanda nada tiap kombinasi jawaban.
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
@@ -43,6 +46,69 @@ function extractTone(pinyin: string): number {
     if (toneMap[char]) return toneMap[char]
   }
   return 0
+}
+
+// Hapus tanda diakritik nada dari sebuah syllable, balikin bentuk dasarnya
+// (mis. "hǎo" -> "hao"). Dipakai supaya kita bisa regenerate syllable
+// dengan nada berbeda saat bikin pilihan jawaban.
+function stripToneMarks(syllable: string): string {
+  const map: Record<string, string> = {
+    ā: "a", á: "a", ǎ: "a", à: "a",
+    ē: "e", é: "e", ě: "e", è: "e",
+    ī: "i", í: "i", ǐ: "i", ì: "i",
+    ō: "o", ó: "o", ǒ: "o", ò: "o",
+    ū: "u", ú: "u", ǔ: "u", ù: "u",
+    ǖ: "ü", ǘ: "ü", ǚ: "ü", ǜ: "ü",
+  }
+  return [...syllable].map(ch => map[ch] ?? ch).join("")
+}
+
+const TONE_VOWEL_MARKS: Record<string, string[]> = {
+  a: ["a", "ā", "á", "ǎ", "à"],
+  e: ["e", "ē", "é", "ě", "è"],
+  i: ["i", "ī", "í", "ǐ", "ì"],
+  o: ["o", "ō", "ó", "ǒ", "ò"],
+  u: ["u", "ū", "ú", "ǔ", "ù"],
+  ü: ["ü", "ǖ", "ǘ", "ǚ", "ǜ"],
+}
+
+// Tempelkan tanda nada ke base syllable (tanpa diakritik) sesuai aturan
+// penempatan nada standar pinyin: prioritas 'a' -> 'e' -> 'ou' (tanda di 'o')
+// -> vokal terakhir dalam syllable (menangani kasus seperti "ui" -> i,
+// "iu" -> u, "uo"/"duo" -> o, dst).
+function applyToneToSyllable(baseSyllable: string, tone: number): string {
+  if (!tone || tone === 0 || !baseSyllable) return baseSyllable
+  const lower = baseSyllable.toLowerCase()
+
+  let markIndex = -1
+  const aIdx = lower.indexOf("a")
+  const eIdx = lower.indexOf("e")
+  const ouIdx = lower.indexOf("ou")
+
+  if (aIdx !== -1) markIndex = aIdx
+  else if (eIdx !== -1) markIndex = eIdx
+  else if (ouIdx !== -1) markIndex = ouIdx
+  else {
+    for (let i = lower.length - 1; i >= 0; i--) {
+      if ("iouü".includes(lower[i])) { markIndex = i; break }
+    }
+  }
+
+  if (markIndex === -1) return baseSyllable
+
+  const vowelChar = lower[markIndex]
+  const marks = TONE_VOWEL_MARKS[vowelChar]
+  if (!marks) return baseSyllable
+
+  const marked = marks[tone] ?? vowelChar
+  return baseSyllable.slice(0, markIndex) + marked + baseSyllable.slice(markIndex + 1)
+}
+
+// Ubah kombinasi nada (mis. [3, 3]) jadi string pinyin bertanda nada utuh
+// (mis. "nǐ hǎo"), berdasarkan base syllables kata tsb. Dipakai untuk
+// menampilkan pilihan jawaban sebagai pinyin asli, bukan angka nada.
+function comboToPinyin(baseSyllables: string[], combo: number[]): string {
+  return combo.map((tone, i) => applyToneToSyllable(baseSyllables[i] ?? "", tone)).join(" ")
 }
 
 function splitPinyinSyllables(pinyin: string): string[] {
@@ -88,10 +154,11 @@ function isHanziChar(char: string): boolean {
 
 // Kartu tetap utuh sebagai kata (bisa multi-suku-kata), bukan dipecah
 // per-karakter. Tiap kata dapat array nada per suku kata, mis. "你好" ->
-// [3, 3]. Kata yang punya suku kata bernada 0 (ringan / tidak terbaca),
-// atau jumlah suku kata pinyin tidak pas dengan jumlah karakter hanzi,
-// dibuang dari kuis — karena pilihan jawaban dibatasi ke kombinasi nada
-// 1-4 saja.
+// [3, 3], plus base syllables tanpa tanda nada ["ni", "hao"] buat
+// regenerate pinyin pilihan jawaban. Kata yang punya suku kata bernada 0
+// (ringan / tidak terbaca), atau jumlah suku kata pinyin tidak pas dengan
+// jumlah karakter hanzi, dibuang dari kuis — karena pilihan jawaban
+// dibatasi ke kombinasi nada 1-4 saja.
 function buildWordCards(
   cards: Array<{
     id: number
@@ -108,9 +175,12 @@ function buildWordCards(
     const syllables = splitPinyinSyllables(card.pinyin)
     if (hanziChars.length === 0) return []
 
-    const tones = hanziChars.map((_, index) => {
+    const tones: number[] = []
+    const baseSyllables: string[] = []
+    hanziChars.forEach((_, index) => {
       const syl = syllables[index] ?? syllables[0] ?? card.pinyin
-      return extractTone(syl)
+      tones.push(extractTone(syl))
+      baseSyllables.push(stripToneMarks(syl))
     })
 
     if (tones.some(t => t === 0)) return []
@@ -121,6 +191,7 @@ function buildWordCards(
       pinyin: card.pinyin,
       arti: card.arti,
       tones,
+      syllables: baseSyllables,
       exampleSentence: card.exampleSentence,
       examplePinyin: card.examplePinyin,
       exampleTranslation: card.exampleTranslation,
@@ -140,6 +211,9 @@ function randomToneCombo(length: number): number[] {
 // Kata multi-suku-kata: jawaban adalah kombinasi nada penuh (mis. [3,3]),
 // dan 3 distraktor kombinasi acak di-generate — dijamin beda dari jawaban
 // benar & beda satu sama lain (dedup lewat Set), lalu diacak urutannya.
+// Catatan: fungsi ini tetap kerja di level "kombinasi nada" (number[][])
+// buat validasi benar/salah — konversi ke pinyin cuma soal tampilan,
+// lihat comboToPinyin().
 function generateChoices(correctTones: number[]): number[][] {
   if (correctTones.length === 1) {
     return [[1], [2], [3], [4]]
@@ -322,19 +396,14 @@ export default function NadaPracticePage() {
               else if (isSelected && !isCorrect) cls += "border-red-500 bg-red-500/10 text-red-500"
               else cls += "border-border/30 bg-card/20 opacity-50"
 
+              const choicePinyin = comboToPinyin(q.syllables, combo)
+
               return (
                 <button key={i} className={cls} onClick={() => handleSelect(combo)} disabled={showResult}>
                   <div className="flex items-center gap-1.5">
                     {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                     {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
-                    <span className="flex items-center gap-1">
-                      {combo.map((t, ti) => (
-                        <React.Fragment key={ti}>
-                          {ti > 0 && <span className="text-muted-foreground">-</span>}
-                          <span className={`text-lg font-bold ${TONE_COLORS[t]}`}>{t}</span>
-                        </React.Fragment>
-                      ))}
-                    </span>
+                    <TonePinyin text={choicePinyin} className="text-lg font-bold" />
                   </div>
                   <span className="text-xs text-muted-foreground text-center leading-tight">
                     {combo.length === 1 ? TONE_LABELS[combo[0]] : combo.map(t => TONE_MARKS[t]).join(" ")}
