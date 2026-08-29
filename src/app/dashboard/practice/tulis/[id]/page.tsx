@@ -6,7 +6,6 @@ import {
   RotateCcw,
   Eye,
   Shield,
-  Sparkles,
   Flame,
   ListChecks,
   CheckCircle2,
@@ -22,10 +21,10 @@ import styles from "./page.module.css"
 
 type Card = {
   id: number
-  hanzi: string          // satu karakter tunggal yang sedang dilatih
-  pinyin: string          // pinyin kata ASAL (bisa multi-suku-kata), buat konteks
+  hanzi: string           // kata/kosakata UTUH (mis. "你好"), bukan dipecah per suku kata
+  chars: string[]         // karakter-karakter penyusun `hanzi`, ditulis berurutan dalam 1 kartu yang sama
+  pinyin: string          // pinyin kata utuh
   arti: string
-  originalWord: string    // kata utuh tempat karakter ini berasal (mis. "你好")
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
@@ -71,9 +70,8 @@ function CompletionBadge({ clean }: { clean: boolean }) {
         </svg>
       )}
       <div
-        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
-          clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
-        }`}
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
+          }`}
       >
         {clean ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
       </div>
@@ -90,6 +88,10 @@ export default function TulisHanziPage() {
   const [cards, setCards] = React.useState<Card[]>([])
   const [loading, setLoading] = React.useState(true)
   const [idx, setIdx] = React.useState(0)
+  // Posisi karakter yang sedang ditulis DI DALAM kosakata `idx` saat ini
+  // (mis. kosakata "你好" -> charIdx 0 = "你", charIdx 1 = "好"). Reset ke 0
+  // tiap kali pindah ke kosakata berikutnya.
+  const [charIdx, setCharIdx] = React.useState(0)
   const [done, setDone] = React.useState(false)
   const [deckTitle, setDeckTitle] = React.useState("Latihan Menulis")
   const [deckLevel, setDeckLevel] = React.useState("")
@@ -106,7 +108,6 @@ export default function TulisHanziPage() {
 
   const [writerReady, setWriterReady] = React.useState(false)
   const [strictMode, setStrictMode] = React.useState(false)
-  const [traceMode, setTraceMode] = React.useState(false)
   const [hintPlaying, setHintPlaying] = React.useState(false)
   const [mistakeCount, setMistakeCount] = React.useState(0)
 
@@ -121,11 +122,12 @@ export default function TulisHanziPage() {
   const writerRef = React.useRef<HanziWriterLike | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const strictModeRef = React.useRef(false)
-  const traceModeRef = React.useRef(false)
   const mistakeRef = React.useRef(0)        // mistake beruntun di goresan SEKARANG (buat retry strict-mode)
-  const charMistakesRef = React.useRef(0)   // total mistake sepanjang karakter ini (buat cek "bersih")
+  const charMistakesRef = React.useRef(0)   // total mistake sepanjang karakter INI SAJA (buat cek "bersih" per karakter)
+  const wordMistakesRef = React.useRef(0)   // akumulasi mistake sepanjang KOSAKATA ini (semua karakternya)
   const cancelledRef = React.useRef(false)
   const idxRef = React.useRef(0)
+  const charIdxRef = React.useRef(0)
   const totalRef = React.useRef(0)
 
   React.useEffect(() => {
@@ -177,24 +179,28 @@ export default function TulisHanziPage() {
         )
       }
 
+      // Satu baris kosakata = SATU kartu, bukan dipecah per suku kata/karakter.
+      // Karakter penyusunnya (`chars`) tetap ditulis berurutan satu-satu di
+      // kanvas yang sama, tapi progres "Sisa Kartu" & hitungan sesi tetap
+      // dihitung per KOSAKATA UTUH, bukan per karakter di dalamnya.
       const parsed: Card[] = []
       for (const c of rawCards) {
         const ex = c.hanzi ? exampleMap.get(c.hanzi) : undefined
-        for (const char of [...c.hanzi]) {
+        const chars = [...c.hanzi].filter(char => {
           const code = char.charCodeAt(0)
-          if ((code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)) {
-            parsed.push({
-              id: c.id,
-              hanzi: char,
-              pinyin: c.pinyin,
-              arti: c.arti,
-              originalWord: c.hanzi,
-              exampleSentence: ex?.hanzi,
-              examplePinyin: ex?.pinyin,
-              exampleTranslation: ex?.arti,
-            })
-          }
-        }
+          return (code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)
+        })
+        if (chars.length === 0) continue
+        parsed.push({
+          id: c.id,
+          hanzi: c.hanzi,
+          chars,
+          pinyin: c.pinyin,
+          arti: c.arti,
+          exampleSentence: ex?.hanzi,
+          examplePinyin: ex?.pinyin,
+          exampleTranslation: ex?.arti,
+        })
       }
 
       setCards(parsed)
@@ -209,7 +215,7 @@ export default function TulisHanziPage() {
   const progress = total > 0 ? (idx / total) * 100 : 0
   const accuracy = answered > 0 ? Math.round((cleanCount / answered) * 100) : 0
 
-  function startQuiz(writer: HanziWriterLike, currentCard: Card) {
+  function startQuiz(writer: HanziWriterLike, currentCard: Card, chIdx: number) {
     if (!writer) return
     mistakeRef.current = 0
     charMistakesRef.current = 0
@@ -226,7 +232,7 @@ export default function TulisHanziPage() {
         if (strictModeRef.current && currentStrokeMistakes >= 3) {
           mistakeRef.current = 0
           setMistakeCount(0)
-          initWriter(currentCard)
+          initWriter(currentCard, chIdx)
         }
       },
       onCorrectStroke: () => {
@@ -236,9 +242,26 @@ export default function TulisHanziPage() {
       },
       onComplete: () => {
         if (cancelledRef.current) return
-        speakMandarin(currentCard.originalWord)
 
-        const isClean = charMistakesRef.current === 0
+        const isLastChar = chIdx >= currentCard.chars.length - 1
+
+        if (!isLastChar) {
+          // Masih ada karakter berikutnya DI KOSAKATA YANG SAMA — lanjut
+          // tanpa menambah hitungan kartu/progres, kosakata dianggap satu
+          // unit utuh sampai semua karakternya selesai ditulis.
+          wordMistakesRef.current += charMistakesRef.current
+          setTimeout(() => {
+            if (cancelledRef.current) return
+            setCharIdx(chIdx + 1)
+          }, 500)
+          return
+        }
+
+        // Karakter terakhir kosakata ini selesai — baru di sini kosakata
+        // dihitung "selesai" dan pengucapan kata UTUH diputar.
+        speakMandarin(currentCard.hanzi)
+
+        const isClean = wordMistakesRef.current + charMistakesRef.current === 0
         setAnswered(a => a + 1)
         setCorrect(c => c + 1)
         if (isClean) {
@@ -251,15 +274,20 @@ export default function TulisHanziPage() {
         setTimeout(() => {
           if (cancelledRef.current) return
           const nextIdx = idxRef.current + 1
-          if (nextIdx >= totalRef.current) setDone(true)
-          else setIdx(nextIdx)
+          if (nextIdx >= totalRef.current) {
+            setDone(true)
+          } else {
+            setIdx(nextIdx)
+            setCharIdx(0)
+          }
         }, 1200)
       },
     })
   }
 
-  function initWriter(currentCard: Card) {
-    if (!containerRef.current) return
+  function initWriter(currentCard: Card, chIdx: number) {
+    const char = currentCard.chars[chIdx]
+    if (!containerRef.current || !char) return
     setWriterReady(false)
     setHintPlaying(false)
     setStrokeCount(null)
@@ -268,6 +296,7 @@ export default function TulisHanziPage() {
     mistakeRef.current = 0
     charMistakesRef.current = 0
     setMistakeCount(0)
+    if (chIdx === 0) wordMistakesRef.current = 0
 
     const targetDiv = document.createElement("div")
     containerRef.current.appendChild(targetDiv)
@@ -275,7 +304,7 @@ export default function TulisHanziPage() {
     import("hanzi-writer").then(({ default: HanziWriter }) => {
       if (cancelledRef.current || !containerRef.current) return
 
-      const writer = HanziWriter.create(targetDiv, currentCard.hanzi, {
+      const writer = HanziWriter.create(targetDiv, char, {
         width: 260,
         height: 260,
         padding: 26,
@@ -295,7 +324,7 @@ export default function TulisHanziPage() {
       // "x/y", tidak mempengaruhi penilaian quiz sama sekali. Tipe return
       // asli library ini `Promise<void | CharacterJson>` (bisa `void`
       // kalau gagal dimuat), jadi di-guard dulu sebelum diakses.
-      HanziWriter.loadCharacterData(currentCard.hanzi)
+      HanziWriter.loadCharacterData(char)
         .then((charData: void | { strokes: string[] }) => {
           if (!cancelledRef.current && charData && Array.isArray(charData.strokes)) {
             setStrokeCount(charData.strokes.length)
@@ -303,45 +332,33 @@ export default function TulisHanziPage() {
         })
         .catch(() => { /* badge goresan opsional, aman kalau gagal dimuat */ })
 
-      // Mode Jiplak: putar dulu animasi urutan goresan sebagai contoh
-      // sebelum user diminta menulis sendiri — berguna buat karakter yang
-      // belum pernah dilihat urutan goresannya. Kalau mode ini mati,
-      // langsung masuk quiz seperti biasa.
-      if (traceModeRef.current) {
-        setHintPlaying(true)
-        writer.animateCharacter({
-          onComplete: () => {
-            if (cancelledRef.current) return
-            setHintPlaying(false)
-            startQuiz(writer, currentCard)
-          },
-        })
-      } else {
-        startQuiz(writer, currentCard)
-      }
+      startQuiz(writer, currentCard, chIdx)
     })
   }
 
   React.useEffect(() => {
     idxRef.current = idx
-    if (!cards[idx]?.hanzi || !containerRef.current || loading) return
+    charIdxRef.current = charIdx
+    const currentCard = cards[idx]
+    if (!currentCard?.chars[charIdx] || !containerRef.current || loading) return
     cancelledRef.current = false
-    initWriter(cards[idx])
+    initWriter(currentCard, charIdx)
     return () => { cancelledRef.current = true }
-  }, [cards[idx]?.hanzi, idx, loading])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cards, idx, charIdx, loading])
 
   function handleClear() {
     if (!card) return
-    initWriter(card)
+    initWriter(card, charIdx)
   }
 
   function handleHint() {
-    if (!writerRef.current || hintPlaying) return
+    if (!writerRef.current || hintPlaying || !card) return
     setHintPlaying(true)
     writerRef.current.animateCharacter({
       onComplete: () => {
         setHintPlaying(false)
-        if (writerRef.current && card) startQuiz(writerRef.current, card)
+        if (writerRef.current) startQuiz(writerRef.current, card, charIdx)
       },
     })
   }
@@ -350,18 +367,12 @@ export default function TulisHanziPage() {
     const next = !strictMode
     setStrictMode(next)
     strictModeRef.current = next
-    if (card) initWriter(card)
-  }
-
-  function handleTraceMode() {
-    const next = !traceMode
-    setTraceMode(next)
-    traceModeRef.current = next
-    if (card) initWriter(card)
+    if (card) initWriter(card, charIdx)
   }
 
   function restart() {
     setIdx(0)
+    setCharIdx(0)
     setDone(false)
     setCorrect(0)
     setCleanCount(0)
@@ -370,9 +381,9 @@ export default function TulisHanziPage() {
   }
 
   // Shortcut keyboard: Space = panduan animasi (paling sering dipakai
-  // pas macet), R = ulangi karakter, T = Mode Jiplak, S = Strict Mode —
-  // semua di-skip kalau fokus lagi di input/textarea (tidak ada di
-  // halaman ini, tapi jaga konsisten dgn pola Nada/Flashcard).
+  // pas macet), R = ulangi karakter, S = Strict Mode — semua di-skip
+  // kalau fokus lagi di input/textarea (tidak ada di halaman ini, tapi
+  // jaga konsisten dgn pola Nada/Flashcard).
   React.useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement | null
@@ -385,9 +396,6 @@ export default function TulisHanziPage() {
       } else if (e.key.toLowerCase() === "r") {
         e.preventDefault()
         handleClear()
-      } else if (e.key.toLowerCase() === "t") {
-        e.preventDefault()
-        handleTraceMode()
       } else if (e.key.toLowerCase() === "s") {
         e.preventDefault()
         handleStrictMode()
@@ -396,7 +404,7 @@ export default function TulisHanziPage() {
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card, done, loading, hintPlaying, strictMode, traceMode])
+  }, [card, done, loading, hintPlaying, strictMode])
 
   // Animasikan ring akurasi di layar akhir, sama persis pola di Nada.
   React.useEffect(() => {
@@ -465,7 +473,7 @@ export default function TulisHanziPage() {
 
                 <div className="tulis-result-title flex flex-col items-center gap-1 relative z-10">
                   <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>
-                  <p className="text-sm text-muted-foreground">{total} karakter ditulis</p>
+                  <p className="text-sm text-muted-foreground">{total} kosakata ditulis</p>
                 </div>
 
                 <div className="tulis-result-ring relative z-10 flex items-center justify-center">
@@ -589,129 +597,133 @@ export default function TulisHanziPage() {
         </div>
 
         {/*
-          Layout 2 kolom di desktop (kanvas + kontrol kiri, contoh kalimat
-          kanan) — sama semangatnya dengan Nada, supaya konteks kalimat
-          selalu terlihat SAMBIL menulis, bukan cuma muncul setelah
-          selesai. Kalau kartu ini tidak punya contoh di DB, kolom kanan
-          otomatis hilang dan kolom kiri jadi center penuh.
+          Satu kolom vertikal: info kosakata -> kanvas -> tombol kontrol ->
+          contoh kalimat di paling bawah. Contoh kalimat sengaja diletakkan
+          SETELAH tombol (bukan jadi kolom sisi kanan) supaya alur baca
+          konsisten satu arah dari atas ke bawah, dan kolom kanan yang
+          kosong di desktop nggak bikin layout terasa timpang.
         */}
         <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4">
-          <div className={`w-full max-w-sm ${card.exampleSentence ? "md:max-w-3xl" : ""} mx-auto grid grid-cols-1 ${card.exampleSentence ? "md:grid-cols-[auto_1fr]" : ""} gap-5 items-start justify-items-center md:justify-items-start`}>
-            {/* Kolom kiri: info kata + kanvas + kontrol */}
-            <div className="flex flex-col items-center gap-4 w-full">
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="flex items-center gap-2">
-                  <span className="font-hanzi text-3xl text-foreground">{card.originalWord}</span>
-                  {strokeCount !== null && (
-                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 text-[11px] font-semibold text-muted-foreground">
-                      <Layers className="h-3 w-3" />
-                      {strokeCount} Goresan
+          <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-1 text-center">
+              <div className="flex items-center gap-2">
+                <span className="font-hanzi text-3xl text-foreground">{card.hanzi}</span>
+                {strokeCount !== null && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 text-[11px] font-semibold text-muted-foreground">
+                    <Layers className="h-3 w-3" />
+                    {strokeCount} Goresan
+                  </span>
+                )}
+              </div>
+              {/*
+                Kosakata multi-karakter (mis. "你好") ditulis satu-satu di
+                kanvas yang sama tapi tetap dihitung SATU kartu — indikator
+                ini menandai karakter mana yang sedang aktif ditulis.
+              */}
+              {card.chars.length > 1 && (
+                <div className="flex items-center gap-1.5 font-hanzi text-lg">
+                  {card.chars.map((ch, i) => (
+                    <span
+                      key={i}
+                      className={
+                        i === charIdx
+                          ? "text-primary font-semibold"
+                          : i < charIdx
+                            ? "text-muted-foreground/40"
+                            : "text-muted-foreground/70"
+                      }
+                    >
+                      {ch}
                     </span>
-                  )}
+                  ))}
                 </div>
-                <TonePinyin text={card.pinyin} className="text-lg text-primary font-medium" />
-                <span className="text-base text-muted-foreground">{card.arti}</span>
-              </div>
-
-              {/* Canvas */}
-              <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl">
-                <div ref={containerRef} className="w-[260px] h-[260px]" />
-                {!writerReady && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
-                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-                  </div>
-                )}
-                {hintPlaying && (
-                  <div className="absolute top-3 left-3 bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                    {traceMode ? "CONTOH" : "PANDUAN"}
-                  </div>
-                )}
-                {strictMode && (
-                  <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    STRICT
-                  </div>
-                )}
-                {/*
-                  Indikator goresan salah SEKARANG — sebelumnya cuma tampil
-                  di strict mode. Sekarang selalu tampil kalau ada
-                  kesalahan, karena feedback stroke-level ini berguna buat
-                  siapa saja, bukan cuma pas strict mode aktif.
-                */}
-                {mistakeCount > 0 && (
-                  <div className="absolute bottom-3 left-3 flex gap-1">
-                    {[1, 2, 3].map(n => (
-                      <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
-                    ))}
-                  </div>
-                )}
-                {/* Progres goresan benar sejauh ini, mis. "3/7 goresan" */}
-                {strokeCount !== null && writerReady && !hintPlaying && (
-                  <div className="absolute bottom-3 right-3 text-[11px] font-semibold text-muted-foreground tabular-nums bg-card/80 px-2 py-0.5 rounded-full border border-border/40">
-                    {strokeProgress}/{strokeCount}
-                  </div>
-                )}
-              </div>
-
-              {/* 4 tombol kontrol berlabel */}
-              <div className="grid grid-cols-4 w-full gap-2 pt-1">
-                <button
-                  onClick={handleClear}
-                  title="Ulangi karakter ini (R)"
-                  aria-label="Ulangi karakter ini"
-                  className="flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Ulangi</span>
-                </button>
-
-                <button
-                  onClick={handleHint}
-                  disabled={hintPlaying || !writerReady}
-                  title="Tampilkan panduan animasi (Space)"
-                  aria-label="Tampilkan panduan animasi"
-                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-                    hintPlaying
-                      ? "border-primary/60 bg-primary/20 text-primary"
-                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                  }`}
-                >
-                  <Eye className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Panduan</span>
-                </button>
-
-                <button
-                  onClick={handleTraceMode}
-                  title="Mode Jiplak: putar animasi contoh sebelum tiap karakter baru (T)"
-                  aria-label="Mode Jiplak"
-                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${
-                    traceMode
-                      ? "border-sky-500/60 bg-sky-500/20 text-sky-400"
-                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                  }`}
-                >
-                  <Sparkles className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Jiplak</span>
-                </button>
-
-                <button
-                  onClick={handleStrictMode}
-                  title="Strict Mode: sembunyikan panduan garis (S)"
-                  aria-label="Strict Mode"
-                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${
-                    strictMode
-                      ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
-                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                  }`}
-                >
-                  <Shield className="h-5 w-5" />
-                  <span className="text-[10px] font-medium">Strict</span>
-                </button>
-              </div>
+              )}
+              <TonePinyin text={card.pinyin} className="text-lg text-primary font-medium" />
+              <span className="text-base text-muted-foreground">{card.arti}</span>
             </div>
 
-            {/* Kolom kanan: contoh penggunaan — cuma render kalau ada datanya */}
+            {/* Canvas */}
+            <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl">
+              <div ref={containerRef} className="w-[260px] h-[260px]" />
+              {!writerReady && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                </div>
+              )}
+              {hintPlaying && (
+                <div className="absolute top-3 left-3 bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                  PANDUAN
+                </div>
+              )}
+              {strictMode && (
+                <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  STRICT
+                </div>
+              )}
+              {/*
+                Indikator goresan salah SEKARANG — sebelumnya cuma tampil
+                di strict mode. Sekarang selalu tampil kalau ada
+                kesalahan, karena feedback stroke-level ini berguna buat
+                siapa saja, bukan cuma pas strict mode aktif.
+              */}
+              {mistakeCount > 0 && (
+                <div className="absolute bottom-3 left-3 flex gap-1">
+                  {[1, 2, 3].map(n => (
+                    <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
+                  ))}
+                </div>
+              )}
+              {/* Progres goresan benar sejauh ini, mis. "3/7 goresan" */}
+              {strokeCount !== null && writerReady && !hintPlaying && (
+                <div className="absolute bottom-3 right-3 text-[11px] font-semibold text-muted-foreground tabular-nums bg-card/80 px-2 py-0.5 rounded-full border border-border/40">
+                  {strokeProgress}/{strokeCount}
+                </div>
+              )}
+            </div>
+
+            {/* 3 tombol kontrol berlabel (Jiplak dihapus — redundan dgn Strict) */}
+            <div className="grid grid-cols-3 w-full gap-2 pt-1">
+              <button
+                onClick={handleClear}
+                title="Ulangi karakter ini (R)"
+                aria-label="Ulangi karakter ini"
+                className="flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
+              >
+                <RotateCcw className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Ulangi</span>
+              </button>
+
+              <button
+                onClick={handleHint}
+                disabled={hintPlaying || !writerReady}
+                title="Tampilkan panduan animasi (Space)"
+                aria-label="Tampilkan panduan animasi"
+                className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${hintPlaying
+                    ? "border-primary/60 bg-primary/20 text-primary"
+                    : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+              >
+                <Eye className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Panduan</span>
+              </button>
+
+              <button
+                onClick={handleStrictMode}
+                title="Strict Mode: sembunyikan panduan garis (S)"
+                aria-label="Strict Mode"
+                className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${strictMode
+                    ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
+                    : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+              >
+                <Shield className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Strict</span>
+              </button>
+            </div>
+
+            {/* Contoh penggunaan — di bawah tombol, cuma render kalau ada datanya */}
             {card.exampleSentence && (
-              <div className="w-full md:sticky md:top-2 flex flex-col gap-1.5 p-4 rounded-2xl border border-border/40 bg-muted/20">
+              <div className="w-full flex flex-col gap-1.5 p-4 rounded-2xl border border-border/40 bg-muted/20">
                 <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                   Contoh · penggunaan
                 </div>
