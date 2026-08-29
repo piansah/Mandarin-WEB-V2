@@ -15,6 +15,14 @@ type Card = {
   arti: string
   nada: number
   originalWord: string
+  // Contoh kalimat diambil dari tabel `word_examples`, dikaitkan lewat
+  // `originalWord` (kata utuh, mis. "你好") — BUKAN per-suku-kata/karakter
+  // tunggal (`hanzi` di sini adalah satu karakter hasil split dari kata
+  // utuh untuk keperluan soal nada). Optional karena tidak semua kata
+  // punya contoh kalimat di database.
+  exampleSentence?: string
+  examplePinyin?: string
+  exampleTranslation?: string
 }
 
 const TONE_COLORS: Record<number, string> = {
@@ -75,7 +83,17 @@ function splitPinyinSyllables(pinyin: string): string[] {
   return syllables.length ? syllables : [trimmed]
 }
 
-function splitToneCards(cards: Array<{ id: number; hanzi: string; pinyin: string; arti: string }>): Card[] {
+function splitToneCards(
+  cards: Array<{
+    id: number
+    hanzi: string
+    pinyin: string
+    arti: string
+    exampleSentence?: string
+    examplePinyin?: string
+    exampleTranslation?: string
+  }>
+): Card[] {
   return cards.flatMap(card => {
     const hanziChars = [...card.hanzi].filter(char => {
       const code = char.charCodeAt(0)
@@ -92,6 +110,9 @@ function splitToneCards(cards: Array<{ id: number; hanzi: string; pinyin: string
         arti: card.arti,
         nada: extractTone(pinyin),
         originalWord: card.hanzi,
+        exampleSentence: card.exampleSentence,
+        examplePinyin: card.examplePinyin,
+        exampleTranslation: card.exampleTranslation,
       }
     })
   }).filter(card => card.nada > 0)
@@ -118,7 +139,43 @@ export default function NadaPracticePage() {
         .select("id, hanzi, pinyin, arti")
         .eq("set_id", deckId)
         .order("created_at", { ascending: true })
-      setCards(splitToneCards(data ?? []))
+
+      const rawCards = data ?? []
+
+      // Contoh kalimat dicari per KATA UTUH (mis. "你好"), sama seperti di
+      // halaman flashcard — bukan per-karakter, karena tabel word_examples
+      // dikaitkan lewat `word_hanzi` (kata utuh). Kartu nada nanti dipecah
+      // per-karakter oleh splitToneCards, tapi contoh kalimatnya tetap
+      // milik kata utuh asalnya supaya konteksnya tidak hilang.
+      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+
+      if (hanziList.length > 0) {
+        await Promise.all(
+          hanziList.map(async (hanzi) => {
+            const [directRes, partialRes] = await Promise.all([
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
+            ])
+            const first = directRes.data?.[0] ?? partialRes.data?.[0]
+            if (first) {
+              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
+            }
+          })
+        )
+      }
+
+      const cardsWithExamples = rawCards.map(card => {
+        const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
+        return {
+          ...card,
+          exampleSentence: ex?.hanzi,
+          examplePinyin: ex?.pinyin,
+          exampleTranslation: ex?.arti,
+        }
+      })
+
+      setCards(splitToneCards(cardsWithExamples))
       setLoading(false)
     }
     load()
@@ -199,45 +256,73 @@ export default function NadaPracticePage() {
 
           <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
             {choices.map(tone => {
-            const isCorrect = tone === q.nada
-            const isSelected = selected === tone
-            let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all "
-            if (!showResult) cls += "border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
-            else if (isCorrect) cls += "border-emerald-500 bg-emerald-500/10 text-emerald-500"
-            else if (isSelected && !isCorrect) cls += "border-red-500 bg-red-500/10 text-red-500"
-            else cls += "border-border/30 bg-card/20 opacity-50"
+              const isCorrect = tone === q.nada
+              const isSelected = selected === tone
+              let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all "
+              if (!showResult) cls += "border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 cursor-pointer"
+              else if (isCorrect) cls += "border-emerald-500 bg-emerald-500/10 text-emerald-500"
+              else if (isSelected && !isCorrect) cls += "border-red-500 bg-red-500/10 text-red-500"
+              else cls += "border-border/30 bg-card/20 opacity-50"
 
-            return (
-              <button key={tone} className={cls} onClick={() => handleSelect(tone)} disabled={showResult}>
-                <div className="flex items-center gap-1.5">
-                  {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                  {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
-                  <span className={`text-lg font-bold ${TONE_COLORS[tone]}`}>{tone}</span>
-                </div>
-                <span className="text-xs text-muted-foreground text-center leading-tight">{TONE_LABELS[tone]}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {showResult && (
-          <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full max-w-sm border ${selected === q.nada ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
-            <p className={`font-bold text-lg ${selected === q.nada ? "text-emerald-500" : "text-red-400"}`}>
-              {selected === q.nada ? "🎉 Benar!" : "❌ Salah"}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              <span className={`font-bold ${TONE_COLORS[q.nada]}`}>{q.pinyin}</span> - {TONE_LABELS[q.nada]}
-            </p>
+              return (
+                <button key={tone} className={cls} onClick={() => handleSelect(tone)} disabled={showResult}>
+                  <div className="flex items-center gap-1.5">
+                    {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                    {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
+                    <span className={`text-lg font-bold ${TONE_COLORS[tone]}`}>{tone}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground text-center leading-tight">{TONE_LABELS[tone]}</span>
+                </button>
+              )
+            })}
           </div>
-        )}
 
-        {showResult && (
-          <Button className="w-full max-w-sm h-14 rounded-2xl font-bold text-base" onClick={handleNext}>
-            {idx + 1 >= total ? "Lihat Hasil" : "Lanjut →"}
-          </Button>
-        )}
+          {showResult && (
+            <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full max-w-sm border ${selected === q.nada ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
+              <p className={`font-bold text-lg ${selected === q.nada ? "text-emerald-500" : "text-red-400"}`}>
+                {selected === q.nada ? "🎉 Benar!" : "❌ Salah"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className={`font-bold ${TONE_COLORS[q.nada]}`}>{q.pinyin}</span> - {TONE_LABELS[q.nada]}
+              </p>
+            </div>
+          )}
+
+          {/*
+          Contoh kalimat SENGAJA baru muncul setelah showResult (bukan
+          bareng dengan hanzi target di atas) — kalau ditampilkan dari
+          awal, pinyin di contoh kalimat bisa membocorkan nada dari
+          karakter yang sedang ditanya sebelum user sempat menjawab.
+          Ditampilkan hanya kalau ada datanya (tidak semua kata punya
+          contoh kalimat di database).
+        */}
+          {showResult && q.exampleSentence && (
+            <div className="flex flex-col gap-1.5 p-4 rounded-2xl w-full max-w-sm border border-border/40 bg-muted/20">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                Contoh · penggunaan
+              </div>
+              <div
+                className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
+                onClick={() => speakMandarin(q.exampleSentence!)}
+              >
+                {q.exampleSentence}
+              </div>
+              {q.examplePinyin && (
+                <div className="text-sm text-primary font-medium">{q.examplePinyin}</div>
+              )}
+              {q.exampleTranslation && (
+                <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
+              )}
+            </div>
+          )}
+
+          {showResult && (
+            <Button className="w-full max-w-sm h-14 rounded-2xl font-bold text-base" onClick={handleNext}>
+              {idx + 1 >= total ? "Lihat Hasil" : "Lanjut →"}
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
     </div>
   )
 }
