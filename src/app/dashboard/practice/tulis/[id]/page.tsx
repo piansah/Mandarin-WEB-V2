@@ -70,8 +70,9 @@ function CompletionBadge({ clean }: { clean: boolean }) {
         </svg>
       )}
       <div
-        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
-          }`}
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
+          clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
+        }`}
       >
         {clean ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
       </div>
@@ -604,7 +605,7 @@ export default function TulisHanziPage() {
           kosong di desktop nggak bikin layout terasa timpang.
         */}
         <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4">
-          <div className="w-full max-w-sm mx-auto flex flex-col items-center gap-4">
+          <div className="w-full max-w-sm md:max-w-md mx-auto flex flex-col items-center gap-4">
             <div className="flex flex-col items-center gap-1 text-center">
               <div className="flex items-center gap-2">
                 <span className="font-hanzi text-3xl text-foreground">{card.hanzi}</span>
@@ -642,83 +643,94 @@ export default function TulisHanziPage() {
               <span className="text-base text-muted-foreground">{card.arti}</span>
             </div>
 
-            {/* Canvas */}
-            <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl">
-              <div ref={containerRef} className="w-[260px] h-[260px]" />
-              {!writerReady && (
-                <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-                </div>
-              )}
-              {hintPlaying && (
-                <div className="absolute top-3 left-3 bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
-                  PANDUAN
-                </div>
-              )}
-              {strictMode && (
-                <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  STRICT
-                </div>
-              )}
-              {/*
-                Indikator goresan salah SEKARANG — sebelumnya cuma tampil
-                di strict mode. Sekarang selalu tampil kalau ada
-                kesalahan, karena feedback stroke-level ini berguna buat
-                siapa saja, bukan cuma pas strict mode aktif.
-              */}
-              {mistakeCount > 0 && (
-                <div className="absolute bottom-3 left-3 flex gap-1">
-                  {[1, 2, 3].map(n => (
-                    <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
-                  ))}
-                </div>
-              )}
-              {/* Progres goresan benar sejauh ini, mis. "3/7 goresan" */}
-              {strokeCount !== null && writerReady && !hintPlaying && (
-                <div className="absolute bottom-3 right-3 text-[11px] font-semibold text-muted-foreground tabular-nums bg-card/80 px-2 py-0.5 rounded-full border border-border/40">
-                  {strokeProgress}/{strokeCount}
-                </div>
-              )}
-            </div>
+            {/*
+              Mobile: kanvas lalu 3 tombol horizontal di bawahnya (nggak
+              cukup lebar buat taruh di samping). Desktop (md:): kanvas +
+              tombol jadi satu baris, tombol berdiri vertikal di sisi
+              kanan kanvas — lebih ringkas & sisa ruang vertikal dipakai
+              buat contoh kalimat di bawah tanpa perlu scroll.
+            */}
+            <div className="flex flex-col md:flex-row items-center md:items-stretch gap-3 w-full">
+              {/* Canvas */}
+              <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl shrink-0">
+                <div ref={containerRef} className="w-[260px] h-[260px]" />
+                {!writerReady && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                  </div>
+                )}
+                {hintPlaying && (
+                  <div className="absolute top-3 left-3 bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    PANDUAN
+                  </div>
+                )}
+                {strictMode && (
+                  <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    STRICT
+                  </div>
+                )}
+                {/*
+                  Indikator goresan salah SEKARANG — sebelumnya cuma tampil
+                  di strict mode. Sekarang selalu tampil kalau ada
+                  kesalahan, karena feedback stroke-level ini berguna buat
+                  siapa saja, bukan cuma pas strict mode aktif.
+                */}
+                {mistakeCount > 0 && (
+                  <div className="absolute bottom-3 left-3 flex gap-1">
+                    {[1, 2, 3].map(n => (
+                      <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
+                    ))}
+                  </div>
+                )}
+                {/* Progres goresan benar sejauh ini, mis. "3/7 goresan" */}
+                {strokeCount !== null && writerReady && !hintPlaying && (
+                  <div className="absolute bottom-3 right-3 text-[11px] font-semibold text-muted-foreground tabular-nums bg-card/80 px-2 py-0.5 rounded-full border border-border/40">
+                    {strokeProgress}/{strokeCount}
+                  </div>
+                )}
+              </div>
 
-            {/* 3 tombol kontrol berlabel (Jiplak dihapus — redundan dgn Strict) */}
-            <div className="grid grid-cols-3 w-full gap-2 pt-1">
-              <button
-                onClick={handleClear}
-                title="Ulangi karakter ini (R)"
-                aria-label="Ulangi karakter ini"
-                className="flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
-              >
-                <RotateCcw className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Ulangi</span>
-              </button>
+              {/* 3 tombol kontrol berlabel (Jiplak dihapus — redundan dgn Strict) */}
+              <div className="grid grid-cols-3 md:grid-cols-1 md:grid-rows-3 w-full md:w-24 gap-2">
+                <button
+                  onClick={handleClear}
+                  title="Ulangi karakter ini (R)"
+                  aria-label="Ulangi karakter ini"
+                  className="flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
+                >
+                  <RotateCcw className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Ulangi</span>
+                </button>
 
-              <button
-                onClick={handleHint}
-                disabled={hintPlaying || !writerReady}
-                title="Tampilkan panduan animasi (Space)"
-                aria-label="Tampilkan panduan animasi"
-                className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${hintPlaying
-                    ? "border-primary/60 bg-primary/20 text-primary"
-                    : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                <button
+                  onClick={handleHint}
+                  disabled={hintPlaying || !writerReady}
+                  title="Tampilkan panduan animasi (Space)"
+                  aria-label="Tampilkan panduan animasi"
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+                    hintPlaying
+                      ? "border-primary/60 bg-primary/20 text-primary"
+                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
                   }`}
-              >
-                <Eye className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Panduan</span>
-              </button>
+                >
+                  <Eye className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Panduan</span>
+                </button>
 
-              <button
-                onClick={handleStrictMode}
-                title="Strict Mode: sembunyikan panduan garis (S)"
-                aria-label="Strict Mode"
-                className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${strictMode
-                    ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
-                    : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                <button
+                  onClick={handleStrictMode}
+                  title="Strict Mode: sembunyikan panduan garis (S)"
+                  aria-label="Strict Mode"
+                  className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 ${
+                    strictMode
+                      ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
+                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
                   }`}
-              >
-                <Shield className="h-5 w-5" />
-                <span className="text-[10px] font-medium">Strict</span>
-              </button>
+                >
+                  <Shield className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Strict</span>
+                </button>
+              </div>
             </div>
 
             {/* Contoh penggunaan — di bawah tombol, cuma render kalau ada datanya */}
