@@ -66,7 +66,6 @@ export default function FastReviewPage() {
       deckLevel={deckLevel}
       userId={userId}
       disableSwipe={false}
-      isFastMode={true}
     />
   )
 }
