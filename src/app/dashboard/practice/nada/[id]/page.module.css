@@ -1,8 +1,26 @@
+/*
+  PENTING: `.page` di sini TIDAK boleh punya `height: 100dvh` +
+  `overflow-y: auto` sendiri. Halaman ini sudah dirender di dalam layout
+  dashboard yang satu-satunya scroll container adalah wrapper
+  `flex-1 min-h-0 overflow-auto` di dashboard-layout-client.tsx (sidebar
+  tetap diam di tempat). Kalau `.page` juga jadi scroll container kedua
+  yang bertumpuk, `.page::before` di bawah (overlay dekoratif absolute
+  inset-0) jadi ke-lock ukurannya ke tinggi box `.page` sendiri (100dvh)
+  alih-alih ke tinggi total konten — begitu konten `.page` lebih tinggi
+  dari 100dvh (mis. setelah header stat ditambahkan) dan discroll,
+  overlay itu ikut kescroll ke atas dan hilang di bagian bawah, membuat
+  background terlihat "terbelah" separuh gradasi/separuh polos di titik
+  scroll 100dvh. Solusinya: `.page` cukup tumbuh natural mengikuti tinggi
+  konten (flex:1 + min-height:100%, sama seperti pola di
+  swipe-flashcard-session.module.css), biar `.page::before` ikut setinggi
+  konten juga dan scroll-nya diserahkan sepenuhnya ke wrapper ancestor.
+*/
 .page {
-  height: 100dvh;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
   overflow-x: hidden;
-  overscroll-behavior: contain;
   background: linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--background) 100%);
   position: relative;
 }

@@ -565,7 +565,7 @@ export default function NadaPracticePage() {
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-hidden relative z-10">
+      <div className="flex flex-col flex-1 relative z-10 min-h-0">
         {/*
           Header judul deck + grid statistik, pola sama dengan
           swipe-flashcard-session (title/subtitle di atas, lalu grid
@@ -623,119 +623,134 @@ export default function NadaPracticePage() {
           <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-center gap-8 px-6">
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 md:gap-8 px-4 sm:px-6 py-4">
           <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
           </p>
 
-          <div className="relative w-full max-w-sm">
-            {/*
-              Ghost stack — dua lapis kartu statis di belakang, offset
-              dikit & diperkecil, murni dekorasi (aria-hidden). Tidak
-              terikat ke state apa pun (tidak ada flip/swipe di halaman
-              ini) — cukup untuk memberi kesan "ada soal lain menumpuk
-              di belakang", sama seperti di flashcard.
-            */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
-              style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
-              style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
-            />
+          {/*
+            Layout responsif: 1 kolom di mobile (persis perilaku lama —
+            hanzi di atas, grid 2x2 pilihan di bawah, semua max-w-sm
+            center), tapi di layar md+ jadi 2 kolom berdampingan (hanzi
+            kiri, grid 2x2 pilihan kanan) sesuai sketsa referensi — biar
+            nggak numpuk vertikal terus dan kerasa penuh layar di desktop,
+            bukannya kepusat sempit di tengah dengan banyak ruang kosong
+            kiri-kanan.
+          */}
+          <div className="w-full max-w-sm md:max-w-4xl mx-auto flex flex-col gap-4 md:gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr] gap-4 md:gap-5">
+              {/* Kartu Hanzi */}
+              <div className="relative w-full max-w-sm mx-auto md:max-w-none md:mx-0">
+                {/*
+                  Ghost stack — dua lapis kartu statis di belakang, offset
+                  dikit & diperkecil, murni dekorasi (aria-hidden). Tidak
+                  terikat ke state apa pun (tidak ada flip/swipe di halaman
+                  ini) — cukup untuk memberi kesan "ada soal lain menumpuk
+                  di belakang", sama seperti di flashcard.
+                */}
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70"
+                  style={{ transform: "translate(0px, 14px) scale(0.96)", zIndex: 0 }}
+                />
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40"
+                  style={{ transform: "translate(0px, 26px) scale(0.92)", zIndex: -1 }}
+                />
 
-            <div className="relative z-10 flex flex-col items-center gap-3 py-10 px-8 rounded-3xl border border-border/40 bg-gradient-to-br from-card to-card/80 shadow-2xl overflow-hidden">
-              <div
-                aria-hidden="true"
-                className="absolute -right-6 -bottom-8 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
-                style={{ fontSize: "8rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
-              >
-                {q.hanzi}
-              </div>
-              <div className={`relative font-hanzi ${hanziSizeClass}`}>{q.hanzi}</div>
-              <Button variant="ghost" size="sm" className="relative gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
-                <Volume2 className="h-4 w-4" /> Dengar
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
-            {choices.map((combo, i) => {
-              const isCorrect = toneCombosEqual(combo, q.tones)
-              const isSelected = selected ? toneCombosEqual(selected, combo) : false
-              let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all duration-200 "
-              if (!showResult) {
-                cls += "border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] cursor-pointer"
-              } else if (isCorrect) {
-                cls += `border-emerald-500 bg-emerald-500/10 text-emerald-500 ${isSelected ? "scale-105 shadow-lg" : ""}`
-              } else if (isSelected && !isCorrect) {
-                cls += "border-red-500 bg-red-500/10 text-red-500 scale-105 shadow-lg"
-              } else {
-                cls += "border-border/30 bg-card/20 opacity-50"
-              }
-
-              const choicePinyin = comboToPinyin(q.syllables, combo)
-
-              return (
-                <button key={i} className={cls} onClick={() => handleSelect(combo)} disabled={showResult}>
-                  <div className="flex items-center gap-1.5">
-                    {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
-                    {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
-                    <TonePinyin text={choicePinyin} className="text-lg font-bold" />
+                <div className="relative z-10 flex flex-col items-center justify-center gap-3 py-10 px-8 md:h-full rounded-3xl border border-border/40 bg-gradient-to-br from-card to-card/80 shadow-2xl overflow-hidden">
+                  <div
+                    aria-hidden="true"
+                    className="absolute -right-6 -bottom-8 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
+                    style={{ fontSize: "8rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+                  >
+                    {q.hanzi}
                   </div>
-                  <span className="text-xs text-muted-foreground text-center leading-tight">
-                    {combo.length === 1 ? TONE_LABELS[combo[0]] : combo.map(t => TONE_MARKS[t]).join(" ")}
+                  <div className={`relative font-hanzi ${hanziSizeClass}`}>{q.hanzi}</div>
+                  <Button variant="ghost" size="sm" className="relative gap-1.5" onClick={() => speakMandarin(q.hanzi)}>
+                    <Volume2 className="h-4 w-4" /> Dengar
+                  </Button>
+                </div>
+              </div>
+
+              {/* Grid 2x2 pilihan jawaban */}
+              <div className="grid grid-cols-2 md:auto-rows-fr gap-3 w-full max-w-sm mx-auto md:max-w-none md:mx-0 md:h-full">
+                {choices.map((combo, i) => {
+                  const isCorrect = toneCombosEqual(combo, q.tones)
+                  const isSelected = selected ? toneCombosEqual(selected, combo) : false
+                  let cls = "flex flex-col items-center gap-1 p-4 rounded-2xl border-2 text-sm font-semibold h-auto transition-all duration-200 "
+                  if (!showResult) {
+                    cls += "border-border/50 bg-card/50 hover:border-primary/50 hover:bg-primary/5 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:scale-[0.98] cursor-pointer"
+                  } else if (isCorrect) {
+                    cls += `border-emerald-500 bg-emerald-500/10 text-emerald-500 ${isSelected ? "scale-105 shadow-lg" : ""}`
+                  } else if (isSelected && !isCorrect) {
+                    cls += "border-red-500 bg-red-500/10 text-red-500 scale-105 shadow-lg"
+                  } else {
+                    cls += "border-border/30 bg-card/20 opacity-50"
+                  }
+
+                  const choicePinyin = comboToPinyin(q.syllables, combo)
+
+                  return (
+                    <button key={i} className={cls} onClick={() => handleSelect(combo)} disabled={showResult}>
+                      <div className="flex items-center gap-1.5">
+                        {showResult && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
+                        {showResult && isSelected && !isCorrect && <XCircle className="h-4 w-4 text-red-500" />}
+                        <TonePinyin text={choicePinyin} className="text-lg font-bold" />
+                      </div>
+                      <span className="text-xs text-muted-foreground text-center leading-tight">
+                        {combo.length === 1 ? TONE_LABELS[combo[0]] : combo.map(t => TONE_MARKS[t]).join(" ")}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {showResult && (
+              <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
+                <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
+                  {isCorrectAnswer ? "🎉 Benar!" : "❌ Salah"}
+                </p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap justify-center">
+                  <span className="font-bold">{q.pinyin}</span>
+                  <span>-</span>
+                  <span className="flex items-center gap-1">
+                    {q.tones.map((t, ti) => (
+                      <span key={ti} className={`font-bold ${TONE_COLORS[t]}`}>{t}{ti < q.tones.length - 1 ? "-" : ""}</span>
+                    ))}
                   </span>
-                </button>
-              )
-            })}
+                </p>
+              </div>
+            )}
+
+            {showResult && q.exampleSentence && (
+              <div className="flex flex-col gap-1.5 p-4 rounded-2xl w-full border border-border/40 bg-muted/20">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Contoh · penggunaan
+                </div>
+                <div
+                  className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => speakMandarin(q.exampleSentence!)}
+                >
+                  {q.exampleSentence}
+                </div>
+                {q.examplePinyin && (
+                  <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />
+                )}
+                {q.exampleTranslation && (
+                  <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
+                )}
+              </div>
+            )}
+
+            {showResult && (
+              <Button className="w-full h-14 rounded-2xl font-bold text-base" onClick={handleNext}>
+                {idx + 1 >= total ? "Lihat Hasil" : "Lanjut →"}
+              </Button>
+            )}
           </div>
-
-          {showResult && (
-            <div className={`flex flex-col items-center gap-2 p-4 rounded-2xl w-full max-w-sm border ${isCorrectAnswer ? "bg-emerald-500/10 border-emerald-500/30" : "bg-red-500/10 border-red-500/30"}`}>
-              <p className={`font-bold text-lg ${isCorrectAnswer ? "text-emerald-500" : "text-red-400"}`}>
-                {isCorrectAnswer ? "🎉 Benar!" : "❌ Salah"}
-              </p>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5 flex-wrap justify-center">
-                <span className="font-bold">{q.pinyin}</span>
-                <span>-</span>
-                <span className="flex items-center gap-1">
-                  {q.tones.map((t, ti) => (
-                    <span key={ti} className={`font-bold ${TONE_COLORS[t]}`}>{t}{ti < q.tones.length - 1 ? "-" : ""}</span>
-                  ))}
-                </span>
-              </p>
-            </div>
-          )}
-
-          {showResult && q.exampleSentence && (
-            <div className="flex flex-col gap-1.5 p-4 rounded-2xl w-full max-w-sm border border-border/40 bg-muted/20">
-              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Contoh · penggunaan
-              </div>
-              <div
-                className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
-                onClick={() => speakMandarin(q.exampleSentence!)}
-              >
-                {q.exampleSentence}
-              </div>
-              {q.examplePinyin && (
-                <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />
-              )}
-              {q.exampleTranslation && (
-                <div className="text-sm text-muted-foreground">{q.exampleTranslation}</div>
-              )}
-            </div>
-          )}
-
-          {showResult && (
-            <Button className="w-full max-w-sm h-14 rounded-2xl font-bold text-base" onClick={handleNext}>
-              {idx + 1 >= total ? "Lihat Hasil" : "Lanjut →"}
-            </Button>
-          )}
         </div>
       </div>
     </div>
