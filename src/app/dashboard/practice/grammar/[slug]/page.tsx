@@ -325,7 +325,7 @@ export default function GrammarPracticePage() {
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0 overflow-y-auto overflow-x-hidden">
         <PracticeHeader
           title={pattern.title}
           subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}

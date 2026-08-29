@@ -9,6 +9,12 @@
   padding-bottom: 2rem;
 }
 
+.page > div {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .page:has(:global(.flashcard-result)) {
   padding-bottom: 0;
 }

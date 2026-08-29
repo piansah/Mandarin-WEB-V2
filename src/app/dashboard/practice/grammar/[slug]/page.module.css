@@ -28,6 +28,12 @@
   font-family: var(--font-poppins), Arial, sans-serif;
 }
 
+.page > div {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .header {
   z-index: 30;
   display: flex;

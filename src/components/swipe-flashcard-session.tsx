@@ -639,7 +639,7 @@ export function SwipeFlashcardSession({
 
     return (
       <div className={styles.page}>
-        <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        <div className="flex flex-col flex-1 select-none relative z-10 min-h-0 overflow-y-auto overflow-x-hidden">
           {/* Result Content */}
           <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {isEmpty ? (
@@ -850,7 +850,7 @@ export function SwipeFlashcardSession({
         ancestor yang benar-benar scroll, sehingga sticky terlihat seperti
         tidak berfungsi (header ikut ter-scroll bersama isinya).
       */}
-      <div className="flashcard-quiz flex flex-col flex-1 select-none relative z-10">
+      <div className="flashcard-quiz flex flex-col flex-1 select-none relative z-10 overflow-y-auto overflow-x-hidden">
         {/* Header with Title, Subtitle, and Stats */}
         <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
           <div className="mb-2">

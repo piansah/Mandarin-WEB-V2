@@ -267,7 +267,7 @@ export default function SpeakingPracticePage() {
 
   return (
     <div className={styles.fullscreenContainer}>
-      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0 overflow-y-auto overflow-x-hidden">
         {/* Header */}
         <PracticeHeader
           title="Latihan Speaking"

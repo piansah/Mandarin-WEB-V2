@@ -42,6 +42,12 @@
   overscroll-behavior: contain;
 }
 
+.page > div {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 /* ── Header ── */
 .header {
   position: sticky;
