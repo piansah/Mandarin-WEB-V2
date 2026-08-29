@@ -2,6 +2,29 @@
   height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
-  background: var(--background);
   overscroll-behavior: contain;
+  background: linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--background) 100%);
+  position: relative;
+}
+
+/*
+  Overlay dekoratif dua titik radial-gradient tipis, sama seperti di
+  halaman flashcard — cuma tekstur halus, bukan elemen fungsional.
+  z-index eksplisit di sini + `relative z-10` di wrapper konten (lihat
+  page.tsx) diperlukan supaya overlay ini tidak menutupi konten: elemen
+  positioned dengan z-index:auto dicat SETELAH elemen non-positioned
+  dalam urutan dokumen (CSS 2.1 Appendix E), jadi tanpa z-index eksplisit
+  di kedua sisi, overlay absolute ini justru bisa tampil di atas.
+*/
+.page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: radial-gradient(circle at 20% 30%, rgba(66, 214, 164, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(96, 165, 250, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
