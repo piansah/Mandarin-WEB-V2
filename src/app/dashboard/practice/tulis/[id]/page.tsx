@@ -595,7 +595,7 @@ export default function TulisHanziPage() {
           selesai. Kalau kartu ini tidak punya contoh di DB, kolom kanan
           otomatis hilang dan kolom kiri jadi center penuh.
         */}
-        <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4 overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4">
           <div className={`w-full max-w-sm ${card.exampleSentence ? "md:max-w-3xl" : ""} mx-auto grid grid-cols-1 ${card.exampleSentence ? "md:grid-cols-[auto_1fr]" : ""} gap-5 items-start justify-items-center md:justify-items-start`}>
             {/* Kolom kiri: info kata + kanvas + kontrol */}
             <div className="flex flex-col items-center gap-4 w-full">
