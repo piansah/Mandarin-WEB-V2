@@ -2,20 +2,83 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Eye, Shield } from "lucide-react"
+import {
+  RotateCcw,
+  Eye,
+  Shield,
+  Sparkles,
+  Flame,
+  ListChecks,
+  CheckCircle2,
+  XCircle,
+  Layers,
+  Inbox,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
+import { TonePinyin } from "@/components/tone-pinyin"
 import styles from "./page.module.css"
 
-type Card = { id: number; hanzi: string; pinyin: string; arti: string; originalWord: string }
+type Card = {
+  id: number
+  hanzi: string          // satu karakter tunggal yang sedang dilatih
+  pinyin: string          // pinyin kata ASAL (bisa multi-suku-kata), buat konteks
+  arti: string
+  originalWord: string    // kata utuh tempat karakter ini berasal (mis. "你好")
+  exampleSentence?: string
+  examplePinyin?: string
+  exampleTranslation?: string
+}
+
 type HanziWriterLike = {
   quiz: (options: {
-    onMistake?: () => void
-    onCorrectStroke?: () => void
-    onComplete?: () => void
+    onMistake?: (strokeData?: { totalMistakes?: number }) => void
+    onCorrectStroke?: (strokeData?: { strokeNum?: number }) => void
+    onComplete?: (summaryData?: { totalMistakes?: number }) => void
   }) => void
   animateCharacter: (options?: { onComplete?: () => void }) => void
+}
+
+// Badge hasil SVG (bukan emoji) — dipakai di layar akhir & state kosong,
+// pola sama persis dengan ResultBadge di halaman Nada, biar ketiga
+// halaman latihan (Nada/Flashcard/Tulis) konsisten secara visual.
+function CompletionBadge({ clean }: { clean: boolean }) {
+  return (
+    <div className="relative flex items-center justify-center h-14 w-14">
+      {clean && (
+        <svg
+          viewBox="0 0 100 100"
+          className="absolute inset-0 h-full w-full text-emerald-500 animate-in zoom-in-50 fade-in duration-500"
+        >
+          {Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i / 8) * Math.PI * 2
+            const x1 = 50 + Math.cos(angle) * 36
+            const y1 = 50 + Math.sin(angle) * 36
+            const x2 = 50 + Math.cos(angle) * 47
+            const y2 = 50 + Math.sin(angle) * 47
+            return (
+              <line
+                key={i}
+                x1={x1} y1={y1} x2={x2} y2={y2}
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                opacity={0.55}
+              />
+            )
+          })}
+        </svg>
+      )}
+      <div
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
+          clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
+        }`}
+      >
+        {clean ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
+      </div>
+    </div>
+  )
 }
 
 export default function TulisHanziPage() {
@@ -28,36 +91,112 @@ export default function TulisHanziPage() {
   const [loading, setLoading] = React.useState(true)
   const [idx, setIdx] = React.useState(0)
   const [done, setDone] = React.useState(false)
+  const [deckTitle, setDeckTitle] = React.useState("Latihan Menulis")
+  const [deckLevel, setDeckLevel] = React.useState("")
+
+  // `correct` = total karakter yang sudah DISELESAIKAN (benar/salah tetap
+  // dihitung selesai). `cleanCount` = subset yang selesai TANPA satu pun
+  // kesalahan goresan — inilah yang dipakai sebagai "akurasi" sesungguhnya,
+  // karena writer.quiz tetap membiarkan user coba lagi sampai benar, jadi
+  // "selesai" saja tidak berarti "bersih".
   const [correct, setCorrect] = React.useState(0)
+  const [cleanCount, setCleanCount] = React.useState(0)
+  const [answered, setAnswered] = React.useState(0)
+  const [streak, setStreak] = React.useState(0)
+
   const [writerReady, setWriterReady] = React.useState(false)
   const [strictMode, setStrictMode] = React.useState(false)
+  const [traceMode, setTraceMode] = React.useState(false)
   const [hintPlaying, setHintPlaying] = React.useState(false)
   const [mistakeCount, setMistakeCount] = React.useState(0)
+
+  // Progres goresan karakter yang sedang berjalan — dipakai buat indikator
+  // "goresan x/y" di atas kanvas, bukan cuma "selesai / belum".
+  const [strokeCount, setStrokeCount] = React.useState<number | null>(null)
+  const [strokeProgress, setStrokeProgress] = React.useState(0)
+
+  const [resultRingValue, setResultRingValue] = React.useState(0)
+  const prefersReducedMotionRef = React.useRef(false)
 
   const writerRef = React.useRef<HanziWriterLike | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const strictModeRef = React.useRef(false)
-  const mistakeRef = React.useRef(0)
+  const traceModeRef = React.useRef(false)
+  const mistakeRef = React.useRef(0)        // mistake beruntun di goresan SEKARANG (buat retry strict-mode)
+  const charMistakesRef = React.useRef(0)   // total mistake sepanjang karakter ini (buat cek "bersih")
   const cancelledRef = React.useRef(false)
   const idxRef = React.useRef(0)
   const totalRef = React.useRef(0)
 
   React.useEffect(() => {
+    prefersReducedMotionRef.current =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  }, [])
+
+  React.useEffect(() => {
     async function load() {
+      const { data: setData } = await supa
+        .from("flashcard_sets")
+        .select("title, description, hsk_level")
+        .eq("id", deckId)
+        .maybeSingle()
+
+      if (setData) {
+        setDeckTitle(setData.title ?? "Latihan Menulis")
+        const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
+        setDeckLevel(parts.length > 0 ? parts.join(" - ") : "")
+      }
+
       const { data } = await supa
         .from("flashcard_cards")
         .select("id, hanzi, pinyin, arti")
         .eq("set_id", deckId)
         .order("created_at", { ascending: true })
+
+      const rawCards = data ?? []
+
+      // Ambil contoh kalimat per KATA ASAL (bukan per karakter) — sama
+      // persis pola di halaman Nada — supaya tiap karakter yang berasal
+      // dari kata yang sama menunjukkan contoh kalimat yang sama juga.
+      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+
+      if (hanziList.length > 0) {
+        await Promise.all(
+          hanziList.map(async (hanzi) => {
+            const [directRes, partialRes] = await Promise.all([
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
+              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
+            ])
+            const first = directRes.data?.[0] ?? partialRes.data?.[0]
+            if (first) {
+              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
+            }
+          })
+        )
+      }
+
       const parsed: Card[] = []
-      for (const c of data ?? []) {
+      for (const c of rawCards) {
+        const ex = c.hanzi ? exampleMap.get(c.hanzi) : undefined
         for (const char of [...c.hanzi]) {
           const code = char.charCodeAt(0)
           if ((code >= 0x4e00 && code <= 0x9fff) || (code >= 0x3400 && code <= 0x4dbf)) {
-            parsed.push({ id: c.id, hanzi: char, pinyin: c.pinyin, arti: c.arti, originalWord: c.hanzi })
+            parsed.push({
+              id: c.id,
+              hanzi: char,
+              pinyin: c.pinyin,
+              arti: c.arti,
+              originalWord: c.hanzi,
+              exampleSentence: ex?.hanzi,
+              examplePinyin: ex?.pinyin,
+              exampleTranslation: ex?.arti,
+            })
           }
         }
       }
+
       setCards(parsed)
       totalRef.current = parsed.length
       setLoading(false)
@@ -68,34 +207,49 @@ export default function TulisHanziPage() {
   const card = cards[idx]
   const total = cards.length
   const progress = total > 0 ? (idx / total) * 100 : 0
+  const accuracy = answered > 0 ? Math.round((cleanCount / answered) * 100) : 0
 
   function startQuiz(writer: HanziWriterLike, currentCard: Card) {
     if (!writer) return
     mistakeRef.current = 0
+    charMistakesRef.current = 0
     setMistakeCount(0)
+    setStrokeProgress(0)
 
     writer.quiz({
-      onMistake: () => {
-        if (strictModeRef.current) {
-          mistakeRef.current += 1
-          setMistakeCount(mistakeRef.current)
-          if (mistakeRef.current >= 3) {
-            mistakeRef.current = 0
-            setMistakeCount(0)
-            initWriter(currentCard)
-          }
+      onMistake: (strokeData) => {
+        const currentStrokeMistakes = mistakeRef.current + 1
+        mistakeRef.current = currentStrokeMistakes
+        charMistakesRef.current += 1
+        setMistakeCount(currentStrokeMistakes)
+
+        if (strictModeRef.current && currentStrokeMistakes >= 3) {
+          mistakeRef.current = 0
+          setMistakeCount(0)
+          initWriter(currentCard)
         }
       },
       onCorrectStroke: () => {
         mistakeRef.current = 0
         setMistakeCount(0)
+        setStrokeProgress(p => p + 1)
       },
       onComplete: () => {
         if (cancelledRef.current) return
         speakMandarin(currentCard.originalWord)
+
+        const isClean = charMistakesRef.current === 0
+        setAnswered(a => a + 1)
+        setCorrect(c => c + 1)
+        if (isClean) {
+          setCleanCount(c => c + 1)
+          setStreak(s => s + 1)
+        } else {
+          setStreak(0)
+        }
+
         setTimeout(() => {
           if (cancelledRef.current) return
-          setCorrect(c => c + 1)
           const nextIdx = idxRef.current + 1
           if (nextIdx >= totalRef.current) setDone(true)
           else setIdx(nextIdx)
@@ -108,8 +262,11 @@ export default function TulisHanziPage() {
     if (!containerRef.current) return
     setWriterReady(false)
     setHintPlaying(false)
+    setStrokeCount(null)
+    setStrokeProgress(0)
     containerRef.current.innerHTML = ""
     mistakeRef.current = 0
+    charMistakesRef.current = 0
     setMistakeCount(0)
 
     const targetDiv = document.createElement("div")
@@ -133,7 +290,35 @@ export default function TulisHanziPage() {
       })
       writerRef.current = writer
       setWriterReady(true)
-      startQuiz(writer, currentCard)
+
+      // Jumlah goresan karakter — cuma buat badge "N Goresan" & progres
+      // "x/y", tidak mempengaruhi penilaian quiz sama sekali. Tipe return
+      // asli library ini `Promise<void | CharacterJson>` (bisa `void`
+      // kalau gagal dimuat), jadi di-guard dulu sebelum diakses.
+      HanziWriter.loadCharacterData(currentCard.hanzi)
+        .then((charData: void | { strokes: string[] }) => {
+          if (!cancelledRef.current && charData && Array.isArray(charData.strokes)) {
+            setStrokeCount(charData.strokes.length)
+          }
+        })
+        .catch(() => { /* badge goresan opsional, aman kalau gagal dimuat */ })
+
+      // Mode Jiplak: putar dulu animasi urutan goresan sebagai contoh
+      // sebelum user diminta menulis sendiri — berguna buat karakter yang
+      // belum pernah dilihat urutan goresannya. Kalau mode ini mati,
+      // langsung masuk quiz seperti biasa.
+      if (traceModeRef.current) {
+        setHintPlaying(true)
+        writer.animateCharacter({
+          onComplete: () => {
+            if (cancelledRef.current) return
+            setHintPlaying(false)
+            startQuiz(writer, currentCard)
+          },
+        })
+      } else {
+        startQuiz(writer, currentCard)
+      }
     })
   }
 
@@ -168,36 +353,186 @@ export default function TulisHanziPage() {
     if (card) initWriter(card)
   }
 
+  function handleTraceMode() {
+    const next = !traceMode
+    setTraceMode(next)
+    traceModeRef.current = next
+    if (card) initWriter(card)
+  }
+
+  function restart() {
+    setIdx(0)
+    setDone(false)
+    setCorrect(0)
+    setCleanCount(0)
+    setAnswered(0)
+    setStreak(0)
+  }
+
+  // Shortcut keyboard: Space = panduan animasi (paling sering dipakai
+  // pas macet), R = ulangi karakter, T = Mode Jiplak, S = Strict Mode —
+  // semua di-skip kalau fokus lagi di input/textarea (tidak ada di
+  // halaman ini, tapi jaga konsisten dgn pola Nada/Flashcard).
+  React.useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement | null
+      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return
+      if (!card || done || loading) return
+
+      if (e.code === "Space") {
+        e.preventDefault()
+        handleHint()
+      } else if (e.key.toLowerCase() === "r") {
+        e.preventDefault()
+        handleClear()
+      } else if (e.key.toLowerCase() === "t") {
+        e.preventDefault()
+        handleTraceMode()
+      } else if (e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        handleStrictMode()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card, done, loading, hintPlaying, strictMode, traceMode])
+
+  // Animasikan ring akurasi di layar akhir, sama persis pola di Nada.
+  React.useEffect(() => {
+    if (!done || total === 0) {
+      setResultRingValue(0)
+      return
+    }
+    const target = Math.round((cleanCount / total) * 100)
+
+    if (prefersReducedMotionRef.current) {
+      setResultRingValue(target)
+      return
+    }
+
+    setResultRingValue(0)
+    let raf = 0
+    const start = performance.now()
+    const duration = 900
+    function tick(now: number) {
+      const t = Math.min(1, (now - start) / duration)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setResultRingValue(Math.round(eased * target))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
+    return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
+  }, [done, total, cleanCount])
+
   if (loading) {
-    return (
-      <div className={styles.page}>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-        </div>
-      </div>
-    )
+    return <div className={styles.page}><div className="flex flex-1 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div></div>
   }
 
   if (done || total === 0) {
+    const pct = total > 0 ? Math.round((cleanCount / total) * 100) : 0
+    const withMistakes = correct - cleanCount
+    const ringColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
+    const circumference = 2 * Math.PI * 54
+    const ringOffset = circumference - (resultRingValue / 100) * circumference
+
     return (
       <div className={styles.page}>
-        <div className="flex flex-col flex-1 items-center justify-center gap-8 p-8">
-          <div className="text-6xl">{total === 0 ? "📭" : "✍️"}</div>
-          <h2 className="text-3xl font-bold">{total === 0 ? "Belum Ada Kartu" : "Latihan Selesai!"}</h2>
-          {total > 0 && (
-            <div className="flex flex-col items-center gap-1 p-6 rounded-2xl bg-primary/10 border border-primary/30">
-              <span className="text-4xl font-bold text-primary">{correct}</span>
-              <span className="text-sm text-muted-foreground">Karakter Selesai</span>
-            </div>
-          )}
-          <div className="flex gap-3 w-full max-w-xs">
-            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => router.back()}>Kembali</Button>
-            {total > 0 && (
-              <Button className="flex-1 rounded-xl" onClick={() => { setIdx(0); setDone(false); setCorrect(0) }}>
-                Ulangi
-              </Button>
+        <div className="flex flex-col flex-1 relative z-10 min-h-0">
+          <div className="tulis-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 overflow-hidden min-h-0">
+            {total === 0 ? (
+              <>
+                <div className="flex items-center justify-center h-16 w-16 rounded-full bg-muted/40 text-muted-foreground">
+                  <Inbox className="h-8 w-8" />
+                </div>
+                <h2 className="text-3xl font-bold text-center">Belum Ada Kartu</h2>
+                <Button variant="outline" className="rounded-2xl px-8" onClick={() => router.back()}>Kembali</Button>
+              </>
+            ) : (
+              <>
+                {/*
+                  Watermark 写 ("menulis") — versi identitas halaman Tulis
+                  sendiri, sejalan dengan pattern watermark 完 (Flashcard)
+                  dan 调 (Nada), biar konsisten tanpa niru mentah-mentah.
+                */}
+                <div
+                  aria-hidden="true"
+                  className="tulis-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
+                  style={{ fontSize: "16rem", lineHeight: 1, top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
+                >
+                  写
+                </div>
+
+                <div className="tulis-result-title flex flex-col items-center gap-1 relative z-10">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>
+                  <p className="text-sm text-muted-foreground">{total} karakter ditulis</p>
+                </div>
+
+                <div className="tulis-result-ring relative z-10 flex items-center justify-center">
+                  <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                    <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                    <circle
+                      cx="60" cy="60" r="54" fill="none"
+                      stroke={ringColor}
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={ringOffset}
+                      style={{ transition: "stroke 400ms ease" }}
+                    />
+                  </svg>
+                  <div className="absolute flex flex-col items-center">
+                    <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
+                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi Bersih</span>
+                  </div>
+                </div>
+
+                {/*
+                  "Bersih" (selesai tanpa satu pun kesalahan goresan) vs
+                  "Ada Salah" (selesai tapi sempat salah goresan) — biner
+                  yang lebih relevan buat latihan menulis dibanding cuma
+                  "total selesai", sama semangatnya dengan Benar/Salah di
+                  Nada.
+                */}
+                <div className="tulis-result-stats flex flex-wrap justify-center gap-2 relative z-10">
+                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                    <span className="text-sm font-semibold text-emerald-500 tabular-nums">{cleanCount}</span>
+                    <span className="text-xs text-muted-foreground">Bersih</span>
+                  </div>
+                  <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                    <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-400"><XCircle className="h-3.5 w-3.5" /></span>
+                    <span className="text-sm font-semibold text-amber-400 tabular-nums">{withMistakes}</span>
+                    <span className="text-xs text-muted-foreground">Ada Salah</span>
+                  </div>
+                </div>
+
+                <div className="tulis-result-actions flex gap-3 w-full max-w-xs relative z-10 mb-6">
+                  <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
+                  <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={restart}>Ulangi</Button>
+                </div>
+              </>
             )}
           </div>
+
+          <style dangerouslySetInnerHTML={{
+            __html: `
+            .tulis-result { animation: tulisResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
+            .tulis-result-watermark { animation: tulisWatermarkFade 900ms ease 80ms both; }
+            .tulis-result-title { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
+            .tulis-result-ring { animation: tulisResultPop 620ms cubic-bezier(.2,1.4,.4,1) 200ms both; }
+            .tulis-result-stats { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 360ms both; }
+            .tulis-result-actions { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 460ms both; }
+            @keyframes tulisResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            @keyframes tulisResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.8); } 70% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+            @keyframes tulisResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes tulisWatermarkFade { from { opacity: 0; } to { opacity: 1; } }
+            @media (prefers-reduced-motion: reduce) {
+              .tulis-result, .tulis-result-watermark, .tulis-result-title, .tulis-result-ring, .tulis-result-stats, .tulis-result-actions {
+                animation: none !important;
+              }
+            }
+          ` }} />
         </div>
       </div>
     )
@@ -205,85 +540,198 @@ export default function TulisHanziPage() {
 
   return (
     <div className={styles.page}>
-      <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2 shrink-0">
-        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-          <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+      <div className="flex flex-col flex-1 relative z-10 min-h-0">
+        {/* Header judul deck + grid statistik — pola identik Nada/Flashcard */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <div className="mb-2">
+            <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
+            {deckLevel && <p className="text-xs text-muted-foreground">{deckLevel}</p>}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CheckCircle2 className="h-3 w-3" />
+                Akurasi Sesi
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    style={{ width: `${accuracy}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-foreground">{accuracy}%</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Flame className="h-3 w-3" />
+                <span className="hidden sm:inline">Bersih </span>Beruntun
+              </div>
+              <div className="text-sm font-semibold text-foreground">{streak}</div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ListChecks className="h-3 w-3" />
+                Sisa Kartu
+              </div>
+              <div className="text-sm font-semibold text-foreground">{total - idx}</div>
+            </div>
+          </div>
         </div>
-        <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
+
+        <div className="flex items-center gap-3 px-4 pt-2 pb-2 shrink-0">
+          <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="text-sm text-muted-foreground font-medium tabular-nums shrink-0">{idx + 1}/{total}</span>
+        </div>
+
+        {/*
+          Layout 2 kolom di desktop (kanvas + kontrol kiri, contoh kalimat
+          kanan) — sama semangatnya dengan Nada, supaya konteks kalimat
+          selalu terlihat SAMBIL menulis, bukan cuma muncul setelah
+          selesai. Kalau kartu ini tidak punya contoh di DB, kolom kanan
+          otomatis hilang dan kolom kiri jadi center penuh.
+        */}
+        <div className="flex-1 flex flex-col items-center justify-start gap-5 px-4 sm:px-6 pt-4 md:pt-8 pb-4 overflow-y-auto">
+          <div className={`w-full max-w-sm ${card.exampleSentence ? "md:max-w-3xl" : ""} mx-auto grid grid-cols-1 ${card.exampleSentence ? "md:grid-cols-[auto_1fr]" : ""} gap-5 items-start justify-items-center md:justify-items-start`}>
+            {/* Kolom kiri: info kata + kanvas + kontrol */}
+            <div className="flex flex-col items-center gap-4 w-full">
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="flex items-center gap-2">
+                  <span className="font-hanzi text-3xl text-foreground">{card.originalWord}</span>
+                  {strokeCount !== null && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 text-[11px] font-semibold text-muted-foreground">
+                      <Layers className="h-3 w-3" />
+                      {strokeCount} Goresan
+                    </span>
+                  )}
+                </div>
+                <TonePinyin text={card.pinyin} className="text-lg text-primary font-medium" />
+                <span className="text-base text-muted-foreground">{card.arti}</span>
+              </div>
+
+              {/* Canvas */}
+              <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl">
+                <div ref={containerRef} className="w-[260px] h-[260px]" />
+                {!writerReady && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+                  </div>
+                )}
+                {hintPlaying && (
+                  <div className="absolute top-3 left-3 bg-primary/20 border border-primary/40 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                    {traceMode ? "CONTOH" : "PANDUAN"}
+                  </div>
+                )}
+                {strictMode && (
+                  <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    STRICT
+                  </div>
+                )}
+                {/*
+                  Indikator goresan salah SEKARANG — sebelumnya cuma tampil
+                  di strict mode. Sekarang selalu tampil kalau ada
+                  kesalahan, karena feedback stroke-level ini berguna buat
+                  siapa saja, bukan cuma pas strict mode aktif.
+                */}
+                {mistakeCount > 0 && (
+                  <div className="absolute bottom-3 left-3 flex gap-1">
+                    {[1, 2, 3].map(n => (
+                      <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
+                    ))}
+                  </div>
+                )}
+                {/* Progres goresan benar sejauh ini, mis. "3/7 goresan" */}
+                {strokeCount !== null && writerReady && !hintPlaying && (
+                  <div className="absolute bottom-3 right-3 text-[11px] font-semibold text-muted-foreground tabular-nums bg-card/80 px-2 py-0.5 rounded-full border border-border/40">
+                    {strokeProgress}/{strokeCount}
+                  </div>
+                )}
+              </div>
+
+              {/* 4 tombol kontrol berlabel */}
+              <div className="grid grid-cols-4 w-full gap-2 pt-1">
+                <button
+                  onClick={handleClear}
+                  title="Ulangi karakter ini (R)"
+                  aria-label="Ulangi karakter ini"
+                  className="flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
+                >
+                  <RotateCcw className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Ulangi</span>
+                </button>
+
+                <button
+                  onClick={handleHint}
+                  disabled={hintPlaying || !writerReady}
+                  title="Tampilkan panduan animasi (Space)"
+                  aria-label="Tampilkan panduan animasi"
+                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
+                    hintPlaying
+                      ? "border-primary/60 bg-primary/20 text-primary"
+                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+                >
+                  <Eye className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Panduan</span>
+                </button>
+
+                <button
+                  onClick={handleTraceMode}
+                  title="Mode Jiplak: putar animasi contoh sebelum tiap karakter baru (T)"
+                  aria-label="Mode Jiplak"
+                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${
+                    traceMode
+                      ? "border-sky-500/60 bg-sky-500/20 text-sky-400"
+                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Jiplak</span>
+                </button>
+
+                <button
+                  onClick={handleStrictMode}
+                  title="Strict Mode: sembunyikan panduan garis (S)"
+                  aria-label="Strict Mode"
+                  className={`flex flex-col items-center gap-1.5 py-2.5 rounded-2xl border shadow-sm transition-all active:scale-95 ${
+                    strictMode
+                      ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
+                      : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                  }`}
+                >
+                  <Shield className="h-5 w-5" />
+                  <span className="text-[10px] font-medium">Strict</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Kolom kanan: contoh penggunaan — cuma render kalau ada datanya */}
+            {card.exampleSentence && (
+              <div className="w-full md:sticky md:top-2 flex flex-col gap-1.5 p-4 rounded-2xl border border-border/40 bg-muted/20">
+                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  Contoh · penggunaan
+                </div>
+                <div
+                  className="font-hanzi text-2xl text-foreground cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => speakMandarin(card.exampleSentence!)}
+                >
+                  {card.exampleSentence}
+                </div>
+                {card.examplePinyin && (
+                  <TonePinyin text={card.examplePinyin} className="text-sm text-primary font-medium" />
+                )}
+                {card.exampleTranslation && (
+                  <div className="text-sm text-muted-foreground">{card.exampleTranslation}</div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center gap-5 px-6">
-        {/* Info kartu */}
-        <div className="flex flex-col items-center gap-1 pb-3 text-center">
-          <span className="font-hanzi text-3xl text-foreground">{card.originalWord}</span>
-          <span className="text-lg text-primary font-medium">{card.pinyin}</span>
-          <span className="text-base text-muted-foreground">{card.arti}</span>
-        </div>
-
-        {/* Canvas */}
-        <div className="relative rounded-3xl border-2 border-border/50 bg-card/60 p-3 shadow-xl">
-          <div ref={containerRef} className="w-[260px] h-[260px]" />
-          {!writerReady && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-3xl bg-card">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-            </div>
-          )}
-          {strictMode && (
-            <div className="absolute top-3 right-3 bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-              STRICT
-            </div>
-          )}
-          {strictMode && mistakeCount > 0 && (
-            <div className="absolute top-3 left-3 flex gap-1">
-              {[1, 2, 3].map(n => (
-                <div key={n} className={`h-2.5 w-2.5 rounded-full ${mistakeCount >= n ? "bg-red-500" : "bg-muted"}`} />
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 3 Control Buttons */}
-        <div className="flex w-full items-center justify-center pt-4" style={{ gap: "18px" }}>
-          <button
-            onClick={handleClear}
-            title="Ulangi karakter ini"
-            aria-label="Ulangi karakter ini"
-            className="flex aspect-square h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border border-border/60 bg-card text-muted-foreground shadow-sm transition-all hover:border-primary/50 hover:text-foreground active:scale-95"
-          >
-            <RotateCcw className="h-6 w-6" />
-          </button>
-
-          <button
-            onClick={handleHint}
-            disabled={hintPlaying || !writerReady}
-            title="Tampilkan panduan animasi"
-            aria-label="Tampilkan panduan animasi"
-            className={`flex aspect-square h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-              hintPlaying
-                ? "border-primary/60 bg-primary/20 text-primary"
-                : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-            }`}
-          >
-            <Eye className="h-6 w-6" />
-          </button>
-
-          <button
-            onClick={handleStrictMode}
-            title="Strict Mode"
-            aria-label="Strict Mode"
-            className={`flex aspect-square h-14 min-h-14 w-14 min-w-14 shrink-0 items-center justify-center rounded-full border shadow-sm transition-all active:scale-95 ${
-              strictMode
-                ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
-                : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-            }`}
-          >
-            <Shield className="h-6 w-6" />
-          </button>
-        </div>
-      </div>
-    </div>
     </div>
   )
 }
