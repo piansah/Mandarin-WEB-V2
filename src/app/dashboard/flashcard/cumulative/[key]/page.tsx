@@ -160,11 +160,7 @@ export default function CumulativeFlashcardSessionPage() {
           subtitle={set.sub}
           progress={progress}
           rightContent={`${completedCount}/${items.length}`}
-          stats={{
-            mastered: completedCount,
-            rated: completedCount,
-          }}
-          showStats={true}
+          showStats={false}
         />
 
         <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
@@ -230,7 +226,7 @@ export default function CumulativeFlashcardSessionPage() {
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                🎉
+                完
               </div>
 
               <div className="flex flex-col items-center gap-1 relative z-10">

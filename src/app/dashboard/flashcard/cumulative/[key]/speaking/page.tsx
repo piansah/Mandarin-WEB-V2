@@ -190,63 +190,15 @@ export default function SpeakingPracticePage() {
     return (
       <div className={styles.fullscreenContainer}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          {/* Header with Title, Subtitle, and Action Buttons */}
-          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-            <div className="mb-2">
-              <h1 className="text-lg font-bold text-foreground">Latihan Speaking</h1>
-              <p className="text-xs text-muted-foreground">{set.title}</p>
-            </div>
-
-            {/* Always Visible Stats Section */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Akurasi Sesi
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-foreground">{pct}%</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3" />
-                  Sudah Dikuasai
-                </div>
-                <div className="text-sm font-semibold text-foreground">{completedCount}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Dinilai
-                </div>
-                <div className="text-sm font-semibold text-foreground">{completedCount}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Star className="h-3 w-3" />
-                  Total
-                </div>
-                <div className="text-sm font-semibold text-foreground">{items.length}</div>
-              </div>
-            </div>
-          </div>
-
           {/* Result Content */}
           <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {/*
-              Signature: watermark emoji besar di belakang ring, gaya
+              Signature: watermark hanzi besar di belakang ring, gaya
               sama persis dengan watermark yang muncul di flashcard session.
             */}
             <div
               aria-hidden="true"
-              className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+              className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
               style={{
                 fontSize: "16rem",
                 lineHeight: 1,
@@ -255,7 +207,7 @@ export default function SpeakingPracticePage() {
                 transform: "translate(-50%, -50%)",
               }}
             >
-              🎉
+              完
             </div>
 
             <div className="flex flex-col items-center gap-1 relative z-10">
@@ -322,11 +274,7 @@ export default function SpeakingPracticePage() {
           subtitle={set.title}
           progress={progress}
           rightContent={`${currentIndex + 1}/${items.length}`}
-          stats={{
-            mastered: completedCount,
-            rated: completedCount,
-          }}
-          showStats={true}
+          showStats={false}
         />
 
         {/* Main Content */}

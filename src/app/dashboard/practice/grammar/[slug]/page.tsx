@@ -331,15 +331,7 @@ export default function GrammarPracticePage() {
           subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
           progress={phase !== "theory" ? progress : undefined}
           rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
-          stats={
-            phase !== "theory"
-              ? {
-                  accuracy: questions.length ? Math.round((correctCount / questions.length) * 100) : 0,
-                  rated: correctCount + wrongCount,
-                }
-              : undefined
-          }
-          showStats={phase !== "theory"}
+          showStats={false}
         />
 
         <div className={styles.body}>
@@ -398,12 +390,12 @@ export default function GrammarPracticePage() {
           {phase === "done" && (
             <div className="flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
               {/*
-                Signature: watermark emoji besar di belakang ring, gaya
+                Signature: watermark hanzi besar di belakang ring, gaya
                 sama persis dengan watermark yang muncul di flashcard session.
               */}
               <div
                 aria-hidden="true"
-                className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+                className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
                 style={{
                   fontSize: "16rem",
                   lineHeight: 1,
@@ -412,7 +404,7 @@ export default function GrammarPracticePage() {
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                ✅
+                完
               </div>
 
               <div className="flex flex-col items-center gap-1 relative z-10">

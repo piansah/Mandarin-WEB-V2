@@ -640,17 +640,6 @@ export function SwipeFlashcardSession({
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          {/*
-            Header (judul deck/subjudul + grid statistik "Jatuh Tempo/
-            Akurasi Sesi/Sudah Dikuasai/Dinilai") SENGAJA dihilangkan dari
-            layar "Sesi Selesai". Statistik itu berguna selama sesi masih
-            berjalan (memantau progres saat itu juga), tapi begitu sesi
-            tuntas, ring akurasi + chip rincian di bawah sudah menyajikan
-            ringkasan yang sama secara lebih fokus — menampilkan header
-            lama di sini hanya mengulang info dan menambah dead-space di
-            layar hasil (lihat area yang di-highlight di DevTools).
-          */}
-
           {/* Result Content */}
           <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {isEmpty ? (

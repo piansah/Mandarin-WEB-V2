@@ -326,63 +326,15 @@ export default function QuizPage() {
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          {/* Header with Title, Subtitle, and Action Buttons */}
-          <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-            <div className="mb-2">
-              <h1 className="text-lg font-bold text-foreground">{quizTitle || "Quiz Harian"}</h1>
-              <p className="text-xs text-muted-foreground">{quizSub || `Level ${key.replace("level-", "")}`}</p>
-            </div>
-
-            {/* Always Visible Stats Section */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Akurasi Sesi
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-foreground">{pct}%</span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Benar
-                </div>
-                <div className="text-sm font-semibold text-foreground">{totalCorrect}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <RotateCcw className="h-3 w-3" />
-                  Salah
-                </div>
-                <div className="text-sm font-semibold text-foreground">{wrong}</div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <SkipForward className="h-3 w-3" />
-                  Dilewati
-                </div>
-                <div className="text-sm font-semibold text-foreground">{skip}</div>
-              </div>
-            </div>
-          </div>
-
           {/* Result Content */}
           <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {/*
-              Signature: watermark emoji besar di belakang ring, gaya
+              Signature: watermark hanzi besar di belakang ring, gaya
               sama persis dengan watermark yang muncul di flashcard session.
             */}
             <div
               aria-hidden="true"
-              className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+              className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
               style={{
                 fontSize: "16rem",
                 lineHeight: 1,
@@ -391,7 +343,7 @@ export default function QuizPage() {
                 transform: "translate(-50%, -50%)",
               }}
             >
-              {emoji}
+              完
             </div>
 
             <div className="flex flex-col items-center gap-1 relative z-10">
@@ -481,11 +433,7 @@ export default function QuizPage() {
           subtitle={quizSub || `Level ${key.replace("level-", "")}`}
           progress={progress}
           rightContent={`${totalCorrect}/${totalAnswered}`}
-          stats={{
-            accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
-            rated: totalAnswered,
-          }}
-          showStats={true}
+          showStats={false}
         />
 
         {/* Section filter dropdown - scrolls together with the questions */}
