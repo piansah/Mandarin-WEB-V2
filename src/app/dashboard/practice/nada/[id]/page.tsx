@@ -633,9 +633,9 @@ export default function NadaPracticePage() {
           di bawah dibiarkan (lihat catatan di respons chat soal ini).
         */}
         <div className="flex-1 flex flex-col items-center justify-start gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
+          {/* <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
-          </p>
+          </p> */}
 
           {/*
             Layout responsif: 1 kolom di mobile (persis perilaku lama —
