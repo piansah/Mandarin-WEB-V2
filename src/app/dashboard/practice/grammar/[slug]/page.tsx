@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { X } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
-import { LearningHeader } from "@/components/learning-header"
+import { PracticeHeader } from "@/components/practice-header"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
@@ -325,11 +325,20 @@ export default function GrammarPracticePage() {
 
   return (
     <div className={styles.page}>
-      <LearningHeader
+      <PracticeHeader
         title={pattern.title}
         subtitle={reviewRound > 0 ? `Ronde ${reviewRound + 1} — Review salah` : pattern.sub_title || `${questions.length} soal susun kata`}
         progress={phase !== "theory" ? progress : undefined}
         rightContent={phase !== "theory" ? `${correctCount}/${questions.length}` : undefined}
+        stats={
+          phase !== "theory"
+            ? {
+                accuracy: questions.length ? Math.round((correctCount / questions.length) * 100) : 0,
+                rated: correctCount + wrongCount,
+              }
+            : undefined
+        }
+        showStats={phase !== "theory"}
       />
 
       <div className={styles.body}>

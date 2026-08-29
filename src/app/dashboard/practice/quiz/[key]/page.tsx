@@ -6,7 +6,7 @@ import { X } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { Button } from "@/components/ui/button"
-import { LearningHeader } from "@/components/learning-header"
+import { PracticeHeader } from "@/components/practice-header"
 import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
@@ -378,11 +378,16 @@ export default function QuizPage() {
   return (
     <div className={styles.page}>
       {/* Header */}
-      <LearningHeader
+      <PracticeHeader
         title={quizTitle || "Quiz Harian"}
         subtitle={quizSub || `Level ${key.replace("level-", "")}`}
         progress={progress}
         rightContent={`${totalCorrect}/${totalAnswered}`}
+        stats={{
+          accuracy: totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
+          rated: totalAnswered,
+        }}
+        showStats={true}
       />
 
       {/* Section filter dropdown - scrolls together with the questions */}

@@ -6,7 +6,7 @@ import { RotateCcw, Mic, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
-import { LearningHeader } from "@/components/learning-header"
+import { PracticeHeader } from "@/components/practice-header"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -154,11 +154,16 @@ export default function CumulativeFlashcardSessionPage() {
 
   return (
     <div className={styles.fullscreenContainer}>
-      <LearningHeader
+      <PracticeHeader
         title={set.title}
         subtitle={set.sub}
         progress={progress}
         rightContent={`${completedCount}/${items.length}`}
+        stats={{
+          mastered: completedCount,
+          rated: completedCount,
+        }}
+        showStats={true}
       />
 
       <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6">
