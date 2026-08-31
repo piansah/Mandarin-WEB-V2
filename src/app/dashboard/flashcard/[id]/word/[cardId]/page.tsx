@@ -171,10 +171,15 @@ export default function WordDetailPage() {
       let data = primary.data ?? []
 
       // Dataset compounds tidak selalu memiliki kata lengkap (mis. 你好),
-      // sehingga gunakan karakter penyusunnya sebagai fallback yang relevan.
+      // sehingga gunakan karakter penyusunnya sebagai fallback — tapi hasilnya
+      // harus tetap mengandung SEMUA karakter penyusun (AND), bukan salah satu (OR),
+      // supaya tidak muncul kata yang cuma nyambung ke satu suku kata saja.
       if (data.length === 0 && [...activeCard.hanzi].length > 1) {
-        const characterFilters = [...activeCard.hanzi].map(char => `hanzi.ilike.%${char}%`).join(",")
-        const fallback = await supa.from("word_compounds").select(select).or(characterFilters).order("frequency", { ascending: false }).limit(30)
+        let fallbackQuery = supa.from("word_compounds").select(select)
+        for (const char of [...activeCard.hanzi]) {
+          fallbackQuery = fallbackQuery.ilike("hanzi", `%${char}%`)
+        }
+        const fallback = await fallbackQuery.order("frequency", { ascending: false }).limit(30)
         data = fallback.data ?? []
       }
       if (!cancelled) { setCompounds(data); setTabLoading(false) }
@@ -191,7 +196,7 @@ export default function WordDetailPage() {
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   if (!card) return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
-  
+
   const chars = [...card.hanzi].filter(isHanzi)
   const tabs: Array<{ id: DetailTab; label: string }> = [{ id: "kalimat", label: "Sentences" }, { id: "stroke", label: "Stroke" }, { id: "karakter", label: "Char" }, { id: "kata", label: "Word" }]
 
@@ -232,13 +237,13 @@ export default function WordDetailPage() {
     // Reload the vocabulary data to refresh examples
     const controller = new AbortController()
     const signal = controller.signal
-    
+
     const loadVocabulary = async () => {
       if (!cardId) return
       const { data: cardData } = await supa.from("flashcard_cards").select("*").eq("id", cardId).single()
       if (cardData) setCard(cardData)
     }
-    
+
     loadVocabulary()
     closeAddSentenceModal()
   }
@@ -247,7 +252,7 @@ export default function WordDetailPage() {
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
     <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} card={card} onAddSentence={openAddSentenceModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
-    
+
     {/* Report Modal */}
     <ReportModal
       isOpen={reportModal.isOpen}
@@ -295,7 +300,7 @@ function SentenceTab({ examples, knownWords, card, onAddSentence }: { examples: 
 function SentenceCard({ example, knownWords }: { example: ExampleSentence; knownWords: Set<string> }) {
   const sentence = example.hanzi || ""
   const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
-  
+
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation()
     window.openBugReportModal?.(
@@ -305,7 +310,7 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
       String(example.id)
     )
   }
-  
+
   return (
     <div className="relative group">
       <article className={styles.sentenceCard} {...gesture}>
