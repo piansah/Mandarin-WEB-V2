@@ -39,15 +39,11 @@
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-poppins), Arial, sans-serif;
-  overscroll-behavior: contain;
 }
 
 .page > div {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scroll-behavior: smooth;
+  min-height: 0;
 }
 
 /* ── Header ── */
