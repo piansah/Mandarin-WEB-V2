@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { SidebarMobileOpenButton } from "@/components/sidebar-trigger"
@@ -15,30 +14,20 @@ type DashboardLayoutClientProps = {
   defaultPinned: boolean
 }
 
+// Catatan: dulu ada logic `isFullscreen` di sini yang melewati sidebar +
+// DashboardHeader untuk /dashboard/cerita/[key]/* dan
+// /dashboard/flashcard/cumulative/[key]/* (rute "baca" dan "flashcard
+// kumulatif"). Itu sisa dari desain lama saat semua halaman sesi memang
+// fullscreen tanpa sidebar (lihat komentar di practice/layout.tsx). Sejak
+// /practice dan flashcard biasa (swipe-flashcard-session.tsx) sengaja
+// dipertahankan tetap punya sidebar + header, dua rute itu ketinggalan dan
+// jadi tidak konsisten. Sekarang semua halaman dashboard, termasuk
+// keduanya, lewat jalur layout yang sama di bawah ini.
 export function DashboardLayoutClient({
   children,
   sidebarUser,
   defaultPinned,
 }: DashboardLayoutClientProps) {
-  const pathname = usePathname()
-
-  const segments = pathname.split("/").filter(Boolean)
-  const isCeritaRead = segments.length >= 3 && segments[0] === "dashboard" && segments[1] === "cerita"
-  const isCumulativeRead = segments.length >= 4 && segments[0] === "dashboard" && segments[1] === "flashcard" && segments[2] === "cumulative"
-  const isFullscreen = isCeritaRead || isCumulativeRead
-
-  if (isFullscreen) {
-    return (
-      <SidebarProvider defaultOpen={false} defaultPinned={false}>
-        <SidebarInset className="flex h-svh flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-auto">
-            {children}
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
-    )
-  }
-
   return (
     <SidebarProvider defaultOpen={true} defaultPinned={defaultPinned}>
       <SidebarHoverTrigger />

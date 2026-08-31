@@ -7,7 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
-import { LearningHeader } from "@/components/learning-header"
+import { PracticeHeader } from "@/components/practice-header"
 import styles from "../../[key]/page.module.css"
 
 type RawKalimatQuestion = {
@@ -306,7 +306,7 @@ export default function CumulativeQuizPracticePage() {
 
   return (
     <div className={styles.page}>
-      <LearningHeader
+      <PracticeHeader
         title={quizTitle || "Quiz Kumulatif"}
         subtitle={`Level ${key.replace("level-", "")}`}
         progress={progress}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { PracticeHeader } from "@/components/practice-header"
 import styles from "./page.module.css"
 
 type Card = {
@@ -609,54 +610,29 @@ export default function NadaPracticePage() {
     <div className={styles.page}>
       <div className="flex flex-col flex-1 relative z-10 min-h-0">
         {/*
-          Header judul deck + grid statistik, pola sama dengan
-          swipe-flashcard-session (title/subtitle di atas, lalu grid
-          statistik di dalam kotak muted). Cuma 3 stat (bukan 4 kayak
-          flashcard) karena "Jatuh Tempo"/"Sudah Dikuasai" itu SRS-specific
-          dan nggak relevan buat kuis nada yang sifatnya cepat & biner:
+          Header — pakai PracticeHeader (sama persis dgn swipe-flashcard-session,
+          flashcard kumulatif, quiz, dst). Cuma 3 stat (bukan 4 kayak flashcard)
+          karena "Jatuh Tempo"/"Sudah Dikuasai" itu SRS-specific dan nggak
+          relevan buat kuis nada yang sifatnya cepat & biner:
           - Akurasi Sesi: satu-satunya yang 1:1 sama relevansinya dgn flashcard
           - Benar Beruntun: metrik konsistensi yang lebih pas buat drilling
             pola nada dibanding stat SRS
           - Sisa Soal: total - idx, info praktis "berapa lagi"
         */}
-        <div className="px-4 pt-4 pb-2 shrink-0">
-          <div className="mb-2">
-            <h1 className="text-lg font-bold text-foreground">{deckTitle}</h1>
-            {deckLevel && <p className="text-xs text-muted-foreground">{deckLevel}</p>}
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-            <div className={`${styles.statsCard} flex flex-col gap-1`}>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-3 w-3" />
-                Akurasi Sesi
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${accuracy}%` }}
-                  />
-                </div>
-                <span className="text-xs font-semibold text-foreground">{accuracy}%</span>
-              </div>
-            </div>
-            <div className={`${styles.statsCard} flex flex-col gap-1`}>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Flame className="h-3 w-3" />
-                <span className="hidden sm:inline">Benar </span>Beruntun
-              </div>
-              <div className="text-sm font-semibold text-foreground">{streak}</div>
-            </div>
-            <div className={`${styles.statsCard} flex flex-col gap-1`}>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <ListChecks className="h-3 w-3" />
-                Sisa Soal
-              </div>
-              <div className="text-sm font-semibold text-foreground">{total - idx}</div>
-            </div>
-          </div>
-        </div>
+        <PracticeHeader
+          title={deckTitle}
+          subtitle={deckLevel}
+          showStats
+          stats={[
+            { icon: CheckCircle2, label: "Akurasi Sesi", value: `${accuracy}%`, progressPercent: accuracy },
+            {
+              icon: Flame,
+              label: <><span className="hidden sm:inline">Benar </span>Beruntun</>,
+              value: streak,
+            },
+            { icon: ListChecks, label: "Sisa Soal", value: total - idx },
+          ]}
+        />
 
         <div className="flex items-center gap-3 px-4 pt-2 pb-2 shrink-0">
           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">

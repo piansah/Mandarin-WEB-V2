@@ -21,7 +21,7 @@ import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
-import { LearningHeader } from "@/components/learning-header"
+import { PracticeHeader } from "@/components/practice-header"
 import styles from "./page.module.css"
 
 
@@ -121,7 +121,12 @@ export default function CeritaReadPage() {
   const lastSavedPctRef = React.useRef(-1)
 
   const getScrollEl = React.useCallback((): HTMLElement | null => {
-    return rootRef.current
+    // Sejak halaman ini dirender di dalam layout dashboard normal (sidebar +
+    // header tetap terlihat, bukan overlay fullscreen lagi), `rootRef`
+    // sendiri bukan lagi elemen yang scroll — scroll container sebenarnya
+    // adalah wrapper `overflow-auto` di dashboard-layout-client.tsx, satu
+    // level di atas. Lihat juga catatan serupa di swipe-flashcard-session.tsx.
+    return (rootRef.current?.closest(".overflow-auto") as HTMLElement | null) ?? rootRef.current
   }, [])
 
   /* ── Load data ── */
@@ -404,8 +409,8 @@ export default function CeritaReadPage() {
   const fontSize = FONT_LEVELS[fontLevel]
 
   return (
-    <div ref={rootRef} className={styles.fullscreenContainer}>
-      <LearningHeader
+    <div ref={rootRef} className={styles.page}>
+      <PracticeHeader
         title={data.title_zh || data.title}
         subtitle={data.title_zh ? data.title : undefined}
         progress={pct}

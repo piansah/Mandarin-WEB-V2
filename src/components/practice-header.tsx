@@ -1,18 +1,28 @@
 import * as React from "react"
-import { TrendingUp, Star, CheckCircle2 } from "lucide-react"
+
+/**
+ * Satu cell statistik di dalam header. Dulu bentuk statistik ini di-hardcode
+ * (dueToday/totalCards/accuracy/mastered/rated) sehingga tiap halaman yang
+ * butuh statistik lain (mis. "Beruntun", "Sisa Soal" di practice/nada &
+ * practice/tulis) terpaksa nulis ulang seluruh markup header secara manual.
+ * Sekarang stat cell dibuat generik supaya semua pemakai — quiz, grammar,
+ * flashcard biasa, flashcard kumulatif, nada, tulis — bisa pakai komponen
+ * yang sama persis.
+ */
+export type PracticeHeaderStat = {
+  icon?: React.ComponentType<{ className?: string }>
+  label: React.ReactNode
+  value: React.ReactNode
+  /** 0-100. Kalau diisi, value ditampilkan sebagai progress bar mini (mis. akurasi). */
+  progressPercent?: number
+}
 
 type PracticeHeaderProps = {
   title?: React.ReactNode
   subtitle?: React.ReactNode
   progress?: number
   rightContent?: React.ReactNode
-  stats?: {
-    dueToday?: number
-    totalCards?: number
-    accuracy?: number
-    mastered?: number
-    rated?: number
-  }
+  stats?: PracticeHeaderStat[]
   showStats?: boolean
 }
 
@@ -24,6 +34,15 @@ export function PracticeHeader({
   stats,
   showStats = false,
 }: PracticeHeaderProps) {
+  const gridColsClass =
+    !stats || stats.length <= 1
+      ? "grid-cols-1"
+      : stats.length === 2
+        ? "grid-cols-2"
+        : stats.length === 3
+          ? "grid-cols-3"
+          : "grid-cols-2 md:grid-cols-4"
+
   return (
     <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
       <div className="mb-2">
@@ -35,56 +54,35 @@ export function PracticeHeader({
         )}
       </div>
 
-      {showStats && stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40">
-          {stats.dueToday !== undefined && stats.totalCards !== undefined && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <TrendingUp className="h-3 w-3" />
-                Jatuh Tempo Hari Ini
-              </div>
-              <div className="flex items-center h-1.5">
-                <span className="text-xs font-semibold text-foreground whitespace-nowrap">
-                  {stats.dueToday} dari {stats.totalCards} tersimpan
-                </span>
-              </div>
-            </div>
-          )}
-          {stats.accuracy !== undefined && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-3 w-3" />
-                Akurasi Sesi
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                    style={{ width: `${stats.accuracy}%` }}
-                  />
+      {showStats && stats && stats.length > 0 && (
+        <div className={`grid ${gridColsClass} gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40`}>
+          {stats.map((stat, i) => {
+            const Icon = stat.icon
+            return (
+              <div
+                key={i}
+                className="flex flex-col gap-1 transition-all duration-300 hover:-translate-y-px hover:shadow-md"
+              >
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  {Icon && <Icon className="h-3 w-3" />}
+                  {stat.label}
                 </div>
-                <span className="text-xs font-semibold text-foreground">{stats.accuracy}%</span>
+                {stat.progressPercent !== undefined ? (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                        style={{ width: `${Math.max(0, Math.min(100, stat.progressPercent))}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">{stat.value}</span>
+                  </div>
+                ) : (
+                  <div className="text-sm font-semibold text-foreground">{stat.value}</div>
+                )}
               </div>
-            </div>
-          )}
-          {stats.mastered !== undefined && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Star className="h-3 w-3" />
-                Sudah Dikuasai
-              </div>
-              <div className="text-sm font-semibold text-foreground">{stats.mastered}</div>
-            </div>
-          )}
-          {stats.rated !== undefined && (
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 className="h-3 w-3" />
-                Dinilai
-              </div>
-              <div className="text-sm font-semibold text-foreground">{stats.rated}</div>
-            </div>
-          )}
+            )
+          })}
         </div>
       )}
 

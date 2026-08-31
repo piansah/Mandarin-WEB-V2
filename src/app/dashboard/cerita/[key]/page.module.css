@@ -1,10 +1,15 @@
-.fullscreen-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+/*
+ * Dulu halaman ini dirender fullscreen (position: fixed, di atas semua
+ * layout, termasuk sidebar) lewat `isCeritaRead` di dashboard-layout-client.tsx.
+ * Sekarang dirender di dalam layout dashboard normal (sidebar + header
+ * utama tetap ada), jadi container-nya cukup elemen flex biasa — pola yang
+ * sama persis dengan swipe-flashcard-session.module.css, flashcard
+ * kumulatif, dan practice/nada.
+ */
+.page {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
   background: var(--background);
-  z-index: 9999;
-  overflow-y: auto;
 }
