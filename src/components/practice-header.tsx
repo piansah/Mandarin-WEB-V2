@@ -25,10 +25,16 @@ type PracticeHeaderProps = {
   stats?: PracticeHeaderStat[]
   showStats?: boolean
   /**
-   * Opsional: baris kontrol tambahan spesifik halaman (mis. toolbar
-   * play/speed/font-size di mode baca). Dirender di bawah title/progress,
-   * di dalam header yang sama-sama sticky, supaya kontrol ikut nempel di
-   * atas alih-alih pakai footer terpisah yang menutupi konten.
+   * Opsional: kontrol ringkas (tombol/ikon) yang muncul di pojok kanan,
+   * sejajar dengan title/subtitle — bukan di bawah progress bar. Beda dari
+   * `rightContent` yang khusus teks skor kecil ("8/10"); ini buat konten
+   * bebas seperti grup tombol (mis. play/speed di mode baca).
+   */
+  headerActions?: React.ReactNode
+  /**
+   * Opsional: baris kontrol tambahan spesifik halaman, dirender di bawah
+   * progress bar, selebar header. Dipakai kalau kontrolnya tidak muat/tidak
+   * cocok ditaruh di pojok bareng title (lihat `headerActions`).
    */
   children?: React.ReactNode
 }
@@ -40,6 +46,7 @@ export function PracticeHeader({
   rightContent,
   stats,
   showStats = false,
+  headerActions,
   children,
 }: PracticeHeaderProps) {
   const gridColsClass =
@@ -53,12 +60,17 @@ export function PracticeHeader({
 
   return (
     <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-      <div className="mb-2">
-        {title && (
-          <h1 className="text-lg font-bold text-foreground">{title}</h1>
-        )}
-        {subtitle && (
-          <p className="text-xs text-muted-foreground">{subtitle}</p>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          {title && (
+            <h1 className="text-lg font-bold text-foreground truncate">{title}</h1>
+          )}
+          {subtitle && (
+            <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+          )}
+        </div>
+        {headerActions && (
+          <div className="flex-shrink-0">{headerActions}</div>
         )}
       </div>
 

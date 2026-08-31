@@ -414,54 +414,55 @@ export default function CeritaReadPage() {
         title={data.title_zh || data.title}
         subtitle={data.title_zh ? data.title : undefined}
         progress={pct}
-      >
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
+        headerActions={
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
+              <button
+                type="button"
+                onClick={toggleAutoplay}
+                disabled={data.paragraphs.length === 0}
+                className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                aria-label={autoplayOn ? "Jeda baca otomatis" : "Mulai baca otomatis"}
+                title={autoplayOn ? "Jeda" : "Baca otomatis"}
+              >
+                {autoplayOn ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={cycleSpeed}
+                className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Ganti kecepatan baca"
+                title="Kecepatan baca otomatis"
+              >
+                <Gauge className="h-3.5 w-3.5" />
+                {AUTOPLAY_SPEEDS[speedIdx].label}
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
+              <button type="button" onClick={() => changeFontLevel(-1)} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Perkecil font">
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <span className="w-5 text-center text-[11px] font-semibold tabular-nums text-muted-foreground" title={`Ukuran ${fontLevel + 1} dari ${FONT_LEVELS.length}`}>
+                {fontLevel + 1}
+              </span>
+              <button type="button" onClick={() => changeFontLevel(1)} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Perbesar font">
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={toggleAutoplay}
-              disabled={data.paragraphs.length === 0}
-              className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
-              aria-label={autoplayOn ? "Jeda baca otomatis" : "Mulai baca otomatis"}
-              title={autoplayOn ? "Jeda" : "Baca otomatis"}
+              onClick={resetProgress}
+              className="grid h-7 w-7 place-items-center rounded-lg border border-border/60 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Reset progress"
+              title="Reset progress"
             >
-              {autoplayOn ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            </button>
-            <button
-              type="button"
-              onClick={cycleSpeed}
-              className="flex h-7 items-center gap-1 rounded-md px-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Ganti kecepatan baca"
-              title="Kecepatan baca otomatis"
-            >
-              <Gauge className="h-3.5 w-3.5" />
-              {AUTOPLAY_SPEEDS[speedIdx].label}
+              <RotateCcw className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-background/60 px-1.5 py-1">
-            <button type="button" onClick={() => changeFontLevel(-1)} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Perkecil font">
-              <Minus className="h-3.5 w-3.5" />
-            </button>
-            <span className="w-5 text-center text-[11px] font-semibold tabular-nums text-muted-foreground" title={`Ukuran ${fontLevel + 1} dari ${FONT_LEVELS.length}`}>
-              {fontLevel + 1}
-            </span>
-            <button type="button" onClick={() => changeFontLevel(1)} className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Perbesar font">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={resetProgress}
-            className="grid h-7 w-7 place-items-center rounded-lg border border-border/60 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Reset progress"
-            title="Reset progress"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </PracticeHeader>
+        }
+      />
       <div className="mx-auto w-full max-w-3xl px-4 pt-6 sm:px-6">
         {data.paragraphs.map((para, pi) => {
           const segments = segmentParagraph(para, vocabWords)
