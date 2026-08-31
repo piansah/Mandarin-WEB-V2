@@ -11,10 +11,7 @@
 
 .page > div {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scroll-behavior: smooth;
+  min-height: 0;
 }
 
 .page:has(:global(.flashcard-result)) {

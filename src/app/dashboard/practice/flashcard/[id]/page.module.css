@@ -1,7 +1,15 @@
+/*
+  PENTING: `.page` di sini TIDAK boleh punya `height: 100dvh` +
+  `overflow-y: auto` sendiri — halaman ini dirender di dalam layout
+  dashboard yang satu-satunya scroll container adalah wrapper
+  `flex-1 min-h-0 overflow-auto` di dashboard-layout-client.tsx.
+  `.page` cukup tumbuh natural mengikuti tinggi konten, biar scroll-nya
+  diserahkan sepenuhnya ke wrapper ancestor (lihat juga
+  swipe-flashcard-session.module.css untuk pola yang sama).
+*/
 .page {
-  height: 100dvh;
-  overflow-y: auto;
+  flex: 1;
+  min-height: 100%;
   overflow-x: hidden;
   background: var(--background);
-  overscroll-behavior: contain;
 }
