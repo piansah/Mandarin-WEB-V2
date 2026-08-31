@@ -115,9 +115,9 @@ function buildKalimatQuiz(rows: RawKalimatQuestion[]): QuizQuestion[] {
 function getGrade(pct: number, title: string) {
   if (pct >= 90) return { emoji: "⭐", grade: `Luar Biasa! ${title.split("—")[0].trim()} dikuasai!`, msg: "Penguasaan kalimat sangat baik. Siap lanjut ke level berikutnya!" }
   if (pct >= 80) return { emoji: "✅", grade: "Bagus! Pemahaman kalimat kuat.", msg: "Hampir sempurna! Review kalimat yang salah lalu lanjut." }
-  if (pct >= 70) return { emoji: "📘", grade: "Cukup Baik — Perlu Sedikit Review", msg: "Review Flashcard Kumulatif untuk set ini dulu, lalu coba lagi." }
-  if (pct >= 60) return { emoji: "⚠️", grade: "Perlu Review Lebih Banyak", msg: "Kembali ke quiz dan flashcard kumulatif, lalu coba lagi." }
-  return { emoji: "🔄", grade: "Review Lebih Banyak Dulu", msg: "Kembali ke Flashcard Kumulatif, lalu coba lagi. Pelan-pelan pasti bisa!" }
+  if (pct >= 70) return { emoji: "📘", grade: "Cukup Baik — Perlu Sedikit Review", msg: "Review Estafet untuk set ini dulu, lalu coba lagi." }
+  if (pct >= 60) return { emoji: "⚠️", grade: "Perlu Review Lebih Banyak", msg: "Kembali ke Estafet, baca ulang kalimatnya, lalu coba lagi." }
+  return { emoji: "🔄", grade: "Review Lebih Banyak Dulu", msg: "Kembali ke Estafet, lalu coba lagi. Pelan-pelan pasti bisa!" }
 }
 
 export default function CumulativeQuizPracticePage() {

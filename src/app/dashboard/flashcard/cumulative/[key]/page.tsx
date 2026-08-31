@@ -16,6 +16,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
+import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -46,6 +47,15 @@ export default function CumulativeFlashcardSessionPage() {
   const router = useRouter()
   const key = params.key
   const supa = useSupabase()
+  const { pinned, isMobile } = useSidebar()
+
+  // Sidebar floating sebagai overlay, tapi kalau di-pin terbuka di desktop dia
+  // makan ruang layout — offset footer fixed ini biar sama kayak pola yang
+  // sudah dipakai di halaman Daftar Kata (flashcard/[id]/page.tsx). Di mobile
+  // sidebar selalu overlay (Sheet), jadi cookie `pinned` yang tersimpan TIDAK
+  // boleh ikut menggeser footer ini di sana.
+  const sidebarOffset = pinned && !isMobile ? '280px' : '0px'
+
   const [set, setSet] = React.useState<HanziSet | null>(null)
   const [items, setItems] = React.useState<HanziItem[]>([])
   const [reportedItems, setReportedItems] = React.useState<Set<number>>(new Set())
@@ -312,7 +322,10 @@ export default function CumulativeFlashcardSessionPage() {
         </main>
 
         {/* Fixed Footer with Practice Button */}
-        <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4">
+        <div
+          className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4 transition-[left] duration-200 ease-linear"
+          style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <div className="mx-auto max-w-4xl">
             <Drawer>
               <DrawerTrigger render={<Button className="w-full" size="lg" />}>
