@@ -24,6 +24,13 @@ type PracticeHeaderProps = {
   rightContent?: React.ReactNode
   stats?: PracticeHeaderStat[]
   showStats?: boolean
+  /**
+   * Opsional: baris kontrol tambahan spesifik halaman (mis. toolbar
+   * play/speed/font-size di mode baca). Dirender di bawah title/progress,
+   * di dalam header yang sama-sama sticky, supaya kontrol ikut nempel di
+   * atas alih-alih pakai footer terpisah yang menutupi konten.
+   */
+  children?: React.ReactNode
 }
 
 export function PracticeHeader({
@@ -33,6 +40,7 @@ export function PracticeHeader({
   rightContent,
   stats,
   showStats = false,
+  children,
 }: PracticeHeaderProps) {
   const gridColsClass =
     !stats || stats.length <= 1
@@ -100,6 +108,8 @@ export function PracticeHeader({
           {rightContent}
         </div>
       )}
+
+      {children && <div className="mt-3">{children}</div>}
     </div>
   )
 }

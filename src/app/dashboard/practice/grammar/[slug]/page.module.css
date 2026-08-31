@@ -21,8 +21,7 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: visible; /* FIX: overflow-x sendirian bikin overflow-y ke-compute auto -> .page jadi scroll container ke-2, PracticeHeader sticky ke-lock ke sini bukan ke wrapper overflow-auto asli */
+  overflow-x: clip; /* FIX v2: "hidden" bikin overflow-y ke-compute auto meski overflow-y ditulis eksplisit "visible" (aturan pairing CSS tidak bedain visible eksplisit vs default). "clip" satu golongan non-scrolling sama kayak visible, jadi TIDAK memicu pairing itu -> .page beneran nggak jadi scroll container, sticky PracticeHeader ngikut ke wrapper overflow-auto asli di dashboard-layout-client.tsx */
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-poppins), Arial, sans-serif;
