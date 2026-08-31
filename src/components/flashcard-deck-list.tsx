@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { getUserScoresByType } from "@/lib/user-scores"
+import { useSupabase } from "@/hooks/use-supabase"
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
 
 export type FlashcardSet = {
@@ -20,6 +21,7 @@ export type FlashcardSet = {
 }
 
 export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
+  const supa = useSupabase()
   const unlockedHSK = useUnlockedHSK()
   const levels = [...new Set(sets.map(set => set.hsk_level ?? 1))].sort((a, b) => a - b)
   const [selectedLevel, setSelectedLevel] = React.useState(1)
@@ -27,10 +29,25 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
   const isLevelLocked = !!unlockedHSK && !unlockedHSK.includes(effectiveLevel)
   const decks = sets.filter(deck => (deck.hsk_level ?? 1) === effectiveLevel)
 
-  const [scores, setScores] = React.useState<Record<string, number>>({})
+  // Badge "%"/"Belum" di tiap kartu masih pakai skor flashcard-nya sendiri.
+  // Tapi buka-kunci Day berikutnya sekarang mengikuti skor QUIZ dari Day
+  // sebelumnya (bukan flashcard lagi) — lihat diskusi soal alur
+  // Flashcard -> Quiz -> Nada/Menulis. Kalau Day sebelumnya belum punya
+  // quiz sama sekali (kontennya belum dibuat), Day ini sengaja TETAP
+  // terkunci, tidak fallback ke skor flashcard.
+  const [fcScores, setFcScores] = React.useState<Record<string, number>>({})
+  const [quizScores, setQuizScores] = React.useState<Record<string, number>>({})
+  const [quizKeyByDeckId, setQuizKeyByDeckId] = React.useState<Record<number, string>>({})
+
   React.useEffect(() => {
-    getUserScoresByType("fc_session").then(setScores)
-  }, [])
+    getUserScoresByType("fc_session").then(setFcScores)
+    getUserScoresByType("quiz").then(setQuizScores)
+    supa.from("quiz_sets").select("id, key").then(({ data }) => {
+      const map: Record<number, string> = {}
+      for (const row of data ?? []) map[row.id] = row.key
+      setQuizKeyByDeckId(map)
+    })
+  }, [supa])
 
   return (
     <section className="flex flex-col gap-5">
@@ -48,10 +65,11 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {decks.map((deck, index) => {
-            const score = scores[String(deck.id)]
+            const score = fcScores[String(deck.id)]
             const isDone = score !== undefined
             const prevDeck = index > 0 ? decks[index - 1] : null
-            const prevDone = prevDeck ? scores[String(prevDeck.id)] !== undefined : true
+            const prevQuizKey = prevDeck ? quizKeyByDeckId[prevDeck.id] : undefined
+            const prevDone = !prevDeck ? true : prevQuizKey !== undefined && quizScores[prevQuizKey] !== undefined
             const isLocked = !prevDone
 
             const cardInner = (

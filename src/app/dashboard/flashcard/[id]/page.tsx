@@ -15,7 +15,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { Music, Layers, Edit2 } from "lucide-react"
+import { Music, Layers, Edit2, ListChecks } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
 import { getTone, isHanzi, IDS_LABELS, decompParts } from "@/lib/hanzi-utils"
@@ -23,6 +23,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
+import { getUserScoresByType } from "@/lib/user-scores"
 
 const idsLabels = IDS_LABELS
 
@@ -50,6 +51,14 @@ export default function FlashcardDeckPage() {
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
+
+  // ── Gating "Pilih Latihan": Flashcard -> Quiz -> (Nada & Menulis bareng) ──
+  // quizKey null = belum dicek / tidak ada quiz utk deck ini sama sekali
+  // (quiz_sets.id === flashcard_sets.id, jadi tinggal match by id, tanpa
+  // kolom penghubung tambahan — lihat diskusi sebelumnya).
+  const [quizKey, setQuizKey] = React.useState<string | null>(null)
+  const [flashcardDone, setFlashcardDone] = React.useState(false)
+  const [quizDone, setQuizDone] = React.useState(false)
 
   React.useEffect(() => {
     async function load() {
@@ -89,8 +98,43 @@ export default function FlashcardDeckPage() {
     load()
   }, [deckId])
 
+  // Status gating untuk modal "Pilih Latihan" — terpisah dari load() di atas
+  // supaya tidak ikut nge-block render kartu kalau lambat.
+  React.useEffect(() => {
+    let cancelled = false
+
+    supa.from("quiz_sets").select("key").eq("id", deckId).maybeSingle().then(({ data }) => {
+      if (!cancelled) setQuizKey(data?.key ?? null)
+    })
+
+    getUserScoresByType("fc_session").then(scores => {
+      if (!cancelled) setFlashcardDone(scores[String(deckId)] !== undefined)
+    })
+
+    return () => { cancelled = true }
+  }, [deckId, supa])
+
+  // Skor quiz baru bisa dicek setelah tahu quizKey-nya (key quiz != deckId)
+  React.useEffect(() => {
+    if (!quizKey) { setQuizDone(false); return }
+    let cancelled = false
+    getUserScoresByType("quiz").then(scores => {
+      if (!cancelled) setQuizDone(scores[quizKey] !== undefined)
+    })
+    return () => { cancelled = true }
+  }, [quizKey])
+
+  const quizAvailable = quizKey !== null
+  const quizUnlocked = quizAvailable && flashcardDone
+  const postQuizUnlocked = quizAvailable && quizDone
+
   function navigateToPractice(type: string) {
     router.push(`/dashboard/practice/${type}/${deckId}`)
+  }
+
+  function navigateToQuiz() {
+    if (!quizKey) return
+    router.push(`/dashboard/practice/quiz/${quizKey}`)
   }
 
   function openDetail(card: Card) {
@@ -243,20 +287,10 @@ export default function FlashcardDeckPage() {
                   Pilih Latihan
                 </DrawerTitle>
               </DrawerHeader>
-              <div className="p-4 grid grid-cols-3 gap-3">
-                <div
-                  onClick={() => navigateToPractice("nada")}
-                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
-                >
-                  <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
-                    <Music className="h-5 w-5" />
-                  </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
-                </div>
-
+              <div className="p-4 grid grid-cols-4 gap-2.5">
                 <div
                   onClick={() => navigateToPractice("flashcard")}
-                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
+                  className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
                 >
                   <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
                   <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
@@ -265,14 +299,65 @@ export default function FlashcardDeckPage() {
                   <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
                 </div>
 
+                {/* Quiz — kebuka setelah Flashcard selesai. Kalau deck ini
+                    belum punya quiz sama sekali (kontennya belum dibuat),
+                    tampil "Belum Tersedia" (bukan "Terkunci") supaya jelas
+                    ini keterbatasan konten, bukan progres user. */}
                 <div
-                  onClick={() => navigateToPractice("tulis")}
-                  className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                  onClick={() => { if (quizUnlocked) navigateToQuiz() }}
+                  aria-disabled={!quizUnlocked}
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
+                    quizUnlocked
+                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                  }`}
+                >
+                  <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                    <ListChecks className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
+                  {!quizUnlocked && (
+                    <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                      {quizAvailable ? "Selesaikan Flashcard" : "Belum Tersedia"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Nada & Menulis — kebuka bareng setelah Quiz selesai */}
+                <div
+                  onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
+                  aria-disabled={!postQuizUnlocked}
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors ${
+                    postQuizUnlocked
+                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                  }`}
+                >
+                  <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                    <Music className="h-5 w-5" />
+                  </div>
+                  <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
+                  {!postQuizUnlocked && (
+                    <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
+                  )}
+                </div>
+
+                <div
+                  onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
+                  aria-disabled={!postQuizUnlocked}
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors ${
+                    postQuizUnlocked
+                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                  }`}
                 >
                   <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
                     <Edit2 className="h-5 w-5" />
                   </div>
                   <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
+                  {!postQuizUnlocked && (
+                    <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
+                  )}
                 </div>
               </div>
               <DrawerFooter>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, Bell, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Trophy, Star, User, Settings, ClipboardList, Loader2 } from "lucide-react"
+import { Search, Bell, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Star, User, Settings, ClipboardList, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -24,8 +24,7 @@ const menuItems: SearchResult[] = [
   { type: 'page', title: 'Dashboard', description: 'Halaman utama dashboard', url: '/dashboard', icon: <Home className="h-4 w-4" /> },
   { type: 'page', title: 'Modul', description: 'Daftar modul pembelajaran', url: '/dashboard/modul', icon: <BookOpen className="h-4 w-4" /> },
   { type: 'page', title: 'Grammar', description: 'Materi tata bahasa Mandarin', url: '/dashboard/grammar', icon: <FileText className="h-4 w-4" /> },
-  { type: 'page', title: 'Daftar Kata', description: 'Flashcard kosakata', url: '/dashboard/flashcard', icon: <Layers className="h-4 w-4" /> },
-  { type: 'page', title: 'Quiz Harian', description: 'Quiz setiap hari', url: '/dashboard/quiz', icon: <Trophy className="h-4 w-4" /> },
+  { type: 'page', title: 'Daftar Kata', description: 'Flashcard kosakata, quiz, nada & tulis per deck', url: '/dashboard/flashcard', icon: <Layers className="h-4 w-4" /> },
   { type: 'page', title: 'Kartu Kumulatif', description: 'Flashcard kumulatif', url: '/dashboard/flashcard/cumulative', icon: <BookText className="h-4 w-4" /> },
   { type: 'page', title: 'Quiz Kumulatif', description: 'Quiz kumulatif', url: '/dashboard/quiz/review', icon: <ClipboardList className="h-4 w-4" /> },
   { type: 'page', title: 'Baca', description: 'Baca cerita Mandarin', url: '/dashboard/cerita', icon: <BookOpen className="h-4 w-4" /> },

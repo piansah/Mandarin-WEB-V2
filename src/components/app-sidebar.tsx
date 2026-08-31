@@ -84,11 +84,6 @@ const learningPathItems = [
     icon: Layers,
   },
   {
-    title: "Quiz Harian",
-    url: "/dashboard/quiz",
-    icon: FileText,
-  },
-  {
     title: "Kartu Kumulatif",
     url: "/dashboard/flashcard/cumulative",
     icon: Layers,

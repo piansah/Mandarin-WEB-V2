@@ -134,9 +134,9 @@ export default function DashboardPage() {
       icon: Layers,
     },
     {
-      label: "Quiz Harian",
-      desc: "kerjakan quiz harian setiap hari",
-      href: "/dashboard/quiz",
+      label: "Daftar Kata",
+      desc: "Flashcard, quiz, nada & tulis per deck",
+      href: "/dashboard/flashcard",
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
       icon: Zap,
     },

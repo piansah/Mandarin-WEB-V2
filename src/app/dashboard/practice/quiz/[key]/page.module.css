@@ -46,107 +46,22 @@
   min-height: 0;
 }
 
-/* ── Header ── */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px 10px 10px;
-  background: var(--c-header-bg);
-  backdrop-filter: blur(10px);
-}
-.closeBtn {
-  display: grid;
-  flex-shrink: 0;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--c-close);
-  cursor: pointer;
-}
-.closeBtn:hover { background: color-mix(in srgb, var(--foreground) 8%, transparent); color: var(--c-text); }
-.progWrap {
-  position: relative;
-  flex: 1;
-  height: 6px;
-  border-radius: 99px;
-  background: var(--c-prog-track);
-  overflow: hidden;
-}
-.progFill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 99px;
-  background: var(--c-ok);
-  transition: width 0.4s ease;
-}
-.score {
-  flex-shrink: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--c-ok);
-  min-width: 38px;
-  text-align: right;
-}
-
-/* ── Section tabs ── */
-.tabs {
-  position: sticky;
-  top: 58px;
-  z-index: 29;
-  display: flex;
-  justify-content: center;
-  width: fit-content;
-  max-width: calc(100% - 32px);
-  margin: 12px auto 0;
-  padding: 8px;
-  gap: 8px;
-  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-  border-radius: 999px;
-  background: var(--c-tabs-bg);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .08);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tabs::-webkit-scrollbar { display: none; }
-.tab {
-  flex-shrink: 0;
-  min-height: 36px;
-  padding: 8px 16px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--c-sub);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-.tab:hover {
-  border-color: rgba(66,214,164,.24);
-  background: rgba(66,214,164,.07);
-  color: var(--c-text);
-}
-.tabActive {
-  border-color: rgba(66,214,164,.5);
-  background: rgba(66,214,164,.13);
-  color: var(--c-ok);
-}
-
 /* ── Filter dropdown (replaces tabs) ── */
 .filterWrap {
   position: relative;
-  z-index: 29;
+  /* FIX: sebelumnya z-index: 29 — angka itu warisan dari .tabs (dead code,
+     sudah tidak dipakai di JSX) yang dulu memang perlu tinggi karena
+     bersanding dengan .header lama (z-index: 30, juga dead code). Header
+     yang sekarang benar-benar dipakai adalah komponen <PracticeHeader>
+     (sticky top-0, Tailwind z-20). .filterWrap ini TIDAK sticky, jadi saat
+     halaman discroll ia ikut naik bersama konten; kalau z-index-nya lebih
+     tinggi dari header (29 > 20) dia jadi menembus/menutupi header yang
+     seharusnya diam di atas. Diturunkan ke bawah 20 supaya .filterWrap
+     selalu tenggelam di bawah PracticeHeader saat overlap, tapi tetap di
+     atas konten statis (.main/.qCard) di bawahnya. Dipakai bareng di quiz
+     harian (page.tsx) dan quiz kumulatif (review/[key]/page.tsx, import
+     module CSS ini juga), jadi 1 fix ini nutup 2 halaman sekaligus. */
+  z-index: 10;
   display: flex;
   justify-content: center;
   padding: 10px 16px 6px;
