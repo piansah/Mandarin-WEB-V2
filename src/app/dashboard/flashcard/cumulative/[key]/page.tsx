@@ -2,11 +2,20 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Mic, Flag, CheckCircle2, Star } from "lucide-react"
+import { RotateCcw, Mic, Flag, CheckCircle2, Star, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
 import { PracticeHeader } from "@/components/practice-header"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -17,6 +26,8 @@ type HanziSet = {
   key: string
   title: string
   sub: string
+  hsk_level: number
+  sort_order: number
 }
 
 type HanziItem = {
@@ -42,13 +53,18 @@ export default function CumulativeFlashcardSessionPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
+  // Quiz Kalimat Kumulatif dulu punya menu & daftar sendiri (/dashboard/quiz/review),
+  // sekarang dipindah jadi salah satu opsi latihan di sini — dipasangkan dengan
+  // set kalimat (kalimat_sets) yang HSK level & urutannya sama dengan set hanzi ini.
+  // null = belum dicek / tidak ada quiz kalimat yang sepadan untuk set ini.
+  const [quizKey, setQuizKey] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     let cancelled = false
 
     async function load() {
       const [setResult, itemsResult] = await Promise.all([
-        supa.from("hanzi_sets").select("key, title, sub").eq("key", key).single(),
+        supa.from("hanzi_sets").select("key, title, sub, hsk_level, sort_order").eq("key", key).single(),
         supa
           .from("hanzi_items")
           .select("id, section_label, section_tag, sort_order, hanzi, pinyin, arti, user_contribution")
@@ -68,12 +84,22 @@ export default function CumulativeFlashcardSessionPage() {
         return
       }
 
+      const kalimatResult = await supa
+        .from("kalimat_sets")
+        .select("key")
+        .eq("hsk_level", setResult.data.hsk_level)
+        .eq("sort_order", setResult.data.sort_order)
+        .maybeSingle()
+
+      if (cancelled) return
+
       const saved = window.localStorage.getItem(`hanzi_read_progress:${key}`)
       const completedIds = saved ? (JSON.parse(saved) as number[]) : []
       const restored = Object.fromEntries(completedIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
 
       setSet(setResult.data)
       setItems(itemsResult.data ?? [])
+      setQuizKey(kalimatResult.data?.key ?? null)
       setStateById(restored)
       
       // Batch-check which items have been reported by user (single query)
@@ -134,6 +160,11 @@ export default function CumulativeFlashcardSessionPage() {
 
   function navigateToSpeakingPractice() {
     router.push(`/dashboard/flashcard/cumulative/${key}/speaking`)
+  }
+
+  function navigateToQuiz() {
+    if (!quizKey) return
+    router.push(`/dashboard/practice/quiz/review/${quizKey}`)
   }
 
   function openReportModal(item: HanziItem) {
@@ -283,10 +314,56 @@ export default function CumulativeFlashcardSessionPage() {
         {/* Fixed Footer with Practice Button */}
         <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4">
           <div className="mx-auto max-w-4xl">
-            <Button onClick={navigateToSpeakingPractice} className="w-full" size="lg">
-              <Mic className="h-5 w-5 mr-2" />
-              Latihan Speaking
-            </Button>
+            <Drawer>
+              <DrawerTrigger render={<Button className="w-full" size="lg" />}>
+                Mulai Latihan
+              </DrawerTrigger>
+              <DrawerContent>
+                <div className="mx-auto w-full max-w-sm">
+                  <DrawerHeader className="text-center pb-2">
+                    <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+                      Pilih Latihan
+                    </DrawerTitle>
+                  </DrawerHeader>
+                  <div className="p-4 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { if (quizKey) navigateToQuiz() }}
+                      aria-disabled={!quizKey}
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors ${
+                        quizKey
+                          ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                          : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                      }`}
+                    >
+                      <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                        <ListChecks className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Quiz Kalimat</span>
+                      {!quizKey && (
+                        <span className="text-[10px] text-muted-foreground text-center leading-tight">Belum Tersedia</span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={navigateToSpeakingPractice}
+                      className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                        <Mic className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Latihan Speaking</span>
+                    </button>
+                  </div>
+                  <DrawerFooter>
+                    <DrawerClose render={<Button variant="outline" className="rounded-xl" />}>
+                      Batal
+                    </DrawerClose>
+                  </DrawerFooter>
+                </div>
+              </DrawerContent>
+            </Drawer>
           </div>
         </div>
 

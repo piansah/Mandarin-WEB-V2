@@ -8,7 +8,6 @@ import {
   BookOpen,
   Languages,
   Layers,
-  FileText,
   BookMarked,
   Star,
   Settings,
@@ -87,11 +86,6 @@ const learningPathItems = [
     title: "Kartu Kumulatif",
     url: "/dashboard/flashcard/cumulative",
     icon: Layers,
-  },
-  {
-    title: "Quiz Kumulatif",
-    url: "/dashboard/quiz/review",
-    icon: FileText,
   },
   {
     title: "Baca",
