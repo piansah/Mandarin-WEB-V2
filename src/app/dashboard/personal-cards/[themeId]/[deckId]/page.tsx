@@ -15,6 +15,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
+import { performSmartSearch, initGlobalSearchCache, type GlobalWord } from "@/lib/hanzi-segmentation"
 
 export default function DeckDetailPage() {
   const params = useParams()
@@ -31,7 +32,7 @@ export default function DeckDetailPage() {
 
   // Search states
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [searchResults, setSearchResults] = React.useState<any[]>([])
+  const [searchResults, setSearchResults] = React.useState<GlobalWord[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
   const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
   const [searchType, setSearchType] = React.useState<"all" | "hanzi" | "pinyin" | "arti">("all")
@@ -40,6 +41,7 @@ export default function DeckDetailPage() {
 
   React.useEffect(() => {
     loadData()
+    initGlobalSearchCache()
   }, [themeId, deckId])
 
   async function loadData() {
@@ -57,14 +59,14 @@ export default function DeckDetailPage() {
     setLoading(false)
   }
 
-  async function handleAddCard(card: any) {
+  async function handleAddCard(card: GlobalWord) {
     setAdding(true)
     const result = await addCard(deckId, {
       hanzi: card.hanzi,
       pinyin: card.pinyin || "",
-      arti: card.arti,
-      word_class: card.word_class || null,
-      catatan: card.catatan || null,
+      arti: card.arti || "",
+      word_class: card.badge || null,
+      catatan: null,
     })
     setAdding(false)
     if (!result.error) {
@@ -88,82 +90,15 @@ export default function DeckDetailPage() {
     setIsSearching(true)
 
     try {
-      const results: any[] = []
-      const lowerQuery = query.toLowerCase()
+      console.log("=== Starting search ===")
+      console.log("Query:", query)
+      console.log("Search filter:", searchFilter)
+      console.log("Search type:", searchType)
 
-      // Search in flashcard_cards
-      let flashcardQuery = supa
-        .from("flashcard_cards")
-        .select("id, hanzi, pinyin, arti, word_class, hsk_level, set_id")
+      // Use the existing search system from hanzi-segmentation
+      const results = await performSmartSearch(query, searchFilter, searchType)
 
-      // Apply search type filter (case-insensitive for pinyin)
-      if (searchType === "hanzi") {
-        flashcardQuery = flashcardQuery.ilike("hanzi", `%${query}%`)
-      } else if (searchType === "pinyin") {
-        flashcardQuery = flashcardQuery.ilike("pinyin", `%${lowerQuery}%`)
-      } else if (searchType === "arti") {
-        flashcardQuery = flashcardQuery.ilike("arti", `%${query}%`)
-      } else {
-        flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
-      }
-
-      // Apply HSK filter (only if not "all")
-      if (searchFilter === "hsk") {
-        flashcardQuery = flashcardQuery.gte("hsk_level", 1).lte("hsk_level", 6)
-      } else if (searchFilter === "common") {
-        flashcardQuery = flashcardQuery.is("hsk_level", null)
-      } else if (searchFilter === "native") {
-        flashcardQuery = flashcardQuery.gte("hsk_level", 7)
-      }
-      // If searchFilter is "all", don't apply any HSK filter - get all cards
-
-      const { data: flashcardResults, error: flashcardError } = await flashcardQuery.limit(20)
-
-      console.log("Flashcard search results:", flashcardResults, flashcardError)
-
-      if (flashcardResults) {
-        flashcardResults.forEach((card: any) => {
-          results.push({
-            ...card,
-            source: "flashcard",
-            source_id: card.set_id,
-            card_id: card.id,
-          })
-        })
-      }
-
-      // Search in word_compounds (no HSK filter since compounds don't have hsk_level)
-      let compoundQuery = supa
-        .from("word_compounds")
-        .select("id, hanzi, pinyin, arti, word_class")
-
-      // Apply search type filter (case-insensitive for pinyin)
-      if (searchType === "hanzi") {
-        compoundQuery = compoundQuery.ilike("hanzi", `%${query}%`)
-      } else if (searchType === "pinyin") {
-        compoundQuery = compoundQuery.ilike("pinyin", `%${lowerQuery}%`)
-      } else if (searchType === "arti") {
-        compoundQuery = compoundQuery.ilike("arti", `%${query}%`)
-      } else {
-        compoundQuery = compoundQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
-      }
-
-      const { data: compoundResults, error: compoundError } = await compoundQuery.limit(20)
-
-      console.log("Compound search results:", compoundResults, compoundError)
-
-      if (compoundResults) {
-        compoundResults.forEach((card: any) => {
-          results.push({
-            ...card,
-            source: "compound",
-            source_id: null,
-            card_id: card.id,
-          })
-        })
-      }
-
-      console.log("Total results:", results.length)
+      console.log("Search results from performSmartSearch:", results.length)
       setSearchResults(results)
     } catch (e) {
       console.error("Search error:", e)
@@ -315,13 +250,13 @@ export default function DeckDetailPage() {
                 <div className="flex flex-col gap-2 max-h-[400px] overflow-y-auto">
                   {searchResults.map((card, index) => (
                     <div
-                      key={`${card.source}-${card.card_id}-${index}`}
+                      key={`${card.source}-${card.id}-${index}`}
                       className="flex items-center gap-4 p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all"
                     >
                       <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <TonePinyin text={card.pinyin} className="text-sm font-medium" />
-                        <span className="truncate text-sm text-muted-foreground">{card.arti}</span>
+                        <TonePinyin text={card.pinyin || ""} className="text-sm font-medium" />
+                        <span className="truncate text-sm text-muted-foreground">{card.arti || ""}</span>
                       </div>
                       <div className="ml-1 flex shrink-0 items-center gap-2">
                         <button
@@ -333,9 +268,9 @@ export default function DeckDetailPage() {
                           <Volume2 className="h-4 w-4" />
                         </button>
                         {card.hsk_level && <HskBadge hskLevel={card.hsk_level} />}
-                        {card.word_class && (
+                        {card.badge && (
                           <Badge variant="secondary" className="text-xs">
-                            {card.word_class}
+                            {card.badge}
                           </Badge>
                         )}
                         <Button
