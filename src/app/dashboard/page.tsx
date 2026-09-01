@@ -438,7 +438,7 @@ export default function DashboardPage() {
                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                   <span className="text-sm">
                     {srsStats.totalToday > 0
-                      ? "Sesi hari ini selesai!"
+                      ? "Review Kosakata Selesai!"
                       : "Tidak ada kartu yang harus direview"}
                   </span>
                 </div>
