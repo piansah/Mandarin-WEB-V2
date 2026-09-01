@@ -120,7 +120,12 @@ export function SwipeToReport({ children, onReport, reported = false, className,
           aria-label={reportLabel}
           title={reportLabel}
           className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
-          style={{ width: REVEAL_WIDTH }}
+          // z-index cuma dinaikkan pas kartu lagi/sudah kebuka, supaya tombol
+          // menang hit-test dari kartu yang masih animasi geser (200ms) atau
+          // ada overlap 1px akibat pembulatan subpixel. Pas kartu ketutup,
+          // z-index dibiarkan default (0) supaya kartu tetap nutupin tombol
+          // sepenuhnya secara visual — nggak nembus/transparan lagi.
+          style={{ width: REVEAL_WIDTH, zIndex: open ? 10 : 0 }}
         >
           <Flag className="h-4 w-4" />
           <span className="text-[10px] font-medium">Report</span>
