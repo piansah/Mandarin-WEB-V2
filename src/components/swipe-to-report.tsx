@@ -4,13 +4,9 @@ import * as React from "react"
 import { Flag } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-// Lebar tombol report yang muncul di sebelah kanan card. Card + tombol
-// sama-sama diletakkan di satu "track" flex yang lebih lebar dari
-// container (overflow-hidden) — geser track ke kiri utk memunculkan
-// tombolnya. Ini dipilih dibanding "tombol absolute di belakang card +
-// translateX" supaya tombolnya betul-betul ada di document flow (bukan
-// cuma keliatan lewat celah hasil transform), jadi nggak ada ambiguitas
-// hit-testing/stacking yang bikin klik-nya nggak kena.
+// Lebar area tombol report yang tersembunyi di belakang card. Diseret ke
+// kiri (mouse drag / swipe jari) untuk memunculkannya — polanya sama
+// seperti "swipe to reveal action" di aplikasi chat/email.
 const REVEAL_WIDTH = 76
 const OPEN_THRESHOLD = REVEAL_WIDTH / 2
 
@@ -44,9 +40,12 @@ export function SwipeToReport({ children, onReport, reported = false, className,
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (reported) return
+    // Cuma track drag horizontal utk mouse/touch/pen; biarkan klik biasa lewat.
     dragStartRef.current = { x: e.clientX, base: dragX }
     movedRef.current = false
     setIsDragging(true)
+    // Pointer capture supaya move/up tetap kekirim ke elemen ini walau
+    // jari/kursor sempat keluar dari batas elemen saat digeser cepat.
     try {
       e.currentTarget.setPointerCapture(e.pointerId)
     } catch {
@@ -62,15 +61,10 @@ export function SwipeToReport({ children, onReport, reported = false, className,
     setDragX(next)
   }
 
-  function endDrag(e: React.PointerEvent<HTMLDivElement>) {
+  function endDrag() {
     if (reported || !dragStartRef.current) return
     dragStartRef.current = null
     setIsDragging(false)
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    } catch {
-      // no-op
-    }
     const wasDrag = movedRef.current
     const shouldOpen = dragX <= -OPEN_THRESHOLD
     setOpen(shouldOpen)
@@ -79,10 +73,11 @@ export function SwipeToReport({ children, onReport, reported = false, className,
     // susulan tepat setelah pointerup ini (di elemen yang sama). Klik
     // susulan itu HARUS diabaikan di handleClickCapture — bukan dianggap
     // "user tap kartu untuk nutup" — makanya movedRef sengaja belum
-    // direset di sini, baru direset di handleClickCapture. Fallback:
-    // kalau ternyata event "click" itu nggak muncul sama sekali (mis.
-    // browser malah ngirim pointercancel), movedRef tetap direset habis
-    // jeda singkat supaya tap berikutnya nggak ke-suppress juga.
+    // direset di sini, baru direset di handleClickCapture.
+    // Fallback: kalau ternyata event "click" itu nggak muncul sama
+    // sekali (mis. browser malah ngirim pointercancel karena dianggap
+    // scroll), movedRef tetap direset habis jeda singkat supaya tap
+    // berikutnya nggak ke-suppress juga.
     if (wasDrag) {
       window.setTimeout(() => {
         movedRef.current = false
@@ -92,15 +87,18 @@ export function SwipeToReport({ children, onReport, reported = false, className,
 
   function handleClickCapture(e: React.MouseEvent) {
     if (movedRef.current) {
+      // Ini klik bawaan browser yang otomatis muncul di akhir gesture
+      // drag/swipe barusan — abaikan supaya reveal tombol report tidak
+      // langsung balik nutup lagi sebelum sempat di-tap.
       e.preventDefault()
       e.stopPropagation()
       movedRef.current = false
       return
     }
     if (open) {
-      // Card lagi kebuka (reveal tombol report) dan user tap area
-      // kartunya (bukan tombolnya) dengan gesture baru — anggap sebagai
-      // batal, tutup lagi.
+      // Tombol report sudah kebuka dan user tap area kartu (bukan
+      // tombolnya) dengan gesture baru (bukan sisa drag) — anggap
+      // sebagai batal, tutup lagi.
       e.preventDefault()
       e.stopPropagation()
       close()
@@ -115,45 +113,32 @@ export function SwipeToReport({ children, onReport, reported = false, className,
 
   return (
     <div className={cn("relative overflow-hidden rounded-xl", className)}>
+      {!reported && (
+        <button
+          type="button"
+          onClick={handleReportClick}
+          aria-label={reportLabel}
+          title={reportLabel}
+          className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
+          style={{ width: REVEAL_WIDTH }}
+        >
+          <Flag className="h-4 w-4" />
+          <span className="text-[10px] font-medium">Report</span>
+        </button>
+      )}
       <div
-        className="flex items-stretch"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onClickCapture={handleClickCapture}
+        className="relative touch-pan-y bg-background"
         style={{
-          width: `calc(100% + ${REVEAL_WIDTH}px)`,
           transform: `translateX(${dragX}px)`,
           transition: isDragging ? "none" : "transform 200ms ease",
         }}
       >
-        {/* Card asli — cuma elemen ini yang boleh mulai drag / kena
-            suppress-click, supaya tombol report di sebelahnya selalu
-            independen dan pasti bisa diklik. */}
-        <div
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          onClickCapture={handleClickCapture}
-          className="relative touch-pan-y bg-background"
-          style={{ width: "100%", flexShrink: 0 }}
-        >
-          {children}
-        </div>
-
-        {/* Tombol report — sungguhan ada di document flow di sebelah
-            kanan card, bukan cuma "keliatan lewat celah transform", jadi
-            selalu bisa diklik begitu ke-reveal. */}
-        {!reported && (
-          <button
-            type="button"
-            onClick={handleReportClick}
-            aria-label={reportLabel}
-            title={reportLabel}
-            className="flex flex-col items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 active:bg-orange-500/30 transition-colors"
-            style={{ width: REVEAL_WIDTH, flexShrink: 0 }}
-          >
-            <Flag className="h-4 w-4" />
-            <span className="text-[10px] font-medium">Report</span>
-          </button>
-        )}
+        {children}
       </div>
     </div>
   )
