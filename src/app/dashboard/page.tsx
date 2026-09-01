@@ -3,10 +3,10 @@
 import * as React from "react"
 import {
   Layers,
-  Zap,
   RotateCcw,
   CheckCircle2,
   BookOpen,
+  BookA,
   Flame,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -138,7 +138,7 @@ export default function DashboardPage() {
       desc: "Flashcard, quiz, nada & tulis per deck",
       href: "/dashboard/flashcard",
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      icon: Zap,
+      icon: BookA,
     },
     {
       label: "Belajar Hanzi",

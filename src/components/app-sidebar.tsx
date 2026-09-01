@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Target,
   BarChart3,
-  Repeat,
+  Layers,
+  BookA,
 } from "lucide-react"
 import {
   Sidebar,
@@ -80,12 +81,12 @@ const learningPathItems = [
   {
     title: "Daftar Kata",
     url: "/dashboard/flashcard",
-    icon: Layers,
+    icon: BookA,
   },
   {
     title: "Estafet",
     url: "/dashboard/flashcard/cumulative",
-    icon: Repeat,
+    icon: Layers,
   },
   {
     title: "Baca",

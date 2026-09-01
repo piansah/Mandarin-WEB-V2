@@ -1,4 +1,4 @@
-import { BookOpen } from "lucide-react"
+import { Layers } from "lucide-react"
 import {
   CumulativeFlashcardSetList,
   type CumulativeFlashcardSet,
@@ -17,7 +17,7 @@ export default async function CumulativeFlashcardPage() {
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-primary" />
+          <Layers className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Estafet</h1>
         </div>
         <p className="text-sm text-muted-foreground">Lewati level demi level: baca kalimat, quiz, lalu latihan speaking.</p>
