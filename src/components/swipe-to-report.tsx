@@ -119,7 +119,7 @@ export function SwipeToReport({ children, onReport, reported = false, className,
           onClick={handleReportClick}
           aria-label={reportLabel}
           title={reportLabel}
-          className="absolute inset-y-0 right-0 z-10 flex items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
+          className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
           style={{ width: REVEAL_WIDTH }}
         >
           <Flag className="h-4 w-4" />
