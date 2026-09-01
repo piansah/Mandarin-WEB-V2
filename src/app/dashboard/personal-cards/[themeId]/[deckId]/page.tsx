@@ -90,6 +90,7 @@ export default function DeckDetailPage() {
 
     try {
       const results: any[] = []
+      const lowerQuery = query.toLowerCase()
 
       // Search in flashcard_cards
       if (searchSource === "all" || searchSource === "flashcard") {
@@ -97,18 +98,18 @@ export default function DeckDetailPage() {
           .from("flashcard_cards")
           .select("id, hanzi, pinyin, arti, word_class, hsk_level, set_id")
 
-        // Apply search type filter
+        // Apply search type filter (case-insensitive for pinyin)
         if (searchType === "hanzi") {
           flashcardQuery = flashcardQuery.ilike("hanzi", `%${query}%`)
         } else if (searchType === "pinyin") {
-          flashcardQuery = flashcardQuery.ilike("pinyin", `%${query}%`)
+          flashcardQuery = flashcardQuery.ilike("pinyin", `%${lowerQuery}%`)
         } else if (searchType === "arti") {
           flashcardQuery = flashcardQuery.ilike("arti", `%${query}%`)
         } else {
-          flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${query}%,arti.ilike.%${query}%`)
+          flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
         }
 
-        // Apply HSK filter
+        // Apply HSK filter (only if not "all")
         if (searchFilter === "hsk") {
           flashcardQuery = flashcardQuery.gte("hsk_level", 1).lte("hsk_level", 6)
         } else if (searchFilter === "common") {
@@ -116,8 +117,11 @@ export default function DeckDetailPage() {
         } else if (searchFilter === "native") {
           flashcardQuery = flashcardQuery.gte("hsk_level", 7)
         }
+        // If searchFilter is "all", don't apply any HSK filter - get all cards
 
-        const { data: flashcardResults } = await flashcardQuery.limit(20)
+        const { data: flashcardResults, error: flashcardError } = await flashcardQuery.limit(20)
+
+        console.log("Flashcard search results:", flashcardResults, flashcardError)
 
         if (flashcardResults) {
           flashcardResults.forEach((card: any) => {
@@ -137,18 +141,20 @@ export default function DeckDetailPage() {
           .from("word_compounds")
           .select("id, hanzi, pinyin, arti, word_class")
 
-        // Apply search type filter
+        // Apply search type filter (case-insensitive for pinyin)
         if (searchType === "hanzi") {
           compoundQuery = compoundQuery.ilike("hanzi", `%${query}%`)
         } else if (searchType === "pinyin") {
-          compoundQuery = compoundQuery.ilike("pinyin", `%${query}%`)
+          compoundQuery = compoundQuery.ilike("pinyin", `%${lowerQuery}%`)
         } else if (searchType === "arti") {
           compoundQuery = compoundQuery.ilike("arti", `%${query}%`)
         } else {
-          compoundQuery = compoundQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${query}%,arti.ilike.%${query}%`)
+          compoundQuery = compoundQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
         }
 
-        const { data: compoundResults } = await compoundQuery.limit(20)
+        const { data: compoundResults, error: compoundError } = await compoundQuery.limit(20)
+
+        console.log("Compound search results:", compoundResults, compoundError)
 
         if (compoundResults) {
           compoundResults.forEach((card: any) => {
@@ -162,9 +168,11 @@ export default function DeckDetailPage() {
         }
       }
 
+      console.log("Total results:", results.length)
       setSearchResults(results)
     } catch (e) {
-      console.error(e)
+      console.error("Search error:", e)
+      setSearchResults([])
     } finally {
       setIsSearching(false)
     }
@@ -371,8 +379,9 @@ export default function DeckDetailPage() {
                   ))}
                 </div>
               ) : searchQuery ? (
-                <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                  Tidak ada hasil ditemukan
+                <div className="flex flex-col items-center justify-center py-8 text-sm text-muted-foreground gap-2">
+                  <span>Tidak ada hasil ditemukan</span>
+                  <span className="text-xs text-muted-foreground">Coba ubah filter atau kata kunci pencarian</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">

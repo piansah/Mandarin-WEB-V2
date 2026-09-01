@@ -201,7 +201,7 @@ export function DashboardHeader() {
               setSearchOpen(true)
             }}
             onFocus={() => setSearchOpen(true)}
-            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-48'}`}
+            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-96'}`}
           />
           {searchQuery && (
             <button
