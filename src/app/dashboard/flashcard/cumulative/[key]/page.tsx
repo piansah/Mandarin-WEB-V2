@@ -2,10 +2,11 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { RotateCcw, Mic, Flag, CheckCircle2, Star, ListChecks } from "lucide-react"
+import { RotateCcw, Mic, CheckCircle2, Star, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
+import { SwipeToReport } from "@/components/swipe-to-report"
 import { PracticeHeader } from "@/components/practice-header"
 import {
   Drawer,
@@ -213,10 +214,14 @@ export default function CumulativeFlashcardSessionPage() {
                 {group.items.map((item, index) => {
                   const state = stateById[item.id] ?? 0
                   return (
-                    <div key={item.id} className="relative group">
-                      <button 
-                        type="button" 
-                        onClick={() => advance(item)} 
+                    <SwipeToReport
+                      key={item.id}
+                      reported={reportedItems.has(item.id)}
+                      onReport={() => openReportModal(item)}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => advance(item)}
                         className={`min-h-36 w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -232,19 +237,9 @@ export default function CumulativeFlashcardSessionPage() {
                         </div>
                         {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
                         {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
-                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
+                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka, atau geser kartu ke kiri untuk lapor</p>}
                       </button>
-                      {!reportedItems.has(item.id) && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); openReportModal(item) }}
-                          className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Report kalimat"
-                        >
-                          <Flag className="h-3 w-3 text-orange-500" />
-                        </button>
-                      )}
-                    </div>
+                    </SwipeToReport>
                   )
                 })}
               </div>

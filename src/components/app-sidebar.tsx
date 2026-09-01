@@ -85,7 +85,7 @@ const learningPathItems = [
   {
     title: "Estafet",
     url: "/dashboard/flashcard/cumulative",
-    icon: Layers,
+    icon: RotateCcw,
   },
   {
     title: "Baca",

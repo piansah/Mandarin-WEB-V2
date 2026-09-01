@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star } from "lucide-react"
+import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PracticeHeader } from "@/components/practice-header"
@@ -10,6 +10,11 @@ import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
+import {
+  scorePronunciation,
+  classifyPronunciation,
+  type PronunciationTone,
+} from "@/lib/pronunciation-scoring"
 import styles from "./page.module.css"
 
 type HanziSet = {
@@ -28,6 +33,39 @@ type HanziItem = {
   arti: string
 }
 
+// Tipe minimal Web Speech API (belum ada di lib.dom TS bawaan Next).
+type SpeechRecognitionLike = {
+  lang: string
+  interimResults: boolean
+  maxAlternatives: number
+  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike
+type SpeechRecognitionResultEventLike = {
+  results: {
+    0: {
+      isFinal: boolean
+      0: { transcript: string }
+    }
+  }
+}
+
+type SpeakingResult = {
+  transcript: string
+  score: number
+}
+
+const TONE_STYLES: Record<PronunciationTone, { badge: string; ring: string; text: string }> = {
+  success: { badge: "bg-emerald-500/10 border-emerald-500/25 text-emerald-500", ring: "#34d399", text: "text-emerald-500" },
+  info: { badge: "bg-blue-500/10 border-blue-500/25 text-blue-500", ring: "#60a5fa", text: "text-blue-500" },
+  warning: { badge: "bg-amber-500/10 border-amber-500/25 text-amber-500", ring: "#f59e0b", text: "text-amber-500" },
+  danger: { badge: "bg-red-500/10 border-red-500/25 text-red-500", ring: "#f87171", text: "text-red-500" },
+}
+
 export default function SpeakingPracticePage() {
   const params = useParams<{ key: string }>()
   const router = useRouter()
@@ -39,14 +77,17 @@ export default function SpeakingPracticePage() {
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+
   const [isRecording, setIsRecording] = React.useState(false)
-  const [recordedAudio, setRecordedAudio] = React.useState<string | null>(null)
-  const [showResult, setShowResult] = React.useState(false)
+  const [interimTranscript, setInterimTranscript] = React.useState<string | null>(null)
+  const [micError, setMicError] = React.useState<string | null>(null)
+  const [result, setResult] = React.useState<SpeakingResult | null>(null)
+
   const [practiceComplete, setPracticeComplete] = React.useState(false)
   const [completedCount, setCompletedCount] = React.useState(0)
+  const [scores, setScores] = React.useState<number[]>([])
 
-  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null)
-  const audioChunksRef = React.useRef<Blob[]>([])
+  const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
 
   React.useEffect(() => {
     let cancelled = false
@@ -90,61 +131,97 @@ export default function SpeakingPracticePage() {
     }
   }, [key])
 
+  React.useEffect(() => {
+    // Pastikan recognition dihentikan kalau user pindah halaman di
+    // tengah rekaman.
+    return () => {
+      recognitionRef.current?.stop()
+    }
+  }, [])
+
   const currentItem = items[currentIndex]
   const progress = items.length ? ((currentIndex + 1) / items.length) * 100 : 0
+  const verdict = result ? classifyPronunciation(result.score) : null
 
-  async function startRecording() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      audioChunksRef.current = []
+  function startRecording() {
+    if (!currentItem) return
+    setMicError(null)
 
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
-      }
-
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" })
-        const audioUrl = URL.createObjectURL(audioBlob)
-        setRecordedAudio(audioUrl)
-        setShowResult(true)
-      }
-
-      mediaRecorder.start()
-      setIsRecording(true)
-    } catch (err) {
-      console.error("Error accessing microphone:", err)
-      alert("Gagal mengakses mikrofon. Pastikan izin mikrofon diberikan.")
+    const speechWindow = window as Window & {
+      SpeechRecognition?: SpeechRecognitionConstructor
+      webkitSpeechRecognition?: SpeechRecognitionConstructor
     }
+    const SR = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
+    if (!SR) {
+      setMicError("Browser ini belum mendukung pengenalan suara. Coba pakai Chrome terbaru.")
+      return
+    }
+
+    setInterimTranscript(null)
+    setResult(null)
+    setIsRecording(true)
+
+    const recognition = new SR()
+    recognition.lang = "zh-CN"
+    recognition.interimResults = true
+    recognition.maxAlternatives = 1
+
+    recognition.onresult = (event) => {
+      const spoken = event.results[0]
+      const transcript = spoken[0].transcript.trim()
+
+      if (!spoken.isFinal) {
+        setInterimTranscript(transcript)
+        return
+      }
+
+      const score = scorePronunciation(transcript, currentItem.hanzi)
+      setResult({ transcript, score })
+      setInterimTranscript(null)
+    }
+
+    recognition.onerror = () => {
+      setMicError("Gagal mendengarkan. Pastikan izin mikrofon diberikan, lalu coba lagi.")
+      setIsRecording(false)
+    }
+
+    recognition.onend = () => {
+      setIsRecording(false)
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
   }
 
   function stopRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-      
-      // Stop all tracks to release microphone
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop())
-    }
+    recognitionRef.current?.stop()
+    setIsRecording(false)
   }
 
   function handleRecordAgain() {
-    setRecordedAudio(null)
-    setShowResult(false)
+    setResult(null)
+    setInterimTranscript(null)
+    setMicError(null)
   }
 
   function handleNext() {
-    setCompletedCount(prev => prev + 1)
-    setRecordedAudio(null)
-    setShowResult(false)
-    
+    setCompletedCount((prev) => prev + 1)
+    if (result) {
+      setScores((prev) => [...prev, result.score])
+    }
+    setResult(null)
+    setInterimTranscript(null)
+    setMicError(null)
+
     if (currentIndex < items.length - 1) {
-      setCurrentIndex(prev => prev + 1)
+      setCurrentIndex((prev) => prev + 1)
     } else {
       setPracticeComplete(true)
-      // Save score for speaking practice
-      saveUserScore("speaking_session", key, 100).catch(() => {})
+      const finalScores = result ? [...scores, result.score] : scores
+      const average = finalScores.length
+        ? Math.round(finalScores.reduce((sum, s) => sum + s, 0) / finalScores.length)
+        : 0
+      saveUserScore("speaking_session", key, average || 0).catch(() => {})
     }
   }
 
@@ -155,9 +232,11 @@ export default function SpeakingPracticePage() {
   function handleRestart() {
     setCurrentIndex(0)
     setCompletedCount(0)
+    setScores([])
     setPracticeComplete(false)
-    setRecordedAudio(null)
-    setShowResult(false)
+    setResult(null)
+    setInterimTranscript(null)
+    setMicError(null)
   }
 
   function handleBack() {
@@ -182,7 +261,7 @@ export default function SpeakingPracticePage() {
   }
 
   if (practiceComplete) {
-    const pct = items.length ? Math.round((completedCount / items.length) * 100) : 0
+    const pct = scores.length ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0
     const circumference = 2 * Math.PI * 54
     const ringOffset = circumference - (pct / 100) * circumference
     const pctColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
@@ -215,7 +294,7 @@ export default function SpeakingPracticePage() {
               <p className="text-sm text-muted-foreground">{completedCount} dari {items.length} kalimat selesai</p>
             </div>
 
-            {/* Ring akurasi */}
+            {/* Ring akurasi rata-rata */}
             <div className="relative z-10 flex items-center justify-center">
               <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
                 <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
@@ -231,7 +310,7 @@ export default function SpeakingPracticePage() {
               </svg>
               <div className="absolute flex flex-col items-center">
                 <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi Rata-rata</span>
               </div>
             </div>
 
@@ -265,6 +344,8 @@ export default function SpeakingPracticePage() {
     )
   }
 
+  const toneStyle = verdict ? TONE_STYLES[verdict.tone] : null
+
   return (
     <div className={styles.page}>
       <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
@@ -278,7 +359,8 @@ export default function SpeakingPracticePage() {
         />
 
         {/* Main Content */}
-        <main className="flex flex-1 flex-col items-center justify-center p-6 overflow-x-hidden">
+        <main className="flex flex-1 flex-col items-center gap-4 p-6 overflow-x-hidden overflow-y-auto">
+          {/* Card 1: input — kalimat contoh + tombol mic */}
           <Card className="w-full max-w-2xl">
             <CardContent className="p-8 space-y-6">
               {/* Sentence Display */}
@@ -305,51 +387,35 @@ export default function SpeakingPracticePage() {
               </div>
 
               {/* Recording Section */}
-              {!showResult ? (
-                <div className="space-y-4">
-                  <div className="text-center text-sm text-muted-foreground">
-                    Tekan tombol mikrofon dan bacalah kalimat di atas
-                  </div>
-                  <div className="flex justify-center">
-                    <Button
-                      size="lg"
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
-                    >
-                      <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
-                    </Button>
-                  </div>
-                  {isRecording && (
-                    <div className="text-center text-sm text-red-400">
-                      Merekam...
-                    </div>
-                  )}
+              <div className="space-y-4">
+                <div className="text-center text-sm text-muted-foreground">
+                  {isRecording ? "Silakan bacakan kalimat di atas..." : "Tekan tombol mikrofon dan bacalah kalimat di atas"}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-center text-sm text-muted-foreground">
-                    Hasil rekamanmu:
-                  </div>
-                  {recordedAudio && (
-                    <div className="flex justify-center">
-                      <audio controls src={recordedAudio} className="w-full max-w-md" />
-                    </div>
-                  )}
-                  <div className="flex gap-2 justify-center">
-                    <Button variant="outline" onClick={handleRecordAgain}>
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Rekam Ulang
-                    </Button>
-                    <Button onClick={handleNext}>
-                      <Check className="h-4 w-4 mr-2" />
-                      Lanjut
-                    </Button>
-                  </div>
+                <div className="flex justify-center">
+                  <Button
+                    size="lg"
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={!!result}
+                    className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
+                  >
+                    <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
+                  </Button>
                 </div>
-              )}
+                {isRecording && (
+                  <div className="text-center text-sm text-red-400">
+                    Merekam{interimTranscript ? `: "${interimTranscript}"` : "..."}
+                  </div>
+                )}
+                {micError && (
+                  <div className="flex items-center justify-center gap-2 text-center text-sm text-amber-500">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {micError}
+                  </div>
+                )}
+              </div>
 
               {/* Skip Button */}
-              {!showResult && (
+              {!result && (
                 <div className="flex justify-center">
                   <Button variant="ghost" onClick={handleSkip}>
                     <SkipForward className="h-4 w-4 mr-2" />
@@ -359,6 +425,43 @@ export default function SpeakingPracticePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Card 2: output — feedback penilaian + tombol lanjut, muncul setelah ada hasil rekaman */}
+          {result && verdict && toneStyle && (
+            <Card className="w-full max-w-2xl">
+              <CardContent className="p-8 space-y-5">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-semibold ${toneStyle.badge}`}>
+                    {verdict.label}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-4xl font-bold tabular-nums ${toneStyle.text}`}>{result.score}%</span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Kamu mengucapkan</p>
+                  <p className="font-hanzi text-lg">{result.transcript || "-"}</p>
+                </div>
+
+                <p className="text-center text-sm leading-relaxed text-muted-foreground">
+                  {verdict.tip}
+                </p>
+
+                <div className="flex gap-2 justify-center">
+                  <Button variant="outline" onClick={handleRecordAgain}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Rekam Ulang
+                  </Button>
+                  <Button onClick={handleNext}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Lanjut
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </main>
       </div>
     </div>

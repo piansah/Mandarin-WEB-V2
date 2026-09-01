@@ -8,6 +8,7 @@ import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
+import { SwipeToReport } from "@/components/swipe-to-report"
 import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
 import styles from "./page.module.css"
 
@@ -301,8 +302,7 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
   const sentence = example.hanzi || ""
   const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
 
-  const handleReport = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const handleReport = () => {
     window.openBugReportModal?.(
       `Kesalahan Kalimat: ${sentence}`,
       `Ditemukan kesalahan pada kalimat: ${sentence} (${example.pinyin || ""})`,
@@ -312,23 +312,13 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
   }
 
   return (
-    <div className="relative group">
+    <SwipeToReport onReport={() => handleReport()}>
       <article className={styles.sentenceCard} {...gesture}>
         <div className={styles.sentenceHanzi}>{segmentSentence(sentence, knownWords).map((segment, index) => segment.hanzi ? <SentenceToken key={`${segment.text}-${index}`} segment={segment} /> : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</div>
         {example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}
         {example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}
       </article>
-      <button
-        type="button"
-        onClick={handleReport}
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 hover:bg-background border border-border/60 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-        title="Report kalimat"
-      >
-        <Flag className="h-3 w-3 text-orange-500" />
-      </button>
-    </div>
+    </SwipeToReport>
   )
 }
 
