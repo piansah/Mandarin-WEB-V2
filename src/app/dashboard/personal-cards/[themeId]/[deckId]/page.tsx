@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { listCards, addCard, deleteCard, type PersonalCard } from "@/lib/personal-decks"
 import { listDecks, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, ArrowLeft, BookOpen, Search, Volume2, X, Languages, FolderOpen, BookText, Filter, ChevronDown } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, BookOpen, Search, Volume2, X, Filter, ChevronDown } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -33,7 +33,6 @@ export default function DeckDetailPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [searchResults, setSearchResults] = React.useState<any[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
-  const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
   const [searchType, setSearchType] = React.useState<"all" | "hanzi" | "pinyin" | "arti">("all")
   const [searchSource, setSearchSource] = React.useState<"all" | "flashcard" | "compound">("all")
 
@@ -108,16 +107,6 @@ export default function DeckDetailPage() {
         } else {
           flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
         }
-
-        // Apply HSK filter (only if not "all")
-        if (searchFilter === "hsk") {
-          flashcardQuery = flashcardQuery.gte("hsk_level", 1).lte("hsk_level", 6)
-        } else if (searchFilter === "common") {
-          flashcardQuery = flashcardQuery.is("hsk_level", null)
-        } else if (searchFilter === "native") {
-          flashcardQuery = flashcardQuery.gte("hsk_level", 7)
-        }
-        // If searchFilter is "all", don't apply any HSK filter - get all cards
 
         const { data: flashcardResults, error: flashcardError } = await flashcardQuery.limit(20)
 
@@ -277,31 +266,6 @@ export default function DeckDetailPage() {
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { setSearchSource("compound"); handleSearch(searchQuery); }}>
                       Compound
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                {/* Category Filter */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger>
-                    <Button variant="outline" size="sm" className="gap-2">
-                      <Languages className="h-4 w-4" />
-                      {searchFilter === "all" ? "Semua" : searchFilter === "hsk" ? "HSK" : searchFilter === "common" ? "Common" : "Native"}
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => { setSearchFilter("all"); handleSearch(searchQuery); }}>
-                      Semua
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSearchFilter("hsk"); handleSearch(searchQuery); }}>
-                      HSK
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSearchFilter("common"); handleSearch(searchQuery); }}>
-                      Common
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSearchFilter("native"); handleSearch(searchQuery); }}>
-                      Native
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
