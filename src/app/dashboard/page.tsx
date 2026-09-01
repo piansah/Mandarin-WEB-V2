@@ -135,11 +135,11 @@ export default function DashboardPage() {
       icon: Languages,
     },
     {
-      label: "Belajar Hanzi",
-      desc: "Jelajahi karakter baru",
-      href: "/dashboard/hanzi",
-      color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-      icon: BookOpen,
+      label: "Estafet",
+      desc: "Baca kalimat berurutan untuk melatih pemahaman",
+      href: "/dashboard/flashcard/cumulative",
+      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+      icon: Layers,
     },
     {
       label: "Simulasi Ujian HSK",

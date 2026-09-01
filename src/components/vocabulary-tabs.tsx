@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { BookOpen, Search, Camera, Loader2, Clock, X, Volume2 } from "lucide-react"
+import { BookOpen, Search, Camera, Loader2, Clock, X, Volume2, ChevronDown, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
 import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { speakMandarin } from "@/lib/tts"
 import { HskBadge } from "@/components/hsk-badge"
 
@@ -56,6 +57,7 @@ function VocabularySearch() {
   const [isSearching, setIsSearching] = React.useState(false)
   const [showScanner, setShowScanner] = React.useState(false)
   const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
+  const [searchType, setSearchType] = React.useState<"all" | "hanzi" | "pinyin" | "arti">("all")
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [searchHistory, setSearchHistory] = React.useState<string[]>([])
   const historyRef = React.useRef<HTMLDivElement>(null)
@@ -84,7 +86,7 @@ function VocabularySearch() {
     return () => document.removeEventListener("pointerdown", closeOnOutsidePress)
   }, [])
 
-  const handleSearch = React.useCallback(async (q: string, filter: "all" | "hsk" | "common" | "native") => {
+  const handleSearch = React.useCallback(async (q: string, filter: "all" | "hsk" | "common" | "native", type: "all" | "hanzi" | "pinyin" | "arti") => {
     const trimmed = q.trim()
     if (!trimmed) {
       setResults([])
@@ -103,7 +105,7 @@ function VocabularySearch() {
         setSegmented(segs)
         setResults([])
       } else {
-        const data = await performSmartSearch(trimmed, filter)
+        const data = await performSmartSearch(trimmed, filter, type)
         setResults(data)
         setSegmented([])
       }
@@ -134,19 +136,26 @@ function VocabularySearch() {
     e.preventDefault()
     if (!query.trim()) return
     saveHistory(query.trim())
-    handleSearch(query.trim(), searchFilter)
+    handleSearch(query.trim(), searchFilter, searchType)
   }
 
   const handleHistoryClick = (item: string) => {
     setQuery(item)
-    handleSearch(item, searchFilter)
+    handleSearch(item, searchFilter, searchType)
     setHistoryOpen(false)
   }
 
   const handleFilterChange = (filter: "all" | "hsk" | "common" | "native") => {
     setSearchFilter(filter)
     if (query.trim()) {
-      handleSearch(query.trim(), filter)
+      handleSearch(query.trim(), filter, searchType)
+    }
+  }
+
+  const handleSearchTypeChange = (type: "all" | "hanzi" | "pinyin" | "arti") => {
+    setSearchType(type)
+    if (query.trim()) {
+      handleSearch(query.trim(), searchFilter, type)
     }
   }
 
@@ -159,7 +168,7 @@ function VocabularySearch() {
             onWordClick={(hanzi) => {
               setShowScanner(false)
               setQuery(hanzi)
-              handleSearch(hanzi, searchFilter)
+              handleSearch(hanzi, searchFilter, searchType)
             }}
           />
         </div>
@@ -238,24 +247,57 @@ function VocabularySearch() {
           )}
         </form>
 
-        {/* Filter Buttons */}
+        {/* Filter Dropdowns */}
         <div className="flex gap-2">
-          {[
-            { value: "all", label: "Semua" },
-            { value: "hsk", label: "HSK" },
-            { value: "common", label: "Common" },
-            { value: "native", label: "Native" },
-          ].map((filter) => (
-            <Button
-              key={filter.value}
-              type="button"
-              variant={searchFilter === filter.value ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleFilterChange(filter.value as "all" | "hsk" | "common" | "native")}
-            >
-              {filter.label}
-            </Button>
-          ))}
+          {/* Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Filter className="h-4 w-4" />
+                {searchFilter === "all" ? "Semua" : searchFilter === "hsk" ? "HSK" : searchFilter === "common" ? "Common" : "Native"}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleFilterChange("all")}>
+                Semua
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange("hsk")}>
+                HSK
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange("common")}>
+                Common
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange("native")}>
+                Native
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Search Type Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Search className="h-4 w-4" />
+                {searchType === "all" ? "Semua Tipe" : searchType === "hanzi" ? "汉字" : searchType === "pinyin" ? "Pinyin" : "Arti"}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleSearchTypeChange("all")}>
+                Semua Tipe
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSearchTypeChange("hanzi")}>
+                汉字 (Hanzi)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSearchTypeChange("pinyin")}>
+                Pinyin
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSearchTypeChange("arti")}>
+                Arti
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
