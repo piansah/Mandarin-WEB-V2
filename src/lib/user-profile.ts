@@ -167,7 +167,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
 
   const [profileRes, statsRpcRes, streakRes, progressRes, quizCountRes, unlockedTiers] =
     await Promise.all([
-      supa.from("user_profile").select("display_name, avatar").eq("user_id", user.id).maybeSingle(),
+      supa.from("user_profile").select("display_name, selected_avatar").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
       supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10)),
       supa.from("user_card_progress").select("srs_level").eq("user_id", user.id),
@@ -218,7 +218,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     userId: user.id,
     displayName: profileRes.data?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
     email: user.email ?? null,
-    avatar: profileRes.data?.avatar ?? null,
+    avatar: profileRes.data?.selected_avatar ?? null,
     totalScore,
     level,
     title: getTitleForLevel(level, unlockedTiers),
@@ -242,7 +242,7 @@ export async function updateAvatar(avatarId: string): Promise<{ error: string | 
   const { error } = await supa
     .from("user_profile")
     .upsert(
-      { user_id: user.id, avatar, updated_at: new Date().toISOString() },
+      { user_id: user.id, selected_avatar: avatar, updated_at: new Date().toISOString() },
       { onConflict: "user_id" },
     )
   return { error: error?.message ?? null }

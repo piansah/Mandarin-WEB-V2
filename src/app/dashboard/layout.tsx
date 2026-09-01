@@ -12,8 +12,19 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  const { data: profile } = await supabase
+    .from("user_profile")
+    .select("display_name")
+    .eq("user_id", user.id)
+    .maybeSingle()
+
   const sidebarUser = {
-    name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Pelajar",
+    name:
+      profile?.display_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email?.split("@")[0] ||
+      "Pelajar",
     email: user.email ?? "",
     avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
   }

@@ -16,10 +16,10 @@ import {
   FolderHeart,
   Flame,
   Bug,
-  ChevronRight,
+  ChevronUp,
   Target,
   BarChart3,
-  RotateCcw,
+  Repeat,
 } from "lucide-react"
 import {
   Sidebar,
@@ -85,7 +85,7 @@ const learningPathItems = [
   {
     title: "Estafet",
     url: "/dashboard/flashcard/cumulative",
-    icon: RotateCcw,
+    icon: Repeat,
   },
   {
     title: "Baca",
@@ -284,12 +284,12 @@ export function AppSidebar({
                     </AvatarFallback>
                   </Avatar>
                   <span className="font-medium flex-1 group-data-[collapsed=true]/sidebar:hidden">{user.name}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
+                  <ChevronUp className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-[--radix-dropdown-menu-trigger-width] min-w-56"
-                side={isMobile ? "top" : "right"}
+                side="top"
                 align="end"
                 sideOffset={4}
               >
