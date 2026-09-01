@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { listCards, addCard, deleteCard, type PersonalCard } from "@/lib/personal-decks"
 import { listDecks, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, ArrowLeft, BookOpen, Search, Volume2, X, Filter, ChevronDown } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, BookOpen, Search, Volume2, X, Languages, Filter, ChevronDown } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -33,8 +33,8 @@ export default function DeckDetailPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [searchResults, setSearchResults] = React.useState<any[]>([])
   const [isSearching, setIsSearching] = React.useState(false)
+  const [searchFilter, setSearchFilter] = React.useState<"all" | "hsk" | "common" | "native">("all")
   const [searchType, setSearchType] = React.useState<"all" | "hanzi" | "pinyin" | "arti">("all")
-  const [searchSource, setSearchSource] = React.useState<"all" | "flashcard" | "compound">("all")
 
   const [adding, setAdding] = React.useState(false)
 
@@ -92,69 +92,75 @@ export default function DeckDetailPage() {
       const lowerQuery = query.toLowerCase()
 
       // Search in flashcard_cards
-      if (searchSource === "all" || searchSource === "flashcard") {
-        let flashcardQuery = supa
-          .from("flashcard_cards")
-          .select("id, hanzi, pinyin, arti, word_class, hsk_level, set_id")
+      let flashcardQuery = supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti, word_class, hsk_level, set_id")
 
-        // Apply search type filter (case-insensitive for pinyin)
-        if (searchType === "hanzi") {
-          flashcardQuery = flashcardQuery.ilike("hanzi", `%${query}%`)
-        } else if (searchType === "pinyin") {
-          flashcardQuery = flashcardQuery.ilike("pinyin", `%${lowerQuery}%`)
-        } else if (searchType === "arti") {
-          flashcardQuery = flashcardQuery.ilike("arti", `%${query}%`)
-        } else {
-          flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
-        }
-
-        const { data: flashcardResults, error: flashcardError } = await flashcardQuery.limit(20)
-
-        console.log("Flashcard search results:", flashcardResults, flashcardError)
-
-        if (flashcardResults) {
-          flashcardResults.forEach((card: any) => {
-            results.push({
-              ...card,
-              source: "flashcard",
-              source_id: card.set_id,
-              card_id: card.id,
-            })
-          })
-        }
+      // Apply search type filter (case-insensitive for pinyin)
+      if (searchType === "hanzi") {
+        flashcardQuery = flashcardQuery.ilike("hanzi", `%${query}%`)
+      } else if (searchType === "pinyin") {
+        flashcardQuery = flashcardQuery.ilike("pinyin", `%${lowerQuery}%`)
+      } else if (searchType === "arti") {
+        flashcardQuery = flashcardQuery.ilike("arti", `%${query}%`)
+      } else {
+        flashcardQuery = flashcardQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
       }
 
-      // Search in word_compounds
-      if (searchSource === "all" || searchSource === "compound") {
-        let compoundQuery = supa
-          .from("word_compounds")
-          .select("id, hanzi, pinyin, arti, word_class")
+      // Apply HSK filter (only if not "all")
+      if (searchFilter === "hsk") {
+        flashcardQuery = flashcardQuery.gte("hsk_level", 1).lte("hsk_level", 6)
+      } else if (searchFilter === "common") {
+        flashcardQuery = flashcardQuery.is("hsk_level", null)
+      } else if (searchFilter === "native") {
+        flashcardQuery = flashcardQuery.gte("hsk_level", 7)
+      }
+      // If searchFilter is "all", don't apply any HSK filter - get all cards
 
-        // Apply search type filter (case-insensitive for pinyin)
-        if (searchType === "hanzi") {
-          compoundQuery = compoundQuery.ilike("hanzi", `%${query}%`)
-        } else if (searchType === "pinyin") {
-          compoundQuery = compoundQuery.ilike("pinyin", `%${lowerQuery}%`)
-        } else if (searchType === "arti") {
-          compoundQuery = compoundQuery.ilike("arti", `%${query}%`)
-        } else {
-          compoundQuery = compoundQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
-        }
+      const { data: flashcardResults, error: flashcardError } = await flashcardQuery.limit(20)
 
-        const { data: compoundResults, error: compoundError } = await compoundQuery.limit(20)
+      console.log("Flashcard search results:", flashcardResults, flashcardError)
 
-        console.log("Compound search results:", compoundResults, compoundError)
-
-        if (compoundResults) {
-          compoundResults.forEach((card: any) => {
-            results.push({
-              ...card,
-              source: "compound",
-              source_id: null,
-              card_id: card.id,
-            })
+      if (flashcardResults) {
+        flashcardResults.forEach((card: any) => {
+          results.push({
+            ...card,
+            source: "flashcard",
+            source_id: card.set_id,
+            card_id: card.id,
           })
-        }
+        })
+      }
+
+      // Search in word_compounds (no HSK filter since compounds don't have hsk_level)
+      let compoundQuery = supa
+        .from("word_compounds")
+        .select("id, hanzi, pinyin, arti, word_class")
+
+      // Apply search type filter (case-insensitive for pinyin)
+      if (searchType === "hanzi") {
+        compoundQuery = compoundQuery.ilike("hanzi", `%${query}%`)
+      } else if (searchType === "pinyin") {
+        compoundQuery = compoundQuery.ilike("pinyin", `%${lowerQuery}%`)
+      } else if (searchType === "arti") {
+        compoundQuery = compoundQuery.ilike("arti", `%${query}%`)
+      } else {
+        compoundQuery = compoundQuery.or(`hanzi.ilike.%${query}%,pinyin.ilike.%${lowerQuery}%,arti.ilike.%${query}%`)
+      }
+
+      const { data: compoundResults, error: compoundError } = await compoundQuery.limit(20)
+
+      console.log("Compound search results:", compoundResults, compoundError)
+
+      if (compoundResults) {
+        compoundResults.forEach((card: any) => {
+          results.push({
+            ...card,
+            source: "compound",
+            source_id: null,
+            card_id: card.id,
+          })
+        })
       }
 
       console.log("Total results:", results.length)
@@ -248,24 +254,27 @@ export default function DeckDetailPage() {
 
               {/* Filter Dropdowns */}
               <div className="flex gap-2">
-                {/* Source Filter */}
+                {/* Category Filter */}
                 <DropdownMenu>
                   <DropdownMenuTrigger>
                     <Button variant="outline" size="sm" className="gap-2">
-                      <Filter className="h-4 w-4" />
-                      {searchSource === "all" ? "Semua Sumber" : searchSource === "flashcard" ? "Flashcard" : "Compound"}
+                      <Languages className="h-4 w-4" />
+                      {searchFilter === "all" ? "Semua" : searchFilter === "hsk" ? "HSK" : searchFilter === "common" ? "Common" : "Native"}
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
-                    <DropdownMenuItem onClick={() => { setSearchSource("all"); handleSearch(searchQuery); }}>
-                      Semua Sumber
+                    <DropdownMenuItem onClick={() => { setSearchFilter("all"); handleSearch(searchQuery); }}>
+                      Semua
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSearchSource("flashcard"); handleSearch(searchQuery); }}>
-                      Flashcard
+                    <DropdownMenuItem onClick={() => { setSearchFilter("hsk"); handleSearch(searchQuery); }}>
+                      HSK
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { setSearchSource("compound"); handleSearch(searchQuery); }}>
-                      Compound
+                    <DropdownMenuItem onClick={() => { setSearchFilter("common"); handleSearch(searchQuery); }}>
+                      Common
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { setSearchFilter("native"); handleSearch(searchQuery); }}>
+                      Native
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
