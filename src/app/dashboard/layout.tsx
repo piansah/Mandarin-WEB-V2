@@ -2,7 +2,6 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayoutClient } from "@/components/dashboard-layout-client"
-import "@/lib/global-bug-report"
 
 export default async function DashboardLayout({
   children,

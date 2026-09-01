@@ -1,6 +1,17 @@
+"use client"
+
 /**
  * GLOBAL BUG REPORT — function global untuk openBugReportModal
  * Ini dipakai oleh komponen yang butuh akses cepat ke bug report
+ *
+ * PENTING: modul ini HARUS di-import dari Client Component (bukan dari
+ * Server Component layout) supaya kode registrasi `window.openBugReportModal`
+ * beneran jalan di browser. Kalau di-import cuma dari Server Component,
+ * `typeof window !== "undefined"` di bawah selalu false pas SSR, dan modul ini
+ * nggak ikut ke-bundle buat client — jadi window.openBugReportModal nggak
+ * pernah ke-set sama sekali di browser, dan semua pemanggil
+ * `window.openBugReportModal?.(...)` diam-diam no-op (gara-gara optional
+ * chaining) tanpa error apapun.
  */
 
 import { submitContentReport } from "./bug-reports"

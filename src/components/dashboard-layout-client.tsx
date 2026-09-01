@@ -7,6 +7,10 @@ import { SidebarMobileOpenButton } from "@/components/sidebar-trigger"
 import { AppSidebar } from "@/components/app-sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PWAInstall } from "@/components/pwa-install"
+// Registrasi window.openBugReportModal — HARUS di-import dari sini (Client
+// Component), bukan dari dashboard/layout.tsx (Server Component), supaya
+// beneran jalan di browser. Lihat komentar di lib/global-bug-report.ts.
+import "@/lib/global-bug-report"
 
 type DashboardLayoutClientProps = {
   children: React.ReactNode
