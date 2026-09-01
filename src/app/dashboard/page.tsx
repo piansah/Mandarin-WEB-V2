@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
   const [nextModule, setNextModule] = React.useState<{ id: number; title: string } | null>(null)
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
+  const [completedDeckCount, setCompletedDeckCount] = React.useState(0)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -60,6 +61,8 @@ export default function DashboardPage() {
         .eq("is_default", true)
         .order("hsk_level", { ascending: true })
         .order("id", { ascending: true })
+
+      let completedDeckCount = 0
 
       if (decks && decks.length > 0) {
         // Find first incomplete deck
@@ -86,8 +89,13 @@ export default function DashboardPage() {
             setNextDeck(deck)
             break
           }
+
+          // Count completed decks
+          completedDeckCount++
         }
       }
+
+      setCompletedDeckCount(completedDeckCount)
 
       // Load next module (placeholder - currently no module data)
       // setNextModule({ id: 1, title: "Modul HSK 1" })
@@ -95,7 +103,7 @@ export default function DashboardPage() {
       // Load next estafet (cumulative flashcard)
       const { data: estafetSets } = await supa
         .from("hanzi_sets")
-        .select("key, title")
+        .select("key, title, unlock_after")
         .order("hsk_level", { ascending: true })
         .order("sort_order", { ascending: true })
 
@@ -120,9 +128,14 @@ export default function DashboardPage() {
         // Find first unlocked and incomplete estafet
         for (let i = 0; i < estafetSets.length; i++) {
           const set = estafetSets[i]
-          const prevSet = i > 0 ? estafetSets[i - 1] : null
+
+          // Check if estafet is unlocked based on completed deck count
+          if (set.unlock_after > completedDeckCount) {
+            continue
+          }
 
           // Check if previous level is complete
+          const prevSet = i > 0 ? estafetSets[i - 1] : null
           const prevDone = prevSet
             ? readCounts[prevSet.key] >= itemCounts[prevSet.key] && itemCounts[prevSet.key] > 0
             : true
@@ -531,17 +544,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
-            ) : (
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                  <BookText className="h-6 w-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-muted-foreground">Estafet</h3>
-                  <p className="text-sm text-muted-foreground">Semua estafet sudah selesai</p>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         </CardContent>
       </Card>
