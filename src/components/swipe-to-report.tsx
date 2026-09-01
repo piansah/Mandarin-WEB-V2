@@ -44,6 +44,13 @@ export function SwipeToReport({ children, onReport, reported = false, className,
     dragStartRef.current = { x: e.clientX, base: dragX }
     movedRef.current = false
     setIsDragging(true)
+    // Pointer capture supaya move/up tetap kekirim ke elemen ini walau
+    // jari/kursor sempat keluar dari batas elemen saat digeser cepat.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      // Sebagian browser lama nolak elemen non-form — aman diabaikan.
+    }
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -58,20 +65,43 @@ export function SwipeToReport({ children, onReport, reported = false, className,
     if (reported || !dragStartRef.current) return
     dragStartRef.current = null
     setIsDragging(false)
+    const wasDrag = movedRef.current
     const shouldOpen = dragX <= -OPEN_THRESHOLD
     setOpen(shouldOpen)
     setDragX(shouldOpen ? -REVEAL_WIDTH : 0)
+    // Kalau ini beneran gesture drag, browser bakal nembak event "click"
+    // susulan tepat setelah pointerup ini (di elemen yang sama). Klik
+    // susulan itu HARUS diabaikan di handleClickCapture — bukan dianggap
+    // "user tap kartu untuk nutup" — makanya movedRef sengaja belum
+    // direset di sini, baru direset di handleClickCapture.
+    // Fallback: kalau ternyata event "click" itu nggak muncul sama
+    // sekali (mis. browser malah ngirim pointercancel karena dianggap
+    // scroll), movedRef tetap direset habis jeda singkat supaya tap
+    // berikutnya nggak ke-suppress juga.
+    if (wasDrag) {
+      window.setTimeout(() => {
+        movedRef.current = false
+      }, 300)
+    }
   }
 
   function handleClickCapture(e: React.MouseEvent) {
-    // Kalau lagi kebuka (nampilin tombol report) atau baru selesai
-    // drag, klik pertama dipakai buat nutup dulu, bukan trigger aksi
-    // kartu di baliknya.
-    if (open || movedRef.current) {
+    if (movedRef.current) {
+      // Ini klik bawaan browser yang otomatis muncul di akhir gesture
+      // drag/swipe barusan — abaikan supaya reveal tombol report tidak
+      // langsung balik nutup lagi sebelum sempat di-tap.
       e.preventDefault()
       e.stopPropagation()
-      if (open) close()
       movedRef.current = false
+      return
+    }
+    if (open) {
+      // Tombol report sudah kebuka dan user tap area kartu (bukan
+      // tombolnya) dengan gesture baru (bukan sisa drag) — anggap
+      // sebagai batal, tutup lagi.
+      e.preventDefault()
+      e.stopPropagation()
+      close()
     }
   }
 
