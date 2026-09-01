@@ -58,6 +58,7 @@ export default function DashboardPage() {
         .from("flashcard_sets")
         .select("id, title, hsk_level")
         .eq("is_default", true)
+        .order("hsk_level", { ascending: true })
         .order("id", { ascending: true })
 
       if (decks && decks.length > 0) {
@@ -95,21 +96,51 @@ export default function DashboardPage() {
       const { data: estafetSets } = await supa
         .from("hanzi_sets")
         .select("key, title")
-        .order("key", { ascending: true })
+        .order("hsk_level", { ascending: true })
+        .order("sort_order", { ascending: true })
 
       if (estafetSets && estafetSets.length > 0) {
-        // Find first incomplete estafet
+        // Get read counts for all estafet sets
+        const readCounts: Record<string, number> = {}
+        const itemCounts: Record<string, number> = {}
+
         for (const set of estafetSets) {
           const saved = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
           const completedIds = saved ? (JSON.parse(saved) as number[]) : []
+          readCounts[set.key] = Array.isArray(completedIds) ? completedIds.length : 0
+
           const { data: items } = await supa
             .from("hanzi_items")
             .select("id")
             .eq("hanzi_key", set.key)
 
-          if (items && completedIds.length < items.length) {
+          itemCounts[set.key] = items?.length || 0
+        }
+
+        // Find first unlocked and incomplete estafet
+        for (let i = 0; i < estafetSets.length; i++) {
+          const set = estafetSets[i]
+          const prevSet = i > 0 ? estafetSets[i - 1] : null
+
+          // Check if previous level is complete
+          const prevDone = prevSet
+            ? readCounts[prevSet.key] >= itemCounts[prevSet.key] && itemCounts[prevSet.key] > 0
+            : true
+
+          // If this level is unlocked and incomplete, show it
+          if (prevDone && readCounts[set.key] < itemCounts[set.key]) {
             setNextEstafet(set)
             break
+          }
+
+          // If this level is unlocked and complete, check next level
+          if (prevDone && readCounts[set.key] >= itemCounts[set.key] && itemCounts[set.key] > 0) {
+            continue
+          }
+
+          // If this level is locked, check next level
+          if (!prevDone) {
+            continue
           }
         }
       }
