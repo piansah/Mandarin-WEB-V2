@@ -11,7 +11,6 @@ import {
   ClipboardList,
   FolderOpen,
   BookText,
-  Play,
   Clock,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,7 +35,9 @@ export default function DashboardPage() {
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
-  const [sessionActive, setSessionActive] = React.useState(false)
+  const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
+  const [nextModule, setNextModule] = React.useState<{ id: number; title: string } | null>(null)
+  const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -44,7 +45,78 @@ export default function DashboardPage() {
       setLoading(false)
     })
     loadSrsStats()
-  }, [])
+    loadNextContent()
+  }, [supa])
+
+  async function loadNextContent() {
+    try {
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+
+      // Load next deck (flashcard)
+      const { data: decks } = await supa
+        .from("flashcard_sets")
+        .select("id, title, hsk_level")
+        .eq("is_default", true)
+        .order("id", { ascending: true })
+
+      if (decks && decks.length > 0) {
+        // Find first incomplete deck
+        for (const deck of decks) {
+          const { data: progress } = await supa
+            .from("user_card_progress")
+            .select("card_id, srs_level")
+            .eq("user_id", user.id)
+            .eq("set_id", deck.id)
+
+          if (!progress || progress.length === 0) {
+            setNextDeck(deck)
+            break
+          }
+
+          // Check if deck is complete (all cards have srs_level >= 1)
+          const { data: totalCards } = await supa
+            .from("flashcard_cards")
+            .select("id")
+            .eq("set_id", deck.id)
+
+          const completedCards = progress.filter(p => p.srs_level >= 1).length
+          if (totalCards && completedCards < totalCards.length) {
+            setNextDeck(deck)
+            break
+          }
+        }
+      }
+
+      // Load next module (placeholder - currently no module data)
+      // setNextModule({ id: 1, title: "Modul HSK 1" })
+
+      // Load next estafet (cumulative flashcard)
+      const { data: estafetSets } = await supa
+        .from("hanzi_sets")
+        .select("key, title")
+        .order("key", { ascending: true })
+
+      if (estafetSets && estafetSets.length > 0) {
+        // Find first incomplete estafet
+        for (const set of estafetSets) {
+          const saved = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
+          const completedIds = saved ? (JSON.parse(saved) as number[]) : []
+          const { data: items } = await supa
+            .from("hanzi_items")
+            .select("id")
+            .eq("hanzi_key", set.key)
+
+          if (items && completedIds.length < items.length) {
+            setNextEstafet(set)
+            break
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   async function loadSrsStats() {
     try {
@@ -343,24 +415,11 @@ export default function DashboardPage() {
           <CardTitle className="text-sm font-medium">Sesi Hari Ini</CardTitle>
         </CardHeader>
         <CardContent>
-          {!sessionActive ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Lanjutkan pembelajaran dengan modul yang tersedia hari ini.
-              </p>
-              <Button
-                className="w-full bg-primary hover:bg-primary/90 text-white font-semibold"
-                onClick={() => setSessionActive(true)}
-              >
-                <Play className="h-4 w-4 mr-2" />
-                Mulai Sesi
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {/* Modul Card */}
+          <div className="space-y-3">
+            {/* Modul Card */}
+            {nextModule ? (
               <a
-                href="/dashboard/modul"
+                href={`/dashboard/modul`}
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
@@ -368,7 +427,7 @@ export default function DashboardPage() {
                     <FolderOpen className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Modul Pembelajaran</h3>
+                    <h3 className="font-semibold text-foreground">{nextModule.title}</h3>
                     <p className="text-sm text-muted-foreground">Pelajari materi baru dengan kurikulum terstruktur</p>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -377,10 +436,22 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
+            ) : (
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                  <FolderOpen className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-muted-foreground">Modul Pembelajaran</h3>
+                  <p className="text-sm text-muted-foreground">Tidak ada modul tersedia saat ini</p>
+                </div>
+              </div>
+            )}
 
-              {/* Daftar Kata Card */}
+            {/* Daftar Kata Card */}
+            {nextDeck ? (
               <a
-                href="/dashboard/flashcard"
+                href={`/dashboard/flashcard/${nextDeck.id}`}
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
@@ -388,8 +459,8 @@ export default function DashboardPage() {
                     <Languages className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Daftar Kata</h3>
-                    <p className="text-sm text-muted-foreground">Flashcard, quiz, nada & tulis per deck</p>
+                    <h3 className="font-semibold text-foreground">{nextDeck.title}</h3>
+                    <p className="text-sm text-muted-foreground">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
@@ -397,10 +468,22 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
+            ) : (
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                  <Languages className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-muted-foreground">Daftar Kata</h3>
+                  <p className="text-sm text-muted-foreground">Semua deck sudah selesai</p>
+                </div>
+              </div>
+            )}
 
-              {/* Estafet Card */}
+            {/* Estafet Card */}
+            {nextEstafet ? (
               <a
-                href="/dashboard/flashcard/cumulative"
+                href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
@@ -408,7 +491,7 @@ export default function DashboardPage() {
                     <BookText className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">Estafet</h3>
+                    <h3 className="font-semibold text-foreground">{nextEstafet.title}</h3>
                     <p className="text-sm text-muted-foreground">Baca kalimat berurutan untuk melatih pemahaman</p>
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -417,16 +500,18 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setSessionActive(false)}
-              >
-                Tutup
-              </Button>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                  <BookText className="h-6 w-6" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-muted-foreground">Estafet</h3>
+                  <p className="text-sm text-muted-foreground">Semua estafet sudah selesai</p>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
