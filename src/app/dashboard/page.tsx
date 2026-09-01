@@ -9,6 +9,10 @@ import {
   Languages,
   Flame,
   ClipboardList,
+  FolderOpen,
+  BookText,
+  Play,
+  Clock,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +36,7 @@ export default function DashboardPage() {
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
+  const [sessionActive, setSessionActive] = React.useState(false)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -327,6 +332,99 @@ export default function DashboardPage() {
           ) : (
             <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
               <span className="text-sm">Memuat statistik...</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sesi Hari Ini Section */}
+      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Sesi Hari Ini</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!sessionActive ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Lanjutkan pembelajaran dengan modul yang tersedia hari ini.
+              </p>
+              <Button
+                className="w-full bg-primary hover:bg-primary/90 text-white font-semibold"
+                onClick={() => setSessionActive(true)}
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Mulai Sesi
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Modul Card */}
+              <a
+                href="/dashboard/modul"
+                className="block"
+              >
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <FolderOpen className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">Modul Pembelajaran</h3>
+                    <p className="text-sm text-muted-foreground">Pelajari materi baru dengan kurikulum terstruktur</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-sm">~15 menit</span>
+                  </div>
+                </div>
+              </a>
+
+              {/* Daftar Kata Card */}
+              <a
+                href="/dashboard/flashcard"
+                className="block"
+              >
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Languages className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">Daftar Kata</h3>
+                    <p className="text-sm text-muted-foreground">Flashcard, quiz, nada & tulis per deck</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-sm">~20 menit</span>
+                  </div>
+                </div>
+              </a>
+
+              {/* Estafet Card */}
+              <a
+                href="/dashboard/flashcard/cumulative"
+                className="block"
+              >
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <BookText className="h-6 w-6" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground">Estafet</h3>
+                    <p className="text-sm text-muted-foreground">Baca kalimat berurutan untuk melatih pemahaman</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span className="text-sm">~10 menit</span>
+                  </div>
+                </div>
+              </a>
+
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setSessionActive(false)}
+              >
+                Tutup
+              </Button>
             </div>
           )}
         </CardContent>
