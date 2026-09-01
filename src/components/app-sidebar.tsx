@@ -19,8 +19,8 @@ import {
   ChevronUp,
   Target,
   BarChart3,
-  Layers,
-  BookA,
+  ClipboardList,
+  FolderOpen,
 } from "lucide-react"
 import {
   Sidebar,
@@ -58,7 +58,7 @@ const todayItems = [
   {
     title: "Modul",
     url: "/dashboard/modul",
-    icon: Layers,
+    icon: FolderOpen,
   },
   {
     title: "Path",
@@ -81,7 +81,7 @@ const learningPathItems = [
   {
     title: "Daftar Kata",
     url: "/dashboard/flashcard",
-    icon: BookA,
+    icon: Languages,
   },
   {
     title: "Estafet",

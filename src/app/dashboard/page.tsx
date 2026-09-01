@@ -6,8 +6,9 @@ import {
   RotateCcw,
   CheckCircle2,
   BookOpen,
-  BookA,
+  Languages,
   Flame,
+  ClipboardList,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -127,18 +128,11 @@ export default function DashboardPage() {
 
   const quickAccess = [
     {
-      label: "Lanjutkan Flashcard",
-      desc: stats.flashcardDue > 0 ? `${stats.flashcardDue} kartu menunggu` : "Tidak ada kartu jatuh tempo",
-      href: "/dashboard/flashcard",
-      color: "bg-primary/10 text-primary",
-      icon: Layers,
-    },
-    {
       label: "Daftar Kata",
       desc: "Flashcard, quiz, nada & tulis per deck",
       href: "/dashboard/flashcard",
       color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      icon: BookA,
+      icon: Languages,
     },
     {
       label: "Belajar Hanzi",
@@ -146,6 +140,13 @@ export default function DashboardPage() {
       href: "/dashboard/hanzi",
       color: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
       icon: BookOpen,
+    },
+    {
+      label: "Simulasi Ujian HSK",
+      desc: "Segera hadir - placeholder",
+      href: "/dashboard/simulasi-hsk",
+      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+      icon: ClipboardList,
     },
   ]
 

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server"
-import { BookA } from "lucide-react"
+import { Languages } from "lucide-react"
 import { FlashcardDeckList, type FlashcardSet } from "@/components/flashcard-deck-list"
 import { VocabularyTabs } from "@/components/vocabulary-tabs"
 
@@ -25,7 +25,7 @@ export default async function FlashcardPage() {
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <BookA className="h-6 w-6 text-primary" />
+          <Languages className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Daftar Kata</h1>
         </div>
         <p className="text-sm text-muted-foreground">Pilih deck untuk mulai belajar</p>
