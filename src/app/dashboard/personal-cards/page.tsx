@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction }
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { listThemes, createTheme, deleteTheme, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, FolderOpen, ChevronRight } from "lucide-react"
+import { Plus, Trash2, FolderHeart, ChevronRight } from "lucide-react"
 
 export default function PersonalCardsPage() {
   const [themes, setThemes] = React.useState<PersonalTheme[]>([])
@@ -69,7 +69,7 @@ export default function PersonalCardsPage() {
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderOpen className="h-6 w-6 text-primary" />
+            <FolderHeart className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">Deck Pribadi</h1>
           </div>
           <Button onClick={() => setShowCreateModal(true)}>
