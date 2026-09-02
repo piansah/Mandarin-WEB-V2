@@ -320,9 +320,19 @@
 .tone4 { color: var(--t4); }
 .tone0 { color: var(--t0); }
 
-/* ── Submit panel ── */
+/* ── Submit panel ──
+   FIX: dulu .submitPanel adalah sibling langsung dari .main tanpa
+   max-width/margin, jadi lebar panel = lebar penuh container (cuma
+   dibatasi padding 18px sendiri) sementara .qCard di dalam .main
+   dibatasi max-width:760px + padding 16px. Hasilnya di layar lebar,
+   panel "Selesai" melebar sampai tepi sedangkan card soal berhenti
+   di tengah -> padding kiri/kanan kelihatan tidak sejajar. Disamakan
+   di sini: max-width 728px (760 - 2*16, sama seperti lebar konten
+   .main) + margin auto supaya kotak panel align persis dengan qCard. */
 .submitPanel {
-  margin-top: 10px;
+  margin: 10px auto 0;
+  width: calc(100% - 32px);
+  max-width: 728px;
   padding: 16px 18px;
   border: 1px solid var(--c-border);
   border-radius: 14px;

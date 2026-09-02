@@ -182,22 +182,25 @@ export default function QuizPage() {
       let hanziItems: HanziItem[] = []
 
       if (isPersonal) {
-        // Load from personal_cards
-        const { data: personalCards } = await supa
-          .from("personal_cards")
-          .select("id, hanzi, pinyin, arti")
-          .eq("deck_id", deckId)
-          .order("created_at", { ascending: true })
+        // Load from personal_cards — sama pola dengan deck reguler di bawah:
+        // ambil judul & deskripsi deck asli dari personal_decks, bukan teks
+        // statis, supaya tampilan quiz personal identik dengan quiz daftar
+        // kata (cuma bedanya jumlah tipe soal: 3, karena tidak ada kalimat
+        // rumpang untuk kartu personal).
+        const [deckData, cardData] = await Promise.all([
+          supa.from("personal_decks").select("title, description").eq("id", deckId).maybeSingle(),
+          supa.from("personal_cards").select("id, hanzi, pinyin, arti").eq("deck_id", deckId).order("created_at", { ascending: true }),
+        ])
 
-        cards = (personalCards ?? []).map(c => ({
+        cards = (cardData.data ?? []).map(c => ({
           id: c.id,
           hanzi: c.hanzi,
           pinyin: c.pinyin,
           arti: c.arti,
         }))
 
-        deckTitle = "Deck Personal"
-        deckSub = "Latihan Bebas"
+        deckTitle = deckData.data?.title ?? "Deck Personal"
+        deckSub = deckData.data?.description ?? "Latihan Bebas"
       } else {
         // Load from flashcard_cards
         const [setData, cardData] = await Promise.all([
