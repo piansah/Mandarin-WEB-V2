@@ -237,7 +237,7 @@ export default function CumulativeFlashcardSessionPage() {
                         </div>
                         {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
                         {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
-                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka, atau geser kartu ke kiri untuk lapor</p>}
+                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
                       </button>
                     </SwipeToReport>
                   )

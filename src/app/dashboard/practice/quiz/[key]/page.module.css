@@ -330,7 +330,7 @@
    di sini: max-width 728px (760 - 2*16, sama seperti lebar konten
    .main) + margin auto supaya kotak panel align persis dengan qCard. */
 .submitPanel {
-  margin: 10px auto 0;
+  margin: 10px auto 24px;
   width: calc(100% - 32px);
   max-width: 728px;
   padding: 16px 18px;

@@ -23,7 +23,7 @@ export function SwipeToReport({ children, onReport, reported = false, className,
   const [dragX, setDragX] = React.useState(0)
   const [open, setOpen] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
-  const dragStartRef = React.useRef<{ x: number; base: number } | null>(null)
+  const dragStartRef = React.useRef<{ x: number; base: number; pointerId: number } | null>(null)
   const movedRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -40,23 +40,36 @@ export function SwipeToReport({ children, onReport, reported = false, className,
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (reported) return
-    // Cuma track drag horizontal utk mouse/touch/pen; biarkan klik biasa lewat.
-    dragStartRef.current = { x: e.clientX, base: dragX }
+    // Cuma catat titik awal & pointerId di sini — TIDAK langsung capture.
+    // FIX: sebelumnya setPointerCapture dipanggil di pointerdown untuk
+    // SETIAP interaksi (termasuk tap biasa tanpa gerakan sama sekali).
+    // Di sejumlah browser/webview, pointer capture yang diaktifkan sejak
+    // pointerdown bisa bikin event "click" susulan gagal disintesis kalau
+    // pointerup terjadi persis di titik yang sama (tap murni) — hasilnya
+    // kartu terasa "tidak bisa di-tap" walau tombol report/swipe sendiri
+    // tidak pernah dipakai. Sekarang capture baru diaktifkan belakangan,
+    // di handlePointerMove, dan HANYA kalau gerakan horizontal sudah
+    // melewati ambang batas (baru dianggap gesture geser beneran) — tap
+    // biasa jadi tidak pernah menyentuh setPointerCapture sama sekali.
+    dragStartRef.current = { x: e.clientX, base: dragX, pointerId: e.pointerId }
     movedRef.current = false
     setIsDragging(true)
-    // Pointer capture supaya move/up tetap kekirim ke elemen ini walau
-    // jari/kursor sempat keluar dari batas elemen saat digeser cepat.
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      // Sebagian browser lama nolak elemen non-form — aman diabaikan.
-    }
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (reported || !dragStartRef.current) return
     const delta = e.clientX - dragStartRef.current.x
-    if (Math.abs(delta) > 4) movedRef.current = true
+    if (Math.abs(delta) > 4 && !movedRef.current) {
+      movedRef.current = true
+      // Baru capture pointer begitu gerakan geser terkonfirmasi, supaya
+      // move/up berikutnya tetap kekirim ke elemen ini walau jari/kursor
+      // sempat keluar dari batas elemen.
+      try {
+        e.currentTarget.setPointerCapture(dragStartRef.current.pointerId)
+      } catch {
+        // Sebagian browser lama nolak elemen non-form — aman diabaikan.
+      }
+    }
     const next = Math.min(0, Math.max(-REVEAL_WIDTH, dragStartRef.current.base + delta))
     setDragX(next)
   }
