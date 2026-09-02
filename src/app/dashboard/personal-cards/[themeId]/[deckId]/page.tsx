@@ -143,17 +143,15 @@ export default function DeckDetailPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="flex-1">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-            <span>{theme.icon} {theme.name}</span>
-            <span>/</span>
-            <span>{deck.title}</span>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">Kartu Kosakata</h1>
-          <p className="text-sm text-muted-foreground">{cards.length} kartu</p>
+          <h1 className="text-2xl font-bold tracking-tight">{deck.title}</h1>
+          <p className="text-sm text-muted-foreground">{theme.name} · {cards.length} kartu</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Button onClick={() => setShowAddModal(true)} className="hidden sm:flex">
           <Plus className="h-4 w-4 mr-2" />
           Tambah Kartu
+        </Button>
+        <Button onClick={() => setShowAddModal(true)} size="icon" className="sm:hidden">
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
 
@@ -251,25 +249,17 @@ export default function DeckDetailPage() {
                   {searchResults.map((card, index) => (
                     <div
                       key={`${card.source}-${card.id}-${index}`}
-                      className="flex items-center gap-4 p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all"
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all"
                     >
-                      <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
+                      <div className="font-hanzi min-w-[2.5rem] shrink-0 whitespace-nowrap text-2xl leading-tight text-foreground">{card.hanzi}</div>
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <TonePinyin text={card.pinyin || ""} className="text-sm font-medium" />
-                        <span className="truncate text-sm text-muted-foreground">{card.arti || ""}</span>
+                        <TonePinyin text={card.pinyin || ""} className="text-xs font-medium" />
+                        <span className="truncate text-xs text-muted-foreground">{card.arti || ""}</span>
                       </div>
-                      <div className="ml-1 flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi); }}
-                          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          aria-label="Dengar"
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </button>
+                      <div className="ml-1 flex shrink-0 items-center gap-1">
                         {card.hsk_level && <HskBadge hskLevel={card.hsk_level} />}
                         {card.badge && (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-[10px]">
                             {card.badge}
                           </Badge>
                         )}
@@ -277,9 +267,9 @@ export default function DeckDetailPage() {
                           size="sm"
                           onClick={() => handleAddCard(card)}
                           disabled={adding}
-                          className="shrink-0"
+                          className="shrink-0 h-7 px-2 text-xs"
                         >
-                          <Plus className="h-4 w-4 mr-1" />
+                          <Plus className="h-3 w-3 mr-1" />
                           Tambah
                         </Button>
                       </div>
