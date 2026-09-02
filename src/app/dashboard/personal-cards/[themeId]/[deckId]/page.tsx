@@ -17,6 +17,16 @@ import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
 import { performSmartSearch, initGlobalSearchCache, type GlobalWord } from "@/lib/hanzi-segmentation"
 
+type Card = {
+  id: number
+  hanzi: string
+  pinyin: string
+  arti: string
+  word_class: string | null
+  catatan: string | null
+  created_at: string
+}
+
 export default function DeckDetailPage() {
   const params = useParams()
   const themeId = parseInt(params.themeId as string)
@@ -249,28 +259,30 @@ export default function DeckDetailPage() {
                   {searchResults.map((card, index) => (
                     <div
                       key={`${card.source}-${card.id}-${index}`}
-                      className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all"
+                      className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
                     >
-                      <div className="font-hanzi min-w-[2.5rem] shrink-0 whitespace-nowrap text-2xl leading-tight text-foreground">{card.hanzi}</div>
+                      <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
                       <div className="flex min-w-0 flex-1 flex-col">
-                        <TonePinyin text={card.pinyin || ""} className="text-xs font-medium" />
-                        <span className="truncate text-xs text-muted-foreground">{card.arti || ""}</span>
+                        <TonePinyin text={card.pinyin || ""} className="text-sm font-medium" />
+                        <span className="truncate text-sm text-muted-foreground">{card.arti || ""}</span>
                       </div>
-                      <div className="ml-1 flex shrink-0 items-center gap-1">
-                        {card.hsk_level && <HskBadge hskLevel={card.hsk_level} />}
-                        {card.badge && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {card.badge}
-                          </Badge>
-                        )}
-                        <Button
-                          size="sm"
-                          onClick={() => handleAddCard(card)}
-                          disabled={adding}
-                          className="shrink-0 h-7 px-2 text-xs"
+                      <div className="ml-1 flex shrink-0 items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi); }}
+                          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          aria-label="Dengar"
                         >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Tambah
+                          <Volume2 className="h-4 w-4" />
+                        </button>
+                        {card.hsk_level && <HskBadge hskLevel={card.hsk_level} />}
+                        <Button
+                          size="icon"
+                          onClick={(e) => { e.stopPropagation(); handleAddCard(card); }}
+                          disabled={adding}
+                          className="h-7 w-7"
+                        >
+                          <Plus className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -316,45 +328,62 @@ export default function DeckDetailPage() {
 
       {/* Cards List */}
       {cards.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cards.map((card) => (
-            <Card key={card.id} className="group hover:border-primary/50 transition-colors">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="text-2xl">{card.hanzi}</CardTitle>
-                    {card.pinyin && (
-                      <CardDescription className="text-base">{card.pinyin}</CardDescription>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handleDeleteCard(card.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="text-lg font-medium">{card.arti}</div>
-                {card.word_class && (
-                  <Badge variant="secondary" className="text-xs">
-                    {card.word_class}
-                  </Badge>
-                )}
-                {card.catatan && (
-                  <div className="text-sm text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
-                    <BookOpen className="h-3 w-3 inline mr-1" />
-                    {card.catatan}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <div className="flex flex-col gap-2">
+          {cards.map((card, index) => (
+            <PersonalCardRow
+              key={card.id}
+              card={card}
+              index={index}
+              onDelete={() => handleDeleteCard(card.id)}
+            />
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function PersonalCardRow({ card, index, onDelete }: { card: Card; index: number; onDelete: () => void }) {
+  const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didHold = React.useRef(false)
+  const startPoint = React.useRef({ x: 0, y: 0 })
+  const clearPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); pressTimer.current = null }
+
+  React.useEffect(() => clearPress, [])
+
+  return (
+    <div
+      className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
+      onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }}
+      onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }}
+      onPointerUp={clearPress}
+      onPointerCancel={clearPress}
+      onClick={() => { if (didHold.current) { didHold.current = false; return } }}
+    >
+      <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TonePinyin text={card.pinyin} className="text-sm font-medium" />
+        <span className="truncate text-sm text-muted-foreground">{card.arti}</span>
+      </div>
+      <div className="ml-1 flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          aria-label="Dengar"
+        >
+          <Volume2 className="h-4 w-4" />
+        </button>
+        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onDelete() }}
+          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+          aria-label="Hapus"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   )
 }

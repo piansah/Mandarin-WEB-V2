@@ -55,12 +55,19 @@ export default function FavoritesPage() {
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <Heart className="h-6 w-6 text-red-500 fill-red-500" />
-          <h1 className="text-2xl font-bold tracking-tight">Kata Favorit</h1>
+      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Heart className="h-6 w-6 text-red-500 fill-red-500" />
+            <h1 className="text-2xl font-bold tracking-tight">Kata Favorit</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">Koleksi kata yang kamu simpan untuk referensi</p>
         </div>
-        <p className="text-sm text-muted-foreground">Koleksi kata yang kamu simpan untuk referensi</p>
+        {favorites.length > 0 && (
+          <Button variant="ghost" size="icon" onClick={() => { if (confirm("Hapus semua kata favorit?")) { favorites.forEach(f => handleRemoveFavorite(f.id)) } }}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Empty State */}
@@ -91,7 +98,6 @@ export default function FavoritesPage() {
                 card={card}
                 index={index}
                 onOpen={() => handleOpenDetail(card)}
-                onRemove={() => handleRemoveFavorite(card.id)}
               />
             ))}
           </div>
@@ -101,7 +107,7 @@ export default function FavoritesPage() {
   )
 }
 
-function FavoriteRow({ card, index, onOpen, onRemove }: { card: FavoriteCard; index: number; onOpen: () => void; onRemove: () => void }) {
+function FavoriteRow({ card, index, onOpen }: { card: FavoriteCard; index: number; onOpen: () => void }) {
   const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const didHold = React.useRef(false)
   const startPoint = React.useRef({ x: 0, y: 0 })
@@ -124,20 +130,15 @@ function FavoriteRow({ card, index, onOpen, onRemove }: { card: FavoriteCard; in
         <span className="truncate text-sm text-muted-foreground">{card.arti}</span>
       </div>
       <div className="ml-1 flex shrink-0 items-center gap-2">
-        {card.word_class && (
-          <Badge variant="secondary" className="text-xs">
-            {card.word_class}
-          </Badge>
-        )}
-        <Heart className="h-4 w-4 text-red-500 fill-red-500" />
         <button
           type="button"
-          onClick={e => { e.stopPropagation(); onRemove() }}
-          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-          aria-label="Hapus"
+          onClick={e => { e.stopPropagation(); speakMandarin(card.hanzi) }}
+          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          aria-label="Dengar"
         >
-          <Trash2 className="h-4 w-4" />
+          <Volume2 className="h-4 w-4" />
         </button>
+        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
       </div>
     </div>
   )
