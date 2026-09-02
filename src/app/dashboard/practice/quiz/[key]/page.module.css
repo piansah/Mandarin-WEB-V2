@@ -353,6 +353,7 @@
   transition: opacity 0.2s;
 }
 .submitBtn:hover { opacity: 0.88; }
+.submitBtn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
 
 /* ── Result screen ── */
 .result {

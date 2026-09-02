@@ -490,6 +490,9 @@ export default function QuizPage() {
                       q.si === 0 || q.si === 2 ? styles.qHanzi
                       : q.si === 1 ? styles.qPinyin
                       : styles.qRumpang
+                    // Soal berbasis hanzi (Hanzi→Arti, Hanzi→Pinyin, Kalimat Rumpang): tap teksnya buat putar ulang TTS, setelah terjawab
+                    const isHanziQuestion = q.si === 0 || q.si === 2 || q.si === 3
+                    const canReplay = isAnswered && isHanziQuestion
 
                     return (
                       <div
@@ -498,7 +501,12 @@ export default function QuizPage() {
                       >
                         <div className={styles.qTop}>
                           <div className={styles.qText}>
-                            <div className={qTextClass}>
+                            <div
+                              className={`${qTextClass} ${canReplay ? styles.qCardReplay : ""}`}
+                              onClick={canReplay ? () => replayQuestion(q.gi) : undefined}
+                              role={canReplay ? "button" : undefined}
+                              aria-label={canReplay ? "Putar ulang lafal" : undefined}
+                            >
                               {q.si === 1 ? <ColorPy text={q.q} /> : q.si === 3 ? <RumpangText text={q.q} /> : q.q}
                             </div>
                           </div>
@@ -506,7 +514,7 @@ export default function QuizPage() {
                             <button
                               type="button"
                               className={styles.replayBtn}
-                              onClick={() => replayQuestion(q.gi)}
+                              onClick={(e) => { e.stopPropagation(); replayQuestion(q.gi) }}
                               aria-label="Putar ulang"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
@@ -545,14 +553,17 @@ export default function QuizPage() {
           })}
         </div>
 
-        <div className="flex justify-center px-4 pt-6" style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}>
+        <div className={styles.submitPanel}>
+          <div className={styles.liveInfo}>
+            <div className={styles.liveTxt}>{totalAnswered} / {totalQuestions} dijawab</div>
+            <div className={styles.liveScore}>{totalCorrect} benar</div>
+          </div>
           <button
             type="button"
-            disabled={totalAnswered === 0}
+            className={styles.submitBtn}
             onClick={handleSubmit}
-            className="h-11 px-10 rounded-full border-2 border-primary text-primary text-sm font-bold tracking-wide transition-colors hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-40"
           >
-            SELESAI
+            Selesai
           </button>
         </div>
       </div>
