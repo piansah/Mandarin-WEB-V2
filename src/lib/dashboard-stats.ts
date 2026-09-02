@@ -17,9 +17,7 @@
  *   `user_scores` dengan type = "quiz"
  * - aktivitas terbaru                                   → 4 baris terakhir
  *   `user_scores` (urut `updated_at`), label pakai peta type→nama Indonesia
- *   + `key` mentah (BUKAN join ke tabel judul asli seperti quiz_sets/
- *   kalimat_sets/dst — disederhanakan, bisa ditingkatkan nanti kalau mau
- *   judul yang lebih rapi)
+ *   + `key` mentah (BUKAN join ke tabel judul asli)
  *
  * Tier konten (badge "menengah" dkk) TIDAK dihitung di sini — dipakai
  * langsung dari `@/lib/tier-unlock` (poin 1), sesuai keputusan: dashboard

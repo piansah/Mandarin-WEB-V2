@@ -30,24 +30,15 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
   const decks = sets.filter(deck => (deck.hsk_level ?? 1) === effectiveLevel)
 
   // Badge "%"/"Belum" di tiap kartu masih pakai skor flashcard-nya sendiri.
-  // Tapi buka-kunci Day berikutnya sekarang mengikuti skor QUIZ dari Day
-  // sebelumnya (bukan flashcard lagi) — lihat diskusi soal alur
-  // Flashcard -> Quiz -> Nada/Menulis. Kalau Day sebelumnya belum punya
-  // quiz sama sekali (kontennya belum dibuat), Day ini sengaja TETAP
-  // terkunci, tidak fallback ke skor flashcard.
+  // Buka-kunci Day berikutnya mengikuti skor QUIZ dari Day sebelumnya
+  // Flashcard -> Quiz -> Nada/Menulis.
   const [fcScores, setFcScores] = React.useState<Record<string, number>>({})
   const [quizScores, setQuizScores] = React.useState<Record<string, number>>({})
-  const [quizKeyByDeckId, setQuizKeyByDeckId] = React.useState<Record<number, string>>({})
 
   React.useEffect(() => {
     getUserScoresByType("fc_session").then(setFcScores)
     getUserScoresByType("quiz").then(setQuizScores)
-    supa.from("quiz_sets").select("id, key").then(({ data }) => {
-      const map: Record<number, string> = {}
-      for (const row of data ?? []) map[row.id] = row.key
-      setQuizKeyByDeckId(map)
-    })
-  }, [supa])
+  }, [])
 
   return (
     <section className="flex flex-col gap-5">
@@ -68,8 +59,7 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
             const score = fcScores[String(deck.id)]
             const isDone = score !== undefined
             const prevDeck = index > 0 ? decks[index - 1] : null
-            const prevQuizKey = prevDeck ? quizKeyByDeckId[prevDeck.id] : undefined
-            const prevDone = !prevDeck ? true : prevQuizKey !== undefined && quizScores[prevQuizKey] !== undefined
+            const prevDone = !prevDeck ? true : quizScores[String(prevDeck.id)] !== undefined
             const isLocked = !prevDone
 
             const cardInner = (
