@@ -9,13 +9,13 @@ import { Input } from "@/components/ui/input"
 import { listCards, addCard, deleteCard, type PersonalCard } from "@/lib/personal-decks"
 import { listDecks, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, ArrowLeft, BookOpen, Search, Volume2, X, Languages, Filter, ChevronDown } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, BookOpen, Search, X, Languages, Filter, ChevronDown, Play } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
-import { performSmartSearch, initGlobalSearchCache, type GlobalWord } from "@/lib/hanzi-segmentation"
+import { performSmartSearch, initGlobalSearchCache, getWordDetailPath, type GlobalWord } from "@/lib/hanzi-segmentation"
 
 type Card = {
   id: number
@@ -156,13 +156,34 @@ export default function DeckDetailPage() {
           <h1 className="text-2xl font-bold tracking-tight">{deck.title}</h1>
           <p className="text-sm text-muted-foreground">{theme.name} · {cards.length} kartu</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="hidden sm:flex">
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Kartu
-        </Button>
-        <Button onClick={() => setShowAddModal(true)} size="icon" className="sm:hidden">
-          <Plus className="h-4 w-4" />
-        </Button>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="outline">
+                <Play className="h-4 w-4 mr-2" />
+                Latihan
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/flashcard/${deckId}?personal=true`)}>
+                Flashcard Hafalan
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/nada/${deckId}?personal=true`)}>
+                Nada
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/tulis/${deckId}?personal=true`)}>
+                Tulis
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={() => setShowAddModal(true)} className="hidden sm:flex">
+            <Plus className="h-4 w-4 mr-2" />
+            Tambah Kartu
+          </Button>
+          <Button onClick={() => setShowAddModal(true)} size="icon" className="sm:hidden">
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Add Card Modal */}
@@ -267,14 +288,6 @@ export default function DeckDetailPage() {
                         <span className="truncate text-sm text-muted-foreground">{card.arti || ""}</span>
                       </div>
                       <div className="ml-1 flex shrink-0 items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi); }}
-                          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                          aria-label="Dengar"
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </button>
                         {card.hsk_level && <HskBadge hskLevel={card.hsk_level} />}
                         <Button
                           size="icon"
@@ -344,12 +357,45 @@ export default function DeckDetailPage() {
 }
 
 function PersonalCardRow({ card, index, onDelete }: { card: Card; index: number; onDelete: () => void }) {
+  const router = useRouter()
   const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const didHold = React.useRef(false)
   const startPoint = React.useRef({ x: 0, y: 0 })
   const clearPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); pressTimer.current = null }
 
   React.useEffect(() => clearPress, [])
+
+  async function handleOpenDetail() {
+    // Personal cards don't have source info, so we need to search for the word
+    // to find if it exists in flashcard_cards or word_compounds
+    const { createClient } = await import("@/lib/supabase/browser")
+    const supa = createClient()
+
+    // Try to find in flashcard_cards first
+    const { data: flashcardData } = await supa
+      .from("flashcard_cards")
+      .select("id, set_id")
+      .eq("hanzi", card.hanzi)
+      .maybeSingle()
+
+    if (flashcardData) {
+      router.push(`/dashboard/flashcard/${flashcardData.set_id}/word/${flashcardData.id}`)
+    } else {
+      // Try to find in word_compounds
+      const { data: compoundData } = await supa
+        .from("word_compounds")
+        .select("id")
+        .eq("hanzi", card.hanzi)
+        .maybeSingle()
+
+      if (compoundData) {
+        router.push(`/dashboard/flashcard/search/word/${compoundData.id}`)
+      } else {
+        // If not found in either, show alert
+        alert("Kata ini tidak ditemukan di database utama")
+      }
+    }
+  }
 
   return (
     <div
@@ -358,7 +404,7 @@ function PersonalCardRow({ card, index, onDelete }: { card: Card; index: number;
       onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }}
       onPointerUp={clearPress}
       onPointerCancel={clearPress}
-      onClick={() => { if (didHold.current) { didHold.current = false; return } }}
+      onClick={() => { if (didHold.current) { didHold.current = false; return } handleOpenDetail() }}
     >
       <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -366,14 +412,6 @@ function PersonalCardRow({ card, index, onDelete }: { card: Card; index: number;
         <span className="truncate text-sm text-muted-foreground">{card.arti}</span>
       </div>
       <div className="ml-1 flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); speakMandarin(card.hanzi) }}
-          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          aria-label="Dengar"
-        >
-          <Volume2 className="h-4 w-4" />
-        </button>
         <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
         <button
           type="button"

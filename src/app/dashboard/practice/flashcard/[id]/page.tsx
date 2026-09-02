@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { recordSrsReview } from "@/lib/srs"
@@ -50,7 +50,9 @@ function clearRatedCardIds(userId: string, deckId: number) {
 
 export default function FlashcardPracticePage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const deckId = Number(params.id)
+  const isPersonal = searchParams.get("personal") === "true"
   const supa = useSupabase()
 
   const [cards, setCards] = React.useState<SwipeFlashcard[]>([])
@@ -64,48 +66,65 @@ export default function FlashcardPracticePage() {
       const { data: { user } } = await supa.auth.getUser()
       setUserId(user?.id ?? null)
 
-      const { data: setData } = await supa
-        .from("flashcard_sets")
-        .select("title, description, hsk_level")
-        .eq("id", deckId)
-        .maybeSingle()
+      let rawCards: any[] = []
+      let srsLevelByCard = new Map<string, number>()
+      let reviewedCardIds = new Set<string>()
+      let deckHskLevel: number | undefined = undefined
 
-      const deckHskLevel: number | undefined = setData?.hsk_level ?? undefined
+      if (isPersonal) {
+        // For personal decks, fetch from personal_cards table
+        const { data: personalCards } = await supa
+          .from("personal_cards")
+          .select("id, hanzi, pinyin, arti, word_class")
+          .eq("deck_id", deckId)
+          .order("created_at", { ascending: true })
 
-      if (setData) {
-        setDeckTitle(setData.title ?? "Kartu Hafalan")
-        const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
-        setDeckLevel(parts.length > 0 ? parts.join(" - ") : "Level A1")
-      }
+        rawCards = personalCards ?? []
+        setDeckTitle("Deck Personal")
+        setDeckLevel("Latihan Bebas")
+      } else {
+        // For regular flashcard decks
+        const { data: setData } = await supa
+          .from("flashcard_sets")
+          .select("title, description, hsk_level")
+          .eq("id", deckId)
+          .maybeSingle()
 
-      // word_class ditambahkan agar bisa ditampilkan sebagai
-      // "HSK {level} - {word_class}" di atas kartu.
-      const { data } = await supa
-        .from("flashcard_cards")
-        .select("id, hanzi, pinyin, arti, word_class")
-        .eq("set_id", deckId)
-        .order("created_at", { ascending: true })
+        const deckHskLevel: number | undefined = setData?.hsk_level ?? undefined
 
-      const rawCards = data ?? []
+        if (setData) {
+          setDeckTitle(setData.title ?? "Kartu Hafalan")
+          const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
+          setDeckLevel(parts.length > 0 ? parts.join(" - ") : "Level A1")
+        }
 
-      // Fetch this user's existing SRS progress for these cards so reviews
-      // continue from the correct level instead of always resetting to 0.
-      // Baris yang ADA di sini juga dipakai untuk menandai kartu yang
-      // "belum pernah dibuka" (isNew) — kartu tanpa baris progress sama
-      // sekali dianggap baru, terlepas dari nilai srs_level-nya.
-      const srsLevelByCard = new Map<string, number>()
-      const reviewedCardIds = new Set<string>()
-      if (user?.id && rawCards.length > 0) {
-        const { data: progressRows } = await supa
-          .from("user_card_progress")
-          .select("card_id, srs_level")
-          .eq("user_id", user.id)
-          .in("card_id", rawCards.map(c => String(c.id)))
+        // word_class ditambahkan agar bisa ditampilkan sebagai
+        // "HSK {level} - {word_class}" di atas kartu.
+        const { data } = await supa
+          .from("flashcard_cards")
+          .select("id, hanzi, pinyin, arti, word_class")
+          .eq("set_id", deckId)
+          .order("created_at", { ascending: true })
 
-        for (const row of progressRows ?? []) {
-          if (row.card_id) {
-            srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
-            reviewedCardIds.add(String(row.card_id))
+        rawCards = data ?? []
+
+        // Fetch this user's existing SRS progress for these cards so reviews
+        // continue from the correct level instead of always resetting to 0.
+        // Baris yang ADA di sini juga dipakai untuk menandai kartu yang
+        // "belum pernah dibuka" (isNew) — kartu tanpa baris progress sama
+        // sekali dianggap baru, terlepas dari nilai srs_level-nya.
+        if (user?.id && rawCards.length > 0) {
+          const { data: progressRows } = await supa
+            .from("user_card_progress")
+            .select("card_id, srs_level")
+            .eq("user_id", user.id)
+            .in("card_id", rawCards.map(c => String(c.id)))
+
+          for (const row of progressRows ?? []) {
+            if (row.card_id) {
+              srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
+              reviewedCardIds.add(String(row.card_id))
+            }
           }
         }
       }
@@ -136,7 +155,7 @@ export default function FlashcardPracticePage() {
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,
-          deckHskLevel,
+          deckHskLevel: isPersonal ? undefined : deckHskLevel,
           wordClass: card.word_class ?? undefined,
           // Kartu baru = belum pernah punya baris di user_card_progress.
           // Jika belum login, semua kartu ditampilkan sebagai kartu baru.
@@ -152,7 +171,7 @@ export default function FlashcardPracticePage() {
       // (edge case: localStorage tidak sempat ke-clear), tetap tampilkan
       // deck penuh daripada layar kosong.
       let finalCards = cardsWithExamples
-      if (user?.id) {
+      if (user?.id && !isPersonal) {
         const ratedIds = readRatedCardIds(user.id, deckId)
         if (ratedIds.size > 0) {
           const remaining = cardsWithExamples.filter(c => !ratedIds.has(String(c.id)))
@@ -164,7 +183,7 @@ export default function FlashcardPracticePage() {
       setLoading(false)
     }
     load()
-  }, [deckId, supa])
+  }, [deckId, supa, isPersonal])
 
   const wordDetailPath = React.useCallback(
     (card: SwipeFlashcard) => `/dashboard/flashcard/${deckId}/word/${card.id}`,
@@ -172,6 +191,9 @@ export default function FlashcardPracticePage() {
   )
 
   const handleComplete = React.useCallback((stats: { hafal: number; lupa: number; ragu: number }) => {
+    // For personal decks, don't save scores or SRS progress
+    if (isPersonal) return
+
     const total = stats.hafal + stats.lupa + stats.ragu
     const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
@@ -181,19 +203,22 @@ export default function FlashcardPracticePage() {
     if (userId) {
       clearRatedCardIds(userId, deckId)
     }
-  }, [deckId, userId])
+  }, [deckId, userId, isPersonal])
 
   // Persists each rating to user_card_progress (srs_level + next_review).
   // Without this, "Jatuh Tempo Hari Ini" never updates because no due date
   // is ever written for cards reviewed in this practice session.
   const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
+    // For personal decks, don't save SRS progress
+    if (isPersonal) return
+
     if (!userId) return
     await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0)
     // Catat kartu ini sudah dinilai di sesi yang sedang berjalan, supaya
     // kalau user keluar sebelum sesi selesai lalu buka deck ini lagi,
     // kartu ini di-skip dan tidak ke-rating dobel.
     addRatedCardId(userId, deckId, String(card.id))
-  }, [supa, userId, deckId])
+  }, [supa, userId, deckId, isPersonal])
 
   return (
     <SwipeFlashcardSession

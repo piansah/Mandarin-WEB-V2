@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
   RotateCcw,
   Eye,
@@ -84,7 +84,9 @@ function CompletionBadge({ clean }: { clean: boolean }) {
 export default function TulisHanziPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const deckId = Number(params.id)
+  const isPersonal = searchParams.get("personal") === "true"
   const supa = useSupabase()
 
   const [cards, setCards] = React.useState<Card[]>([])
@@ -141,25 +143,41 @@ export default function TulisHanziPage() {
 
   React.useEffect(() => {
     async function load() {
-      const { data: setData } = await supa
-        .from("flashcard_sets")
-        .select("title, description, hsk_level")
-        .eq("id", deckId)
-        .maybeSingle()
+      let rawCards: any[] = []
 
-      if (setData) {
-        setDeckTitle(setData.title ?? "Latihan Menulis")
-        const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
-        setDeckLevel(parts.length > 0 ? parts.join(" - ") : "")
+      if (isPersonal) {
+        // For personal decks, fetch from personal_cards table
+        const { data: personalCards } = await supa
+          .from("personal_cards")
+          .select("id, hanzi, pinyin, arti")
+          .eq("deck_id", deckId)
+          .order("created_at", { ascending: true })
+
+        rawCards = personalCards ?? []
+        setDeckTitle("Deck Personal")
+        setDeckLevel("Latihan Bebas")
+      } else {
+        // For regular flashcard decks
+        const { data: setData } = await supa
+          .from("flashcard_sets")
+          .select("title, description, hsk_level")
+          .eq("id", deckId)
+          .maybeSingle()
+
+        if (setData) {
+          setDeckTitle(setData.title ?? "Latihan Menulis")
+          const parts = [setData.description, setData.hsk_level ? `HSK ${setData.hsk_level}` : null].filter(Boolean)
+          setDeckLevel(parts.length > 0 ? parts.join(" - ") : "")
+        }
+
+        const { data } = await supa
+          .from("flashcard_cards")
+          .select("id, hanzi, pinyin, arti")
+          .eq("set_id", deckId)
+          .order("created_at", { ascending: true })
+
+        rawCards = data ?? []
       }
-
-      const { data } = await supa
-        .from("flashcard_cards")
-        .select("id, hanzi, pinyin, arti")
-        .eq("set_id", deckId)
-        .order("created_at", { ascending: true })
-
-      const rawCards = data ?? []
 
       // Ambil contoh kalimat per KATA ASAL (bukan per karakter) — sama
       // persis pola di halaman Nada — supaya tiap karakter yang berasal
@@ -211,7 +229,7 @@ export default function TulisHanziPage() {
       setLoading(false)
     }
     load()
-  }, [deckId, supa])
+  }, [deckId, supa, isPersonal])
 
   const card = cards[idx]
   const total = cards.length

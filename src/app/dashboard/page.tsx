@@ -66,11 +66,25 @@ export default function DashboardPage() {
       if (decks && decks.length > 0) {
         // Find first incomplete deck
         for (const deck of decks) {
+          // Get all card IDs for this deck
+          const { data: deckCards } = await supa
+            .from("flashcard_cards")
+            .select("id")
+            .eq("set_id", deck.id)
+
+          if (!deckCards || deckCards.length === 0) {
+            setNextDeck(deck)
+            break
+          }
+
+          const cardIds = deckCards.map(c => c.id)
+
+          // Get progress for these cards
           const { data: progress } = await supa
             .from("user_card_progress")
             .select("card_id, srs_level")
             .eq("user_id", user.id)
-            .eq("set_id", deck.id)
+            .in("card_id", cardIds)
 
           if (!progress || progress.length === 0) {
             setNextDeck(deck)
@@ -78,13 +92,8 @@ export default function DashboardPage() {
           }
 
           // Check if deck is complete (all cards have srs_level >= 1)
-          const { data: totalCards } = await supa
-            .from("flashcard_cards")
-            .select("id")
-            .eq("set_id", deck.id)
-
           const completedCards = progress.filter(p => p.srs_level >= 1).length
-          if (totalCards && completedCards < totalCards.length) {
+          if (completedCards < deckCards.length) {
             setNextDeck(deck)
             break
           }
@@ -379,8 +388,7 @@ export default function DashboardPage() {
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
                     onClick={() => window.location.href = '/dashboard/review'}
                   >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Mulai Review ({srsStats.due} kartu)
+                    Mulai Review
                   </Button>
                 </div>
               ) : (

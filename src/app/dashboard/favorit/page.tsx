@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { listFavorites, removeFavorite, type FavoriteCard } from "@/lib/personal-decks"
-import { Heart, Trash2, Volume2 } from "lucide-react"
+import { Heart, Trash2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
+import { getWordDetailPath } from "@/lib/hanzi-segmentation"
 
 export default function FavoritesPage() {
   const router = useRouter()
@@ -37,10 +38,30 @@ export default function FavoritesPage() {
     }
   }
 
-  function handleOpenDetail(card: FavoriteCard) {
-    if (card.source_id && card.source) {
-      // Navigate to the original deck word detail
-      router.push(`/dashboard/flashcard/${card.source_id}/word/${card.source}`)
+  async function handleOpenDetail(card: FavoriteCard) {
+    if (!card.source_id) return
+
+    // If it's an HSK card, we need to find the set_id
+    if (card.source === "hsk") {
+      const { createClient } = await import("@/lib/supabase/browser")
+      const supa = createClient()
+
+      // Query flashcard_cards to get the set_id
+      const { data: cardData } = await supa
+        .from("flashcard_cards")
+        .select("set_id")
+        .eq("id", card.source_id)
+        .maybeSingle()
+
+      if (cardData?.set_id) {
+        router.push(`/dashboard/flashcard/${cardData.set_id}/word/${card.source_id}`)
+      } else {
+        // Fallback to search page
+        router.push(`/dashboard/flashcard/search/word/${card.source_id}`)
+      }
+    } else {
+      // For compound cards, use search page
+      router.push(`/dashboard/flashcard/search/word/${card.source_id}`)
     }
   }
 
@@ -129,17 +150,7 @@ function FavoriteRow({ card, index, onOpen }: { card: FavoriteCard; index: numbe
         <TonePinyin text={card.pinyin} className="text-sm font-medium" />
         <span className="truncate text-sm text-muted-foreground">{card.arti}</span>
       </div>
-      <div className="ml-1 flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); speakMandarin(card.hanzi) }}
-          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          aria-label="Dengar"
-        >
-          <Volume2 className="h-4 w-4" />
-        </button>
-        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
-      </div>
+      <span className="ml-1 text-xs font-medium text-muted-foreground">#{index + 1}</span>
     </div>
   )
 }
