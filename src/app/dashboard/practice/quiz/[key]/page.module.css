@@ -165,6 +165,14 @@
 .sectionSub { color: var(--c-sub); font-size: 12px; margin-top: 2px; }
 .sectionRange { margin-left: auto; flex-shrink: 0; color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
 
+/* ── Section body (list of question cards within a section) ── */
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
 /* ── Question card ── */
 .qCard {
   padding: 18px 20px 14px;
@@ -184,6 +192,23 @@
   gap: 12px;
   margin-bottom: 14px;
 }
+
+/* Small "replay audio" button, top-right of an answered question card */
+.replayBtn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  border: 1.5px solid var(--c-opt-border);
+  border-radius: 8px;
+  background: var(--c-opt-bg);
+  color: var(--c-sub);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.replayBtn:hover { border-color: rgba(66,214,164,.6); color: var(--c-ok); }
 .qNum {
   flex-shrink: 0;
   width: 24px;
