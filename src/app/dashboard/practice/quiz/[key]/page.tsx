@@ -408,7 +408,11 @@ export default function QuizPage() {
   }
 
   /* ── Main Quiz ── */
-  const visibleSections = [0, 1, 2, 3].filter(si => activeTab === "all" || activeTab === si)
+  const availableSections = React.useMemo<QuizSection[]>(() => {
+    const present = new Set(allQ.map(q => q.si))
+    return ([0, 1, 2, 3] as QuizSection[]).filter(si => present.has(si))
+  }, [allQ])
+  const visibleSections = availableSections.filter(si => activeTab === "all" || activeTab === si)
 
   return (
     <div className={styles.page}>
@@ -436,7 +440,7 @@ export default function QuizPage() {
           </button>
           {filterOpen && (
             <div className={styles.filterMenu} role="listbox">
-              {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
+              {([["all", "Semua Bagian"], ...availableSections.map(si => [si, `Bagian ${si + 1}`] as const)] as const).map(([t, lbl]) => (
                 <button
                   key={String(t)}
                   type="button"
@@ -539,15 +543,12 @@ export default function QuizPage() {
           })}
         </div>
 
-        <div
-          className="sticky bottom-0 z-20 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
-          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-        >
+        <div className="flex justify-center px-4 pt-6" style={{ paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))" }}>
           <button
             type="button"
             disabled={totalAnswered === 0}
             onClick={handleSubmit}
-            className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 text-base font-bold transition-all hover:bg-primary/80 disabled:pointer-events-none disabled:opacity-50"
+            className="h-11 px-10 rounded-full border-2 border-primary text-primary text-sm font-bold tracking-wide transition-colors hover:bg-primary/10 disabled:pointer-events-none disabled:opacity-40"
           >
             SELESAI
           </button>
