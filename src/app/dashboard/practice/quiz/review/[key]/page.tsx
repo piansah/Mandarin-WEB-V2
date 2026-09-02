@@ -159,14 +159,14 @@ export default function CumulativeQuizPracticePage() {
         const savedQ = state?.allQ ?? state?.kalQ
         const savedAnswered = state?.answered ?? state?.kalAnswered ?? {}
         if (Array.isArray(savedQ) && savedQ.length > 0) {
+          const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {
+            if (meta.data) setQuizTitle(meta.data.title)
             setAllQ(savedQ)
             setAnswered(savedAnswered)
             setSubmitted(Boolean(state.submitted))
             setLoading(false)
           }
-          const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
-          if (!cancelled && meta.data) setQuizTitle(meta.data.title)
           return
         }
       } catch {}
