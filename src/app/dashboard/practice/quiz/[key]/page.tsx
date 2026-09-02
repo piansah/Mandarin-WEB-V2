@@ -539,14 +539,17 @@ export default function QuizPage() {
           })}
         </div>
 
-        <div className={styles.submitPanel}>
+        <div
+          className="sticky bottom-0 z-20 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
+          style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
           <button
             type="button"
-            className={styles.submitBtn}
             disabled={totalAnswered === 0}
             onClick={handleSubmit}
+            className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 text-base font-bold transition-all hover:bg-primary/80 disabled:pointer-events-none disabled:opacity-50"
           >
-            {totalAnswered === totalQuestions ? "Kirim Jawaban" : `Kirim (${totalAnswered}/${totalQuestions})`}
+            SELESAI
           </button>
         </div>
       </div>
