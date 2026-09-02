@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { listCards, addCard, deleteCard, type PersonalCard } from "@/lib/personal-decks"
 import { listDecks, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, ArrowLeft, BookOpen, Search, X, Languages, Filter, ChevronDown, Layers, Music, Edit2 } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, BookOpen, Search, X, Languages, Filter, ChevronDown, Layers, Music, Edit2, CheckCircle2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {
@@ -379,6 +379,16 @@ export default function DeckDetailPage() {
                       <Layers className="h-5 w-5" />
                     </div>
                     <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
+                  </div>
+
+                  <div
+                    onClick={() => router.push(`/dashboard/practice/quiz/${deckId}?personal=true`)}
+                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                  >
+                    <div className="h-11 w-11 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
                   </div>
 
                   <div

@@ -8,9 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import {
   Drawer,
-  DrawerClose,
   DrawerContent,
-  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
@@ -53,10 +51,6 @@ export default function FlashcardDeckPage() {
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
 
   // ── Gating "Pilih Latihan": Flashcard -> Quiz -> (Nada & Menulis bareng) ──
-  // quizKey null = belum dicek / tidak ada quiz utk deck ini sama sekali
-  // (quiz_sets.id === flashcard_sets.id, jadi tinggal match by id, tanpa
-  // kolom penghubung tambahan — lihat diskusi sebelumnya).
-  const [quizKey, setQuizKey] = React.useState<string | null>(null)
   const [flashcardDone, setFlashcardDone] = React.useState(false)
   const [quizDone, setQuizDone] = React.useState(false)
 
@@ -102,11 +96,6 @@ export default function FlashcardDeckPage() {
   // supaya tidak ikut nge-block render kartu kalau lambat.
   React.useEffect(() => {
     let cancelled = false
-
-    supa.from("quiz_sets").select("key").eq("id", deckId).maybeSingle().then(({ data }) => {
-      if (!cancelled) setQuizKey(data?.key ?? null)
-    })
-
     getUserScoresByType("fc_session").then(scores => {
       if (!cancelled) setFlashcardDone(scores[String(deckId)] !== undefined)
     })
@@ -114,27 +103,24 @@ export default function FlashcardDeckPage() {
     return () => { cancelled = true }
   }, [deckId, supa])
 
-  // Skor quiz baru bisa dicek setelah tahu quizKey-nya (key quiz != deckId)
+  // Skor quiz baru bisa dicek setelah tahu deckId
   React.useEffect(() => {
-    if (!quizKey) { setQuizDone(false); return }
     let cancelled = false
     getUserScoresByType("quiz").then(scores => {
-      if (!cancelled) setQuizDone(scores[quizKey] !== undefined)
+      if (!cancelled) setQuizDone(scores[String(deckId)] !== undefined)
     })
     return () => { cancelled = true }
-  }, [quizKey])
+  }, [deckId])
 
-  const quizAvailable = quizKey !== null
-  const quizUnlocked = quizAvailable && flashcardDone
-  const postQuizUnlocked = quizAvailable && quizDone
+  const quizUnlocked = flashcardDone
+  const postQuizUnlocked = quizDone
 
   function navigateToPractice(type: string) {
     router.push(`/dashboard/practice/${type}/${deckId}`)
   }
 
   function navigateToQuiz() {
-    if (!quizKey) return
-    router.push(`/dashboard/practice/quiz/${quizKey}`)
+    router.push(`/dashboard/practice/quiz/${deckId}`)
   }
 
   function openDetail(card: Card) {
@@ -299,10 +285,7 @@ export default function FlashcardDeckPage() {
                   <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
                 </div>
 
-                {/* Quiz — kebuka setelah Flashcard selesai. Kalau deck ini
-                    belum punya quiz sama sekali (kontennya belum dibuat),
-                    tampil "Belum Tersedia" (bukan "Terkunci") supaya jelas
-                    ini keterbatasan konten, bukan progres user. */}
+                {/* Quiz — kebuka setelah Flashcard selesai */}
                 <div
                   onClick={() => { if (quizUnlocked) navigateToQuiz() }}
                   aria-disabled={!quizUnlocked}
@@ -315,10 +298,10 @@ export default function FlashcardDeckPage() {
                   <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                     <ListChecks className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Quiz Harian</span>
+                  <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
                   {!quizUnlocked && (
                     <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                      {quizAvailable ? "Selesaikan Flashcard" : "Belum Tersedia"}
+                      Selesaikan Flashcard
                     </span>
                   )}
                 </div>
@@ -360,13 +343,6 @@ export default function FlashcardDeckPage() {
                   )}
                 </div>
               </div>
-              <DrawerFooter>
-                <DrawerClose
-                  render={<Button variant="outline" className="rounded-xl" />}
-                >
-                  Batal
-                </DrawerClose>
-              </DrawerFooter>
             </div>
           </DrawerContent>
         </Drawer>

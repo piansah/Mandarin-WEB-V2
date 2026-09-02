@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { X, RotateCcw, SkipForward, CheckCircle2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -9,35 +9,21 @@ import { Button } from "@/components/ui/button"
 import { PracticeHeader } from "@/components/practice-header"
 import { PageLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
+import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card, type HanziItem } from "@/lib/quiz-generator"
+import { shuffle } from "@/lib/array-utils"
 import styles from "./page.module.css"
 
 /* ── Types ── */
-type QuizSection = "A" | "B" | "C" | "D"
-
-type RawQuestion = {
-  section: QuizSection
-  sort_order: number
-  question: string
-  options: string[]
-  answer_index: number
-}
+type QuizSection = 0 | 1 | 2 | 3
 
 type QuizQuestion = {
-  gi: number          // global index (0-99)
+  gi: number          // global index
   si: number          // section index (0-3)
   q: string           // question text
   opts: string[]      // shuffled options
   ans: number         // correct option index (after shuffle)
   selectedIdx?: number
-}
-
-type QuizData = {
-  title: string
-  sub: string
-  A: RawQuestion[]
-  B: RawQuestion[]
-  C: RawQuestion[]
-  D: RawQuestion[]
+  type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin" | "kalimat-rumpang"
 }
 
 type Answered = Record<number, boolean> // gi → correct?
@@ -68,11 +54,9 @@ function ColorPy({ text }: { text: string }) {
 
 /* ── Rumpang renderer ── */
 function RumpangText({ text }: { text: string }) {
-  // Split on blanks, hanzi, latin hints
   const parts: Array<{ type: "text" | "blank" | "hz" | "lat"; content: string }> = []
   let remaining = text.replace(/_{2,}/g, "\x00BLANK\x00")
 
-  // Tokenize step by step
   while (remaining.length > 0) {
     if (remaining.startsWith("\x00BLANK\x00")) {
       parts.push({ type: "blank", content: "" })
@@ -103,36 +87,6 @@ function RumpangText({ text }: { text: string }) {
   </span>
 }
 
-import { shuffle } from "@/lib/array-utils"
-
-/* ── Build quiz from raw data ── */
-function buildQuiz(data: QuizData): QuizQuestion[] {
-  const sections = [
-    { si: 0, raw: data.A },
-    { si: 1, raw: data.B },
-    { si: 2, raw: data.C },
-    { si: 3, raw: data.D },
-  ]
-  const all: QuizQuestion[] = []
-  let gi = 0
-  for (const { si, raw } of sections) {
-    // Shuffle first 20, keep 21-25 in place (like reference)
-    const shuffled = [...shuffle(raw.slice(0, 20)), ...raw.slice(20)]
-    for (const q of shuffled) {
-      const idxArr = [0, 1, 2, 3].slice(0, q.options.length)
-      const si2 = shuffle(idxArr)
-      all.push({
-        gi: gi++,
-        si,
-        q: q.question,
-        opts: si2.map(i => q.options[i]),
-        ans: si2.indexOf(q.answer_index),
-      })
-    }
-  }
-  return all
-}
-
 /* ── Section metadata ── */
 const SECTION_META = [
   { label: "1", title: "Hanzi → Arti Indonesia", sub: "Hanzi → pilih arti Indonesia" },
@@ -150,10 +104,36 @@ function getGrade(pct: number, title: string) {
   return { emoji: "🔄", grade: "Review Dulu Sebelum Lanjut", msg: "Kembali ke modul, review Pleco, lalu coba lagi. Pelan-pelan pasti bisa!" }
 }
 
+/* ── Convert generated quiz to internal format ── */
+function convertToInternalQuiz(generated: GeneratedQuizQuestion[]): QuizQuestion[] {
+  return generated.map((q, gi) => {
+    const sectionMap: Record<string, number> = {
+      "hanzi-arti": 0,
+      "pinyin-arti": 1,
+      "hanzi-pinyin": 2,
+      "kalimat-rumpang": 3,
+    }
+    const si = sectionMap[q.type] ?? 0
+    const shuffledOptions = shuffle(q.options)
+    const ans = shuffledOptions.indexOf(q.correct)
+
+    return {
+      gi,
+      si,
+      q: q.question,
+      opts: shuffledOptions,
+      ans,
+      type: q.type,
+    }
+  })
+}
+
 /* ── Main component ── */
 export default function QuizPage() {
   const { key } = useParams<{ key: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isPersonal = searchParams.get("personal") === "true"
   const supa = useSupabase()
 
   const [loading, setLoading] = React.useState(true)
@@ -178,68 +158,96 @@ export default function QuizPage() {
 
   const totalAnswered = Object.keys(answered).length
   const totalCorrect = Object.values(answered).filter(Boolean).length
-  const progress = (totalAnswered / 100) * 100
+  const totalQuestions = allQ.length
+  const progress = totalQuestions > 0 ? (totalAnswered / totalQuestions) * 100 : 0
 
-  /* ── Load quiz from Supabase ── */
+  /* ── Load quiz from generated data ── */
   React.useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
 
-      // Try restore from localStorage first
-      try {
-        const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-        const state = saved[key]
-        if (state?.allQ?.length === 100) {
-          if (!cancelled) {
-            setAllQ(state.allQ)
-            setAnswered(state.answered ?? {})
-            if (state.submitted) setSubmitted(true)
-            setLoading(false)
-          }
-          // Still load title in background
-          const meta = await supa.from("quiz_sets").select("title,sub").eq("key", key).single()
-          if (!cancelled && meta.data) { setQuizTitle(meta.data.title); setQuizSub(meta.data.sub) }
-          return
-        }
-      } catch { /* ignore */ }
+      const deckId = Number(key)
 
-      const [metaRes, questRes] = await Promise.all([
-        supa.from("quiz_sets").select("title,sub").eq("key", key).single(),
-        supa.from("quiz_questions")
-          .select("section,sort_order,question,options,answer_index")
-          .eq("quiz_key", key)
-          .order("section").order("sort_order"),
-      ])
+      let cards: Card[] = []
+      let deckTitle = ""
+      let deckSub = ""
+      let hanziKey: string | undefined = undefined
+      let hanziItems: HanziItem[] = []
+
+      if (isPersonal) {
+        // Load from personal_cards
+        const { data: personalCards } = await supa
+          .from("personal_cards")
+          .select("id, hanzi, pinyin, arti")
+          .eq("deck_id", deckId)
+          .order("created_at", { ascending: true })
+
+        cards = (personalCards ?? []).map(c => ({
+          id: c.id,
+          hanzi: c.hanzi,
+          pinyin: c.pinyin,
+          arti: c.arti,
+        }))
+
+        deckTitle = "Deck Personal"
+        deckSub = "Latihan Bebas"
+      } else {
+        // Load from flashcard_cards
+        const [setData, cardData] = await Promise.all([
+          supa.from("flashcard_sets").select("title, description, hsk_level").eq("id", deckId).maybeSingle(),
+          supa.from("flashcard_cards").select("id, hanzi, pinyin, arti").eq("set_id", deckId).order("created_at", { ascending: true }),
+        ])
+
+        cards = (cardData.data ?? []).map(c => ({
+          id: c.id,
+          hanzi: c.hanzi,
+          pinyin: c.pinyin,
+          arti: c.arti,
+        }))
+
+        if (setData.data) {
+          deckTitle = setData.data.title ?? "Quiz"
+          const parts = [setData.data.description, setData.data.hsk_level ? `HSK ${setData.data.hsk_level}` : null].filter(Boolean)
+          deckSub = parts.join(" - ")
+        }
+
+        // Try to get hanzi_key (for multiple of 3 check)
+        // Assuming deck ID maps to hanzi_key like: deck 3 -> h3, deck 6 -> h6, etc.
+        if (deckId % 3 === 0) {
+          hanziKey = `h${deckId}`
+          // Load hanzi_items for sentence fill
+          const { data: items } = await supa
+            .from("hanzi_items")
+            .select("id, hanzi_key, section_label, section_tag, sort_order, hanzi, pinyin, arti")
+            .eq("hanzi_key", hanziKey)
+            .order("sort_order")
+
+          hanziItems = items ?? []
+        }
+      }
 
       if (cancelled) return
-      if (metaRes.error || questRes.error) {
-        setLoading(false)
-        return
-      }
 
-      const data: QuizData = { title: metaRes.data.title, sub: metaRes.data.sub, A: [], B: [], C: [], D: [] }
-      for (const row of questRes.data as RawQuestion[]) {
-        if (data[row.section]) data[row.section].push(row)
-      }
+      // Generate quiz from cards
+      const generatedQuiz = generateQuizFromCards(cards, hanziKey, hanziItems)
+      const internalQuiz = convertToInternalQuiz(generatedQuiz)
 
-      const built = buildQuiz(data)
-      const initAnswered: Answered = {}
-
-      // Persist to localStorage
+      // Save to localStorage
+      const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
       const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-      saved[key] = { allQ: built, answered: initAnswered, submitted: false }
+      saved[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false }
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
 
-      setQuizTitle(data.title)
-      setQuizSub(data.sub)
-      setAllQ(built)
-      setAnswered(initAnswered)
+      setQuizTitle(deckTitle)
+      setQuizSub(deckSub)
+      setAllQ(internalQuiz)
+      setAnswered({})
       setLoading(false)
     }
     load()
     return () => { cancelled = true }
-  }, [key, supa])
+  }, [key, isPersonal, supa])
 
   /* ── Select answer ── */
   function selectAns(gi: number, sel: number, cor: number) {
@@ -253,10 +261,11 @@ export default function QuizPage() {
     setAnswered(updatedAns)
 
     // Persist
+    const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    if (saved[key]) {
-      saved[key].allQ = updatedQ
-      saved[key].answered = updatedAns
+    if (saved[storageKey]) {
+      saved[storageKey].allQ = updatedQ
+      saved[storageKey].answered = updatedAns
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     }
 
@@ -280,45 +289,29 @@ export default function QuizPage() {
   /* ── Submit quiz ── */
   function handleSubmit() {
     setSubmitted(true)
+    const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    if (saved[key]) { saved[key].submitted = true; localStorage.setItem("hsk_quiz_state", JSON.stringify(saved)) }
-    // totalCorrect sudah dalam basis 0-100 (100 soal), jadi sekaligus jadi persentase
-    saveUserScore("quiz", key, totalCorrect).catch(() => {})
+    if (saved[storageKey]) { saved[storageKey].submitted = true; localStorage.setItem("hsk_quiz_state", JSON.stringify(saved)) }
+    // Calculate percentage
+    const pct = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+    saveUserScore("quiz", key, pct).catch(() => {})
   }
 
   /* ── Retry quiz ── */
   function handleRetry() {
+    const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    delete saved[key]
+    delete saved[storageKey]
     localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
-    // Re-shuffle
-    const reload = async () => {
-      const questRes = await supa.from("quiz_questions")
-        .select("section,sort_order,question,options,answer_index")
-        .eq("quiz_key", key).order("section").order("sort_order")
-      if (!questRes.data) return
-      const data: QuizData = { title: quizTitle, sub: quizSub, A: [], B: [], C: [], D: [] }
-      for (const row of questRes.data as RawQuestion[]) {
-        if (data[row.section]) data[row.section].push(row)
-      }
-      const built = buildQuiz(data)
-      const newSaved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-      newSaved[key] = { allQ: built, answered: {}, submitted: false }
-      localStorage.setItem("hsk_quiz_state", JSON.stringify(newSaved))
-      setAllQ(built)
-      setAnswered({})
-      setSubmitted(false)
-      setActiveTab("all")
-      window.scrollTo(0, 0)
-    }
-    reload()
+    // Reload page to regenerate quiz
+    window.location.reload()
   }
 
   /* ── Result screen ── */
   if (!loading && submitted) {
-    const skip = 100 - totalAnswered
+    const skip = totalQuestions - totalAnswered
     const wrong = totalAnswered - totalCorrect
-    const pct = Math.round((totalCorrect / 100) * 100)
+    const pct = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
     const { emoji, grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
@@ -327,12 +320,7 @@ export default function QuizPage() {
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          {/* Result Content */}
           <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
-            {/*
-              Signature: watermark hanzi besar di belakang ring, gaya
-              sama persis dengan watermark yang muncul di flashcard session.
-            */}
             <div
               aria-hidden="true"
               className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
@@ -352,7 +340,6 @@ export default function QuizPage() {
               <p className="text-sm text-muted-foreground">{msg}</p>
             </div>
 
-            {/* Ring akurasi */}
             <div className="relative z-10 flex items-center justify-center">
               <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
                 <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
@@ -372,7 +359,6 @@ export default function QuizPage() {
               </div>
             </div>
 
-            {/* Rincian penilaian */}
             <div className="flex flex-wrap justify-center gap-2 relative z-10">
               <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
                 <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
@@ -427,20 +413,15 @@ export default function QuizPage() {
   return (
     <div className={styles.page}>
       <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-        {/* Header */}
         <PracticeHeader
-          title={quizTitle || "Quiz Harian"}
-          subtitle={quizSub || `Level ${key.replace("level-", "")}`}
+          title={quizTitle || "Quiz"}
+          subtitle={quizSub}
           progress={progress}
           rightContent={`${totalCorrect}/${totalAnswered}`}
           showStats={false}
         />
 
-        {/* Section filter dropdown - scrolls together with the questions */}
-        <div
-          ref={filterRef}
-          className={styles.filterWrap}
-        >
+        <div ref={filterRef} className={styles.filterWrap}>
           <button
             type="button"
             className={styles.filterBtn}
@@ -471,17 +452,14 @@ export default function QuizPage() {
           )}
         </div>
 
-        {/* Warn box (skip warning) — shown after submit attempt */}
-        {submitted === false && totalAnswered < 100 && allQ.length === 100 && (
+        {submitted === false && totalAnswered < totalQuestions && (
           <div className={`${styles.warnBox}`} id="warn-box" />
         )}
 
-        {/* Questions */}
         <div className={styles.main}>
           {visibleSections.map(si => {
             const sq = allQ.filter(q => q.si === si)
             if (!sq.length) return null
-            const offset = activeTab === "all" ? si * 25 : 0
             const meta = SECTION_META[si]
 
             return (
@@ -492,102 +470,81 @@ export default function QuizPage() {
                     <div className={styles.sectionTitle}>{meta.title}</div>
                     <div className={styles.sectionSub}>{meta.sub}</div>
                   </div>
-                  <div className={styles.sectionRange}>
-                    {activeTab === "all" ? `${si * 25 + 1}–${si * 25 + 25}` : "1–25"}
-                  </div>
                 </div>
+                <div className={styles.sectionBody}>
+                  {sq.map((q) => {
+                    const isAnswered = answered[q.gi] !== undefined
+                    const isCorrect = answered[q.gi]
+                    const bgClass = isAnswered
+                      ? isCorrect
+                        ? styles.correct
+                        : styles.wrong
+                      : ""
+                    const borderClass = isAnswered
+                      ? isCorrect
+                        ? styles.borderCorrect
+                        : styles.borderWrong
+                      : ""
 
-                {sq.map((q, li) => (
-                  <QuizCard
-                    key={q.gi}
-                    q={q}
-                    num={offset + li + 1}
-                    isAnswered={answered[q.gi] !== undefined}
-                    isCorrect={answered[q.gi]}
-                    onSelect={sel => selectAns(q.gi, sel, q.ans)}
-                    onReplay={() => replayQuestion(q.gi)}
-                  />
-                ))}
+                    return (
+                      <div
+                        key={q.gi}
+                        className={`${styles.qCard} ${bgClass} ${borderClass}`}
+                      >
+                        <div className={styles.qPrompt}>
+                          {q.si === 1 ? <ColorPy text={q.q} /> : q.si === 3 ? <RumpangText text={q.q} /> : q.q}
+                        </div>
+                        <div className={styles.qOpts}>
+                          {q.opts.map((opt, oi) => {
+                            const isSelected = q.selectedIdx === oi
+                            const optBg = isSelected
+                              ? isCorrect
+                                ? styles.optCorrect
+                                : styles.optWrong
+                              : ""
+                            return (
+                              <button
+                                key={oi}
+                                type="button"
+                                disabled={isAnswered}
+                                className={`${styles.optBtn} ${optBg}`}
+                                onClick={() => selectAns(q.gi, oi, q.ans)}
+                              >
+                                {q.si === 2 ? <ColorPy text={opt} /> : opt}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {isAnswered && (
+                          <button
+                            type="button"
+                            className={styles.replayBtn}
+                            onClick={() => replayQuestion(q.gi)}
+                            aria-label="Putar ulang"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </React.Fragment>
             )
           })}
+        </div>
 
-          <div className={styles.submitPanel}>
-            <div className={styles.liveInfo}>
-              <div className={styles.liveTxt}>{totalAnswered} / 100 dijawab</div>
-              <div className={styles.liveScore}>{totalCorrect} benar</div>
-            </div>
-            <button className={styles.submitBtn} onClick={handleSubmit}>
-              Selesai
-            </button>
-          </div>
+        <div className={styles.submitBar}>
+          <button
+            type="button"
+            className={styles.submitBtn}
+            disabled={totalAnswered === 0}
+            onClick={handleSubmit}
+          >
+            {totalAnswered === totalQuestions ? "Kirim Jawaban" : `Kirim (${totalAnswered}/${totalQuestions})`}
+          </button>
         </div>
       </div>
-    </div>
-  )
-}
-
-/* ── QuizCard ── */
-function QuizCard({
-  q, num, isAnswered, isCorrect, onSelect, onReplay,
-}: {
-  q: QuizQuestion
-  num: number
-  isAnswered: boolean
-  isCorrect: boolean | undefined
-  onSelect: (sel: number) => void
-  onReplay: () => void
-}) {
-  const labs = ["A", "B", "C", "D"]
-  const cardClass = !isAnswered ? styles.qCard : isCorrect ? `${styles.qCard} ${styles.qCardCorrect}` : `${styles.qCard} ${styles.qCardWrong}`
-
-  return (
-    <div id={`card-${q.gi}`} className={`${cardClass} ${isAnswered && q.si !== 1 ? styles.qCardReplay : ""}`} onClick={isAnswered && q.si !== 1 ? onReplay : undefined}>
-      <div className={styles.qTop}>
-        <span className={styles.qNum}>{num}</span>
-        <div className={styles.qText}>
-          {q.si === 0 && <div className={styles.qHanzi}>{q.q}</div>}
-          {q.si === 1 && <div className={styles.qPinyin}><ColorPy text={q.q} /></div>}
-          {q.si === 2 && <div className={styles.qHanzi}>{q.q}</div>}
-          {q.si === 3 && <RumpangText text={q.q} />}
-        </div>
-      </div>
-
-      <div className={styles.options}>
-        {q.opts.map((opt, i) => {
-          let optClass = styles.opt
-          if (q.si === 3) optClass += ` ${styles.optHanzi}`
-
-          if (isAnswered) {
-            if (i === q.ans) optClass += isCorrect ? ` ${styles.optCorrect}` : ` ${styles.optShowCorrect}`
-            else if (i === q.selectedIdx && !isCorrect) optClass += ` ${styles.optWrong}`
-          }
-
-          const optContent = q.si === 2 ? <ColorPy text={opt} /> : opt
-
-          return (
-            <button
-              key={i}
-              id={`opt-${q.gi}-${i}`}
-              className={optClass}
-              disabled={isAnswered}
-              onClick={(event) => {
-                event.stopPropagation()
-                onSelect(i)
-              }}
-            >
-              <span className={styles.optLbl}>{labs[i]}</span>
-              <span>{optContent}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      {isAnswered && (
-        <div className={`${styles.fb} ${isCorrect ? styles.fbCorrect : styles.fbWrong}`}>
-          {isCorrect ? "✓ Benar!" : `✗ Salah. Jawaban: ${labs[q.ans]}`}
-        </div>
-      )}
     </div>
   )
 }
