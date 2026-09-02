@@ -161,6 +161,12 @@ export default function QuizPage() {
   const totalQuestions = allQ.length
   const progress = totalQuestions > 0 ? (totalAnswered / totalQuestions) * 100 : 0
 
+  // Bagian soal yang benar-benar punya soal (bisa < 4 kalau deck bukan kelipatan 3)
+  const availableSections = React.useMemo<QuizSection[]>(() => {
+    const present = new Set(allQ.map(q => q.si))
+    return ([0, 1, 2, 3] as QuizSection[]).filter(si => present.has(si))
+  }, [allQ])
+
   /* ── Load quiz from generated data ── */
   React.useEffect(() => {
     let cancelled = false
@@ -408,10 +414,6 @@ export default function QuizPage() {
   }
 
   /* ── Main Quiz ── */
-  const availableSections = React.useMemo<QuizSection[]>(() => {
-    const present = new Set(allQ.map(q => q.si))
-    return ([0, 1, 2, 3] as QuizSection[]).filter(si => present.has(si))
-  }, [allQ])
   const visibleSections = availableSections.filter(si => activeTab === "all" || activeTab === si)
 
   return (
