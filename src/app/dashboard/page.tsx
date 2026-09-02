@@ -11,7 +11,6 @@ import {
   ClipboardList,
   FolderOpen,
   BookText,
-  Clock,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -247,30 +246,6 @@ export default function DashboardPage() {
     )
   }
 
-  const quickAccess = [
-    {
-      label: "Daftar Kata",
-      desc: "Flashcard, quiz, nada & tulis per deck",
-      href: "/dashboard/flashcard",
-      color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-      icon: Languages,
-    },
-    {
-      label: "Estafet",
-      desc: "Baca kalimat berurutan untuk melatih pemahaman",
-      href: "/dashboard/flashcard/cumulative",
-      color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-      icon: Layers,
-    },
-    {
-      label: "Simulasi Ujian HSK",
-      desc: "Segera hadir - placeholder",
-      href: "/dashboard/simulasi-hsk",
-      color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-      icon: ClipboardList,
-    },
-  ]
-
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header Greeting */}
@@ -289,10 +264,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Streak Widget Mingguan & Quick Access */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* Streak Widget Mingguan */}
+      <div className="grid gap-4 lg:grid-cols-1">
         {/* Streak Widget */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden relative lg:col-span-2">
+        <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden relative lg:col-span-1">
           <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
             <Flame className="w-32 h-32 text-primary" />
           </div>
@@ -336,31 +311,6 @@ export default function DashboardPage() {
                 <span className="text-xs text-muted-foreground mt-1">Konsistensi</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Access */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm h-full flex flex-col lg:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Akses Cepat</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 flex-1">
-            {quickAccess.map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                className="flex items-center gap-3 rounded-lg border border-border/50 p-3 hover:bg-muted/50 transition-colors group flex-1"
-              >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${item.color}`}>
-                  <item.icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium group-hover:text-primary transition-colors">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
-                </div>
-                <span className="text-muted-foreground text-xs group-hover:translate-x-1 transition-transform">→</span>
-              </a>
-            ))}
           </CardContent>
         </Card>
       </div>
@@ -467,8 +417,8 @@ export default function DashboardPage() {
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <FolderOpen className="h-6 w-6" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <FolderOpen className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">{nextModule.title}</h3>
@@ -478,8 +428,8 @@ export default function DashboardPage() {
               </a>
             ) : (
               <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                  <FolderOpen className="h-6 w-6" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                  <FolderOpen className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-muted-foreground">Modul Pembelajaran</h3>
@@ -495,8 +445,8 @@ export default function DashboardPage() {
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <Languages className="h-6 w-6" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Languages className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">{nextDeck.title}</h3>
@@ -506,8 +456,8 @@ export default function DashboardPage() {
               </a>
             ) : (
               <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                  <Languages className="h-6 w-6" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
+                  <Languages className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-muted-foreground">Daftar Kata</h3>
@@ -523,8 +473,8 @@ export default function DashboardPage() {
                 className="block"
               >
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <BookText className="h-6 w-6" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                    <BookText className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">{nextEstafet.title}</h3>
