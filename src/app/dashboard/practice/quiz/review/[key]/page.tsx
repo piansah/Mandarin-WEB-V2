@@ -127,6 +127,7 @@ export default function CumulativeQuizPracticePage() {
 
   const [loading, setLoading] = React.useState(true)
   const [quizTitle, setQuizTitle] = React.useState("")
+  const [quizSub, setQuizSub] = React.useState("")
   const [allQ, setAllQ] = React.useState<QuizQuestion[]>([])
   const [answered, setAnswered] = React.useState<Answered>({})
   const [submitted, setSubmitted] = React.useState(false)
@@ -161,7 +162,10 @@ export default function CumulativeQuizPracticePage() {
         if (Array.isArray(savedQ) && savedQ.length > 0) {
           const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {
-            if (meta.data) setQuizTitle(meta.data.title)
+            if (meta.data) {
+              setQuizTitle(meta.data.title)
+              setQuizSub(meta.data.sub)
+            }
             setAllQ(savedQ)
             setAnswered(savedAnswered)
             setSubmitted(Boolean(state.submitted))
@@ -193,6 +197,7 @@ export default function CumulativeQuizPracticePage() {
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
 
       setQuizTitle(metaRes.data.title)
+      setQuizSub(metaRes.data.sub)
       setAllQ(built)
       setAnswered({})
       setLoading(false)
@@ -310,7 +315,7 @@ export default function CumulativeQuizPracticePage() {
     <div className={styles.page}>
       <PracticeHeader
         title={quizTitle || "Quiz Kumulatif"}
-        subtitle={`Level ${key.replace("level-", "")}`}
+        subtitle={quizSub}
         progress={progress}
         rightContent={`${totalCorrect}/${totalAnswered}`}
       />
