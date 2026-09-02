@@ -39,7 +39,44 @@ export default function FavoritesPage() {
   }
 
   async function handleOpenDetail(card: FavoriteCard) {
-    if (!card.source_id) return
+    console.log("Opening detail for card:", card)
+
+    if (!card.source_id) {
+      console.log("No source_id, trying to search by hanzi")
+      // If no source_id, try to find by hanzi
+      const { createClient } = await import("@/lib/supabase/browser")
+      const supa = createClient()
+
+      // Try flashcard_cards first
+      const { data: flashcardData } = await supa
+        .from("flashcard_cards")
+        .select("id, set_id")
+        .eq("hanzi", card.hanzi)
+        .maybeSingle()
+
+      if (flashcardData) {
+        console.log("Found in flashcard_cards:", flashcardData)
+        router.push(`/dashboard/flashcard/${flashcardData.set_id}/word/${flashcardData.id}`)
+        return
+      }
+
+      // Try word_compounds
+      const { data: compoundData } = await supa
+        .from("word_compounds")
+        .select("id")
+        .eq("hanzi", card.hanzi)
+        .maybeSingle()
+
+      if (compoundData) {
+        console.log("Found in word_compounds:", compoundData)
+        router.push(`/dashboard/flashcard/search/word/${compoundData.id}`)
+        return
+      }
+
+      console.log("Not found in any table")
+      alert("Kata ini tidak ditemukan di database utama")
+      return
+    }
 
     // If it's an HSK card, we need to find the set_id
     if (card.source === "hsk") {

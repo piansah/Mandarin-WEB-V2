@@ -9,13 +9,21 @@ import { Input } from "@/components/ui/input"
 import { listCards, addCard, deleteCard, type PersonalCard } from "@/lib/personal-decks"
 import { listDecks, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
-import { Plus, Trash2, ArrowLeft, BookOpen, Search, X, Languages, Filter, ChevronDown, Play } from "lucide-react"
+import { Plus, Trash2, ArrowLeft, BookOpen, Search, X, Languages, Filter, ChevronDown, Layers, Music, Edit2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
 import { performSmartSearch, initGlobalSearchCache, getWordDetailPath, type GlobalWord } from "@/lib/hanzi-segmentation"
+import { useSidebar } from "@/components/ui/sidebar"
 
 type Card = {
   id: number
@@ -33,6 +41,14 @@ export default function DeckDetailPage() {
   const deckId = parseInt(params.deckId as string)
   const router = useRouter()
   const supa = useSupabase()
+  const { pinned, isMobile } = useSidebar()
+
+  // The sidebar floats as an overlay, but when pinned open on desktop it
+  // takes up real layout space — offset the fixed footer to match.
+  // On mobile the sidebar is always an overlay (Sheet), so the persisted
+  // `pinned` cookie must NOT push the footer off-screen there, otherwise
+  // this bar collapses to a thin strip pinned to the right edge.
+  const sidebarOffset = pinned && !isMobile ? '280px' : '0px'
 
   const [theme, setTheme] = React.useState<PersonalTheme | null>(null)
   const [deck, setDeck] = React.useState<PersonalDeck | null>(null)
@@ -156,34 +172,13 @@ export default function DeckDetailPage() {
           <h1 className="text-2xl font-bold tracking-tight">{deck.title}</h1>
           <p className="text-sm text-muted-foreground">{theme.name} · {cards.length} kartu</p>
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="outline">
-                <Play className="h-4 w-4 mr-2" />
-                Latihan
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/flashcard/${deckId}?personal=true`)}>
-                Flashcard Hafalan
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/nada/${deckId}?personal=true`)}>
-                Nada
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(`/dashboard/practice/tulis/${deckId}?personal=true`)}>
-                Tulis
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={() => setShowAddModal(true)} className="hidden sm:flex">
-            <Plus className="h-4 w-4 mr-2" />
-            Tambah Kartu
-          </Button>
-          <Button onClick={() => setShowAddModal(true)} size="icon" className="sm:hidden">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
+        <Button onClick={() => setShowAddModal(true)} className="hidden sm:flex">
+          <Plus className="h-4 w-4 mr-2" />
+          Tambah Kartu
+        </Button>
+        <Button onClick={() => setShowAddModal(true)} size="icon" className="sm:hidden">
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Add Card Modal */}
@@ -350,6 +345,65 @@ export default function DeckDetailPage() {
               onDelete={() => handleDeleteCard(card.id)}
             />
           ))}
+        </div>
+      )}
+
+      {/* Sticky Bottom Bar */}
+      {cards.length > 0 && (
+        <div
+          className="fixed bottom-0 right-0 z-30 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
+          style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+        >
+          <Drawer>
+            <DrawerTrigger
+              render={
+                <Button className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />
+              }
+            >
+              Mulai Latihan
+            </DrawerTrigger>
+            <DrawerContent>
+              <div className="mx-auto w-full max-w-sm">
+                <DrawerHeader className="text-center pb-2">
+                  <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+                    Pilih Latihan
+                  </DrawerTitle>
+                </DrawerHeader>
+                <div className="p-4 grid grid-cols-4 gap-2.5">
+                  <div
+                    onClick={() => router.push(`/dashboard/practice/flashcard/${deckId}?personal=true`)}
+                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
+                  >
+                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                      <Layers className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
+                  </div>
+
+                  <div
+                    onClick={() => router.push(`/dashboard/practice/nada/${deckId}?personal=true`)}
+                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                  >
+                    <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                      <Music className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
+                  </div>
+
+                  <div
+                    onClick={() => router.push(`/dashboard/practice/tulis/${deckId}?personal=true`)}
+                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                  >
+                    <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                      <Edit2 className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
+                  </div>
+                </div>
+              </div>
+            </DrawerContent>
+          </Drawer>
         </div>
       )}
     </div>
