@@ -474,10 +474,6 @@ export default function DashboardPage() {
                     <h3 className="font-semibold text-foreground">{nextModule.title}</h3>
                     <p className="text-sm text-muted-foreground">Pelajari materi baru dengan kurikulum terstruktur</p>
                   </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">~15 menit</span>
-                  </div>
                 </div>
               </a>
             ) : (
@@ -506,10 +502,6 @@ export default function DashboardPage() {
                     <h3 className="font-semibold text-foreground">{nextDeck.title}</h3>
                     <p className="text-sm text-muted-foreground">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
                   </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">~20 menit</span>
-                  </div>
                 </div>
               </a>
             ) : (
@@ -537,10 +529,6 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">{nextEstafet.title}</h3>
                     <p className="text-sm text-muted-foreground">Baca kalimat berurutan untuk melatih pemahaman</p>
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span className="text-sm">~10 menit</span>
                   </div>
                 </div>
               </a>

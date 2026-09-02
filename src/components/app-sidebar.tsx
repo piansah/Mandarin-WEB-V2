@@ -89,6 +89,11 @@ const learningPathItems = [
     icon: Layers,
   },
   {
+    title: "Simulasi Ujian HSK",
+    url: "/dashboard/simulasi-hsk",
+    icon: ClipboardList,
+  },
+  {
     title: "Baca",
     url: "/dashboard/cerita",
     icon: BookMarked,
