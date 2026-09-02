@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ONBOARDING_SLIDES } from "@/lib/onboarding"
+import { VocabDemo, FlashcardDemo, ModulDemo, QuizDemo, SimulasiDemo } from "@/components/onboarding-mini-demos"
 import {
   PLACEMENT_LEVEL_OPTIONS,
   DAILY_GOAL_OPTIONS,
@@ -26,6 +27,20 @@ import {
 // plus pertanyaan target belajar harian yang baru.
 const INTRO_STEPS = ONBOARDING_SLIDES.map((_, i) => `intro-${i}` as const)
 const STEPS = [...INTRO_STEPS, "level", "time", "goal", "result"] as const
+
+// Mini demo animasi untuk slide fitur yang sudah live + yang masih "segera
+// hadir" (Modul, Simulasi Ujian tetap dikasih preview biar user tahu arahnya
+// mau ke mana). Index harus sinkron dengan urutan di ONBOARDING_SLIDES
+// (lib/onboarding.ts): 0 Selamat datang, 1 Daftar Kata, 2 Flashcard,
+// 3 Modul Belajar, 4 Quiz, 5 Estafet, 6 Simulasi Ujian. Slide yang tidak
+// terdaftar di sini tetap pakai ikon emoji besar seperti biasa.
+const INTRO_DEMOS: Partial<Record<number, React.ComponentType>> = {
+  1: VocabDemo,
+  2: FlashcardDemo,
+  3: ModulDemo,
+  4: QuizDemo,
+  6: SimulasiDemo,
+}
 type Step = (typeof STEPS)[number]
 
 const TOTAL_STEPS = STEPS.length
@@ -84,12 +99,18 @@ export default function PlacementPage() {
         <CardContent className="flex flex-col gap-7 p-6 sm:p-8">
           {introIndex >= 0 && (
             <div className="flex flex-col items-center gap-5 text-center">
-              <div
-                key={`icon-${introIndex}`}
-                className="flex h-20 w-20 animate-in zoom-in-50 items-center justify-center rounded-2xl bg-primary/10 text-4xl duration-300"
-              >
-                {ONBOARDING_SLIDES[introIndex].emoji}
-              </div>
+              {INTRO_DEMOS[introIndex] ? (
+                <div key={`demo-${introIndex}`} className="w-full animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                  {React.createElement(INTRO_DEMOS[introIndex]!)}
+                </div>
+              ) : (
+                <div
+                  key={`icon-${introIndex}`}
+                  className="flex h-20 w-20 animate-in zoom-in-50 items-center justify-center rounded-2xl bg-primary/10 text-4xl duration-300"
+                >
+                  {ONBOARDING_SLIDES[introIndex].emoji}
+                </div>
+              )}
               <div className="flex flex-col items-center gap-2.5">
                 <h1 className="text-2xl font-bold tracking-tight">{ONBOARDING_SLIDES[introIndex].title}</h1>
                 <Badge variant="secondary" className="uppercase tracking-wide">
@@ -144,9 +165,8 @@ export default function PlacementPage() {
                     className="text-left"
                   >
                     <Card
-                      className={`border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/40 ${
-                        level === opt.value ? "border-primary/60 bg-primary/5" : ""
-                      }`}
+                      className={`border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/40 ${level === opt.value ? "border-primary/60 bg-primary/5" : ""
+                        }`}
                     >
                       <CardContent className="flex items-center justify-between gap-3 p-4">
                         <div>
@@ -185,9 +205,8 @@ export default function PlacementPage() {
                     }}
                   >
                     <Card
-                      className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${
-                        dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
-                      }`}
+                      className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                        }`}
                     >
                       <CardContent className="flex flex-col items-center gap-0.5 p-4">
                         <p className="text-sm font-semibold">{opt.title}</p>
@@ -224,9 +243,8 @@ export default function PlacementPage() {
                     }}
                   >
                     <Card
-                      className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${
-                        goal === opt.value ? "border-primary/60 bg-primary/5" : ""
-                      }`}
+                      className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${goal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                        }`}
                     >
                       <CardContent className="p-4 text-sm font-semibold">{opt.title}</CardContent>
                     </Card>
@@ -257,9 +275,8 @@ export default function PlacementPage() {
                 {tierPreview(level).map((t) => (
                   <div
                     key={t.tier}
-                    className={`flex items-center justify-between rounded-xl border px-4 py-3 ${
-                      t.unlocked ? "border-primary/40 bg-primary/5" : "border-border/50 bg-muted/30"
-                    }`}
+                    className={`flex items-center justify-between rounded-xl border px-4 py-3 ${t.unlocked ? "border-primary/40 bg-primary/5" : "border-border/50 bg-muted/30"
+                      }`}
                   >
                     <div>
                       <p className="text-sm font-semibold">{t.label}</p>
