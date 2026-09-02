@@ -197,7 +197,7 @@ export function AppSidebar({
             <span className="font-hanzi text-xl font-bold text-white">木</span>
           </div>
           <span className="truncate text-lg font-bold">
-            <span className="text-black dark:text-white">JOURNEY</span><span className="ml-0.5 text-2xl text-primary">.</span>
+            <span className="text-black dark:text-white">JOURNEY LEARNING</span><span className="ml-0.5 text-2xl text-primary">.</span>
           </span>
         </div>
       </SidebarHeader>

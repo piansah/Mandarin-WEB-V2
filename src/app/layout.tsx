@@ -46,8 +46,8 @@ const longCang = Long_Cang({
 
 
 export const metadata: Metadata = {
-  title: "木 Journey - Mandarin HSK 3.0",
-  description: "Platform kursus Mandarin modern — HSK 3.0",
+  title: "Journey Learning - Belajar Bahasa Selangkah Demi Selangkah",
+  description: "Platform belajar bahasa modern — dimulai dari Mandarin HSK 3.0, dengan lebih banyak bahasa segera menyusul.",
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "木 Journey",
+    title: "Journey Learning",
   },
 };
 

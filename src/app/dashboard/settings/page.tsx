@@ -282,7 +282,7 @@ export default function SettingsPage() {
             Download PWA
           </CardTitle>
           <CardDescription>
-            Pasang Mandarin Journey di perangkat kamu untuk akses lebih cepat, offline, dan tampilan layar penuh
+            Pasang Journey Learning di perangkat kamu untuk akses lebih cepat, offline, dan tampilan layar penuh
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -309,7 +309,7 @@ export default function SettingsPage() {
                   <Download className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="font-medium">木 Journey</p>
+                  <p className="font-medium">Journey Learning</p>
                   <p className="text-sm text-muted-foreground">Gratis • Tidak perlu App Store</p>
                 </div>
               </div>
@@ -370,7 +370,7 @@ export default function SettingsPage() {
                 {[
                   "Buka situs ini di Chrome atau Edge (Android / desktop).",
                   'Buka menu browser (ikon titik tiga), lalu pilih "Install app" / "Install halaman sebagai aplikasi".',
-                  "Konfirmasi instal — ikon 木 Journey akan muncul di layar utama atau daftar aplikasi.",
+                  "Konfirmasi instal — ikon Journey Learning akan muncul di layar utama atau daftar aplikasi.",
                 ].map((text, i) => (
                   <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
                     <span className="mt-0.5 grid h-6 w-6 flex-shrink-0 place-items-center rounded-full bg-background text-xs font-bold">

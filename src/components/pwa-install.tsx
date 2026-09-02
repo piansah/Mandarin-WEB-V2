@@ -29,7 +29,7 @@ export function PWAInstall() {
             <div>
               <CardTitle className="text-lg">Install Aplikasi</CardTitle>
               <CardDescription className="text-sm">
-                Install Mandarin Journey untuk pengalaman belajar yang lebih baik
+                Install Journey Learning untuk pengalaman belajar yang lebih baik
               </CardDescription>
             </div>
             <Button variant="ghost" size="icon-sm" onClick={handleDismiss}>

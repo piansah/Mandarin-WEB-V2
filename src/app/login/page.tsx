@@ -2,7 +2,7 @@ import { Metadata } from "next"
 import { LoginForm } from "@/components/login-form"
 
 export const metadata: Metadata = {
-  title: "Login - Mandarin Course Web",
+  title: "Login - Journey Learning",
   description: "Masuk ke akun Anda",
 }
 
@@ -13,9 +13,9 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-primary/90" />
         <div className="relative z-20 flex items-center text-lg font-medium gap-2">
           <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm border border-white/30">
-            <span className="text-white font-bold text-sm">MJ</span>
+            <span className="text-white font-bold text-sm">JL</span>
           </div>
-          Mandarin Journey
+          Journey Learning
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
