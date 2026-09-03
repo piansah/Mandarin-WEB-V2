@@ -47,7 +47,7 @@ export function NavUser({
     ? user.name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase()
     : "CN"
 
-  const displayAvatar = profile?.avatar || user.avatar
+  const displayAvatar = profile?.customAvatarUrl || user.avatar || undefined
 
   return (
     <SidebarMenu>
@@ -61,7 +61,9 @@ export function NavUser({
             <div className="flex items-center gap-3 w-full">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={displayAvatar} alt={user.name} />
-                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+                <AvatarFallback className="text-lg">
+                  {profile?.avatar ?? initials}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <div className="flex items-center justify-between">

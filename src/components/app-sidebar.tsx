@@ -196,8 +196,8 @@ export function AppSidebar({
           <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary flex-shrink-0">
             <span className="font-hanzi text-xl font-bold text-white">木</span>
           </div>
-          <span className="truncate text-lg font-bold">
-            <span className="text-black dark:text-white">JOURNEY LEARNING</span><span className="ml-0.5 text-2xl text-primary">.</span>
+          <span className="truncate text-base font-bold">
+            <span className="text-black dark:text-white">JOURNEY LEARNING</span><span className="ml-0.5 text-xl text-primary">.</span>
           </span>
         </div>
       </SidebarHeader>

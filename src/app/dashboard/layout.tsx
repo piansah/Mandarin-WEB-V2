@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("user_profile")
-    .select("display_name")
+    .select("display_name, custom_avatar_url")
     .eq("user_id", user.id)
     .maybeSingle()
 
@@ -26,7 +26,8 @@ export default async function DashboardLayout({
       user.email?.split("@")[0] ||
       "Pelajar",
     email: user.email ?? "",
-    avatar: user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
+    // Prioritas: foto custom upload → Google OAuth avatar
+    avatar: profile?.custom_avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || "",
   }
 
   const cookieStore = await cookies()

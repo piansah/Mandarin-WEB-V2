@@ -2,22 +2,31 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/browser"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { fetchUserProfile, updateAvatar, updateProfileName, AVATAR_OPTIONS, BADGES, type UserProfile } from "@/lib/user-profile"
-import { Trophy, Star, Flame, BookOpen, Target, Award, Settings, ChevronRight } from "lucide-react"
+import {
+  fetchUserProfile,
+  updateAvatar,
+  updateProfileName,
+  uploadAvatarPhoto,
+  AVATAR_OPTIONS,
+  BADGES,
+  type UserProfile,
+} from "@/lib/user-profile"
+import { Trophy, Star, Flame, BookOpen, Target, Award, Settings, Camera, Loader2 } from "lucide-react"
 
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [editingName, setEditingName] = React.useState(false)
   const [newName, setNewName] = React.useState("")
-  const [selectedAvatar, setSelectedAvatar] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
+  const [uploading, setUploading] = React.useState(false)
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   React.useEffect(() => {
@@ -42,7 +51,6 @@ export default function ProfilePage() {
   }
 
   const handleSelectAvatar = async (avatarId: string) => {
-    setSelectedAvatar(avatarId)
     setSaving(true)
     const result = await updateAvatar(avatarId)
     setSaving(false)
@@ -51,6 +59,49 @@ export default function ProfilePage() {
     } else {
       alert(result.error)
     }
+  }
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validasi tipe & ukuran
+    if (!file.type.startsWith("image/")) {
+      alert("Hanya file gambar yang diizinkan.")
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ukuran foto maksimal 5 MB.")
+      return
+    }
+
+    // Tampilkan preview lokal dulu agar terasa instan
+    const localUrl = URL.createObjectURL(file)
+    setPreviewUrl(localUrl)
+
+    setUploading(true)
+    const result = await uploadAvatarPhoto(file)
+    setUploading(false)
+
+    if (result.error) {
+      alert("Gagal upload: " + result.error)
+      setPreviewUrl(null)
+    } else {
+      // Langsung update state untuk data database.
+      setProfile((prev) =>
+        prev ? { ...prev, customAvatarUrl: result.url } : prev
+      )
+      // Sengaja TIDAK men-set previewUrl(null) di sini agar foto tidak berkedip
+      // menunggu browser mendownload URL foto asli dari Supabase.
+      // localUrl (blob) tetap akan dipakai selama user di halaman ini.
+    }
+
+    // Reset input agar bisa pilih file sama lagi
+    e.target.value = ""
   }
 
   const getLevelProgress = (level: number): number => {
@@ -85,6 +136,9 @@ export default function ProfilePage() {
     )
   }
 
+  // Prioritas tampilan: preview lokal → custom upload → emoji fallback
+  const displaySrc = previewUrl ?? profile.customAvatarUrl ?? undefined
+
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -96,39 +150,71 @@ export default function ProfilePage() {
       {/* Profile Card */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-            <div className="relative">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={profile.avatar || undefined} alt={profile.displayName} />
-                <AvatarFallback className="text-3xl">{profile.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <Badge className="absolute -bottom-2 -right-2 bg-primary">
+          <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
+            {/* Avatar with upload button */}
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={handleAvatarClick}
+                disabled={uploading}
+                className="relative group focus:outline-none"
+                title="Klik untuk ganti foto profil"
+              >
+                <Avatar className="h-24 w-24 border-4 border-primary">
+                  <AvatarImage src={displaySrc} alt={profile.displayName} />
+                  <AvatarFallback className="text-3xl">
+                    {profile.avatar ?? profile.displayName.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Overlay kamera */}
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {uploading ? (
+                    <Loader2 className="h-6 w-6 text-white animate-spin" />
+                  ) : (
+                    <Camera className="h-6 w-6 text-white" />
+                  )}
+                </div>
+              </button>
+
+              <Badge className="absolute bottom-0 right-0 bg-primary">
                 Lvl {profile.level}
               </Badge>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
 
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 flex flex-col items-center md:items-start space-y-2">
               <div className="flex items-center gap-2">
                 {editingName ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col md:flex-row items-center gap-3 w-full">
                     <input
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      className="text-2xl font-bold bg-transparent border-b-2 border-primary focus:outline-none"
+                      className="text-2xl font-bold bg-transparent border-b-2 border-primary focus:outline-none w-full max-w-[200px] md:max-w-[300px] text-center md:text-left"
                       maxLength={30}
                     />
-                    <Button size="sm" onClick={handleSaveName} disabled={saving}>
-                      {saving ? "Menyimpan..." : "Simpan"}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setEditingName(false); setNewName(profile.displayName) }}>
-                      Batal
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={handleSaveName} disabled={saving}>
+                        {saving ? "Menyimpan..." : "Simpan"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingName(false); setNewName(profile.displayName) }}>
+                        Batal
+                      </Button>
+                    </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-2xl font-bold">{profile.displayName}</h2>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingName(true)}>
+                  <div className="flex items-center gap-2 max-w-full">
+                    <h2 className="text-2xl font-bold truncate">{profile.displayName}</h2>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(true)} className="shrink-0">
                       <Settings className="h-4 w-4" />
                     </Button>
                   </div>
@@ -141,22 +227,18 @@ export default function ProfilePage() {
                   {profile.title}
                 </Badge>
               </div>
-            </div>
-
-            <div className="text-right space-y-1">
-              <div className="text-3xl font-bold text-primary">{profile.totalScore.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Total XP</div>
+              {/* Upload hint */}
             </div>
           </div>
 
           {/* Level Progress */}
-          <div className="mt-6 space-y-2">
+          <div className="mt-8 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Level {profile.level}</span>
               <span className="text-muted-foreground">Level {profile.level + 1}</span>
             </div>
             <Progress value={getLevelProgress(profile.level)} className="h-2" />
-            <div className="text-xs text-muted-foreground text-center">
+            <div className="text-xs text-muted-foreground text-center md:text-left">
               {getXPForNextLevel(profile.level + 1) - profile.totalScore} XP ke level berikutnya
             </div>
           </div>
@@ -164,15 +246,15 @@ export default function ProfilePage() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Streak Aktif</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total XP</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Flame className="h-5 w-5 text-orange-500" />
-              <span className="text-2xl font-bold">{profile.streak} hari</span>
+              <Star className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold">{profile.totalScore.toLocaleString()}</span>
             </div>
           </CardContent>
         </Card>
@@ -184,7 +266,7 @@ export default function ProfilePage() {
           <CardContent>
             <div className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-yellow-500" />
-              <span className="text-2xl font-bold">{profile.bestStreak} hari</span>
+              <span className="text-2xl font-bold">{profile.bestStreak}</span>
             </div>
           </CardContent>
         </Card>
@@ -270,11 +352,11 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Avatar Selection */}
+      {/* Emoji Avatar Selection */}
       <Card>
         <CardHeader>
-          <CardTitle>Ganti Avatar</CardTitle>
-          <CardDescription>Pilih avatar untuk profil kamu</CardDescription>
+          <CardTitle>Avatar Emoji</CardTitle>
+          <CardDescription>Atau pilih avatar emoji sebagai fallback saat tidak ada foto</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-5 md:grid-cols-10 gap-4">

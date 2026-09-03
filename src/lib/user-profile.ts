@@ -76,6 +76,7 @@ export interface UserProfile {
   displayName: string
   email: string | null
   avatar: string | null
+  customAvatarUrl: string | null
   totalScore: number
   level: number
   title: string
@@ -167,7 +168,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
 
   const [profileRes, statsRpcRes, streakRes, progressRes, quizCountRes, unlockedTiers] =
     await Promise.all([
-      supa.from("user_profile").select("display_name, selected_avatar").eq("user_id", user.id).maybeSingle(),
+      supa.from("user_profile").select("display_name, selected_avatar, custom_avatar_url").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
       supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10)),
       supa.from("user_card_progress").select("srs_level").eq("user_id", user.id),
@@ -219,6 +220,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     displayName: profileRes.data?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
     email: user.email ?? null,
     avatar: profileRes.data?.selected_avatar ?? null,
+    customAvatarUrl: profileRes.data?.custom_avatar_url ?? null,
     totalScore,
     level,
     title: getTitleForLevel(level, unlockedTiers),
@@ -242,7 +244,12 @@ export async function updateAvatar(avatarId: string): Promise<{ error: string | 
   const { error } = await supa
     .from("user_profile")
     .upsert(
-      { user_id: user.id, selected_avatar: avatar, updated_at: new Date().toISOString() },
+      { 
+        user_id: user.id, 
+        selected_avatar: avatar, 
+        custom_avatar_url: null, // Hapus URL custom agar emoji bisa tampil
+        updated_at: new Date().toISOString() 
+      },
       { onConflict: "user_id" },
     )
   return { error: error?.message ?? null }
@@ -262,4 +269,38 @@ export async function updateProfileName(name: string): Promise<{ error: string |
       { onConflict: "user_id" },
     )
   return { error: error?.message ?? null }
+}
+
+export async function uploadAvatarPhoto(
+  file: File
+): Promise<{ url: string | null; error: string | null }> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return { url: null, error: "Belum login" }
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg"
+  const path = `${user.id}/profile.${ext}`
+
+  // Upload (upsert agar foto lama langsung tertimpa)
+  const { error: uploadError } = await supa.storage
+    .from("avatars")
+    .upload(path, file, { upsert: true, contentType: file.type })
+
+  if (uploadError) return { url: null, error: uploadError.message }
+
+  const { data: urlData } = supa.storage.from("avatars").getPublicUrl(path)
+  // Tambahkan cache-busting agar browser tidak pakai foto lama
+  const cacheBustedUrl = `${urlData.publicUrl}?t=${Date.now()}`
+
+  const { error: dbError } = await supa
+    .from("user_profile")
+    .upsert(
+      { user_id: user.id, custom_avatar_url: cacheBustedUrl, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    )
+
+  if (dbError) return { url: null, error: dbError.message }
+  return { url: cacheBustedUrl, error: null }
 }

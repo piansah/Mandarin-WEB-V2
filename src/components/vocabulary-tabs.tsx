@@ -251,12 +251,12 @@ function VocabularySearch() {
         <div className="flex gap-2">
           {/* Filter Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Filter className="h-4 w-4" />
-                {searchFilter === "all" ? "Semua" : searchFilter === "hsk" ? "HSK" : searchFilter === "common" ? "Common" : "Native"}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="sm" className="gap-2" />}
+            >
+              <Filter className="h-4 w-4" />
+              {searchFilter === "all" ? "Semua" : searchFilter === "hsk" ? "HSK" : searchFilter === "common" ? "Common" : "Native"}
+              <ChevronDown className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => handleFilterChange("all")}>
@@ -276,12 +276,12 @@ function VocabularySearch() {
 
           {/* Search Type Dropdown */}
           <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Search className="h-4 w-4" />
-                {searchType === "all" ? "Semua Tipe" : searchType === "hanzi" ? "汉字" : searchType === "pinyin" ? "Pinyin" : "Arti"}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
+            <DropdownMenuTrigger
+              render={<Button variant="outline" size="sm" className="gap-2" />}
+            >
+              <Search className="h-4 w-4" />
+              {searchType === "all" ? "Semua Tipe" : searchType === "hanzi" ? "汉字" : searchType === "pinyin" ? "Pinyin" : "Arti"}
+              <ChevronDown className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem onClick={() => handleSearchTypeChange("all")}>
