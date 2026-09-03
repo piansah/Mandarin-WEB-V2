@@ -16,6 +16,10 @@ import {
   Clock,
   Play,
   RefreshCw,
+  Sun,
+  Moon,
+  Sunrise,
+  Sunset,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -244,7 +248,27 @@ export default function DashboardPage() {
   }
 
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? "Selamat Pagi" : hour < 17 ? "Selamat Siang" : "Selamat Malam"
+  let GreetingIcon = Sun
+  let greetingText = "Selamat Pagi"
+  let iconColor = "text-amber-500"
+
+  if (hour >= 18 || hour < 4) {
+    GreetingIcon = Moon
+    greetingText = "Selamat Malam"
+    iconColor = "text-slate-400"
+  } else if (hour >= 15) {
+    GreetingIcon = Sunset
+    greetingText = "Selamat Sore"
+    iconColor = "text-orange-500"
+  } else if (hour >= 11) {
+    GreetingIcon = Sun
+    greetingText = "Selamat Siang"
+    iconColor = "text-yellow-500"
+  } else if (hour >= 4) {
+    GreetingIcon = Sunrise
+    greetingText = "Selamat Pagi"
+    iconColor = "text-amber-500"
+  }
 
   if (loading) {
     return (
@@ -265,12 +289,16 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header Greeting */}
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">{greeting} 👋</p>
+      <div className="flex flex-col gap-2 mb-2">
+        <div className="flex items-center gap-2 font-medium text-muted-foreground mb-1">
+          <GreetingIcon className={`h-5 w-5 ${iconColor}`} />
+          <span>{greetingText}</span>
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">{stats.displayName}</h1>
-        <div className="flex items-center gap-2 mt-1">
+        <h1 className="text-[clamp(12px,4vw,2.5rem)] font-extrabold tracking-tight uppercase whitespace-nowrap">
+          <span className="text-foreground">HALO {stats.displayName}.</span>{" "}
+          <span className="text-foreground/70">LANJUT BELAJAR MANDARIN?</span>
+        </h1>
+        <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
             {stats.tierLabel}
           </Badge>
@@ -351,6 +379,7 @@ export default function DashboardPage() {
               )}
             </div>
           </CardHeader>
+          <div className="mx-6 h-px bg-border/50 mb-4" />
           <CardContent>
             {srsStats ? (
               <div className="space-y-4">
@@ -423,6 +452,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </CardHeader>
+        <div className="mx-6 h-px bg-border/50 mb-4" />
         <CardContent>
           <div className="space-y-3">
             {/* Modul Card */}
@@ -537,6 +567,7 @@ export default function DashboardPage() {
             </div>
           </div>
         </CardHeader>
+        <div className="mx-6 h-px bg-border/50 mb-4" />
         <CardContent>
           {stats.recentActivity.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
