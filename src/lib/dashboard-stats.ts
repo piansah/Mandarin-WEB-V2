@@ -199,11 +199,81 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
     wordsMastered,
     flashcardDue,
     quizCompleted: quizCountRes.count ?? 0,
-    recentActivity: (recentRes.data ?? []).map((r) => ({
-      key: r.key,
-      typeLabel: TYPE_LABEL[r.type] ?? r.type,
-      score: r.score,
-      timeAgo: timeAgo(r.updated_at),
-    })),
+    recentActivity: await (async () => {
+      const items = (recentRes.data ?? [])
+      if (items.length === 0) return []
+
+      // Kelompokkan key berdasarkan tipe untuk batch query
+      const deckIds: number[] = []       // fc_session, nada_session, speaking_session, tulis_session
+      const hanziKeys: string[] = []     // hanzi
+      const quizKeys: string[] = []      // quiz
+      const kalKeys: string[] = []       // kal
+      const grammarKeys: string[] = []   // grammar
+      const ceritaKeys: string[] = []    // cerita, cerita_quiz
+
+      const FLASHCARD_TYPES = new Set(["fc_session", "nada_session", "speaking_session", "tulis_session"])
+
+      for (const r of items) {
+        if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) deckIds.push(Number(r.key))
+        else if (r.type === "hanzi") hanziKeys.push(r.key)
+        else if (r.type === "quiz") quizKeys.push(r.key)
+        else if (r.type === "kal") kalKeys.push(r.key)
+        else if (r.type === "grammar") grammarKeys.push(r.key)
+        else if (r.type === "cerita" || r.type === "cerita_quiz") ceritaKeys.push(r.key)
+      }
+
+      // Batch queries paralel
+      const [deckRows, hanziRows, quizRows, kalRows, grammarRows, ceritaRows] = await Promise.all([
+        deckIds.length > 0
+          ? supa.from("flashcard_sets").select("id, title").in("id", deckIds)
+          : Promise.resolve({ data: [] }),
+        hanziKeys.length > 0
+          ? supa.from("hanzi_sets").select("key, title").in("key", hanziKeys)
+          : Promise.resolve({ data: [] }),
+        quizKeys.length > 0
+          ? supa.from("quiz_sets").select("key, title").in("key", quizKeys)
+          : Promise.resolve({ data: [] }),
+        kalKeys.length > 0
+          ? supa.from("kalimat_sets").select("key, title").in("key", kalKeys)
+          : Promise.resolve({ data: [] }),
+        grammarKeys.length > 0
+          ? supa.from("grammar_patterns").select("key, title").in("key", grammarKeys)
+          : Promise.resolve({ data: [] }),
+        ceritaKeys.length > 0
+          ? supa.from("cerita_sets").select("key, title").in("key", ceritaKeys)
+          : Promise.resolve({ data: [] }),
+      ])
+
+      // Bangun title maps
+      const deckMap: Record<number, string> = {}
+      ;(deckRows.data ?? []).forEach((d: { id: number; title: string }) => { deckMap[d.id] = d.title })
+
+      const keyTitleMap: Record<string, string> = {}
+      const mapRows = (rows: { data: { key: string; title: string }[] | null } | { data: [] }) => {
+        ;(rows.data ?? []).forEach((r: { key: string; title: string }) => { keyTitleMap[r.key] = r.title })
+      }
+      mapRows(hanziRows as { data: { key: string; title: string }[] })
+      mapRows(quizRows as { data: { key: string; title: string }[] })
+      mapRows(kalRows as { data: { key: string; title: string }[] })
+      mapRows(grammarRows as { data: { key: string; title: string }[] })
+      mapRows(ceritaRows as { data: { key: string; title: string }[] })
+
+      return items.map((r) => {
+        let resolvedTitle: string
+        if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
+          resolvedTitle = deckMap[Number(r.key)] ?? `Deck #${r.key}`
+        } else if (keyTitleMap[r.key]) {
+          resolvedTitle = keyTitleMap[r.key]
+        } else {
+          resolvedTitle = r.key
+        }
+        return {
+          key: resolvedTitle,
+          typeLabel: TYPE_LABEL[r.type] ?? r.type,
+          score: r.score,
+          timeAgo: timeAgo(r.updated_at),
+        }
+      })
+    })(),
   }
 }

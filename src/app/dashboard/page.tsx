@@ -11,6 +11,11 @@ import {
   ClipboardList,
   FolderOpen,
   BookText,
+  Brain,
+  Zap,
+  Clock,
+  Play,
+  RefreshCw,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +23,7 @@ import { Button } from "@/components/ui/button"
 
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
 import { useSupabase } from "@/hooks/use-supabase"
+import { useRouter } from "next/navigation"
 
 type SrsStats = {
   total: number
@@ -31,6 +37,7 @@ type SrsStats = {
 
 export default function DashboardPage() {
   const supa = useSupabase()
+  const router = useRouter()
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
@@ -273,8 +280,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Streak Widget Mingguan */}
-      <div className="grid gap-4 lg:grid-cols-1">
+      {/* Grid Atas: Streak & Review SRS (30/70) */}
+      <div className="grid gap-6 lg:grid-cols-[4fr_6fr]">
         {/* Streak Widget */}
         <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden relative lg:col-span-1">
           <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
@@ -322,115 +329,112 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Review Kosakata (SRS) - 60% */}
+        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-500">
+                  <Brain className="h-4 w-4" />
+                </div>
+                <CardTitle className="text-base font-bold">Review Kosakata</CardTitle>
+              </div>
+              {srsStats && srsStats.due > 0 && (
+                <Button
+                  size="sm"
+                  className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg px-4"
+                  onClick={() => window.location.href = '/dashboard/review'}
+                >
+                  Mulai Review
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {srsStats ? (
+              <div className="space-y-4">
+                {/* Stats Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <div className="text-2xl font-bold text-foreground">{srsStats.total}</div>
+                    <div className="text-xs text-muted-foreground">Total</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="text-2xl font-bold text-emerald-500">{srsStats.mature}</div>
+                    <div className="text-xs text-muted-foreground">Hafal</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <div className="text-2xl font-bold text-amber-500">{srsStats.due}</div>
+                    <div className="text-xs text-muted-foreground">Due</div>
+                  </div>
+                </div>
+
+                {/* Today's Progress */}
+                {srsStats.totalToday > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progress Hari Ini</span>
+                      <span className="font-medium">{srsStats.pctToday}%</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${srsStats.pctToday}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{srsStats.hafalToday} hafal hari ini</span>
+                      <span>{srsStats.lupaToday} lupa hari ini</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Due Cards Info */}
+                {srsStats.due > 0 && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-600 dark:text-amber-400">
+                    <RotateCcw className="h-4 w-4 shrink-0" />
+                    <p className="text-sm">{srsStats.due} kartu siap direview — klik tombol di atas untuk mulai</p>
+                  </div>
+                )}
+
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
+                <span className="text-sm">Memuat statistik...</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Review Section */}
+      {/* Sesi Hari Ini - Full Width */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Review Kosakata (SRS)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {srsStats ? (
-            <div className="space-y-4">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <div className="text-2xl font-bold text-foreground">{srsStats.total}</div>
-                  <div className="text-xs text-muted-foreground">Total</div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="text-2xl font-bold text-emerald-500">{srsStats.mature}</div>
-                  <div className="text-xs text-muted-foreground">Hafal</div>
-                </div>
-                <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <div className="text-2xl font-bold text-amber-500">{srsStats.due}</div>
-                  <div className="text-xs text-muted-foreground">Due</div>
-                </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-500">
+                <Zap className="h-4 w-4 fill-current" />
               </div>
-
-              {/* Today's Progress */}
-              {srsStats.totalToday > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Progress Hari Ini</span>
-                    <span className="font-medium">{srsStats.pctToday}%</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
-                      style={{ width: `${srsStats.pctToday}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{srsStats.hafalToday} hafal hari ini</span>
-                    <span>{srsStats.lupaToday} lupa hari ini</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Due Cards CTA */}
-              {srsStats.due > 0 ? (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-amber-500/20">
-                      <RotateCcw className="h-5 w-5 text-amber-500" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold">
-                        {srsStats.due} kartu siap direview
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Review sekarang agar tidak lupa
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white font-semibold"
-                    onClick={() => window.location.href = '/dashboard/review'}
-                  >
-                    Mulai Review
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-4 gap-3 text-muted-foreground">
-                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                  <span className="text-sm">
-                    {srsStats.totalToday > 0
-                      ? "Review Kosakata Selesai!"
-                      : "Tidak ada kartu yang harus direview"}
-                  </span>
-                </div>
-              )}
-
+              <div>
+                <CardTitle className="text-base font-bold">Sesi hari ini</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Pas dengan target harianmu</p>
+              </div>
             </div>
-          ) : (
-            <div className="flex items-center justify-center py-8 gap-3 text-muted-foreground">
-              <span className="text-sm">Memuat statistik...</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Sesi Hari Ini Section */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Sesi Hari Ini</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
             {/* Modul Card */}
             {nextModule ? (
-              <a
-                href={`/dashboard/modul`}
-                className="block"
-              >
+              <a href={`/dashboard/modul`} className="block">
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FolderOpen className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-foreground">{nextModule.title}</h3>
-                    <p className="text-sm text-muted-foreground">Pelajari materi baru dengan kurikulum terstruktur</p>
+                    <p className="text-sm text-muted-foreground">Lanjutan jalur kamu · bagian pertama dari modul</p>
                   </div>
                 </div>
               </a>
@@ -448,10 +452,7 @@ export default function DashboardPage() {
 
             {/* Daftar Kata Card */}
             {nextDeck ? (
-              <a
-                href={`/dashboard/flashcard/${nextDeck.id}`}
-                className="block"
-              >
+              <a href={`/dashboard/flashcard/${nextDeck.id}`} className="block">
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                     <Languages className="h-4 w-4" />
@@ -476,10 +477,7 @@ export default function DashboardPage() {
 
             {/* Estafet Card */}
             {nextEstafet ? (
-              <a
-                href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
-                className="block"
-              >
+              <a href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`} className="block">
                 <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <BookText className="h-4 w-4" />
@@ -492,33 +490,77 @@ export default function DashboardPage() {
               </a>
             ) : null}
           </div>
+
+          {/* Mulai Sesi CTA */}
+          {(() => {
+            // Tentukan URL sesi pertama yang tersedia
+            const firstSessionUrl = nextModule
+              ? `/dashboard/modul/${nextModule.id}`
+              : nextDeck
+                ? `/dashboard/flashcard/${nextDeck.id}`
+                : nextEstafet
+                  ? `/dashboard/flashcard/cumulative/${nextEstafet.key}`
+                  : null
+
+            return (
+              <div className="mt-8 space-y-5">
+                <Button
+                  className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full h-14 gap-2 text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  disabled={!firstSessionUrl}
+                  onClick={() => firstSessionUrl && router.push(firstSessionUrl)}
+                >
+                  <Play className="h-5 w-5 fill-current" /> Mulai sesi
+                </Button>
+                <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center">
+                  <p>Bisa dilanjut kapan aja lewat menu Sesi Hari Ini</p>
+                  <p className="flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5" /> Besok komposisinya beda — nyesuaiin ke progresmu
+                  </p>
+                </div>
+              </div>
+            )
+          })()}
         </CardContent>
       </Card>
+
 
       {/* Aktivitas Terbaru */}
       <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Aktivitas Terbaru</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-purple-500">
+              <ClipboardList className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold">Aktivitas Terbaru</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Rekap sesi belajar terakhirmu</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {stats.recentActivity.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Belum ada aktivitas.</p>
+            <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+                <ClipboardList className="h-6 w-6" />
+              </div>
+              <p className="text-sm">Belum ada aktivitas. Mulai belajar sekarang!</p>
+            </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
               {stats.recentActivity.map((act, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-lg p-3 hover:bg-muted/50 transition-colors border border-transparent hover:border-border/50"
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    {act.score}
+                    +{act.score}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{act.typeLabel}</p>
-                    <p className="text-xs text-muted-foreground">{act.key} · {act.timeAgo}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{act.key}</p>
+                    <p className="text-xs text-muted-foreground">{act.typeLabel} · {act.timeAgo}</p>
                   </div>
-                  <Badge variant="secondary" className="text-xs capitalize">
-                    {act.typeLabel}
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {act.score} XP
                   </Badge>
                 </div>
               ))}
