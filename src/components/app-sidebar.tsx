@@ -74,14 +74,14 @@ const todayItems = [
 
 const learningPathItems = [
   {
-    title: "Grammar",
-    url: "/dashboard/grammar",
-    icon: BookOpen,
-  },
-  {
     title: "Daftar Kata",
     url: "/dashboard/flashcard",
     icon: Languages,
+  },
+  {
+    title: "Grammar",
+    url: "/dashboard/grammar",
+    icon: BookOpen,
   },
   {
     title: "Estafet",
