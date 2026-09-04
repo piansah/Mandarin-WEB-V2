@@ -185,47 +185,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Hanzi Mode Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5" />
-            Mode Hanzi
-          </CardTitle>
-          <CardDescription>Pilih versi hanzi yang ingin dipelajari</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3">
-            {HANZI_MODES.map((mode) => (
-              <div
-                key={mode.value}
-                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedHanziMode === mode.value
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-primary/50"
-                }`}
-                onClick={() => setSelectedHanziMode(mode.value)}
-              >
-                <div>
-                  <div className="font-medium">{mode.label}</div>
-                  <div className="text-sm text-muted-foreground">{mode.description}</div>
-                </div>
-                {selectedHanziMode === mode.value && (
-                  <Check className="h-5 w-5 text-primary" />
-                )}
-              </div>
-            ))}
-          </div>
-          {selectedHanziMode !== settings.hanziMode && (
-            <div className="flex justify-end">
-              <Button onClick={handleSaveHanziMode} disabled={saving}>
-                {saving ? "Menyimpan..." : "Simpan Perubahan"}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Hanzi Font Settings */}
       <Card>
         <CardHeader>

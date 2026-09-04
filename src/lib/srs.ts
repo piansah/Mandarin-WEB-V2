@@ -184,12 +184,33 @@ export async function recordSrsReview(
       .update(payload)
       .eq("user_id", userId)
       .eq("card_id", cardId)
-    return
+  } else {
+    await supa.from("user_card_progress").insert({
+      user_id: userId,
+      card_id: cardId,
+      ...payload,
+    })
   }
 
-  await supa.from("user_card_progress").insert({
-    user_id: userId,
-    card_id: cardId,
-    ...payload,
-  })
+  // Rekam streak (user menyelesaikan task/review card)
+  const { data: existingStreak } = await supa
+    .from("daily_streaks")
+    .select("date")
+    .eq("user_id", userId)
+    .eq("date", todayStr())
+    .maybeSingle()
+    
+  if (!existingStreak) {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("playStreakAnim", "true")
+    }
+  }
+
+  const { error: streakErr } = await supa.from("daily_streaks").upsert(
+    { user_id: userId, date: todayStr() },
+    { onConflict: "user_id,date", ignoreDuplicates: true }
+  )
+  if (streakErr) {
+    console.error("Gagal merekam daily streak di srs:", streakErr)
+  }
 }

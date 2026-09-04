@@ -49,6 +49,8 @@ export default function DashboardPage() {
   const [nextModule, setNextModule] = React.useState<{ id: number; title: string } | null>(null)
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
   const [completedDeckCount, setCompletedDeckCount] = React.useState(0)
+  const [deckQuotaMet, setDeckQuotaMet] = React.useState(false)
+  const [showStreakAnim, setShowStreakAnim] = React.useState(false)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -57,6 +59,14 @@ export default function DashboardPage() {
     })
     loadSrsStats()
     loadNextContent()
+
+    if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("playStreakAnim") === "true") {
+        setShowStreakAnim(true)
+        sessionStorage.removeItem("playStreakAnim")
+        setTimeout(() => setShowStreakAnim(false), 3500)
+      }
+    }
   }, [supa])
 
   async function loadNextContent() {
@@ -73,8 +83,25 @@ export default function DashboardPage() {
         .order("id", { ascending: true })
 
       let completedDeckCount = 0
+      let hasCompletedDeckToday = false
+
+      // Cek apakah user sudah menyelesaikan setidaknya 1 deck HARI INI (dinilai dari Quiz, bukan sekadar Flashcard)
+      const todayStr = new Date().toISOString().slice(0, 10)
+      const { data: quizToday } = await supa
+        .from("user_scores")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("type", "quiz")
+        .gte("updated_at", todayStr)
+        .limit(1)
+
+      if (quizToday && quizToday.length > 0) {
+        hasCompletedDeckToday = true
+      }
 
       if (decks && decks.length > 0) {
+        let firstIncompleteDeck = null
+        
         // Find first incomplete deck
         for (const deck of decks) {
           // Get all card IDs for this deck
@@ -84,7 +111,7 @@ export default function DashboardPage() {
             .eq("set_id", deck.id)
 
           if (!deckCards || deckCards.length === 0) {
-            setNextDeck(deck)
+            firstIncompleteDeck = deck
             break
           }
 
@@ -98,19 +125,29 @@ export default function DashboardPage() {
             .in("card_id", cardIds)
 
           if (!progress || progress.length === 0) {
-            setNextDeck(deck)
+            firstIncompleteDeck = deck
             break
           }
 
           // Check if deck is complete (all cards have srs_level >= 1)
           const completedCards = progress.filter(p => p.srs_level >= 1).length
           if (completedCards < deckCards.length) {
-            setNextDeck(deck)
+            firstIncompleteDeck = deck
             break
           }
 
           // Count completed decks
           completedDeckCount++
+        }
+
+        // Terapkan aturan 1 hari 1 deck
+        if (hasCompletedDeckToday) {
+          setDeckQuotaMet(true)
+          setNextDeck(null)
+        } else if (firstIncompleteDeck) {
+          setNextDeck(firstIncompleteDeck)
+        } else {
+          setNextDeck(null)
         }
       }
 
@@ -250,24 +287,19 @@ export default function DashboardPage() {
   const hour = new Date().getHours()
   let GreetingIcon = Sun
   let greetingText = "Selamat Pagi"
-  let iconColor = "text-amber-500"
 
   if (hour >= 18 || hour < 4) {
     GreetingIcon = Moon
     greetingText = "Selamat Malam"
-    iconColor = "text-slate-400"
   } else if (hour >= 15) {
     GreetingIcon = Sunset
     greetingText = "Selamat Sore"
-    iconColor = "text-orange-500"
   } else if (hour >= 11) {
     GreetingIcon = Sun
     greetingText = "Selamat Siang"
-    iconColor = "text-yellow-500"
   } else if (hour >= 4) {
     GreetingIcon = Sunrise
     greetingText = "Selamat Pagi"
-    iconColor = "text-amber-500"
   }
 
   if (loading) {
@@ -288,10 +320,44 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
+      {showStreakAnim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes streak-pop {
+              0% { transform: scale(0.3); opacity: 0; }
+              50% { transform: scale(1.1); opacity: 1; }
+              70% { transform: scale(0.9); }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes streak-fade {
+              0% { opacity: 0; transform: translateY(20px); }
+              100% { opacity: 1; transform: translateY(0); }
+            }
+            .anim-streak-icon { animation: streak-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+            .anim-streak-text { animation: streak-fade 0.5s ease-out 0.3s forwards; opacity: 0; }
+          `}} />
+          <div className="flex flex-col items-center justify-center text-center p-8 rounded-3xl bg-card border border-amber-500/30 shadow-2xl shadow-amber-500/20">
+            <Flame className="w-32 h-32 text-amber-500 fill-amber-500 anim-streak-icon drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
+            <h2 className="text-3xl font-extrabold text-foreground mt-6 anim-streak-text">Streak Harian Terjaga!</h2>
+            <p className="text-muted-foreground mt-2 anim-streak-text">Pertahankan terus semangat belajarmu 🔥</p>
+          </div>
+        </div>
+      )}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes flame-pop {
+          0% { transform: scale(0.3) translateY(5px); opacity: 0; }
+          60% { transform: scale(1.25) translateY(-2px); }
+          100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+        .animate-flame-pop {
+          animation: flame-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          opacity: 0;
+        }
+      `}} />
       {/* Header Greeting */}
       <div className="flex flex-col gap-2 mb-2">
         <div className="flex items-center gap-2 font-medium text-muted-foreground mb-1">
-          <GreetingIcon className={`h-5 w-5 ${iconColor}`} />
+          <GreetingIcon className="h-5 w-5" />
           <span>{greetingText}</span>
         </div>
         <h1 className="text-[clamp(12px,4vw,2.5rem)] font-extrabold tracking-tight uppercase whitespace-nowrap">
@@ -336,8 +402,17 @@ export default function DashboardPage() {
                       : "bg-muted/30 text-muted-foreground border border-border/30"
                     }`}
                 >
-                  <div className="text-sm font-bold mb-1.5">
-                    {dot.isToday ? "•" : dot.active ? "✓" : "-"}
+                  <div className="text-sm font-bold mb-1.5 flex items-center justify-center min-h-[20px]">
+                    {dot.active ? (
+                      <Flame 
+                        className="w-4 h-4 fill-current animate-flame-pop" 
+                        style={{ animationDelay: `${i * 75}ms` }} 
+                      />
+                    ) : dot.isToday ? (
+                      "•"
+                    ) : (
+                      "-"
+                    )}
                   </div>
                   <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
                 </div>
@@ -365,7 +440,10 @@ export default function DashboardPage() {
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-500">
                   <Brain className="h-4 w-4" />
                 </div>
-                <CardTitle className="text-base font-bold">Review Kosakata</CardTitle>
+                <div>
+                  <CardTitle className="text-base font-bold">Review Kosakata</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">Biar nggak lupa!</p>
+                </div>
               </div>
               {srsStats && srsStats.due > 0 && (
                 <Button
@@ -373,7 +451,7 @@ export default function DashboardPage() {
                   className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg px-4"
                   onClick={() => window.location.href = '/dashboard/review'}
                 >
-                  Mulai Review
+                  Review
                 </Button>
               )}
             </div>
@@ -464,9 +542,9 @@ export default function DashboardPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FolderOpen className="h-4 w-4" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{nextModule.title}</h3>
-                    <p className="text-sm text-muted-foreground">Lanjutan jalur kamu · bagian pertama dari modul</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextModule.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Lanjutan jalur kamu · bagian pertama dari modul</p>
                   </div>
                 </div>
               </a>
@@ -475,9 +553,9 @@ export default function DashboardPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
                   <FolderOpen className="h-4 w-4" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-muted-foreground">Modul Pembelajaran</h3>
-                  <p className="text-sm text-muted-foreground">Tidak ada modul tersedia saat ini</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-muted-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">Modul Pembelajaran</h3>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Tidak ada modul tersedia saat ini</p>
                 </div>
               </div>
             )}
@@ -489,20 +567,22 @@ export default function DashboardPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                     <Languages className="h-4 w-4" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{nextDeck.title}</h3>
-                    <p className="text-sm text-muted-foreground">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextDeck.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
                   </div>
                 </div>
               </a>
             ) : (
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                  <Languages className="h-4 w-4" />
+              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-emerald-500/10">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="h-4 w-4" />
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-muted-foreground">Daftar Kata</h3>
-                  <p className="text-sm text-muted-foreground">Semua deck sudah selesai</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-emerald-700 dark:text-emerald-500 text-sm sm:text-base whitespace-nowrap tracking-tight">Daftar Kata</h3>
+                  <p className="text-[10px] sm:text-xs text-emerald-600/80 dark:text-emerald-400/80 whitespace-nowrap tracking-tighter sm:tracking-normal">
+                    {deckQuotaMet ? "Target harian selesai. Lanjut besok!" : "Semua deck sudah selesai"}
+                  </p>
                 </div>
               </div>
             )}
@@ -514,9 +594,9 @@ export default function DashboardPage() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <BookText className="h-4 w-4" />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{nextEstafet.title}</h3>
-                    <p className="text-sm text-muted-foreground">Baca kalimat berurutan untuk melatih pemahaman</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextEstafet.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Baca kalimat berurutan untuk melatih pemahaman</p>
                   </div>
                 </div>
               </a>
@@ -543,7 +623,7 @@ export default function DashboardPage() {
                 >
                   <Play className="h-5 w-5 fill-current" /> Mulai sesi
                 </Button>
-                <div className="flex flex-col items-center gap-1.5 text-[10px] sm:text-xs tracking-tight sm:tracking-normal text-muted-foreground text-center overflow-hidden w-full">
+                <div className="flex flex-col items-center gap-1.5 text-[10px] sm:text-xs tracking-tight sm:tracking-normal text-foreground/80 text-center overflow-hidden w-full">
                   <p className="whitespace-nowrap">
                     Bisa dilanjut kapan aja lewat menu Sesi Hari Ini
                   </p>

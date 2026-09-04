@@ -388,14 +388,6 @@ function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onO
       <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
       <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
       <div className="ml-1 flex shrink-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); speakMandarin(card.hanzi) }}
-          className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          aria-label="Dengar"
-        >
-          <Volume2 className="h-4 w-4" />
-        </button>
         <HskBadge hskLevel={card.hsk_level} />
         <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
       </div>

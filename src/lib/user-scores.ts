@@ -39,6 +39,32 @@ export async function saveUserScore(type: ScoreType, key: string, score: number)
     .maybeSingle()
 
   if (readErr) return { error: readErr.message }
+
+  // Rekam streak karena user sudah mengerjakan task hari ini
+  const today = new Date().toISOString().slice(0, 10)
+  
+  // Cek apakah hari ini sudah ada streak (supaya animasi hanya main 1x)
+  const { data: existingStreak } = await supa
+    .from("daily_streaks")
+    .select("date")
+    .eq("user_id", user.id)
+    .eq("date", today)
+    .maybeSingle()
+    
+  if (!existingStreak) {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("playStreakAnim", "true")
+    }
+  }
+
+  const { error: streakErr } = await supa.from("daily_streaks").upsert(
+    { user_id: user.id, date: today },
+    { onConflict: "user_id,date", ignoreDuplicates: true }
+  )
+  if (streakErr) {
+    console.error("Gagal merekam daily streak:", streakErr)
+  }
+
   if (existing && existing.score >= score) return { error: null, skipped: true }
 
   const { error } = await supa
