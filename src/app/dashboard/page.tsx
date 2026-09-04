@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 
 import { fetchDashboardStats, type DashboardStats } from "@/lib/dashboard-stats"
+import { fetchModulOverview } from "@/lib/modul"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useRouter } from "next/navigation"
 
@@ -46,7 +47,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = React.useState(true)
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
   const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
-  const [nextModule, setNextModule] = React.useState<{ id: number; title: string } | null>(null)
+  const [nextModule, setNextModule] = React.useState<{ slug: string; title: string } | null>(null)
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
   const [completedDeckCount, setCompletedDeckCount] = React.useState(0)
   const [deckQuotaMet, setDeckQuotaMet] = React.useState(false)
@@ -153,8 +154,12 @@ export default function DashboardPage() {
 
       setCompletedDeckCount(completedDeckCount)
 
-      // Load next module (placeholder - currently no module data)
-      // setNextModule({ id: 1, title: "Modul HSK 1" })
+      // Load next module dari skema `modul` (lihat src/lib/modul.ts)
+      fetchModulOverview()
+        .then((overview) => {
+          setNextModule(overview.nextStep ? { slug: overview.nextStep.slug, title: overview.nextStep.title } : null)
+        })
+        .catch(() => setNextModule(null))
 
       // Load next estafet (cumulative flashcard)
       const { data: estafetSets } = await supa
@@ -607,7 +612,7 @@ export default function DashboardPage() {
           {(() => {
             // Tentukan URL sesi pertama yang tersedia
             const firstSessionUrl = nextModule
-              ? `/dashboard/modul/${nextModule.id}`
+              ? `/dashboard/modul/${nextModule.slug}`
               : nextDeck
                 ? `/dashboard/flashcard/${nextDeck.id}`
                 : nextEstafet

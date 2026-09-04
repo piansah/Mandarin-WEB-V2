@@ -79,7 +79,7 @@ const learningPathItems = [
     icon: Languages,
   },
   {
-    title: "Grammar",
+    title: "Tata Bahasa",
     url: "/dashboard/grammar",
     icon: BookOpen,
   },

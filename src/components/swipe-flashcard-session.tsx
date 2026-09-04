@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw } from "lucide-react"
+import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw, Settings2, X, Shuffle, AlignJustify, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -57,6 +57,50 @@ type SpeechRecognitionResultEventLike = {
 
 function formatIntervalDays(days: number) {
   return days === 1 ? "1 hari" : `${days} hari`
+}
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+type FlashcardPrefs = {
+  autoPlayTts: boolean
+  cardOrder: "sequential" | "shuffle"
+  swipeEnabled: boolean
+}
+
+const DEFAULT_PREFS: FlashcardPrefs = {
+  autoPlayTts: true,
+  cardOrder: "sequential",
+  swipeEnabled: true,
+}
+
+function loadPrefs(): FlashcardPrefs {
+  if (typeof window === "undefined") return DEFAULT_PREFS
+  try {
+    const raw = localStorage.getItem("mj_flashcard_prefs")
+    if (!raw) return DEFAULT_PREFS
+    return { ...DEFAULT_PREFS, ...JSON.parse(raw) }
+  } catch {
+    return DEFAULT_PREFS
+  }
+}
+
+function savePrefs(prefs: FlashcardPrefs) {
+  if (typeof window === "undefined") return
+  try { localStorage.setItem("mj_flashcard_prefs", JSON.stringify(prefs)) } catch { /* ignore */ }
+}
+
+function getStudyTip(accuracy: number, lupaCount: number): string {
+  if (accuracy < 40) return `${lupaCount} kartu masih perlu latihan. Jangan menyerah — ulangi besok dengan kepala segar! 💪`
+  if (accuracy < 70) return "Progres bagus! Fokus ke kartu yang masih Sulit, mereka butuh lebih banyak repetisi."
+  if (accuracy < 90) return "Hampir sempurna! Kartu yang mudah akan muncul lebih jarang — itu pertanda kamu berkembang."
+  return "Luar biasa! Kamu sudah menguasai sebagian besar deck ini. Coba deck berikutnya! 🎉"
 }
 
 function normalizeChinese(str: string) {
@@ -158,11 +202,27 @@ export function SwipeFlashcardSession({
   deckTitle = "Kartu Hafalan",
   deckLevel = "Level A1",
   userId,
-  disableSwipe = false,
+  disableSwipe: disableSwipeProp = false,
   deckCardIds,
 }: SwipeFlashcardSessionProps) {
   const router = useRouter()
   const supa = useSupabase()
+
+  const [prefs, setPrefs] = React.useState<FlashcardPrefs>(DEFAULT_PREFS)
+  const [showSettings, setShowSettings] = React.useState(false)
+  const [orderedCards, setOrderedCards] = React.useState<SwipeFlashcard[]>([])
+
+  // Load prefs from localStorage on mount
+  React.useEffect(() => {
+    setPrefs(loadPrefs())
+  }, [])
+
+  // Apply card order whenever cards or prefs.cardOrder changes
+  React.useEffect(() => {
+    setOrderedCards(prefs.cardOrder === "shuffle" ? shuffleArray(cards) : [...cards])
+  }, [cards, prefs.cardOrder])
+
+  const disableSwipe = disableSwipeProp || !prefs.swipeEnabled
 
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
@@ -226,16 +286,16 @@ export function SwipeFlashcardSession({
     setSelectedRating(null)
   }, [sessionKey])
 
-  const totalOriginal = cards.length
+  const totalOriginal = orderedCards.length
   const currentTotal = totalOriginal + repeatQueue.length
-  const card = idx < totalOriginal ? cards[idx] : repeatQueue[idx - totalOriginal]
+  const card = idx < totalOriginal ? orderedCards[idx] : repeatQueue[idx - totalOriginal]
   const progress = currentTotal > 0 ? (idx / currentTotal) * 100 : 0
 
   React.useEffect(() => {
-    if (flip === 1 && !isRecording && card?.hanzi) {
+    if (flip === 1 && !isRecording && card?.hanzi && prefs.autoPlayTts) {
       speakMandarin(card.hanzi)
     }
-  }, [flip, idx, isRecording, card?.hanzi])
+  }, [flip, idx, isRecording, card?.hanzi, prefs.autoPlayTts])
 
   React.useEffect(() => {
     return () => {
@@ -722,9 +782,15 @@ export function SwipeFlashcardSession({
                 </div>
               </div>
 
-                <div className="flashcard-result-actions flex gap-3 w-full max-w-xs relative z-10 mb-6">
-                  <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
-                  <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={() => setSessionKey((k) => k + 1)}>Ulangi</Button>
+                {/* Study Tip */}
+                <div className="flashcard-result-actions relative z-10 w-full max-w-xs">
+                  <div className="mb-4 px-4 py-3 rounded-xl bg-muted/40 border border-border/40 text-xs text-muted-foreground text-center leading-relaxed">
+                    💡 {getStudyTip(finalAccuracy, lupa)}
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
+                    <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={() => setSessionKey((k) => k + 1)}>Ulangi</Button>
+                  </div>
                 </div>
               </>
             )}
@@ -865,12 +931,128 @@ export function SwipeFlashcardSession({
           ]}
         />
 
-        {/* Progress Bar */}
+        {/* Progress Bar + Settings Button */}
         <div className="flex items-center gap-3 px-4 py-2 shrink-0">
           <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
             <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
+          <button
+            type="button"
+            aria-label="Pengaturan sesi"
+            onClick={() => setShowSettings(true)}
+            className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
         </div>
+
+        {/* Settings Modal */}
+        {showSettings && (
+          <div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/70 backdrop-blur-sm"
+            onClick={() => setShowSettings(false)}
+          >
+            <div
+              className="relative w-full max-w-sm mx-4 mb-4 sm:mb-0 bg-card border border-border/50 rounded-2xl shadow-2xl p-5 space-y-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-base text-foreground">Pengaturan Sesi</h3>
+                <button onClick={() => setShowSettings(false)} className="h-7 w-7 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Auto-play TTS */}
+              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-muted/40">
+                <div className="flex items-center gap-3">
+                  {prefs.autoPlayTts ? <Volume2 className="h-4 w-4 text-primary" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                  <div>
+                    <div className="text-sm font-semibold">Auto-play Suara</div>
+                    <div className="text-xs text-muted-foreground">Otomatis putar pengucapan saat kartu dibalik</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs.autoPlayTts}
+                  onClick={() => {
+                    const next = { ...prefs, autoPlayTts: !prefs.autoPlayTts }
+                    setPrefs(next); savePrefs(next)
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    prefs.autoPlayTts ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                    prefs.autoPlayTts ? "translate-x-5" : "translate-x-0"
+                  }`} />
+                </button>
+              </div>
+
+              {/* Card Order */}
+              <div className="space-y-2">
+                <div className="text-sm font-semibold">Urutan Kartu</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = { ...prefs, cardOrder: "sequential" as const }
+                      setPrefs(next); savePrefs(next)
+                    }}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
+                      prefs.cardOrder === "sequential"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-muted/20 text-muted-foreground hover:border-primary/30"
+                    }`}
+                  >
+                    <AlignJustify className="h-4 w-4" />
+                    Berurutan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = { ...prefs, cardOrder: "shuffle" as const }
+                      setPrefs(next); savePrefs(next)
+                    }}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
+                      prefs.cardOrder === "shuffle"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-muted/20 text-muted-foreground hover:border-primary/30"
+                    }`}
+                  >
+                    <Shuffle className="h-4 w-4" />
+                    Acak
+                  </button>
+                </div>
+              </div>
+
+              {/* Swipe Enabled */}
+              <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-muted/40">
+                <div>
+                  <div className="text-sm font-semibold">Gestur Swipe</div>
+                  <div className="text-xs text-muted-foreground">Nilai kartu dengan menggeser kiri/kanan/atas/bawah</div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs.swipeEnabled}
+                  onClick={() => {
+                    const next = { ...prefs, swipeEnabled: !prefs.swipeEnabled }
+                    setPrefs(next); savePrefs(next)
+                  }}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    prefs.swipeEnabled ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span className={`pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                    prefs.swipeEnabled ? "translate-x-5" : "translate-x-0"
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
           {/*
@@ -946,7 +1128,10 @@ export function SwipeFlashcardSession({
                   onPointerCancel={onPointerCancel}
                   onPointerUp={onPointerUp}
                 >
-                  <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden">
+                  <div
+                    className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden"
+                    style={{ visibility: flip === 1 ? "hidden" : "visible" }}
+                  >
                     {flip === 2 ? (
                       // Card 3: tampilan detail (arti + contoh kalimat), dengan
                       // watermark hanzi besar yang sama dengan Card 1 & 2. Tidak
@@ -980,7 +1165,10 @@ export function SwipeFlashcardSession({
                   {/* Card 2: tampilan belakang (hanzi + pinyin), dengan watermark
                       hanzi besar yang di-mirror horizontal dan warnanya gelap
                       transparan di pojok kanan-bawah, mirip watermark referensi. */}
-                  <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden">
+                  <div
+                    className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden"
+                    style={{ visibility: flip !== 1 ? "hidden" : "visible" }}
+                  >
                     <div
                       aria-hidden="true"
                       className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
