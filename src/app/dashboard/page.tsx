@@ -329,13 +329,12 @@ export default function DashboardPage() {
               {stats.weekDots.map((dot, i) => (
                 <div
                   key={i}
-                  className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${
-                    dot.isToday
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : dot.active
-                        ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-muted/30 text-muted-foreground border border-border/30"
-                  }`}
+                  className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${dot.isToday
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                    : dot.active
+                      ? "bg-primary/20 text-primary border border-primary/30"
+                      : "bg-muted/30 text-muted-foreground border border-border/30"
+                    }`}
                 >
                   <div className="text-sm font-bold mb-1.5">
                     {dot.isToday ? "•" : dot.active ? "✓" : "-"}
@@ -385,15 +384,15 @@ export default function DashboardPage() {
               <div className="space-y-4">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <div className="text-center py-5 px-3 rounded-lg bg-muted/50">
                     <div className="text-2xl font-bold text-foreground">{srsStats.total}</div>
                     <div className="text-xs text-muted-foreground">Total</div>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  <div className="text-center py-5 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <div className="text-2xl font-bold text-emerald-500">{srsStats.mature}</div>
                     <div className="text-xs text-muted-foreground">Hafal</div>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <div className="text-center py-5 px-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                     <div className="text-2xl font-bold text-amber-500">{srsStats.due}</div>
                     <div className="text-xs text-muted-foreground">Due</div>
                   </div>
@@ -418,12 +417,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Due Cards Info */}
                 {srsStats.due > 0 && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-600 dark:text-amber-400">
-                    <RotateCcw className="h-4 w-4 shrink-0" />
-                    <p className="text-sm">{srsStats.due} kartu siap direview — klik tombol di atas untuk mulai</p>
+                  <div className="flex items-center justify-center gap-3 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-center">
+                    <RotateCcw className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">
+                      {srsStats.due} kartu siap direview<br/>
+                      <span className="text-muted-foreground text-xs mt-0.5 font-normal inline-block">klik tombol di atas untuk mulai</span>
+                    </p>
                   </div>
                 )}
 
@@ -541,10 +543,13 @@ export default function DashboardPage() {
                 >
                   <Play className="h-5 w-5 fill-current" /> Mulai sesi
                 </Button>
-                <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center">
-                  <p>Bisa dilanjut kapan aja lewat menu Sesi Hari Ini</p>
-                  <p className="flex items-center gap-1.5">
-                    <RefreshCw className="h-3.5 w-3.5" /> Besok komposisinya beda — nyesuaiin ke progresmu
+                <div className="flex flex-col items-center gap-1.5 text-[10px] sm:text-xs tracking-tight sm:tracking-normal text-muted-foreground text-center overflow-hidden w-full">
+                  <p className="whitespace-nowrap">
+                    Bisa dilanjut kapan aja lewat menu Sesi Hari Ini
+                  </p>
+                  <p className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap">
+                    <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
+                    <span>Besok komposisinya beda — nyesuaiin ke progresmu</span>
                   </p>
                 </div>
               </div>
