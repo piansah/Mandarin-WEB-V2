@@ -21,6 +21,7 @@ import {
   BarChart3,
   ClipboardList,
   FolderOpen,
+  Shield,
 } from "lucide-react"
 import {
   Sidebar,
@@ -48,6 +49,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { BugReportDialog } from "@/components/bug-report-dialog"
+import { isAdmin } from "@/lib/auth-roles"
 
 const todayItems = [
   {
@@ -113,6 +115,14 @@ const personalCollectionItems = [
   },
 ]
 
+const adminItems = [
+  {
+    title: "Admin Panel",
+    url: "/dashboard/admin",
+    icon: Shield,
+  },
+]
+
 export function AppSidebar({
   user,
   ...props
@@ -123,6 +133,7 @@ export function AppSidebar({
   const router = useRouter()
   const { isMobile, setOpen, setOpenMobile, pinned, togglePinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
+  const [isAdminUser, setIsAdminUser] = React.useState(false)
   const supabase = useSupabase()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -134,6 +145,20 @@ export function AppSidebar({
       document.cookie = "sidebar_pinned=; path=/; max-age=0"
     }
   }, [pinned])
+
+  // Check if user is admin
+  React.useEffect(() => {
+    async function checkAdmin() {
+      try {
+        const adminStatus = await isAdmin()
+        setIsAdminUser(adminStatus)
+      } catch (error) {
+        console.error("Error checking admin status:", error)
+        setIsAdminUser(false)
+      }
+    }
+    checkAdmin()
+  }, [])
 
   const clearCloseTimeout = React.useCallback(() => {
     if (closeTimeoutRef.current) {
@@ -271,6 +296,29 @@ export function AppSidebar({
             ))}
           </SidebarMenu>
         </div>
+
+        {/* ADMIN - hanya muncul untuk admin */}
+        {isAdminUser && (
+          <div className="px-3 mt-4">
+            <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+              ADMIN
+            </div>
+            <SidebarMenu className="gap-1">
+              {adminItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={pathname === item.url}
+                    render={<Link href={item.url} onClick={closeMobileSidebar} />}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </div>
+        )}
       </SidebarContent>
 
       <SidebarFooter>

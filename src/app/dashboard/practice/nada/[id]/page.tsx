@@ -8,6 +8,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
+import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
 type Card = {
@@ -452,6 +453,13 @@ export default function NadaPracticePage() {
   }
 
   const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0
+
+  // Save score when session completes (but not for personal decks)
+  React.useEffect(() => {
+    if (done && !isPersonal && total > 0) {
+      saveUserScore("nada_session", String(deckId), accuracy).catch(() => {})
+    }
+  }, [done, accuracy, deckId, isPersonal, total])
 
   // Shortcut keyboard: Space/Enter buat lanjut ke soal berikutnya setelah
   // jawaban ditampilkan (paralel sama pola flip flashcard), dan angka

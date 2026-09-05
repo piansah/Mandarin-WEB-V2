@@ -18,6 +18,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
+import { saveUserScore } from "@/lib/user-scores"
 import styles from "./page.module.css"
 
 type Card = {
@@ -442,6 +443,11 @@ export default function TulisHanziPage() {
       return
     }
     const target = Math.round((cleanCount / total) * 100)
+
+    // Save score when session completes (but not for personal decks)
+    if (!isPersonal) {
+      saveUserScore("tulis_session", String(deckId), target).catch(() => {})
+    }
 
     if (prefersReducedMotionRef.current) {
       setResultRingValue(target)

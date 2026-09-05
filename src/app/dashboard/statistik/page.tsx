@@ -8,51 +8,7 @@ import {
   CheckCircle2, Brain, Award, BarChart3, Calendar,
   Trophy, Zap, AlertCircle
 } from "lucide-react"
-
-// ─── Dummy Data ───────────────────────────────────────────────
-const weeklyActivity = [
-  { day: "Sen", minutes: 25, words: 12 },
-  { day: "Sel", minutes: 40, words: 20 },
-  { day: "Rab", minutes: 15, words: 8 },
-  { day: "Kam", minutes: 55, words: 30 },
-  { day: "Jum", minutes: 30, words: 15 },
-  { day: "Sab", minutes: 60, words: 35 },
-  { day: "Min", minutes: 10, words: 5 },
-]
-
-const hskProgress = [
-  { level: "HSK 1", total: 150, learned: 132, color: "bg-emerald-500" },
-  { level: "HSK 2", total: 150, learned: 64, color: "bg-blue-500" },
-  { level: "HSK 3", total: 300, learned: 18, color: "bg-violet-500" },
-  { level: "HSK 4", total: 600, learned: 0, color: "bg-orange-500" },
-  { level: "HSK 5", total: 1300, learned: 0, color: "bg-rose-500" },
-  { level: "HSK 6", total: 2500, learned: 0, color: "bg-yellow-500" },
-]
-
-const difficultWords = [
-  { word: "知道", pinyin: "zhīdào", meaning: "tahu, mengetahui", accuracy: 45 },
-  { word: "觉得", pinyin: "juéde", meaning: "merasa, berpikir", accuracy: 52 },
-  { word: "告诉", pinyin: "gàosu", meaning: "memberitahu", accuracy: 58 },
-  { word: "因为", pinyin: "yīnwèi", meaning: "karena", accuracy: 60 },
-  { word: "所以", pinyin: "suǒyǐ", meaning: "jadi, oleh karena itu", accuracy: 65 },
-]
-
-const achievements = [
-  { icon: Flame, label: "Streak 7 Hari", desc: "Belajar 7 hari berturut-turut", done: true },
-  { icon: BookOpen, label: "100 Kata Pertama", desc: "Pelajari 100 kata unik", done: true },
-  { icon: CheckCircle2, label: "Modul Pertama", desc: "Selesaikan 1 modul belajar", done: true },
-  { icon: Zap, label: "Streak 30 Hari", desc: "Belajar 30 hari berturut-turut", done: false },
-  { icon: Trophy, label: "HSK 1 Tuntas", desc: "Kuasai seluruh kosakata HSK 1", done: false },
-]
-
-const accuracyData = [
-  { label: "Flashcard", value: 84, color: "bg-emerald-500" },
-  { label: "Kuis Modul", value: 90, color: "bg-blue-500" },
-  { label: "Grammar", value: 72, color: "bg-violet-500" },
-  { label: "Estafet", value: 68, color: "bg-orange-500" },
-]
-
-const maxMinutes = Math.max(...weeklyActivity.map((d) => d.minutes))
+import { fetchStatsData, type StatsData } from "@/lib/stats-library"
 
 // ─── Komponen ─────────────────────────────────────────────────
 function StatCard({
@@ -85,6 +41,55 @@ function StatCard({
 }
 
 export default function StatistikPage() {
+  const [data, setData] = React.useState<StatsData | null>(null)
+  const [loading, setLoading] = React.useState(true)
+
+  React.useEffect(() => {
+    async function loadData() {
+      try {
+        const statsData = await fetchStatsData()
+        setData(statsData)
+      } catch (error) {
+        console.error("Failed to load stats:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col p-6 gap-8 text-foreground">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <div className="flex flex-col p-6 gap-8 text-foreground">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Gagal memuat data statistik</p>
+        </div>
+      </div>
+    )
+  }
+
+  const maxMinutes = Math.max(...data.weeklyActivity.map((d) => d.minutes), 1)
+  const totalWeeklyMinutes = data.weeklyActivity.reduce((sum, d) => sum + d.minutes, 0)
+  const totalWeeklyWords = data.weeklyActivity.reduce((sum, d) => sum + d.words, 0)
+  const avgAccuracy = data.accuracyData.length > 0
+    ? Math.round(data.accuracyData.reduce((sum, item) => sum + item.value, 0) / data.accuracyData.length)
+    : 0
+
+  const totalHours = Math.floor(data.totalStudyMinutes / 60)
+  const totalMins = data.totalStudyMinutes % 60
+  const monthlyHours = Math.floor(data.monthlyStudyMinutes / 60)
+  const monthlyMins = data.monthlyStudyMinutes % 60
+
   return (
     <div className="flex flex-col p-6 gap-8 text-foreground">
 
@@ -99,10 +104,10 @@ export default function StatistikPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Flame} label="Streak Saat Ini" value="7 hari" sub="Rekor: 12 hari" color="bg-orange-500" />
-        <StatCard icon={Brain} label="Kata Dipelajari" value="214" sub="Dari total 4.000 kata" color="bg-violet-500" />
-        <StatCard icon={Target} label="Akurasi Rata-rata" value="82%" sub="Dari semua sesi" color="bg-emerald-500" />
-        <StatCard icon={Clock} label="Total Belajar" value="14j 32m" sub="Bulan ini: 3j 10m" color="bg-blue-500" />
+        <StatCard icon={Flame} label="Streak Saat Ini" value={`${data.streak} hari`} sub={`Rekor: ${data.bestStreak} hari`} color="bg-orange-500" />
+        <StatCard icon={Brain} label="Kata Dipelajari" value={data.totalWordsLearned.toString()} sub="Kata unik" color="bg-violet-500" />
+        <StatCard icon={Target} label="Akurasi Rata-rata" value={`${avgAccuracy}%`} sub="Dari semua sesi" color="bg-emerald-500" />
+        <StatCard icon={Clock} label="Total Belajar" value={`${totalHours}j ${totalMins}m`} sub={`Bulan ini: ${monthlyHours}j ${monthlyMins}m`} color="bg-blue-500" />
       </div>
 
       {/* Main grid */}
@@ -118,7 +123,7 @@ export default function StatistikPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-end justify-between gap-2 h-40 mt-2">
-              {weeklyActivity.map((d) => (
+              {data.weeklyActivity.map((d) => (
                 <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
                   <span className="text-[10px] text-muted-foreground">{d.minutes}m</span>
                   <div className="w-full rounded-t-md bg-primary/15 relative overflow-hidden" style={{ height: `${(d.minutes / maxMinutes) * 100}%`, minHeight: 4 }}>
@@ -132,8 +137,8 @@ export default function StatistikPage() {
               ))}
             </div>
             <div className="flex items-center gap-6 mt-4 pt-4 border-t text-sm text-muted-foreground">
-              <span>Total minggu ini: <strong className="text-foreground">235 mnt</strong></span>
-              <span>Kata baru: <strong className="text-foreground">125</strong></span>
+              <span>Total minggu ini: <strong className="text-foreground">{totalWeeklyMinutes} mnt</strong></span>
+              <span>Kata baru: <strong className="text-foreground">{totalWeeklyWords}</strong></span>
             </div>
           </CardContent>
         </Card>
@@ -146,20 +151,24 @@ export default function StatistikPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 pt-2">
-            {accuracyData.map((item) => (
-              <div key={item.label} className="flex flex-col gap-1.5">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">{item.label}</span>
-                  <span className="font-bold">{item.value}%</span>
+            {data.accuracyData.length > 0 ? (
+              data.accuracyData.map((item) => (
+                <div key={item.label} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{item.label}</span>
+                    <span className="font-bold">{item.value}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${item.color} transition-all`}
+                      style={{ width: `${item.value}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${item.color} transition-all`}
-                    style={{ width: `${item.value}%` }}
-                  />
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Belum ada data akurasi</p>
+            )}
           </CardContent>
         </Card>
 
@@ -171,8 +180,8 @@ export default function StatistikPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-2">
-            {hskProgress.map((lvl) => {
-              const pct = Math.round((lvl.learned / lvl.total) * 100)
+            {data.hskProgress.map((lvl) => {
+              const pct = lvl.total > 0 ? Math.round((lvl.learned / lvl.total) * 100) : 0
               return (
                 <div key={lvl.level} className="flex items-center gap-3">
                   <span className="text-xs font-bold w-12 shrink-0">{lvl.level}</span>
@@ -200,8 +209,8 @@ export default function StatistikPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 pt-2">
-            {achievements.map((a) => {
-              const Icon = a.icon
+            {data.achievements.map((a) => {
+              const Icon = a.done ? CheckCircle2 : Zap
               return (
                 <div key={a.label} className={`flex items-center gap-3 ${!a.done ? "opacity-40" : ""}`}>
                   <div className="p-2 rounded-lg bg-primary/10">
@@ -227,20 +236,24 @@ export default function StatistikPage() {
             <p className="text-xs text-muted-foreground">Kata-kata yang sering salah saat sesi flashcard atau kuis</p>
           </CardHeader>
           <CardContent className="pt-2">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {difficultWords.map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
-                  <div className="flex flex-col">
-                    <span className="text-lg font-bold">{item.word}</span>
-                    <span className="text-xs text-muted-foreground">{item.pinyin} • {item.meaning}</span>
+            {data.difficultWords.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {data.difficultWords.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors">
+                    <div className="flex flex-col">
+                      <span className="text-lg font-bold">{item.word}</span>
+                      <span className="text-xs text-muted-foreground">{item.pinyin} • {item.meaning}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] uppercase font-bold text-destructive/80">Akurasi</span>
+                      <span className="text-sm font-bold text-destructive">{item.accuracy}%</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-[10px] uppercase font-bold text-destructive/80">Akurasi</span>
-                    <span className="text-sm font-bold text-destructive">{item.accuracy}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">Belum ada kata yang perlu perhatian khusus</p>
+            )}
           </CardContent>
         </Card>
 

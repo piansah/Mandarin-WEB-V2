@@ -14,7 +14,7 @@ export default async function DashboardLayout({
 
   const { data: profile } = await supabase
     .from("user_profile")
-    .select("display_name, custom_avatar_url")
+    .select("display_name, custom_avatar_url, role")
     .eq("user_id", user.id)
     .maybeSingle()
 
