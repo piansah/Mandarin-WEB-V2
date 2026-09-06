@@ -1,0 +1,354 @@
+"use client"
+
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { ArrowLeft, Plus, Edit, Trash2, Search, BookOpen } from "lucide-react"
+import { createClient } from "@/lib/supabase/browser"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Pagination } from "@/components/ui/pagination"
+
+interface FlashcardSet {
+  id: number
+  day_number: number
+  title: string
+  is_default: boolean
+  description: string | null
+  hsk_level: number
+  badge: string
+  sort_order: number
+  created_at: string
+}
+
+export default function FlashcardSetsPage() {
+  const router = useRouter()
+  const [sets, setSets] = React.useState<FlashcardSet[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [searchQuery, setSearchQuery] = React.useState("")
+  const [showAddModal, setShowAddModal] = React.useState(false)
+  const [editingSet, setEditingSet] = React.useState<FlashcardSet | null>(null)
+  const [formData, setFormData] = React.useState({
+    day_number: 1,
+    title: "",
+    description: "",
+    hsk_level: 1,
+    badge: "",
+    sort_order: 0
+  })
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const [rowsPerPage, setRowsPerPage] = React.useState(10)
+
+  const supa = createClient()
+
+  React.useEffect(() => {
+    fetchFlashcardSets()
+  }, [])
+
+  const fetchFlashcardSets = async () => {
+    try {
+      const { data, error } = await supa
+        .from("flashcard_sets")
+        .select("*")
+        .order("sort_order", { ascending: true })
+
+      if (error) throw error
+      setSets(data || [])
+    } catch (error) {
+      console.error("Error fetching flashcard sets:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAdd = async () => {
+    try {
+      const { error } = await supa
+        .from("flashcard_sets")
+        .insert({
+          day_number: formData.day_number,
+          title: formData.title,
+          description: formData.description,
+          hsk_level: formData.hsk_level,
+          badge: formData.badge,
+          sort_order: formData.sort_order,
+          is_default: true
+        })
+
+      if (error) throw error
+
+      setShowAddModal(false)
+      setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
+      fetchFlashcardSets()
+    } catch (error) {
+      console.error("Error adding flashcard set:", error)
+      alert("Gagal menambahkan flashcard set")
+    }
+  }
+
+  const handleEdit = async () => {
+    if (!editingSet) return
+
+    try {
+      const { error } = await supa
+        .from("flashcard_sets")
+        .update({
+          day_number: formData.day_number,
+          title: formData.title,
+          description: formData.description,
+          hsk_level: formData.hsk_level,
+          badge: formData.badge,
+          sort_order: formData.sort_order
+        })
+        .eq("id", editingSet.id)
+
+      if (error) throw error
+
+      setEditingSet(null)
+      setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
+      fetchFlashcardSets()
+    } catch (error) {
+      console.error("Error updating flashcard set:", error)
+      alert("Gagal mengupdate flashcard set")
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm("Apakah Anda yakin ingin menghapus flashcard set ini?")) return
+
+    try {
+      const { error } = await supa
+        .from("flashcard_sets")
+        .delete()
+        .eq("id", id)
+
+      if (error) throw error
+      fetchFlashcardSets()
+    } catch (error) {
+      console.error("Error deleting flashcard set:", error)
+      alert("Gagal menghapus flashcard set")
+    }
+  }
+
+  const openEditModal = (set: FlashcardSet) => {
+    setEditingSet(set)
+    setFormData({
+      day_number: set.day_number,
+      title: set.title,
+      description: set.description || "",
+      hsk_level: set.hsk_level,
+      badge: set.badge,
+      sort_order: set.sort_order
+    })
+  }
+
+  const openAddModal = () => {
+    setEditingSet(null)
+    setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
+    setShowAddModal(true)
+  }
+
+  const filteredSets = sets.filter(set => 
+    set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (set.description && set.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredSets.length / rowsPerPage)
+  const paginatedSets = filteredSets.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  )
+
+  // Reset to page 1 when search changes
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
+  return (
+    <div className="flex flex-col p-6 gap-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Flashcard Sets</h1>
+          </div>
+          <p className="text-sm text-muted-foreground">Kelola deck flashcard dan vocabulary</p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Cari flashcard set..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button onClick={openAddModal}>
+          <Plus className="h-4 w-4 mr-2" />
+          Tambah Set
+        </Button>
+      </div>
+
+      {/* Flashcard Sets Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+        </div>
+      ) : filteredSets.length === 0 ? (
+        <Card className="border-muted/50">
+          <CardContent className="py-12 text-center">
+            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Tidak ada flashcard set ditemukan</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-muted/50">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Day</TableHead>
+                  <TableHead>HSK Level</TableHead>
+                  <TableHead>Badge</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Sort Order</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedSets.map((set) => (
+                  <TableRow key={set.id}>
+                    <TableCell className="font-medium">{set.id}</TableCell>
+                    <TableCell>{set.title}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">Day {set.day_number}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">HSK {set.hsk_level}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {set.badge && <Badge variant="default">{set.badge}</Badge>}
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{set.description || "-"}</TableCell>
+                    <TableCell>{set.sort_order}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(set.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="p-4 border-t">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                rowsPerPage={rowsPerPage}
+                totalRows={filteredSets.length}
+                onPageChange={setCurrentPage}
+                onRowsPerPageChange={setRowsPerPage}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Add/Edit Modal */}
+      {(showAddModal || editingSet) && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>{editingSet ? "Edit Flashcard Set" : "Tambah Flashcard Set"}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Day Number</label>
+                <Input
+                  type="number"
+                  value={formData.day_number}
+                  onChange={(e) => setFormData({ ...formData, day_number: parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title</label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Contoh: Day 1 - Basic Greetings"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Deskripsi singkat..."
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">HSK Level</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="6"
+                  value={formData.hsk_level}
+                  onChange={(e) => setFormData({ ...formData, hsk_level: parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Badge</label>
+                <Input
+                  value={formData.badge}
+                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
+                  placeholder="Contoh: Beginner"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Sort Order</label>
+                <Input
+                  type="number"
+                  value={formData.sort_order}
+                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button onClick={editingSet ? handleEdit : handleAdd} className="flex-1">
+                  {editingSet ? "Update" : "Tambah"}
+                </Button>
+                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingSet(null) }}>
+                  Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  )
+}

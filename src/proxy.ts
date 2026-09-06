@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server"
 // Halaman yang wajib login. Tambah prefix lain di sini kalau perlu.
 const PROTECTED_PREFIXES = ["/dashboard"]
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
