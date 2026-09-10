@@ -43,6 +43,7 @@ export default function WordCompoundsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -52,13 +53,35 @@ export default function WordCompoundsPage() {
 
   const fetchWordCompounds = async () => {
     try {
+      // Dapatkan total count dulu
+      const { count: totalCount, error: countError } = await supa
+        .from("word_compounds")
+        .select("*", { count: "exact", head: true })
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       const { data, error } = await supa
         .from("word_compounds")
         .select("*")
         .order("frequency", { ascending: false })
+        .range(from, to)
 
       if (error) throw error
+
+      console.log("Word Compounds fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`
+      })
+      
       setCompounds(data || [])
+      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching word compounds:", error)
     } finally {
@@ -155,17 +178,18 @@ export default function WordCompoundsPage() {
     (compound.arti && compound.arti.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredCompounds.length / rowsPerPage)
-  const paginatedCompounds = filteredCompounds.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, rowsPerPage])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchWordCompounds()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -228,7 +252,7 @@ export default function WordCompoundsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCompounds.map((compound) => (
+                {filteredCompounds.map((compound) => (
                   <TableRow key={compound.id}>
                     <TableCell className="font-medium">{compound.id}</TableCell>
                     <TableCell className="font-medium">{compound.hanzi}</TableCell>
@@ -259,7 +283,7 @@ export default function WordCompoundsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredCompounds.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -317,7 +341,15 @@ export default function WordCompoundsPage() {
                   type="number"
                   min="1"
                   value={formData.frequency}
-                  onChange={(e) => setFormData({ ...formData, frequency: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    // Saat field dikosongkan (mis. select-all lalu ketik ulang),
+                    // e.target.value sesaat jadi "" -> parseInt("") = NaN, yang
+                    // kalau langsung disimpan bikin React error "Received NaN
+                    // for the `value` attribute" karena input ini controlled.
+                    // Fallback ke 0 dulu selagi kosong, bukan NaN.
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, frequency: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="flex gap-2 pt-4">

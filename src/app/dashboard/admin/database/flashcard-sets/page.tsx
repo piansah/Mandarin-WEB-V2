@@ -37,6 +37,7 @@ export default function FlashcardSetsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingSet, setEditingSet] = React.useState<FlashcardSet | null>(null)
+  const [deletingSet, setDeletingSet] = React.useState<FlashcardSet | null>(null)
   const [formData, setFormData] = React.useState({
     day_number: 1,
     title: "",
@@ -47,6 +48,7 @@ export default function FlashcardSetsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -56,12 +58,33 @@ export default function FlashcardSetsPage() {
 
   const fetchFlashcardSets = async () => {
     try {
+      // Dapatkan total count dulu
+      const { count: totalCount, error: countError } = await supa
+        .from("flashcard_sets")
+        .select("*", { count: "exact", head: true })
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       const { data, error } = await supa
         .from("flashcard_sets")
         .select("*")
         .order("sort_order", { ascending: true })
+        .range(from, to)
 
       if (error) throw error
+
+      console.log("Flashcard Sets fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`
+      })
+      
       setSets(data || [])
     } catch (error) {
       console.error("Error fetching flashcard sets:", error)
@@ -122,16 +145,18 @@ export default function FlashcardSetsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus flashcard set ini?")) return
+  const handleDelete = async () => {
+    if (!deletingSet) return
 
     try {
       const { error } = await supa
         .from("flashcard_sets")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingSet.id)
 
       if (error) throw error
+
+      setDeletingSet(null)
       fetchFlashcardSets()
     } catch (error) {
       console.error("Error deleting flashcard set:", error)
@@ -162,17 +187,18 @@ export default function FlashcardSetsPage() {
     (set.description && set.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredSets.length / rowsPerPage)
-  const paginatedSets = filteredSets.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, rowsPerPage])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchFlashcardSets()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -236,7 +262,7 @@ export default function FlashcardSetsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedSets.map((set) => (
+                {filteredSets.map((set) => (
                   <TableRow key={set.id}>
                     <TableCell className="font-medium">{set.id}</TableCell>
                     <TableCell>{set.title}</TableCell>
@@ -256,7 +282,7 @@ export default function FlashcardSetsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(set.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingSet(set)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -270,7 +296,7 @@ export default function FlashcardSetsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredSets.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -292,7 +318,10 @@ export default function FlashcardSetsPage() {
                 <Input
                   type="number"
                   value={formData.day_number}
-                  onChange={(e) => setFormData({ ...formData, day_number: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, day_number: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -318,7 +347,10 @@ export default function FlashcardSetsPage() {
                   min="1"
                   max="6"
                   value={formData.hsk_level}
-                  onChange={(e) => setFormData({ ...formData, hsk_level: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, hsk_level: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -334,7 +366,10 @@ export default function FlashcardSetsPage() {
                 <Input
                   type="number"
                   value={formData.sort_order}
-                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="flex gap-2 pt-4">
@@ -343,6 +378,39 @@ export default function FlashcardSetsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingSet(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingSet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Flashcard Set</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus flashcard set ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Title: {deletingSet.title}</p>
+                  <p className="text-sm">Day: {deletingSet.day_number}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingSet(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

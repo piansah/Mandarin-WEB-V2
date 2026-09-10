@@ -51,6 +51,7 @@ export default function GrammarPatternsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -60,13 +61,35 @@ export default function GrammarPatternsPage() {
 
   const fetchGrammarPatterns = async () => {
     try {
+      // Dapatkan total count dulu
+      const { count: totalCount, error: countError } = await supa
+        .from("grammar_patterns")
+        .select("*", { count: "exact", head: true })
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       const { data, error } = await supa
         .from("grammar_patterns")
         .select("*")
         .order("sort_order", { ascending: true })
+        .range(from, to)
 
       if (error) throw error
+
+      console.log("Grammar Patterns fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`
+      })
+      
       setPatterns(data || [])
+      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching grammar patterns:", error)
     } finally {
@@ -172,17 +195,18 @@ export default function GrammarPatternsPage() {
     (pattern.sub_title && pattern.sub_title.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredPatterns.length / rowsPerPage)
-  const paginatedPatterns = filteredPatterns.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, rowsPerPage])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchGrammarPatterns()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -246,7 +270,7 @@ export default function GrammarPatternsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedPatterns.map((pattern) => (
+                {filteredPatterns.map((pattern) => (
                   <TableRow key={pattern.id}>
                     <TableCell className="font-medium">{pattern.id}</TableCell>
                     <TableCell>{pattern.title}</TableCell>
@@ -278,7 +302,7 @@ export default function GrammarPatternsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredPatterns.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -326,7 +350,10 @@ export default function GrammarPatternsPage() {
                   min="1"
                   max="6"
                   value={formData.hsk_level}
-                  onChange={(e) => setFormData({ ...formData, hsk_level: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, hsk_level: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -359,7 +386,10 @@ export default function GrammarPatternsPage() {
                 <Input
                   type="number"
                   value={formData.sort_order}
-                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="flex gap-2 pt-4">

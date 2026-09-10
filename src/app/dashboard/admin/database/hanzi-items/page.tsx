@@ -57,6 +57,7 @@ export default function HanziItemsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -81,10 +82,28 @@ export default function HanziItemsPage() {
 
   const fetchHanziItems = async () => {
     try {
+      // Dapatkan total count dulu
+      let countQuery = supa
+        .from("hanzi_items")
+        .select("*", { count: "exact", head: true })
+
+      if (selectedHanziKey) {
+        countQuery = countQuery.eq("hanzi_key", selectedHanziKey)
+      }
+
+      const { count: totalCount, error: countError } = await countQuery
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       let query = supa
         .from("hanzi_items")
         .select("*")
         .order("sort_order", { ascending: true })
+        .range(from, to)
 
       if (selectedHanziKey) {
         query = query.eq("hanzi_key", selectedHanziKey)
@@ -93,7 +112,18 @@ export default function HanziItemsPage() {
       const { data, error } = await query
 
       if (error) throw error
+
+      console.log("Hanzi Items fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`,
+        selectedHanziKey
+      })
+      
       setItems(data || [])
+      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching hanzi items:", error)
     } finally {
@@ -199,17 +229,18 @@ export default function HanziItemsPage() {
     item.arti.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredItems.length / rowsPerPage)
-  const paginatedItems = filteredItems.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search or filter changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedHanziKey])
+  }, [searchQuery, rowsPerPage, selectedHanziKey])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchHanziItems()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -287,7 +318,7 @@ export default function HanziItemsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedItems.map((item) => (
+                {filteredItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.id}</TableCell>
                     <TableCell className="font-mono text-xs">{item.hanzi_key}</TableCell>
@@ -325,7 +356,7 @@ export default function HanziItemsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredItems.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -400,7 +431,10 @@ export default function HanziItemsPage() {
                 <Input
                   type="number"
                   value={formData.sort_order}
-                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="flex items-center gap-2">

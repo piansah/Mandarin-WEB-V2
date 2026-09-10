@@ -53,6 +53,7 @@ export default function FlashcardCardsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -77,10 +78,28 @@ export default function FlashcardCardsPage() {
 
   const fetchFlashcardCards = async () => {
     try {
+      // Dapatkan total count dulu
+      let countQuery = supa
+        .from("flashcard_cards")
+        .select("*", { count: "exact", head: true })
+
+      if (selectedSetId) {
+        countQuery = countQuery.eq("set_id", selectedSetId)
+      }
+
+      const { count: totalCount, error: countError } = await countQuery
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       let query = supa
         .from("flashcard_cards")
         .select("*")
         .order("created_at", { ascending: false })
+        .range(from, to)
 
       if (selectedSetId) {
         query = query.eq("set_id", selectedSetId)
@@ -89,7 +108,18 @@ export default function FlashcardCardsPage() {
       const { data, error } = await query
 
       if (error) throw error
+
+      console.log("Flashcard Cards fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`,
+        selectedSetId
+      })
+      
       setCards(data || [])
+      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching flashcard cards:", error)
     } finally {
@@ -189,17 +219,18 @@ export default function FlashcardCardsPage() {
     card.arti.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredCards.length / rowsPerPage)
-  const paginatedCards = filteredCards.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search or filter changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedSetId])
+  }, [searchQuery, rowsPerPage, selectedSetId])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchFlashcardCards()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -275,7 +306,7 @@ export default function FlashcardCardsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCards.map((card) => (
+                {filteredCards.map((card) => (
                   <TableRow key={card.id}>
                     <TableCell className="font-medium">{card.id.slice(0, 8)}...</TableCell>
                     <TableCell className="font-medium">{card.hanzi}</TableCell>
@@ -307,7 +338,7 @@ export default function FlashcardCardsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredCards.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -328,7 +359,10 @@ export default function FlashcardCardsPage() {
                 <label className="text-sm font-medium">Flashcard Set</label>
                 <select
                   value={formData.set_id}
-                  onChange={(e) => setFormData({ ...formData, set_id: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, set_id: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                 >
                   <option value="">Pilih Set</option>

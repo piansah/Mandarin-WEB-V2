@@ -22,6 +22,7 @@ import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
+import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 
 
@@ -37,32 +38,18 @@ type CeritaDetail = {
   title_zh: string
   badge: string
   paragraphs: string[]
-  vocab: Record<string, { pinyin: string; arti: string }>
   quizQuestions: QuizQuestion[]
 }
 
-type Segment = string | { word: string }
-
-function segmentParagraph(text: string, vocabWords: string[]): Segment[] {
-  let segments: Segment[] = [text]
-  for (const word of vocabWords) {
-    if (!word) continue
-    const next: Segment[] = []
-    for (const seg of segments) {
-      if (typeof seg !== "string") {
-        next.push(seg)
-        continue
-      }
-      const parts = seg.split(word)
-      parts.forEach((part, i) => {
-        if (part) next.push(part)
-        if (i < parts.length - 1) next.push({ word })
-      })
-    }
-    segments = next
-  }
-  return segments
-}
+// Catatan perbaikan bug segmentasi (mis. "你好" kepecah jadi "你" + "好"):
+// Sebelumnya di sini ada `segmentParagraph()` custom yang cuma menerima daftar
+// kata hasil ekstraksi karakter TUNGGAL dari paragraf (lihat riwayat git),
+// jadi kata multi-karakter seperti "你好" tidak pernah bisa dikenali walau
+// sudah ada lengkap di database. Sekarang kita pakai `segmentText()` dari
+// `@/lib/hanzi-segmentation` — fungsi yang sama yang dipakai fitur search &
+// OCR — yang melakukan greedy longest-match terhadap SELURUH cache
+// `flashcard_cards` + `word_compounds` sekaligus, jadi kata 2–4 karakter
+// bisa dikenali dengan benar.
 
 type Popover = { word: string; pinyin: string; arti: string; x: number; y: number }
 
@@ -120,6 +107,64 @@ export default function CeritaReadPage() {
   const quizPanelRef = React.useRef<HTMLDivElement>(null)
   const lastSavedPctRef = React.useRef(-1)
 
+  // Target level highlight: story ber-badge "HSK 1" -> hanya kosakata
+  // hsk_level === 1 yang di-highlight/klik. Kata di luar level itu (termasuk
+  // entri word_compounds yang memang tidak punya hsk_level) tampil sebagai
+  // teks biasa — sengaja, biar user tetap ada usaha nyari sendiri, bukan
+  // semua kata disodorkan.
+  const targetHskLevel = React.useMemo(() => {
+    const match = data?.badge.match(/\d+/)
+    return match ? Number(match[0]) : null
+  }, [data?.badge])
+
+  // Deteksi otomatis nama tokoh / istilah yang tidak terdaftar sebagai
+  // compound (mis. "李明"): kalau ada 2 karakter yang masing-masing valid
+  // sebagai vocab SATUAN tapi tidak terdaftar sebagai satu kesatuan, dan
+  // pasangan itu berulang (>=2x) di cerita yang sama, hampir pasti itu nama
+  // orang/istilah khusus penulis — bukan 2 kosakata acak yang kebetulan
+  // nempel. Digabung jadi satu unit polos (tidak di-highlight) supaya tidak
+  // dipecah jadi highlight kosakata yang menyesatkan. Ini otomatis, tidak
+  // perlu daftar nama manual per cerita, jadi tetap jalan untuk cerita lama
+  // maupun baru tanpa perlu diisi satu-satu.
+  const storySegments = React.useMemo(() => {
+    if (!data) return [] as SegmentedWord[][]
+    const perParagraph = data.paragraphs.map((para) => segmentText(para))
+
+    const bigramCount = new Map<string, number>()
+    perParagraph.forEach((segs) => {
+      for (let i = 0; i < segs.length - 1; i++) {
+        const a = segs[i]
+        const b = segs[i + 1]
+        if (a.found && b.found && [...a.hanzi].length === 1 && [...b.hanzi].length === 1) {
+          const key = a.hanzi + b.hanzi
+          bigramCount.set(key, (bigramCount.get(key) ?? 0) + 1)
+        }
+      }
+    })
+
+    return perParagraph.map((segs) => {
+      const merged: SegmentedWord[] = []
+      let i = 0
+      while (i < segs.length) {
+        const a = segs[i]
+        const b = segs[i + 1]
+        const isRepeatedNamePair =
+          b &&
+          a.found && b.found &&
+          [...a.hanzi].length === 1 && [...b.hanzi].length === 1 &&
+          (bigramCount.get(a.hanzi + b.hanzi) ?? 0) >= 2
+        if (isRepeatedNamePair) {
+          merged.push({ hanzi: a.hanzi + b.hanzi, found: false })
+          i += 2
+        } else {
+          merged.push(a)
+          i += 1
+        }
+      }
+      return merged
+    })
+  }, [data])
+
   const getScrollEl = React.useCallback((): HTMLElement | null => {
     // Sejak halaman ini dirender di dalam layout dashboard normal (sidebar +
     // header tetap terlihat, bukan overlay fullscreen lagi), `rootRef`
@@ -129,15 +174,15 @@ export default function CeritaReadPage() {
     return (rootRef.current?.closest(".overflow-auto") as HTMLElement | null) ?? rootRef.current
   }, [])
 
+
   /* ── Load data ── */
   React.useEffect(() => {
     let cancelled = false
 
     async function load() {
-      const [metaRes, parasRes, vocabRes] = await Promise.all([
+      const [metaRes, parasRes] = await Promise.all([
         supa.from("cerita_sets").select("title, title_zh, badge, quiz_questions").eq("key", key).single(),
         supa.from("cerita_paragraphs").select("para_index, hanzi_text").eq("cerita_key", key).order("para_index", { ascending: true }),
-        supa.from("cerita_vocab").select("hanzi, pinyin, arti").eq("cerita_key", key).order("sort_order", { ascending: true }),
       ])
 
       if (cancelled) return
@@ -152,17 +197,20 @@ export default function CeritaReadPage() {
         return
       }
 
-      const vocab: Record<string, { pinyin: string; arti: string }> = {}
-      ;(vocabRes.data ?? []).forEach((v) => {
-        vocab[v.hanzi] = { pinyin: v.pinyin, arti: v.arti }
-      })
+      const paragraphs = (parasRes.data ?? []).map((p) => p.hanzi_text)
+
+      // Muat SELURUH cache kosakata global (flashcard_cards + word_compounds,
+      // fetch semua baris via pagination, bukan cuma 1 batch/limit tertentu).
+      // Ini sumber data yang sama dipakai fitur search & OCR, sehingga kata
+      // multi-karakter seperti "你好" ikut ter-cache dan bisa dikenali saat
+      // segmentasi di bawah, bukan cuma karakter tunggal.
+      await initGlobalSearchCache()
 
       setData({
         title: metaRes.data.title,
         title_zh: metaRes.data.title_zh ?? "",
         badge: metaRes.data.badge ?? "HSK 1",
-        paragraphs: (parasRes.data ?? []).map((p) => p.hanzi_text),
-        vocab,
+        paragraphs,
         quizQuestions: (metaRes.data.quiz_questions as QuizQuestion[] | null) ?? [],
       })
       setLoading(false)
@@ -319,17 +367,20 @@ export default function CeritaReadPage() {
     if (el) el.scrollTop = 0
   }
 
-  function openWordPopover(word: string, e: React.MouseEvent) {
-    const v = data?.vocab[word]
+  function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
+    // pinyin/arti sudah ikut dari hasil segmentText() (cache global), jadi
+    // tidak perlu query ulang ke Supabase dan tidak perlu state "Loading..."
+    // — sekaligus otomatis mendukung kata dari word_compounds, bukan cuma
+    // flashcard_cards seperti sebelumnya.
     setPopover({
-      word,
-      pinyin: v?.pinyin ?? "",
-      arti: v?.arti ?? "",
+      word: seg.hanzi,
+      pinyin: seg.pinyin || "Tidak ditemukan",
+      arti: seg.arti || "Tidak ditemukan",
       x: Math.min(Math.max(rect.left, 12), window.innerWidth - 232),
       y: rect.bottom + 8,
     })
-    speakMandarin(word, { silent: true })
+    speakMandarin(seg.hanzi, { silent: true })
   }
 
   React.useEffect(() => {
@@ -405,7 +456,6 @@ export default function CeritaReadPage() {
     )
   }
 
-  const vocabWords = Object.keys(data.vocab).sort((a, b) => b.length - a.length)
   const fontSize = FONT_LEVELS[fontLevel]
 
   return (
@@ -465,7 +515,7 @@ export default function CeritaReadPage() {
       />
       <div className="mx-auto w-full max-w-3xl px-4 pt-6 sm:px-6">
         {data.paragraphs.map((para, pi) => {
-          const segments = segmentParagraph(para, vocabWords)
+          const segments = storySegments[pi] ?? []
           const isActive = autoplayIdx === pi
           return (
             <p
@@ -476,23 +526,32 @@ export default function CeritaReadPage() {
                 isActive ? "bg-primary/10 ring-1 ring-primary/30" : ""
               }`}
             >
-              {segments.map((seg, si) =>
-                typeof seg === "string" ? (
-                  <React.Fragment key={si}>{seg}</React.Fragment>
+              {segments.map((seg, si) => {
+                // Highlight hanya untuk kosakata yang levelnya PAS sama
+                // dengan target HSK cerita ini. Kata found=true tapi beda
+                // level (atau entri word_compounds yang tidak punya
+                // hsk_level) tetap tampil sebagai teks biasa (tidak
+                // di-highlight, tidak bisa diklik) — sengaja, supaya user
+                // masih ada usaha mencari tahu sendiri, bukan semua kata
+                // disodorkan.
+                const shouldHighlight =
+                  seg.found && (targetHskLevel === null || seg.hsk === targetHskLevel)
+                return !shouldHighlight ? (
+                  <React.Fragment key={si}>{seg.hanzi}</React.Fragment>
                 ) : (
                   <button
                     key={si}
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation()
-                      openWordPopover(seg.word, e)
+                      openWordPopover(seg, e)
                     }}
                     className="rounded-sm bg-primary/10 px-0.5 text-primary transition-colors hover:bg-primary/20"
                   >
-                    {seg.word}
+                    {seg.hanzi}
                   </button>
                 )
-              )}
+              })}
               <button
                 type="button"
                 onClick={() => speakMandarin(para)}

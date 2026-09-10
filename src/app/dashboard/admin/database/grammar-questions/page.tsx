@@ -58,6 +58,7 @@ export default function GrammarQuestionsPage() {
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
+  const [totalRows, setTotalRows] = React.useState(0)
 
   const supa = createClient()
 
@@ -82,10 +83,28 @@ export default function GrammarQuestionsPage() {
 
   const fetchGrammarQuestions = async () => {
     try {
+      // Dapatkan total count dulu
+      let countQuery = supa
+        .from("grammar_questions")
+        .select("*", { count: "exact", head: true })
+
+      if (selectedPatternId) {
+        countQuery = countQuery.eq("pattern_id", selectedPatternId)
+      }
+
+      const { count: totalCount, error: countError } = await countQuery
+
+      if (countError) throw countError
+
+      // Fetch data dengan pagination di level Supabase
+      const from = (currentPage - 1) * rowsPerPage
+      const to = from + rowsPerPage - 1
+
       let query = supa
         .from("grammar_questions")
         .select("*")
         .order("sort_order", { ascending: true })
+        .range(from, to)
 
       if (selectedPatternId) {
         query = query.eq("pattern_id", selectedPatternId)
@@ -94,7 +113,18 @@ export default function GrammarQuestionsPage() {
       const { data, error } = await query
 
       if (error) throw error
+
+      console.log("Grammar Questions fetched:", { 
+        totalCount, 
+        dataLength: data?.length, 
+        currentPage, 
+        rowsPerPage,
+        range: `${from}-${to}`,
+        selectedPatternId
+      })
+      
       setQuestions(data || [])
+      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching grammar questions:", error)
     } finally {
@@ -198,17 +228,18 @@ export default function GrammarQuestionsPage() {
     question.translation.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Pagination logic
-  const totalPages = Math.ceil(filteredQuestions.length / rowsPerPage)
-  const paginatedQuestions = filteredQuestions.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  )
-
-  // Reset to page 1 when search or filter changes
+  // Pagination logic (server-side)
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+  
+  // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery, selectedPatternId])
+  }, [searchQuery, rowsPerPage, selectedPatternId])
+  
+  // Re-fetch data when page changes
+  React.useEffect(() => {
+    fetchGrammarQuestions()
+  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -282,7 +313,7 @@ export default function GrammarQuestionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedQuestions.map((question) => (
+                {filteredQuestions.map((question) => (
                   <TableRow key={question.id}>
                     <TableCell className="font-medium">{question.id}</TableCell>
                     <TableCell>
@@ -310,7 +341,7 @@ export default function GrammarQuestionsPage() {
                 currentPage={currentPage}
                 totalPages={totalPages}
                 rowsPerPage={rowsPerPage}
-                totalRows={filteredQuestions.length}
+                totalRows={totalRows}
                 onPageChange={setCurrentPage}
                 onRowsPerPageChange={setRowsPerPage}
               />
@@ -331,7 +362,10 @@ export default function GrammarQuestionsPage() {
                 <label className="text-sm font-medium">Grammar Pattern</label>
                 <select
                   value={formData.pattern_id}
-                  onChange={(e) => setFormData({ ...formData, pattern_id: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, pattern_id: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                 >
                   <option value="">Pilih Pattern</option>
@@ -397,7 +431,10 @@ export default function GrammarQuestionsPage() {
                 <Input
                   type="number"
                   value={formData.sort_order}
-                  onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) })}
+                  onChange={(e) => {
+                    const parsed = parseInt(e.target.value, 10)
+                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
+                  }}
                 />
               </div>
               <div className="flex gap-2 pt-4">

@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp } from "lucide-react"
+import { ArrowLeft, Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 export default function AdminDatabasePage() {
@@ -22,6 +22,8 @@ export default function AdminDatabasePage() {
           "flashcard_sets",
           "flashcard_cards", 
           "word_compounds",
+          "word_examples",
+          "cerita_vocab",
           "grammar_patterns",
           "grammar_questions",
           "hanzi_sets",
@@ -81,6 +83,9 @@ export default function AdminDatabasePage() {
         break
       case "word_compounds":
         router.push("/dashboard/admin/database/word-compounds")
+        break
+      case "word_examples":
+        router.push("/dashboard/admin/database/word-examples")
         break
       case "grammar_patterns":
         router.push("/dashboard/admin/database/grammar-patterns")
@@ -149,6 +154,13 @@ export default function AdminDatabasePage() {
           description: "Kelola kata majemuk",
           icon: Layers,
           table: "word_compounds",
+          count: 0,
+        },
+        {
+          title: "Word Examples",
+          description: "Kelola contoh kalimat",
+          icon: MessageSquare,
+          table: "word_examples",
           count: 0,
         },
       ]
@@ -295,8 +307,8 @@ export default function AdminDatabasePage() {
           <p className="text-sm text-muted-foreground">
             Klik tombol <strong>"Kelola"</strong> untuk mengelola data secara langsung di web. 
             CRUD interface sudah tersedia untuk <strong>Flashcard Sets</strong>, <strong>Flashcard Cards</strong>, 
-            <strong>Word Compounds</strong>, <strong>Grammar Patterns</strong>, <strong>Grammar Questions</strong>, 
-            <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.
+            <strong>Word Compounds</strong>, <strong>Word Examples</strong>, <strong>Grammar Patterns</strong>, 
+            <strong>Grammar Questions</strong>, <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.
           </p>
         </CardContent>
       </Card>

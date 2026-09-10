@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { Flag, Heart, Plus } from "lucide-react"
+import { Flag, Heart, Plus, Volume2, X } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
@@ -10,6 +10,7 @@ import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
+import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
@@ -18,7 +19,7 @@ type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null
 type CompoundWord = { hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
 type DictionaryEntry = { pinyin?: string[]; definition?: string; decomposition?: string; etymology?: { hint?: string } }
 type DictionaryMap = Record<string, DictionaryEntry>
-type Segment = { text: string; hanzi: boolean; known: boolean }
+type WordPopoverState = { hanzi: string; pinyin: string; arti: string; x: number; y: number }
 
 function ColorPinyin({ text }: { text: string }) {
   return <>{text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
@@ -45,20 +46,6 @@ function useLongPress(onTap: () => void, onLongPress: () => void) {
   }
 }
 
-function segmentSentence(text: string, knownWords: Set<string>): Segment[] {
-  const words = [...knownWords].filter(word => [...word].length > 1).sort((a, b) => [...b].length - [...a].length)
-  const segments: Segment[] = []
-  let index = 0
-  while (index < text.length) {
-    const char = text[index]
-    if (!isHanzi(char)) { segments.push({ text: char, hanzi: false, known: false }); index += 1; continue }
-    const match = words.find(word => text.startsWith(word, index))
-    if (match) { segments.push({ text: match, hanzi: true, known: true }); index += match.length }
-    else { segments.push({ text: char, hanzi: true, known: false }); index += 1 }
-  }
-  return segments
-}
-
 function heroBadgeLabel(card: Card): string | null {
   if (card.hsk_level) return `HSK ${card.hsk_level}`
   const normalized = card.badge?.trim().toLowerCase() ?? ""
@@ -79,7 +66,8 @@ export default function WordDetailPage() {
   const [card, setCard] = React.useState<Card | null>(null)
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
-  const [knownWords, setKnownWords] = React.useState<Set<string>>(new Set())
+  const [cacheReady, setCacheReady] = React.useState(false)
+  const [wordPopover, setWordPopover] = React.useState<WordPopoverState | null>(null)
   const [dictionary, setDictionary] = React.useState<DictionaryMap | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [tabLoading, setTabLoading] = React.useState(false)
@@ -91,6 +79,15 @@ export default function WordDetailPage() {
   React.useEffect(() => {
     let cancelled = false
     async function load() {
+      // Saat komponen pertama kali mount / route param belum sepenuhnya
+      // siap, `cardId` bisa sesaat bernilai kosong atau string "undefined".
+      // Kalau tetap lanjut fetch, query pasti gagal menemukan data dan
+      // halaman sempat menampilkan teks merah "tidak ditemukan" sebelum
+      // param yang benar masuk dan effect ini jalan ulang. Jadi query
+      // ditunda dulu sampai cardId benar-benar valid — state `loading`
+      // (true sejak awal) tetap dipertahankan sehingga yang tampil cuma
+      // spinner, bukan pesan error.
+      if (!cardId || cardId === "undefined" || cardId === "null") return
       setLoading(true)
       let cardRes = await supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti, catatan, word_class").eq("id", cardId).single()
       if (cardRes.error) cardRes = await supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti").eq("id", cardId).single()
@@ -125,17 +122,22 @@ export default function WordDetailPage() {
   }, [cardId])
 
   React.useEffect(() => {
-    if (!card) return
-    const activeCard = card
     let cancelled = false
-    async function loadVocabulary() {
-      const [cardsRes, compoundsRes] = await Promise.all([supa.from("flashcard_cards").select("hanzi").limit(2000), supa.from("word_compounds").select("hanzi").limit(2000)])
-      if (cancelled) return
-      const words = [activeCard.hanzi, ...(cardsRes.data ?? []).map(item => item.hanzi), ...(compoundsRes.data ?? []).map(item => item.hanzi)]
-      setKnownWords(new Set(words.filter(Boolean)))
+    initGlobalSearchCache().then(() => { if (!cancelled) setCacheReady(true) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Tutup popup detail kata saat klik di luar popup atau saat scroll.
+  React.useEffect(() => {
+    if (!wordPopover) return
+    function close() { setWordPopover(null) }
+    document.addEventListener("click", close)
+    window.addEventListener("scroll", close, true)
+    return () => {
+      document.removeEventListener("click", close)
+      window.removeEventListener("scroll", close, true)
     }
-    loadVocabulary(); return () => { cancelled = true }
-  }, [card])
+  }, [wordPopover])
 
   React.useEffect(() => {
     if (!card) return
@@ -226,6 +228,20 @@ export default function WordDetailPage() {
     setReportModal({ isOpen: false, contentLabel: "" })
   }
 
+  function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    // pinyin/arti sudah ikut dari hasil segmentText() (cache global), jadi
+    // popup langsung tampil tanpa query tambahan. TTS TIDAK diputar di sini
+    // — hanya dipicu saat tombol "Dengar" di dalam popup ditekan.
+    setWordPopover({
+      hanzi: seg.hanzi,
+      pinyin: seg.pinyin || "Tidak ditemukan",
+      arti: seg.arti || "Tidak ditemukan",
+      x: Math.min(Math.max(rect.left, 12), window.innerWidth - 232),
+      y: rect.bottom + 8,
+    })
+  }
+
   function openAddSentenceModal() {
     setAddSentenceModal(true)
   }
@@ -252,7 +268,35 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} knownWords={knownWords} card={card} onAddSentence={openAddSentenceModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} cacheReady={cacheReady} card={card} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
+
+    {/* Popup detail kata hasil segmentasi contoh kalimat */}
+    {wordPopover && (
+      <div
+        className={styles.wordPopover}
+        style={{ left: wordPopover.x, top: wordPopover.y }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className={styles.wordPopoverHeader}>
+          <div className="min-w-0">
+            <div className={styles.wordPopoverHanzi}>{wordPopover.hanzi}</div>
+            {wordPopover.pinyin && <div className={styles.wordPopoverPinyin}>{wordPopover.pinyin}</div>}
+          </div>
+          <button type="button" onClick={() => setWordPopover(null)} className={styles.wordPopoverClose} aria-label="Tutup">
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        {wordPopover.arti && <p className={styles.wordPopoverArti}>{wordPopover.arti}</p>}
+        <button
+          type="button"
+          onClick={() => speakMandarin(wordPopover.hanzi)}
+          className={styles.wordPopoverListen}
+        >
+          <Volume2 className="h-3.5 w-3.5" />
+          Dengar
+        </button>
+      </div>
+    )}
 
     {/* Report Modal */}
     <ReportModal
@@ -279,7 +323,7 @@ function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; fav
   return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
-function SentenceTab({ examples, knownWords, card, onAddSentence }: { examples: ExampleSentence[]; knownWords: Set<string>; card: Card; onAddSentence: () => void }) {
+function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: { examples: ExampleSentence[]; cacheReady: boolean; card: Card; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
   return (
     <div>
@@ -293,14 +337,20 @@ function SentenceTab({ examples, knownWords, card, onAddSentence }: { examples: 
           Tambah Contoh Kalimat
         </button>
       </div>
-      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} knownWords={knownWords} />)}</div>
+      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
     </div>
   )
 }
 
-function SentenceCard({ example, knownWords }: { example: ExampleSentence; knownWords: Set<string> }) {
+function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSentence; cacheReady: boolean; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   const sentence = example.hanzi || ""
   const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
+
+  // Segmentasi kosakata pada kalimat memakai cache global yang sama dengan
+  // fitur pencarian & cerita (segmentText), sehingga tiap potongan kata
+  // sudah membawa pinyin & arti asli untuk ditampilkan di popup — bukan
+  // sekadar status "diketahui/tidak" seperti sebelumnya.
+  const segments = React.useMemo(() => (cacheReady ? segmentText(sentence) : []), [sentence, cacheReady])
 
   const handleReport = () => {
     window.openBugReportModal?.(
@@ -314,7 +364,13 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
   return (
     <SwipeToReport onReport={() => handleReport()}>
       <article className={styles.sentenceCard} {...gesture}>
-        <div className={styles.sentenceHanzi}>{segmentSentence(sentence, knownWords).map((segment, index) => segment.hanzi ? <SentenceToken key={`${segment.text}-${index}`} segment={segment} /> : <React.Fragment key={`${segment.text}-${index}`}>{segment.text}</React.Fragment>)}</div>
+        <div className={styles.sentenceHanzi}>
+          {segments.length > 0
+            ? segments.map((segment, index) => isHanzi(segment.hanzi[0] ?? "")
+                ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} onOpen={onWordOpen} />
+                : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
+            : sentence}
+        </div>
         {example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}
         {example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}
       </article>
@@ -322,9 +378,19 @@ function SentenceCard({ example, knownWords }: { example: ExampleSentence; known
   )
 }
 
-function SentenceToken({ segment }: { segment: Segment }) {
-  const gesture = useLongPress(() => speakMandarin(segment.text), () => speakMandarin(segment.text))
-  return <button type="button" aria-label={`Dengarkan ${segment.text}`} className={segment.known ? styles.knownToken : styles.singleToken} onPointerDown={event => { event.stopPropagation(); gesture.onPointerDown(event) }} onPointerMove={gesture.onPointerMove} onPointerUp={event => { event.stopPropagation(); gesture.onPointerUp() }} onPointerCancel={gesture.onPointerCancel} onClick={event => { event.stopPropagation(); gesture.onClick(event) }}>{segment.text}</button>
+function SentenceToken({ segment, onOpen }: { segment: SegmentedWord; onOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
+  // Tap kata hanya membuka popup detail (hanzi/pinyin/arti) — TTS tidak
+  // diputar otomatis di sini, hanya lewat tombol "Dengar" di dalam popup.
+  return (
+    <button
+      type="button"
+      aria-label={`Detail kata ${segment.hanzi}`}
+      className={segment.found ? styles.knownToken : styles.singleToken}
+      onClick={event => { event.stopPropagation(); onOpen(segment, event) }}
+    >
+      {segment.hanzi}
+    </button>
+  )
 }
 
 function getVocabularyBadge(badge?: string | null) {

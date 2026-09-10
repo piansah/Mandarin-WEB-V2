@@ -34,7 +34,7 @@ export function Pagination({
   return (
     <div className="flex items-center justify-between px-2">
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <span>Menampilkan {startRow}-{endRow} dari {totalRows} rows</span>
+        <span>Menampilkan {startRow}-{endRow} dari {totalRows} baris</span>
       </div>
 
       <div className="flex items-center gap-2">
@@ -72,12 +72,12 @@ export function Pagination({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="10">10 rows</SelectItem>
-            <SelectItem value="25">25 rows</SelectItem>
-            <SelectItem value="50">50 rows</SelectItem>
-            <SelectItem value="100">100 rows</SelectItem>
-            <SelectItem value="500">500 rows</SelectItem>
-            <SelectItem value="1000">1000 rows</SelectItem>
+            <SelectItem value="10">10 baris</SelectItem>
+            <SelectItem value="25">25 baris</SelectItem>
+            <SelectItem value="50">50 baris</SelectItem>
+            <SelectItem value="100">100 baris</SelectItem>
+            <SelectItem value="500">500 baris</SelectItem>
+            <SelectItem value="1000">1000 baris</SelectItem>
           </SelectContent>
         </Select>
       </div>
