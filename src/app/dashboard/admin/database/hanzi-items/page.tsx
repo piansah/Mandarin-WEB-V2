@@ -367,7 +367,7 @@ export default function HanziItemsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingItem) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>{editingItem ? "Edit Hanzi Item" : "Tambah Hanzi Item"}</CardTitle>

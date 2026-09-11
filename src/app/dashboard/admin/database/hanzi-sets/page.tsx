@@ -39,6 +39,7 @@ export default function HanziSetsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingSet, setEditingSet] = React.useState<HanziSet | null>(null)
+  const [deletingSet, setDeletingSet] = React.useState<HanziSet | null>(null)
   const [formData, setFormData] = React.useState({
     key: "",
     title: "",
@@ -152,20 +153,43 @@ export default function HanziSetsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus hanzi set ini?")) return
+  const handleDelete = async () => {
+    if (!deletingSet) return
 
     try {
+      console.log("Deleting hanzi set:", deletingSet.id)
+      
+      // Cek apakah ada items yang terkait dengan set ini
+      const { count: itemCount, error: countError } = await supa
+        .from("hanzi_items")
+        .select("*", { count: "exact", head: true })
+        .eq("hanzi_key", deletingSet.key)
+
+      if (countError) {
+        console.error("Error checking item count:", countError)
+      }
+
+      if (itemCount && itemCount > 0) {
+        alert(`Tidak dapat menghapus set ini karena masih ada ${itemCount} item yang terkait. Pindahkan atau hapus item terlebih dahulu.`)
+        setDeletingSet(null)
+        return
+      }
+
       const { error } = await supa
         .from("hanzi_sets")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingSet.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingSet(null)
       fetchHanziSets()
     } catch (error) {
       console.error("Error deleting hanzi set:", error)
-      alert("Gagal menghapus hanzi set")
+      alert(`Gagal menghapus hanzi set: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -290,7 +314,7 @@ export default function HanziSetsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(set.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingSet(set)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -315,7 +339,7 @@ export default function HanziSetsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingSet) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>{editingSet ? "Edit Hanzi Set" : "Tambah Hanzi Set"}</CardTitle>
@@ -406,6 +430,39 @@ export default function HanziSetsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingSet(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingSet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Hanzi Set</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus hanzi set ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Title: {deletingSet.title}</p>
+                  <p className="text-sm">Key: {deletingSet.key}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingSet(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

@@ -301,7 +301,7 @@ export default function WordExamplesPage() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Tambah Contoh Kalimat</CardTitle>
@@ -356,7 +356,7 @@ export default function WordExamplesPage() {
 
       {/* Edit Modal */}
       {editingExample && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>Edit Contoh Kalimat</CardTitle>
@@ -407,7 +407,7 @@ export default function WordExamplesPage() {
 
       {/* Delete Confirm Modal */}
       {deletingExample && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-destructive">Hapus Contoh Kalimat</CardTitle>

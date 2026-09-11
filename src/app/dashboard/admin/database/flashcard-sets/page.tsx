@@ -95,6 +95,7 @@ export default function FlashcardSetsPage() {
 
   const handleAdd = async () => {
     try {
+      console.log("Adding flashcard set:", formData)
       const { error } = await supa
         .from("flashcard_sets")
         .insert({
@@ -107,14 +108,17 @@ export default function FlashcardSetsPage() {
           is_default: true
         })
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       setShowAddModal(false)
       setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
       fetchFlashcardSets()
     } catch (error) {
       console.error("Error adding flashcard set:", error)
-      alert("Gagal menambahkan flashcard set")
+      alert(`Gagal menambahkan flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -149,18 +153,39 @@ export default function FlashcardSetsPage() {
     if (!deletingSet) return
 
     try {
+      console.log("Deleting flashcard set:", deletingSet.id)
+      
+      // Cek apakah ada cards yang terkait dengan set ini
+      const { count: cardCount, error: countError } = await supa
+        .from("flashcard_cards")
+        .select("*", { count: "exact", head: true })
+        .eq("set_id", deletingSet.id)
+
+      if (countError) {
+        console.error("Error checking card count:", countError)
+      }
+
+      if (cardCount && cardCount > 0) {
+        alert(`Tidak dapat menghapus set ini karena masih ada ${cardCount} kartu yang terkait. Pindahkan atau hapus kartu terlebih dahulu.`)
+        setDeletingSet(null)
+        return
+      }
+
       const { error } = await supa
         .from("flashcard_sets")
         .delete()
         .eq("id", deletingSet.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       setDeletingSet(null)
       fetchFlashcardSets()
     } catch (error) {
       console.error("Error deleting flashcard set:", error)
-      alert("Gagal menghapus flashcard set")
+      alert(`Gagal menghapus flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -307,7 +332,7 @@ export default function FlashcardSetsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingSet) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle>{editingSet ? "Edit Flashcard Set" : "Tambah Flashcard Set"}</CardTitle>
@@ -387,7 +412,7 @@ export default function FlashcardSetsPage() {
 
       {/* Delete Confirm Modal */}
       {deletingSet && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
             <CardHeader>
               <CardTitle className="text-destructive">Hapus Flashcard Set</CardTitle>

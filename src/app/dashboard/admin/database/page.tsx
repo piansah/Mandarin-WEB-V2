@@ -23,7 +23,6 @@ export default function AdminDatabasePage() {
           "flashcard_cards", 
           "word_compounds",
           "word_examples",
-          "cerita_vocab",
           "grammar_patterns",
           "grammar_questions",
           "hanzi_sets",

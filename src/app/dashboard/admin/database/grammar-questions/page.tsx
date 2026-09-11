@@ -46,6 +46,7 @@ export default function GrammarQuestionsPage() {
   const [selectedPatternId, setSelectedPatternId] = React.useState<number | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingQuestion, setEditingQuestion] = React.useState<GrammarQuestion | null>(null)
+  const [deletingQuestion, setDeletingQuestion] = React.useState<GrammarQuestion | null>(null)
   const [formData, setFormData] = React.useState({
     pattern_id: 0,
     words: "",
@@ -187,20 +188,26 @@ export default function GrammarQuestionsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus grammar question ini?")) return
+  const handleDelete = async () => {
+    if (!deletingQuestion) return
 
     try {
+      console.log("Deleting grammar question:", deletingQuestion.id)
       const { error } = await supa
         .from("grammar_questions")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingQuestion.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingQuestion(null)
       fetchGrammarQuestions()
     } catch (error) {
       console.error("Error deleting grammar question:", error)
-      alert("Gagal menghapus grammar question")
+      alert(`Gagal menghapus grammar question: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -327,7 +334,7 @@ export default function GrammarQuestionsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(question)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(question.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingQuestion(question)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -352,7 +359,7 @@ export default function GrammarQuestionsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingQuestion) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>{editingQuestion ? "Edit Grammar Question" : "Tambah Grammar Question"}</CardTitle>
@@ -443,6 +450,39 @@ export default function GrammarQuestionsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingQuestion(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingQuestion && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Grammar Question</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus grammar question ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Translation: {deletingQuestion.translation}</p>
+                  <p className="text-sm">Pattern ID: {deletingQuestion.pattern_id}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingQuestion(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

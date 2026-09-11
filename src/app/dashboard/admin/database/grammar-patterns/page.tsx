@@ -39,6 +39,7 @@ export default function GrammarPatternsPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingPattern, setEditingPattern] = React.useState<GrammarPattern | null>(null)
+  const [deletingPattern, setDeletingPattern] = React.useState<GrammarPattern | null>(null)
   const [formData, setFormData] = React.useState({
     title: "",
     slug: "",
@@ -152,20 +153,43 @@ export default function GrammarPatternsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus grammar pattern ini?")) return
+  const handleDelete = async () => {
+    if (!deletingPattern) return
 
     try {
+      console.log("Deleting grammar pattern:", deletingPattern.id)
+      
+      // Cek apakah ada questions yang terkait dengan pattern ini
+      const { count: questionCount, error: countError } = await supa
+        .from("grammar_questions")
+        .select("*", { count: "exact", head: true })
+        .eq("pattern_id", deletingPattern.id)
+
+      if (countError) {
+        console.error("Error checking question count:", countError)
+      }
+
+      if (questionCount && questionCount > 0) {
+        alert(`Tidak dapat menghapus pattern ini karena masih ada ${questionCount} soal yang terkait. Pindahkan atau hapus soal terlebih dahulu.`)
+        setDeletingPattern(null)
+        return
+      }
+
       const { error } = await supa
         .from("grammar_patterns")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingPattern.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingPattern(null)
       fetchGrammarPatterns()
     } catch (error) {
       console.error("Error deleting grammar pattern:", error)
-      alert("Gagal menghapus grammar pattern")
+      alert(`Gagal menghapus grammar pattern: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -288,7 +312,7 @@ export default function GrammarPatternsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(pattern)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(pattern.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingPattern(pattern)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -313,7 +337,7 @@ export default function GrammarPatternsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingPattern) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>{editingPattern ? "Edit Grammar Pattern" : "Tambah Grammar Pattern"}</CardTitle>
@@ -398,6 +422,39 @@ export default function GrammarPatternsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingPattern(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingPattern && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Grammar Pattern</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus grammar pattern ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Title: {deletingPattern.title}</p>
+                  <p className="text-sm">Slug: {deletingPattern.slug}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingPattern(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

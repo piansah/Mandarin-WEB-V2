@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Plus, Edit, Trash2, Search, FileText } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import {
   Table,
   TableBody,
@@ -43,8 +44,9 @@ export default function FlashcardCardsPage() {
   const [selectedSetId, setSelectedSetId] = React.useState<number | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingCard, setEditingCard] = React.useState<FlashcardCard | null>(null)
+  const [deletingCard, setDeletingCard] = React.useState<FlashcardCard | null>(null)
   const [formData, setFormData] = React.useState({
-    set_id: 0,
+    set_id: null as number | null,
     hanzi: "",
     pinyin: "",
     arti: "",
@@ -128,7 +130,13 @@ export default function FlashcardCardsPage() {
   }
 
   const handleAdd = async () => {
+    if (!formData.set_id) {
+      alert("Silakan pilih Flashcard Set terlebih dahulu")
+      return
+    }
+
     try {
+      console.log("Adding flashcard card:", formData)
       const { error } = await supa
         .from("flashcard_cards")
         .insert({
@@ -140,21 +148,30 @@ export default function FlashcardCardsPage() {
           word_class: formData.word_class || null
         })
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       setShowAddModal(false)
-      setFormData({ set_id: 0, hanzi: "", pinyin: "", arti: "", catatan: "", word_class: "" })
+      setFormData({ set_id: null, hanzi: "", pinyin: "", arti: "", catatan: "", word_class: "" })
       fetchFlashcardCards()
     } catch (error) {
       console.error("Error adding flashcard card:", error)
-      alert("Gagal menambahkan flashcard card")
+      alert(`Gagal menambahkan flashcard card: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
   const handleEdit = async () => {
     if (!editingCard) return
 
+    if (!formData.set_id) {
+      alert("Silakan pilih Flashcard Set terlebih dahulu")
+      return
+    }
+
     try {
+      console.log("Updating flashcard card:", formData)
       const { error } = await supa
         .from("flashcard_cards")
         .update({
@@ -167,31 +184,40 @@ export default function FlashcardCardsPage() {
         })
         .eq("id", editingCard.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       setEditingCard(null)
-      setFormData({ set_id: 0, hanzi: "", pinyin: "", arti: "", catatan: "", word_class: "" })
+      setFormData({ set_id: null, hanzi: "", pinyin: "", arti: "", catatan: "", word_class: "" })
       fetchFlashcardCards()
     } catch (error) {
       console.error("Error updating flashcard card:", error)
-      alert("Gagal mengupdate flashcard card")
+      alert(`Gagal mengupdate flashcard card: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus flashcard card ini?")) return
+  const handleDelete = async () => {
+    if (!deletingCard) return
 
     try {
+      console.log("Deleting flashcard card:", deletingCard.id)
       const { error } = await supa
         .from("flashcard_cards")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingCard.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingCard(null)
       fetchFlashcardCards()
     } catch (error) {
       console.error("Error deleting flashcard card:", error)
-      alert("Gagal menghapus flashcard card")
+      alert(`Gagal menghapus flashcard card: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -324,7 +350,7 @@ export default function FlashcardCardsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(card)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(card.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingCard(card)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -349,7 +375,7 @@ export default function FlashcardCardsPage() {
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingCard) && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>{editingCard ? "Edit Flashcard Card" : "Tambah Flashcard Card"}</CardTitle>
@@ -358,10 +384,11 @@ export default function FlashcardCardsPage() {
               <div className="space-y-2">
                 <label className="text-sm font-medium">Flashcard Set</label>
                 <select
-                  value={formData.set_id}
+                  value={formData.set_id ?? ""}
                   onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, set_id: Number.isNaN(parsed) ? 0 : parsed })
+                    const value = e.target.value
+                    const parsed = value ? parseInt(value, 10) : null
+                    setFormData({ ...formData, set_id: Number.isNaN(parsed) ? null : parsed })
                   }}
                   className="w-full px-3 py-2 border rounded-md bg-background"
                 >
@@ -397,11 +424,16 @@ export default function FlashcardCardsPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Word Class</label>
-                <Input
+                <select
                   value={formData.word_class}
                   onChange={(e) => setFormData({ ...formData, word_class: e.target.value })}
-                  placeholder="kata benda, kata kerja, dll"
-                />
+                  className="w-full px-3 py-2 border rounded-md bg-background"
+                >
+                  <option value="">Pilih Kelas Kata</option>
+                  {Object.entries(WORD_CLASS_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Catatan</label>
@@ -417,6 +449,40 @@ export default function FlashcardCardsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingCard(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingCard && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Flashcard Card</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus flashcard card ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Hanzi: {deletingCard.hanzi}</p>
+                  <p className="text-sm">Pinyin: {deletingCard.pinyin}</p>
+                  <p className="text-sm">Arti: {deletingCard.arti}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingCard(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>
