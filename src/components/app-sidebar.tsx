@@ -117,7 +117,7 @@ const personalCollectionItems = [
 
 const adminItems = [
   {
-    title: "Admin Panel",
+    title: "Dashboard Admin",
     url: "/dashboard/admin",
     icon: Shield,
   },

@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Search, FileText } from "lucide-react"
+import { Plus, Edit, Trash2, Search, FileText } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import {
@@ -36,7 +35,6 @@ interface FlashcardSet {
 }
 
 export default function FlashcardCardsPage() {
-  const router = useRouter()
   const [cards, setCards] = React.useState<FlashcardCard[]>([])
   const [sets, setSets] = React.useState<FlashcardSet[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -62,7 +60,7 @@ export default function FlashcardCardsPage() {
   React.useEffect(() => {
     fetchFlashcardSets()
     fetchFlashcardCards()
-  }, [selectedSetId])
+  }, [selectedSetId, currentPage, rowsPerPage])
 
   const fetchFlashcardSets = async () => {
     try {
@@ -92,6 +90,8 @@ export default function FlashcardCardsPage() {
       const { count: totalCount, error: countError } = await countQuery
 
       if (countError) throw countError
+
+      setTotalRows(totalCount || 0)
 
       // Fetch data dengan pagination di level Supabase
       const from = (currentPage - 1) * rowsPerPage
@@ -262,9 +262,6 @@ export default function FlashcardCardsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />

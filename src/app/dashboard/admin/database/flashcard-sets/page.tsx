@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Search, BookOpen } from "lucide-react"
+import { Plus, Edit, Trash2, Search, BookOpen } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import {
   Table,
@@ -31,13 +30,13 @@ interface FlashcardSet {
 }
 
 export default function FlashcardSetsPage() {
-  const router = useRouter()
   const [sets, setSets] = React.useState<FlashcardSet[]>([])
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingSet, setEditingSet] = React.useState<FlashcardSet | null>(null)
   const [deletingSet, setDeletingSet] = React.useState<FlashcardSet | null>(null)
+  const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
   const [formData, setFormData] = React.useState({
     day_number: 1,
     title: "",
@@ -54,7 +53,7 @@ export default function FlashcardSetsPage() {
 
   React.useEffect(() => {
     fetchFlashcardSets()
-  }, [])
+  }, [currentPage, rowsPerPage])
 
   const fetchFlashcardSets = async () => {
     try {
@@ -64,6 +63,8 @@ export default function FlashcardSetsPage() {
         .select("*", { count: "exact", head: true })
 
       if (countError) throw countError
+
+      setTotalRows(totalCount || 0)
 
       // Fetch data dengan pagination di level Supabase
       const from = (currentPage - 1) * rowsPerPage
@@ -149,6 +150,10 @@ export default function FlashcardSetsPage() {
     }
   }
 
+  const handleDeleteClick = (set: FlashcardSet) => {
+    setDeletingSet(set)
+  }
+
   const handleDelete = async () => {
     if (!deletingSet) return
 
@@ -161,16 +166,25 @@ export default function FlashcardSetsPage() {
         .select("*", { count: "exact", head: true })
         .eq("set_id", deletingSet.id)
 
+      console.log("Card count check:", { cardCount, error: countError })
+
       if (countError) {
         console.error("Error checking card count:", countError)
-      }
-
-      if (cardCount && cardCount > 0) {
-        alert(`Tidak dapat menghapus set ini karena masih ada ${cardCount} kartu yang terkait. Pindahkan atau hapus kartu terlebih dahulu.`)
+        setBlockingAlert({ message: "Gagal mengecek kartu terkait" })
         setDeletingSet(null)
         return
       }
 
+      if (cardCount && cardCount > 0) {
+        console.log("Blocking delete due to related cards:", cardCount)
+        setBlockingAlert({ 
+          message: `Tidak dapat menghapus set ini karena masih ada ${cardCount} kartu yang terkait. Pindahkan atau hapus kartu terlebih dahulu.` 
+        })
+        setDeletingSet(null)
+        return
+      }
+
+      console.log("Proceeding with delete, no related cards found")
       const { error } = await supa
         .from("flashcard_sets")
         .delete()
@@ -185,7 +199,10 @@ export default function FlashcardSetsPage() {
       fetchFlashcardSets()
     } catch (error) {
       console.error("Error deleting flashcard set:", error)
-      alert(`Gagal menghapus flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setBlockingAlert({ 
+        message: `Gagal menghapus flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      })
+      setDeletingSet(null)
     }
   }
 
@@ -229,9 +246,6 @@ export default function FlashcardSetsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-primary" />
@@ -307,7 +321,7 @@ export default function FlashcardSetsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingSet(set)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(set)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -436,6 +450,27 @@ export default function FlashcardSetsPage() {
                 </Button>
                 <Button variant="destructive" onClick={handleDelete}>
                   Hapus
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Blocking Alert Modal */}
+      {blockingAlert && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Peringatan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm">{blockingAlert.message}</p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button onClick={() => setBlockingAlert(null)}>
+                  OK
                 </Button>
               </div>
             </CardContent>

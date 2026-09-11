@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Search, Flag } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Flag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import {
   Table,
@@ -37,7 +36,6 @@ interface HanziSet {
 }
 
 export default function HanziItemsPage() {
-  const router = useRouter()
   const [items, setItems] = React.useState<HanziItem[]>([])
   const [sets, setSets] = React.useState<HanziSet[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -45,6 +43,7 @@ export default function HanziItemsPage() {
   const [selectedHanziKey, setSelectedHanziKey] = React.useState<string | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingItem, setEditingItem] = React.useState<HanziItem | null>(null)
+  const [deletingItem, setDeletingItem] = React.useState<HanziItem | null>(null)
   const [formData, setFormData] = React.useState({
     hanzi_key: "",
     section_label: "",
@@ -64,7 +63,7 @@ export default function HanziItemsPage() {
   React.useEffect(() => {
     fetchHanziSets()
     fetchHanziItems()
-  }, [selectedHanziKey])
+  }, [selectedHanziKey, currentPage, rowsPerPage])
 
   const fetchHanziSets = async () => {
     try {
@@ -94,6 +93,8 @@ export default function HanziItemsPage() {
       const { count: totalCount, error: countError } = await countQuery
 
       if (countError) throw countError
+
+      setTotalRows(totalCount || 0)
 
       // Fetch data dengan pagination di level Supabase
       const from = (currentPage - 1) * rowsPerPage
@@ -186,20 +187,26 @@ export default function HanziItemsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus hanzi item ini?")) return
+  const handleDelete = async () => {
+    if (!deletingItem) return
 
     try {
+      console.log("Deleting hanzi item:", deletingItem.id)
       const { error } = await supa
         .from("hanzi_items")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingItem.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingItem(null)
       fetchHanziItems()
     } catch (error) {
       console.error("Error deleting hanzi item:", error)
-      alert("Gagal menghapus hanzi item")
+      alert(`Gagal menghapus hanzi item: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -246,9 +253,6 @@ export default function HanziItemsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Flag className="h-6 w-6 text-primary" />
@@ -342,7 +346,7 @@ export default function HanziItemsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(item)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingItem(item)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -453,6 +457,39 @@ export default function HanziItemsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingItem(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Hanzi Item</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus hanzi item ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Hanzi: {deletingItem.hanzi}</p>
+                  <p className="text-sm">Pinyin: {deletingItem.pinyin}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingItem(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  ArrowLeft, Shield, User, Search, MoreVertical,
+  Shield, User, Search, MoreVertical,
   CheckCircle2, XCircle, Clock, Trash2, Edit
 } from "lucide-react"
 import {
@@ -113,9 +113,6 @@ export default function AdminUsersPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <User className="h-6 w-6 text-primary" />

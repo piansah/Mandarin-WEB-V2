@@ -4,7 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Settings, Save, RefreshCw } from "lucide-react"
+import { Settings, Save, RefreshCw } from "lucide-react"
 
 export default function AdminSettingsPage() {
   const router = useRouter()
@@ -13,9 +13,6 @@ export default function AdminSettingsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Settings className="h-6 w-6 text-primary" />

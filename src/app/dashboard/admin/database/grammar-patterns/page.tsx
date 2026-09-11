@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Search, Layers } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import {
   Table,
@@ -33,13 +32,13 @@ interface GrammarPattern {
 }
 
 export default function GrammarPatternsPage() {
-  const router = useRouter()
   const [patterns, setPatterns] = React.useState<GrammarPattern[]>([])
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingPattern, setEditingPattern] = React.useState<GrammarPattern | null>(null)
   const [deletingPattern, setDeletingPattern] = React.useState<GrammarPattern | null>(null)
+  const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
   const [formData, setFormData] = React.useState({
     title: "",
     slug: "",
@@ -58,7 +57,7 @@ export default function GrammarPatternsPage() {
 
   React.useEffect(() => {
     fetchGrammarPatterns()
-  }, [])
+  }, [currentPage, rowsPerPage])
 
   const fetchGrammarPatterns = async () => {
     try {
@@ -153,6 +152,10 @@ export default function GrammarPatternsPage() {
     }
   }
 
+  const handleDeleteClick = (pattern: GrammarPattern) => {
+    setDeletingPattern(pattern)
+  }
+
   const handleDelete = async () => {
     if (!deletingPattern) return
 
@@ -165,16 +168,25 @@ export default function GrammarPatternsPage() {
         .select("*", { count: "exact", head: true })
         .eq("pattern_id", deletingPattern.id)
 
+      console.log("Question count check:", { questionCount, error: countError })
+
       if (countError) {
         console.error("Error checking question count:", countError)
-      }
-
-      if (questionCount && questionCount > 0) {
-        alert(`Tidak dapat menghapus pattern ini karena masih ada ${questionCount} soal yang terkait. Pindahkan atau hapus soal terlebih dahulu.`)
+        setBlockingAlert({ message: "Gagal mengecek soal terkait" })
         setDeletingPattern(null)
         return
       }
 
+      if (questionCount && questionCount > 0) {
+        console.log("Blocking delete due to related questions:", questionCount)
+        setBlockingAlert({ 
+          message: `Tidak dapat menghapus pattern ini karena masih ada ${questionCount} soal yang terkait. Pindahkan atau hapus soal terlebih dahulu.` 
+        })
+        setDeletingPattern(null)
+        return
+      }
+
+      console.log("Proceeding with delete, no related questions found")
       const { error } = await supa
         .from("grammar_patterns")
         .delete()
@@ -189,7 +201,10 @@ export default function GrammarPatternsPage() {
       fetchGrammarPatterns()
     } catch (error) {
       console.error("Error deleting grammar pattern:", error)
-      alert(`Gagal menghapus grammar pattern: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setBlockingAlert({ 
+        message: `Gagal menghapus grammar pattern: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      })
+      setDeletingPattern(null)
     }
   }
 
@@ -236,9 +251,6 @@ export default function GrammarPatternsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" />
@@ -312,7 +324,7 @@ export default function GrammarPatternsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(pattern)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingPattern(pattern)}>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(pattern)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -455,6 +467,27 @@ export default function GrammarPatternsPage() {
                 </Button>
                 <Button variant="destructive" onClick={handleDelete}>
                   Hapus
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Blocking Alert Modal */}
+      {blockingAlert && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Peringatan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm">{blockingAlert.message}</p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button onClick={() => setBlockingAlert(null)}>
+                  OK
                 </Button>
               </div>
             </CardContent>

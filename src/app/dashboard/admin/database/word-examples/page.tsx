@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
-import { ArrowLeft, Plus, Edit, Trash2, Search } from "lucide-react"
+import { Plus, Edit, Trash2, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 interface WordExample {
@@ -30,7 +29,6 @@ interface WordExample {
 }
 
 export default function WordExamplesPage() {
-  const router = useRouter()
   const [examples, setExamples] = React.useState<WordExample[]>([])
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -51,7 +49,7 @@ export default function WordExamplesPage() {
 
   React.useEffect(() => {
     fetchWordExamples()
-  }, [])
+  }, [currentPage, rowsPerPage])
 
   const fetchWordExamples = async () => {
     try {
@@ -199,9 +197,6 @@ export default function WordExamplesPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">Word Examples</h1>
           <p className="text-sm text-muted-foreground">Kelola contoh kalimat kata</p>

@@ -1,12 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Edit, Trash2, Search, Layers } from "lucide-react"
+import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import {
   Table,
@@ -28,12 +27,12 @@ interface WordCompound {
 }
 
 export default function WordCompoundsPage() {
-  const router = useRouter()
   const [compounds, setCompounds] = React.useState<WordCompound[]>([])
   const [loading, setLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingCompound, setEditingCompound] = React.useState<WordCompound | null>(null)
+  const [deletingCompound, setDeletingCompound] = React.useState<WordCompound | null>(null)
   const [formData, setFormData] = React.useState({
     hanzi: "",
     pinyin: "",
@@ -49,7 +48,7 @@ export default function WordCompoundsPage() {
 
   React.useEffect(() => {
     fetchWordCompounds()
-  }, [])
+  }, [currentPage, rowsPerPage])
 
   const fetchWordCompounds = async () => {
     try {
@@ -138,20 +137,26 @@ export default function WordCompoundsPage() {
     }
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Apakah Anda yakin ingin menghapus word compound ini?")) return
+  const handleDelete = async () => {
+    if (!deletingCompound) return
 
     try {
+      console.log("Deleting word compound:", deletingCompound.id)
       const { error } = await supa
         .from("word_compounds")
         .delete()
-        .eq("id", id)
+        .eq("id", deletingCompound.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      setDeletingCompound(null)
       fetchWordCompounds()
     } catch (error) {
       console.error("Error deleting word compound:", error)
-      alert("Gagal menghapus word compound")
+      alert(`Gagal menghapus word compound: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -195,9 +200,6 @@ export default function WordCompoundsPage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" />
@@ -269,7 +271,7 @@ export default function WordCompoundsPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEditModal(compound)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(compound.id)}>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingCompound(compound)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -358,6 +360,39 @@ export default function WordCompoundsPage() {
                 </Button>
                 <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingCompound(null) }}>
                   Batal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deletingCompound && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-destructive">Hapus Word Compound</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Apakah Anda yakin ingin menghapus word compound ini?
+                </p>
+                <div className="p-3 bg-muted rounded-md space-y-1">
+                  <p className="text-sm font-medium">Hanzi: {deletingCompound.hanzi}</p>
+                  <p className="text-sm">Pinyin: {deletingCompound.pinyin}</p>
+                </div>
+                <p className="text-xs text-destructive">
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setDeletingCompound(null)}>
+                  Batal
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Hapus
                 </Button>
               </div>
             </CardContent>

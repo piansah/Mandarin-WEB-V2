@@ -28,8 +28,10 @@ export function Pagination({
   onPageChange,
   onRowsPerPageChange,
 }: PaginationProps) {
-  const startRow = (currentPage - 1) * rowsPerPage + 1
-  const endRow = Math.min(currentPage * rowsPerPage, totalRows)
+  const startRow = totalRows === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1
+  const endRow = totalRows === 0 ? 0 : Math.min(currentPage * rowsPerPage, totalRows)
+  const displayCurrentPage = totalRows === 0 ? 1 : currentPage
+  const displayTotalPages = totalRows === 0 ? 1 : totalPages
 
   return (
     <div className="flex items-center justify-between px-2">
@@ -39,7 +41,7 @@ export function Pagination({
 
       <div className="flex items-center gap-2">
         <span className="text-sm text-muted-foreground">
-          Page {currentPage} dari {totalPages}
+          Page {displayCurrentPage} dari {displayTotalPages}
         </span>
 
         <div className="flex items-center gap-1">
@@ -48,7 +50,7 @@ export function Pagination({
             size="icon"
             className="h-8 w-8"
             onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
+            disabled={currentPage === 1 || totalRows === 0}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -58,7 +60,7 @@ export function Pagination({
             size="icon"
             className="h-8 w-8"
             onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalRows === 0}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

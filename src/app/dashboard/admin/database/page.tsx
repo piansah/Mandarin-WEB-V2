@@ -4,12 +4,12 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare } from "lucide-react"
+import { Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare, HelpCircle, Tag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 export default function AdminDatabasePage() {
   const router = useRouter()
-  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["daftar-kata"]))
+  const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["modul", "daftar-kata"]))
   const [loading, setLoading] = React.useState(true)
   const [recordCounts, setRecordCounts] = React.useState<Record<string, number>>({})
 
@@ -19,6 +19,13 @@ export default function AdminDatabasePage() {
         const supa = createClient()
         
         const tables = [
+          "modul_levels",
+          "modul_modules",
+          "modul_module_parts",
+          "modul_quizzes",
+          "modul_quiz_questions",
+          "modul_vocab_cards",
+          "modul_tags",
           "flashcard_sets",
           "flashcard_cards", 
           "word_compounds",
@@ -29,24 +36,29 @@ export default function AdminDatabasePage() {
           "hanzi_items"
         ]
 
-        const counts: Record<string, number> = {}
-        
-        for (const table of tables) {
+        // Fetch all counts in parallel using Promise.all
+        const countPromises = tables.map(async (table) => {
           try {
             const { count, error } = await supa
               .from(table)
               .select("*", { count: "exact", head: true })
             
             if (!error && count !== null) {
-              counts[table] = count
+              return { table, count }
             } else {
-              counts[table] = 0
+              return { table, count: 0 }
             }
           } catch (err) {
             console.error(`Error fetching count for ${table}:`, err)
-            counts[table] = 0
+            return { table, count: 0 }
           }
-        }
+        })
+
+        const results = await Promise.all(countPromises)
+        const counts: Record<string, number> = {}
+        results.forEach(({ table, count }) => {
+          counts[table] = count
+        })
 
         setRecordCounts(counts)
       } catch (error) {
@@ -74,6 +86,27 @@ export default function AdminDatabasePage() {
   const handleManage = (table: string) => {
     // Arahkan ke halaman CRUD yang sesuai
     switch (table) {
+      case "modul_levels":
+        router.push("/dashboard/admin/database/modul-levels")
+        break
+      case "modul_modules":
+        router.push("/dashboard/admin/database/modul-modules")
+        break
+      case "modul_module_parts":
+        router.push("/dashboard/admin/database/modul-module-parts")
+        break
+      case "modul_quizzes":
+        router.push("/dashboard/admin/database/modul-quizzes")
+        break
+      case "modul_quiz_questions":
+        router.push("/dashboard/admin/database/modul-quiz-questions")
+        break
+      case "modul_vocab_cards":
+        router.push("/dashboard/admin/database/modul-vocab-cards")
+        break
+      case "modul_tags":
+        router.push("/dashboard/admin/database/modul-tags")
+        break
       case "flashcard_sets":
         router.push("/dashboard/admin/database/flashcard-sets")
         break
@@ -112,17 +145,52 @@ export default function AdminDatabasePage() {
       color: "bg-blue-500",
       sections: [
         {
-          title: "Modul Sets",
-          description: "Kelola deck modul",
-          icon: Table,
-          table: "modul_sets",
+          title: "Modul Levels",
+          description: "Kelola level HSK",
+          icon: Layers,
+          table: "modul_levels",
           count: 0,
         },
         {
-          title: "Modul Content",
-          description: "Kelola konten modul",
+          title: "Modul Modules",
+          description: "Kelola modul pembelajaran",
+          icon: BookOpen,
+          table: "modul_modules",
+          count: 0,
+        },
+        {
+          title: "Modul Parts",
+          description: "Kelola bagian modul (content/practice/quiz)",
           icon: FileText,
-          table: "modul_content",
+          table: "modul_module_parts",
+          count: 0,
+        },
+        {
+          title: "Modul Quizzes",
+          description: "Kelola quiz untuk modul",
+          icon: ClipboardCheck,
+          table: "modul_quizzes",
+          count: 0,
+        },
+        {
+          title: "Quiz Questions",
+          description: "Kelola pertanyaan quiz",
+          icon: HelpCircle,
+          table: "modul_quiz_questions",
+          count: 0,
+        },
+        {
+          title: "Vocab Cards",
+          description: "Kelola vocabulary per part",
+          icon: Layers,
+          table: "modul_vocab_cards",
+          count: 0,
+        },
+        {
+          title: "Tags",
+          description: "Kelola tags modul",
+          icon: Tag,
+          table: "modul_tags",
           count: 0,
         },
       ]
@@ -216,9 +284,6 @@ export default function AdminDatabasePage() {
     <div className="flex flex-col p-6 gap-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Database className="h-6 w-6 text-primary" />
@@ -260,6 +325,142 @@ export default function AdminDatabasePage() {
               
               {isExpanded && (
                 <CardContent className="pt-0">
+                  {/* Guide Section for Modul Category */}
+                  {category.id === "modul" && (
+                    <div className="mb-6 p-5 bg-muted/50 rounded-xl border border-border">
+                      <div className="flex items-center gap-2 mb-4">
+                        <BookOpen className="w-4 h-4 text-primary" />
+                        <h3 className="text-sm font-semibold">Panduan: Cara Membuat Modul Baru</h3>
+                      </div>
+                      
+                      {/* Visual Diagram */}
+                      <div className="flex flex-col items-center gap-2 p-4 bg-card rounded-lg border border-border mb-4">
+                        {/* Level 1: Modul Levels */}
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-primary-foreground font-bold text-xs">1</span>
+                          </div>
+                          <div className="flex-1 p-2 bg-muted rounded-lg border border-border">
+                            <div className="flex items-center gap-1">
+                              <Layers className="w-3 h-3 text-foreground" />
+                              <span className="text-xs font-semibold">Modul Levels</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">HSK 1-6</p>
+                          </div>
+                        </div>
+                        
+                        {/* Arrow down */}
+                        <div className="w-0.5 h-4 bg-border"></div>
+                        
+                        {/* Level 2: Modul Modules */}
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-primary-foreground font-bold text-xs">2</span>
+                          </div>
+                          <div className="flex-1 p-2 bg-muted rounded-lg border border-border">
+                            <div className="flex items-center gap-1">
+                              <BookOpen className="w-3 h-3 text-foreground" />
+                              <span className="text-xs font-semibold">Modul Modules</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">konten modul</p>
+                          </div>
+                        </div>
+                        
+                        {/* Arrow down */}
+                        <div className="w-0.5 h-4 bg-border"></div>
+                        
+                        {/* Level 3: Modul Parts */}
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-primary-foreground font-bold text-xs">3</span>
+                          </div>
+                          <div className="flex-1 p-2 bg-muted rounded-lg border border-border">
+                            <div className="flex items-center gap-1">
+                              <FileText className="w-3 h-3 text-foreground" />
+                              <span className="text-xs font-semibold">Modul Parts</span>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">content/practice/quiz</p>
+                          </div>
+                        </div>
+                        
+                        {/* Optional items */}
+                        <div className="flex gap-2 mt-1">
+                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
+                            <ClipboardCheck className="w-2 h-2 text-foreground" />
+                            <span className="text-[10px] font-medium">Quizzes</span>
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
+                            <HelpCircle className="w-2 h-2 text-foreground" />
+                            <span className="text-[10px] font-medium">Questions</span>
+                          </div>
+                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
+                            <MessageSquare className="w-2 h-2 text-foreground" />
+                            <span className="text-[10px] font-medium">Vocab</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 6 Points Explanation */}
+                      <div className="space-y-2 text-xs">
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-foreground font-bold text-[10px]">1</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Buat Level HSK:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Levels</span>, tambahkan level (HSK 1-6)</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-foreground font-bold text-[10px]">2</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Buat Modul:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Modules</span>, buat modul dengan level yang sudah dibuat</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-foreground font-bold text-[10px]">3</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Buat Bagian Modul:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Parts</span>, tambahkan content/practice/quiz dengan JSON editor</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                            <span className="text-secondary-foreground font-bold text-[10px]">4</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Opsional - Buat Quiz:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Quizzes</span>, buat quiz untuk modul tersebut</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                            <span className="text-secondary-foreground font-bold text-[10px]">5</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Opsional - Buat Pertanyaan Quiz:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Quiz Questions</span>, tambahkan pertanyaan dengan JSON options</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 items-start">
+                          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
+                            <span className="text-secondary-foreground font-bold text-[10px]">6</span>
+                          </div>
+                          <div className="flex-1">
+                            <p><strong>Opsional - Tambah Vocabulary:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Vocab Cards</span>, tambahkan vocabulary per part</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="p-2 bg-muted rounded-lg border border-border mt-3">
+                        <p className="text-[10px] flex items-center gap-1">
+                          <span>💡</span>
+                          <span className="font-medium">Tips:</span> Ikuti urutan hierarki dari atas ke bawah untuk menghindari error referensi data!
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     {category.sections.map((section, index) => {
                       const SectionIcon = section.icon
