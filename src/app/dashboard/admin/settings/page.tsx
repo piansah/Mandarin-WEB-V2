@@ -50,7 +50,8 @@ export default function AdminSettingsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-muted/50">
+        {/* Email Settings Card - Hidden karena notifikasi belum diimplementasikan */}
+        {/* <Card className="border-muted/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Email Settings</CardTitle>
           </CardHeader>
@@ -65,7 +66,7 @@ export default function AdminSettingsPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card className="border-muted/50">
           <CardHeader className="pb-2">

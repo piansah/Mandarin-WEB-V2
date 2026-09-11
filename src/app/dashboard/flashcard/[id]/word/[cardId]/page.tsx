@@ -198,7 +198,8 @@ export default function WordDetailPage() {
   }, [dictionary, tab])
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
-  if (!card) return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
+  if (!card && cardId && cardId !== "undefined" && cardId !== "null") return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
+  if (!card) return null
 
   const chars = [...card.hanzi].filter(isHanzi)
   const tabs: Array<{ id: DetailTab; label: string }> = [{ id: "kalimat", label: "Sentences" }, { id: "stroke", label: "Stroke" }, { id: "karakter", label: "Char" }, { id: "kata", label: "Word" }]

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, Bell, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2 } from "lucide-react"
+import { Search, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -284,16 +284,17 @@ export function DashboardHeader() {
           </Button>
         )}
 
-        {/* Theme Toggle & Bell - Sembunyikan jika mobile search aktif */}
+        {/* Theme Toggle - Sembunyikan jika mobile search aktif */}
         {!mobileSearchActive && (
           <>
             <DashboardThemeToggle />
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative shrink-0">
+            {/* Bell icon hidden - notifikasi belum diimplementasikan */}
+            {/* <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative shrink-0">
               <Bell className="h-4 w-4" />
               <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px]">
                 •
               </Badge>
-            </Button>
+            </Button> */}
           </>
         )}
       </div>
