@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, FileText, ExternalLink } from "lucide-react"
+import { Plus, Edit, Trash2, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 import {
   Table,
@@ -32,7 +32,8 @@ interface ModulModulePart {
   order_index: number
   title: string
   content: any
-  part_type: string
+  vocab_parts: any
+  kalimat_parts: any
   created_at: string
   updated_at: string
 }
@@ -53,12 +54,19 @@ export default function ModulModulePartsPage() {
   const [editingPart, setEditingPart] = React.useState<ModulModulePart | null>(null)
   const [deletingPart, setDeletingPart] = React.useState<ModulModulePart | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
+  const [contentMode, setContentMode] = React.useState<"text" | "json">("text")
+  const [plainContent, setPlainContent] = React.useState("")
+  const [vocabMode, setVocabMode] = React.useState<"simple" | "json">("simple")
+  const [vocabCards, setVocabCards] = React.useState<Array<{ hanzi: string; pinyin: string; translation: string; order_index: number }>>([])
+  const [kalimatMode, setKalimatMode] = React.useState<"simple" | "json">("simple")
+  const [kalimatCards, setKalimatCards] = React.useState<Array<{ hanzi: string; pinyin: string; translation: string; order_index: number }>>([])
   const [formData, setFormData] = React.useState({
     module_id: "",
     order_index: 0,
     title: "",
     content: "",
-    part_type: "content"
+    vocab_parts: "",
+    kalimat_parts: ""
   })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
@@ -97,7 +105,7 @@ export default function ModulModulePartsPage() {
       }
 
       if (searchQuery) {
-        countQuery = countQuery.or(`title.ilike.%${searchQuery}%,part_type.ilike.%${searchQuery}%`)
+        countQuery = countQuery.ilike('title', `%${searchQuery}%`)
       }
 
       const { count: totalCount, error: countError } = await countQuery
@@ -112,7 +120,7 @@ export default function ModulModulePartsPage() {
 
       let query = supa
         .from("modul_module_parts")
-        .select("*")
+        .select("id, module_id, order_index, title, content, vocab_parts, kalimat_parts, created_at, updated_at")
         .order("order_index", { ascending: true })
         .range(from, to)
 
@@ -121,7 +129,7 @@ export default function ModulModulePartsPage() {
       }
 
       if (searchQuery) {
-        query = query.or(`title.ilike.%${searchQuery}%,part_type.ilike.%${searchQuery}%`)
+        query = query.ilike('title', `%${searchQuery}%`)
       }
 
       const { data, error } = await query
@@ -145,15 +153,55 @@ export default function ModulModulePartsPage() {
   }
 
   const handleAdd = async () => {
+    if (!formData.module_id) {
+      alert("Silakan pilih Module terlebih dahulu")
+      return
+    }
+    if (!formData.title) {
+      alert("Judul (Title) tidak boleh kosong")
+      return
+    }
+
     try {
       console.log("Adding modul module part:", formData)
       
-      // Parse JSON content
+      // Parse content
       let parsedContent = null
       try {
-        parsedContent = formData.content ? JSON.parse(formData.content) : null
+        if (contentMode === "text" && plainContent) {
+          const paragraphs = plainContent.split('\n').filter(p => p.trim())
+          parsedContent = { paragraphs }
+        } else if (formData.content) {
+          parsedContent = JSON.parse(formData.content)
+        }
       } catch (e) {
         alert("Invalid JSON format for content")
+        return
+      }
+
+      // Parse vocab_parts
+      let parsedVocabParts = null
+      try {
+        if (vocabMode === "simple" && vocabCards.length > 0) {
+          parsedVocabParts = { cards: vocabCards }
+        } else if (formData.vocab_parts) {
+          parsedVocabParts = JSON.parse(formData.vocab_parts)
+        }
+      } catch (e) {
+        alert("Invalid JSON format for vocab_parts")
+        return
+      }
+
+      // Parse kalimat_parts
+      let parsedKalimatParts = null
+      try {
+        if (kalimatMode === "simple" && kalimatCards.length > 0) {
+          parsedKalimatParts = { cards: kalimatCards }
+        } else if (formData.kalimat_parts) {
+          parsedKalimatParts = JSON.parse(formData.kalimat_parts)
+        }
+      } catch (e) {
+        alert("Invalid JSON format for kalimat_parts")
         return
       }
 
@@ -164,7 +212,8 @@ export default function ModulModulePartsPage() {
           order_index: formData.order_index,
           title: formData.title,
           content: parsedContent,
-          part_type: formData.part_type
+          vocab_parts: parsedVocabParts,
+          kalimat_parts: parsedKalimatParts
         })
 
       if (error) throw error
@@ -175,27 +224,74 @@ export default function ModulModulePartsPage() {
         order_index: 0,
         title: "",
         content: "",
-        part_type: "content"
+        vocab_parts: "",
+        kalimat_parts: ""
       })
+      setPlainContent("")
+      setContentMode("text")
+      setVocabCards([])
+      setVocabMode("simple")
+      setKalimatCards([])
+      setKalimatMode("simple")
       fetchModulModuleParts()
     } catch (error) {
       console.error("Error adding modul module part:", error)
-      alert("Gagal menambahkan modul module part")
+      alert(`Gagal menambahkan modul module part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
     }
   }
 
   const handleEdit = async () => {
     if (!editingPart) return
 
+    if (!formData.module_id) {
+      alert("Silakan pilih Module terlebih dahulu")
+      return
+    }
+    if (!formData.title) {
+      alert("Judul (Title) tidak boleh kosong")
+      return
+    }
+
     try {
       console.log("Updating modul module part:", formData)
       
-      // Parse JSON content
+      // Parse content
       let parsedContent = null
       try {
-        parsedContent = formData.content ? JSON.parse(formData.content) : null
+        if (contentMode === "text" && plainContent) {
+          const paragraphs = plainContent.split('\n').filter(p => p.trim())
+          parsedContent = { paragraphs }
+        } else if (formData.content) {
+          parsedContent = JSON.parse(formData.content)
+        }
       } catch (e) {
         alert("Invalid JSON format for content")
+        return
+      }
+
+      // Parse vocab_parts
+      let parsedVocabParts = null
+      try {
+        if (vocabMode === "simple" && vocabCards.length > 0) {
+          parsedVocabParts = { cards: vocabCards }
+        } else if (formData.vocab_parts) {
+          parsedVocabParts = JSON.parse(formData.vocab_parts)
+        }
+      } catch (e) {
+        alert("Invalid JSON format for vocab_parts")
+        return
+      }
+
+      // Parse kalimat_parts
+      let parsedKalimatParts = null
+      try {
+        if (kalimatMode === "simple" && kalimatCards.length > 0) {
+          parsedKalimatParts = { cards: kalimatCards }
+        } else if (formData.kalimat_parts) {
+          parsedKalimatParts = JSON.parse(formData.kalimat_parts)
+        }
+      } catch (e) {
+        alert("Invalid JSON format for kalimat_parts")
         return
       }
 
@@ -206,7 +302,8 @@ export default function ModulModulePartsPage() {
           order_index: formData.order_index,
           title: formData.title,
           content: parsedContent,
-          part_type: formData.part_type
+          vocab_parts: parsedVocabParts,
+          kalimat_parts: parsedKalimatParts
         })
         .eq("id", editingPart.id)
 
@@ -219,12 +316,19 @@ export default function ModulModulePartsPage() {
         order_index: 0,
         title: "",
         content: "",
-        part_type: "content"
+        vocab_parts: "",
+        kalimat_parts: ""
       })
+      setPlainContent("")
+      setContentMode("text")
+      setVocabCards([])
+      setVocabMode("simple")
+      setKalimatCards([])
+      setKalimatMode("simple")
       fetchModulModuleParts()
     } catch (error) {
       console.error("Error updating modul module part:", error)
-      alert("Gagal mengupdate modul module part")
+      alert(`Gagal mengupdate modul module part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
     }
   }
 
@@ -291,8 +395,33 @@ export default function ModulModulePartsPage() {
       order_index: part.order_index,
       title: part.title,
       content: part.content ? JSON.stringify(part.content, null, 2) : "",
-      part_type: part.part_type
+      vocab_parts: part.vocab_parts ? JSON.stringify(part.vocab_parts, null, 2) : "",
+      kalimat_parts: part.kalimat_parts ? JSON.stringify(part.kalimat_parts, null, 2) : ""
     })
+    // Convert content to plain text if it has paragraphs
+    if (part.content && typeof part.content === 'object' && 'paragraphs' in part.content && Array.isArray(part.content.paragraphs)) {
+      setPlainContent(part.content.paragraphs.join('\n'))
+      setContentMode("text")
+    } else {
+      setPlainContent("")
+      setContentMode("json")
+    }
+    // Convert vocab_parts to simple mode if it has cards
+    if (part.vocab_parts && typeof part.vocab_parts === 'object' && 'cards' in part.vocab_parts && Array.isArray(part.vocab_parts.cards)) {
+      setVocabCards(part.vocab_parts.cards)
+      setVocabMode("simple")
+    } else {
+      setVocabCards([])
+      setVocabMode("json")
+    }
+    // Convert kalimat_parts to simple mode if it has cards
+    if (part.kalimat_parts && typeof part.kalimat_parts === 'object' && 'cards' in part.kalimat_parts && Array.isArray(part.kalimat_parts.cards)) {
+      setKalimatCards(part.kalimat_parts.cards)
+      setKalimatMode("simple")
+    } else {
+      setKalimatCards([])
+      setKalimatMode("json")
+    }
     setShowAddModal(true)
   }
 
@@ -357,16 +486,17 @@ export default function ModulModulePartsPage() {
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Module</TableHead>
-                <TableHead>Type</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Content</TableHead>
+                <TableHead>Vocab</TableHead>
+                <TableHead>Kalimat</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {parts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     Tidak ada data modul module part
                   </TableCell>
                 </TableRow>
@@ -383,18 +513,21 @@ export default function ModulModulePartsPage() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Badge variant={
-                          part.part_type === "content" ? "default" :
-                          part.part_type === "practice" ? "secondary" :
-                          "outline"
-                        }>
-                          {part.part_type}
-                        </Badge>
-                      </TableCell>
                       <TableCell>{part.order_index}</TableCell>
                       <TableCell className="max-w-xs truncate font-mono text-xs">
-                        {part.content ? JSON.stringify(part.content).substring(0, 50) + "..." : "-"}
+                        {part.content && typeof part.content === 'object' && 'paragraphs' in part.content 
+                          ? `${part.content.paragraphs?.length || 0} paragraf` 
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate font-mono text-xs">
+                        {part.vocab_parts && typeof part.vocab_parts === 'object' && 'cards' in part.vocab_parts 
+                          ? `${part.vocab_parts.cards?.length || 0} vocab` 
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate font-mono text-xs">
+                        {part.kalimat_parts && typeof part.kalimat_parts === 'object' && 'cards' in part.kalimat_parts 
+                          ? `${part.kalimat_parts.cards?.length || 0} kalimat` 
+                          : "-"}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -428,18 +561,19 @@ export default function ModulModulePartsPage() {
       {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>{editingPart ? "Edit Modul Module Part" : "Tambah Modul Module Part"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background rounded-lg border shadow-lg">
+            <Card className="border-0 shadow-none">
+              <CardHeader>
+                <CardTitle>{editingPart ? "Edit Modul Module Part" : "Tambah Modul Module Part"}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Module</label>
                 <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih module" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[10000]">
                     {modules.map((module) => (
                       <SelectItem key={module.id} value={module.id}>
                         {module.title}
@@ -457,19 +591,6 @@ export default function ModulModulePartsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Part Type</label>
-                <Select value={formData.part_type} onValueChange={(value) => setFormData({ ...formData, part_type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="content">Content</SelectItem>
-                    <SelectItem value="practice">Practice</SelectItem>
-                    <SelectItem value="quiz">Quiz</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <label className="text-sm font-medium">Order Index</label>
                 <Input
                   type="number"
@@ -480,28 +601,263 @@ export default function ModulModulePartsPage() {
                   }}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Content (JSON)</label>
-                <Textarea
-                  value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  placeholder='{"type": "text", "content": "..."}'
-                  className="font-mono text-sm min-h-[150px]"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format JSON untuk content modul. Contoh: {`{"type": "text", "content": "..."}`}
-                </p>
+              
+              {/* Content Section */}
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">📄 Content</label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={contentMode === "text" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setContentMode("text")}
+                    >
+                      Teks Biasa
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={contentMode === "json" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setContentMode("json")}
+                    >
+                      JSON
+                    </Button>
+                  </div>
+                </div>
+                {contentMode === "text" ? (
+                  <>
+                    <Textarea
+                      value={plainContent}
+                      onChange={(e) => setPlainContent(e.target.value)}
+                      placeholder="Ketik paragraf di sini. Setiap baris baru akan menjadi paragraf terpisah."
+                      className="text-sm min-h-[100px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Ketik paragraf biasa. Setiap baris baru akan menjadi paragraf terpisah.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Textarea
+                      value={formData.content}
+                      onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                      placeholder='{"paragraphs": ["paragraf 1", "paragraf 2"]}'
+                      className="font-mono text-sm min-h-[100px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format JSON untuk content. Contoh: {`{"paragraphs": ["paragraf 1", "paragraf 2"]}`}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Vocab Parts Section */}
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">🎴 Vocab Parts</label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={vocabMode === "simple" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setVocabMode("simple")}
+                    >
+                      Simple
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={vocabMode === "json" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setVocabMode("json")}
+                    >
+                      JSON
+                    </Button>
+                  </div>
+                </div>
+                {vocabMode === "simple" ? (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          placeholder="Hanzi"
+                          id="new-vocab-hanzi"
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Pinyin"
+                          id="new-vocab-pinyin"
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Translation"
+                          id="new-vocab-translation"
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const hanzi = (document.getElementById('new-vocab-hanzi') as HTMLInputElement)?.value || ""
+                          const pinyin = (document.getElementById('new-vocab-pinyin') as HTMLInputElement)?.value || ""
+                          const translation = (document.getElementById('new-vocab-translation') as HTMLInputElement)?.value || ""
+                          if (hanzi && pinyin) {
+                            setVocabCards([...vocabCards, { hanzi, pinyin, translation, order_index: vocabCards.length }])
+                            ;(document.getElementById('new-vocab-hanzi') as HTMLInputElement).value = ""
+                            ;(document.getElementById('new-vocab-pinyin') as HTMLInputElement).value = ""
+                            ;(document.getElementById('new-vocab-translation') as HTMLInputElement).value = ""
+                          }
+                        }}
+                      >
+                        + Tambah Card
+                      </Button>
+                    </div>
+                    {vocabCards.length > 0 && (
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {vocabCards.map((card, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-background rounded border border-border">
+                            <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
+                              <span className="font-medium">{card.hanzi}</span>
+                              <span className="text-muted-foreground">{card.pinyin}</span>
+                              <span>{card.translation}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setVocabCards(vocabCards.filter((_, i) => i !== index))}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Textarea
+                      value={formData.vocab_parts}
+                      onChange={(e) => setFormData({ ...formData, vocab_parts: e.target.value })}
+                      placeholder='{"cards": [{"hanzi": "你好", "pinyin": "nǐ hǎo", "translation": "Halo", "order_index": 0}]}'
+                      className="font-mono text-sm min-h-[100px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format JSON untuk vocab cards. Contoh: {`{"cards": [{"hanzi": "你好", "pinyin": "nǐ hǎo", "translation": "Halo", "order_index": 0}]}`}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Kalimat Parts Section */}
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-border">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold">📝 Contoh Kalimat</label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={kalimatMode === "simple" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setKalimatMode("simple")}
+                    >
+                      Simple
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={kalimatMode === "json" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setKalimatMode("json")}
+                    >
+                      JSON
+                    </Button>
+                  </div>
+                </div>
+                {kalimatMode === "simple" ? (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          placeholder="Hanzi"
+                          id="new-kalimat-hanzi"
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Pinyin"
+                          id="new-kalimat-pinyin"
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Translation"
+                          id="new-kalimat-translation"
+                          className="text-sm"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => {
+                          const hanzi = (document.getElementById('new-kalimat-hanzi') as HTMLInputElement)?.value || ""
+                          const pinyin = (document.getElementById('new-kalimat-pinyin') as HTMLInputElement)?.value || ""
+                          const translation = (document.getElementById('new-kalimat-translation') as HTMLInputElement)?.value || ""
+                          if (hanzi && pinyin) {
+                            setKalimatCards([...kalimatCards, { hanzi, pinyin, translation, order_index: kalimatCards.length }])
+                            ;(document.getElementById('new-kalimat-hanzi') as HTMLInputElement).value = ""
+                            ;(document.getElementById('new-kalimat-pinyin') as HTMLInputElement).value = ""
+                            ;(document.getElementById('new-kalimat-translation') as HTMLInputElement).value = ""
+                          }
+                        }}
+                      >
+                        + Tambah Kalimat
+                      </Button>
+                    </div>
+                    {kalimatCards.length > 0 && (
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {kalimatCards.map((card, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-background rounded border border-border">
+                            <div className="flex-1 grid grid-cols-3 gap-2 text-xs">
+                              <span className="font-medium">{card.hanzi}</span>
+                              <span className="text-muted-foreground">{card.pinyin}</span>
+                              <span>{card.translation}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setKalimatCards(kalimatCards.filter((_, i) => i !== index))}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Textarea
+                      value={formData.kalimat_parts}
+                      onChange={(e) => setFormData({ ...formData, kalimat_parts: e.target.value })}
+                      placeholder='{"cards": [{"hanzi": "你好", "pinyin": "nǐ hǎo", "translation": "Halo", "order_index": 0}]}'
+                      className="font-mono text-sm min-h-[100px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format JSON untuk contoh kalimat. Contoh: {`{"cards": [{"hanzi": "你好", "pinyin": "nǐ hǎo", "translation": "Halo", "order_index": 0}]}`}
+                    </p>
+                  </>
+                )}
               </div>
               <div className="flex gap-2 pt-4">
                 <Button onClick={editingPart ? handleEdit : handleAdd} className="flex-1">
                   {editingPart ? "Update" : "Tambah"}
                 </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingPart(null); setFormData({ module_id: "", order_index: 0, title: "", content: "", part_type: "content" }) }}>
+                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingPart(null); setFormData({ module_id: "", order_index: 0, title: "", content: "", vocab_parts: "", kalimat_parts: "" }); setPlainContent(""); setContentMode("text"); setVocabCards([]); setVocabMode("simple"); setKalimatCards([]); setKalimatMode("simple") }}>
                   Batal
                 </Button>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 
@@ -519,7 +875,6 @@ export default function ModulModulePartsPage() {
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Title: {deletingPart.title}</p>
-                  <p className="text-sm">Type: {deletingPart.part_type}</p>
                 </div>
                 <p className="text-xs text-destructive">
                   Tindakan ini tidak dapat dibatalkan.

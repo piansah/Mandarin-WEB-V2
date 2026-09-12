@@ -101,9 +101,6 @@ export default function AdminDatabasePage() {
       case "modul_quiz_questions":
         router.push("/dashboard/admin/database/modul-quiz-questions")
         break
-      case "modul_vocab_cards":
-        router.push("/dashboard/admin/database/modul-vocab-cards")
-        break
       case "modul_tags":
         router.push("/dashboard/admin/database/modul-tags")
         break
@@ -177,13 +174,6 @@ export default function AdminDatabasePage() {
           description: "Kelola pertanyaan quiz",
           icon: HelpCircle,
           table: "modul_quiz_questions",
-          count: 0,
-        },
-        {
-          title: "Vocab Cards",
-          description: "Kelola vocabulary per part",
-          icon: Layers,
-          table: "modul_vocab_cards",
           count: 0,
         },
         {
@@ -384,18 +374,14 @@ export default function AdminDatabasePage() {
                         </div>
                         
                         {/* Optional items */}
-                        <div className="flex gap-2 mt-1">
-                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
-                            <ClipboardCheck className="w-2 h-2 text-foreground" />
-                            <span className="text-[10px] font-medium">Quizzes</span>
+                        <div className="flex gap-3 mt-2">
+                          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
+                            <ClipboardCheck className="w-4 h-4 text-foreground" />
+                            <span className="text-xs font-medium">Quizzes</span>
                           </div>
-                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
-                            <HelpCircle className="w-2 h-2 text-foreground" />
-                            <span className="text-[10px] font-medium">Questions</span>
-                          </div>
-                          <div className="flex items-center gap-1 px-2 py-1 bg-muted rounded-lg border border-border">
-                            <MessageSquare className="w-2 h-2 text-foreground" />
-                            <span className="text-[10px] font-medium">Vocab</span>
+                          <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
+                            <HelpCircle className="w-4 h-4 text-foreground" />
+                            <span className="text-xs font-medium">Questions</span>
                           </div>
                         </div>
                       </div>
@@ -423,7 +409,7 @@ export default function AdminDatabasePage() {
                             <span className="text-primary-foreground font-bold text-[10px]">3</span>
                           </div>
                           <div className="flex-1">
-                            <p><strong>Buat Bagian Modul:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Parts</span>, tambahkan content/practice/quiz dengan JSON editor</p>
+                            <p><strong>Buat Bagian Modul:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Modul Parts</span>, tambahkan content, vocabulary, dan contoh kalimat</p>
                           </div>
                         </div>
                         <div className="flex gap-2 items-start">
@@ -440,14 +426,6 @@ export default function AdminDatabasePage() {
                           </div>
                           <div className="flex-1">
                             <p><strong>Opsional - Buat Pertanyaan Quiz:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Quiz Questions</span>, tambahkan pertanyaan dengan JSON options</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 items-start">
-                          <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                            <span className="text-secondary-foreground font-bold text-[10px]">6</span>
-                          </div>
-                          <div className="flex-1">
-                            <p><strong>Opsional - Tambah Vocabulary:</strong> Masuk ke <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Vocab Cards</span>, tambahkan vocabulary per part</p>
                           </div>
                         </div>
                       </div>

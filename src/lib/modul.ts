@@ -58,8 +58,8 @@ export type ModulPart = {
   orderIndex: number
   title: string
   content: Record<string, unknown> | null
-  partType: "content" | "practice" | "quiz"
-  vocab: { id: string; hanzi: string; pinyin: string; translation: string | null }[]
+  vocabParts: { hanzi: string; pinyin: string; translation: string | null; order_index: number }[]
+  kalimatParts: { hanzi: string; pinyin: string; translation: string | null; order_index: number }[]
 }
 
 export type ModulDetail = {
@@ -256,11 +256,10 @@ export async function fetchModuleDetail(slug: string): Promise<ModulDetail | nul
     supa
       .from("modul_module_parts")
       .select(
-        "id, order_index, title, content, part_type, modul_vocab_cards(id, hanzi, pinyin, translation, order_index)",
+        "id, order_index, title, content, vocab_parts, kalimat_parts",
       )
       .eq("module_id", moduleRow.id)
-      .order("order_index")
-      .order("order_index", { foreignTable: "modul_vocab_cards" }),
+      .order("order_index"),
     user
       ? supa
         .from("modul_user_module_progress")
@@ -291,14 +290,30 @@ export async function fetchModuleDetail(slug: string): Promise<ModulDetail | nul
       .map((t) => extractTagName((t as { modul_tags: unknown }).modul_tags))
       .filter((n): n is string => Boolean(n)),
     level: level ? { code: level.code, label: level.label } : { code: "", label: "" },
-    parts: (partsRes.data ?? []).map((p) => ({
-      id: p.id,
-      orderIndex: p.order_index,
-      title: p.title,
-      content: p.content as Record<string, unknown> | null,
-      partType: p.part_type as ModulPart["partType"],
-      vocab: (p.modul_vocab_cards ?? []) as ModulPart["vocab"],
-    })),
+    parts: (partsRes.data ?? []).map((p) => {
+      // Extract vocab from vocab_parts JSON
+      const vocabParts = p.vocab_parts as { cards?: unknown } | null
+      const vocabCards = Array.isArray(vocabParts?.cards)
+        ? (vocabParts.cards as Array<{ hanzi: string; pinyin: string; translation: string | null; order_index: number }>)
+          .map((v, i) => ({ ...v, id: `${p.id}-vocab-${i}` }))
+        : []
+
+      // Extract kalimat from kalimat_parts JSON
+      const kalimatParts = p.kalimat_parts as { cards?: unknown } | null
+      const kalimatCards = Array.isArray(kalimatParts?.cards)
+        ? (kalimatParts.cards as Array<{ hanzi: string; pinyin: string; translation: string | null; order_index: number }>)
+          .map((k, i) => ({ ...k, id: `${p.id}-kalimat-${i}` }))
+        : []
+
+      return {
+        id: p.id,
+        orderIndex: p.order_index,
+        title: p.title,
+        content: p.content as Record<string, unknown> | null,
+        vocabParts: vocabCards,
+        kalimatParts: kalimatCards,
+      }
+    }),
     progress: progressRes.data
       ? {
         status: progressRes.data.status,

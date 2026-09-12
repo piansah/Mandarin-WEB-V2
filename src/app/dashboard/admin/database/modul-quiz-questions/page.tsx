@@ -402,18 +402,19 @@ export default function ModulQuizQuestionsPage() {
       {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>{editingQuestion ? "Edit Modul Quiz Question" : "Tambah Modul Quiz Question"}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background rounded-lg border shadow-lg">
+            <Card className="border-0 shadow-none">
+              <CardHeader>
+                <CardTitle>{editingQuestion ? "Edit Modul Quiz Question" : "Tambah Modul Quiz Question"}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Module</label>
                 <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih module" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[10000]">
                     {modules.map((module) => (
                       <SelectItem key={module.id} value={module.id}>
                         {module.title}
@@ -437,7 +438,7 @@ export default function ModulQuizQuestionsPage() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-[10000]">
                     <SelectItem value="mcq">Multiple Choice</SelectItem>
                     <SelectItem value="audio">Audio</SelectItem>
                     <SelectItem value="speaking">Speaking</SelectItem>
@@ -484,7 +485,8 @@ export default function ModulQuizQuestionsPage() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       )}
 

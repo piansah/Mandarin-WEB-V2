@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Mic, Bookmark, ChevronRight, CheckCircle2, BookOpen, ArrowLeft, ArrowRight, HelpCircle } from "lucide-react"
+import { Mic, Bookmark, ChevronRight, CheckCircle2, BookOpen, ArrowLeft, ArrowRight, HelpCircle, MessageSquare, Volume2 } from "lucide-react"
 
 import {
   fetchModuleDetail,
@@ -277,12 +277,11 @@ export default function ModulDetailPage() {
 /**
  * Render isi satu bagian modul. `content` adalah JSONB bebas bentuk
  * (lihat seed data): `{ paragraphs: string[] }` untuk narasi, atau
- * `{ instructions: string }` untuk bagian practice/quiz. Kartu kosakata
- * datang dari tabel `vocab_cards`, bukan dari `content`.
- *
- * Kalau nanti kontennya butuh lebih dari paragraf+kosakata (heading
- * bertingkat, list, dsb seperti versi statis lama), bentuk `content`
- * ini perlu diperluas — beri tahu saya kalau mau dirapikan lebih jauh.
+ * `{ instructions: string }` untuk bagian practice/quiz. 
+ * 
+ * Vocab cards dan contoh kalimat datang dari vocab_parts dan kalimat_parts JSON:
+ * - vocab_parts: { cards: [{ hanzi, pinyin, translation, order_index }] }
+ * - kalimat_parts: { cards: [{ hanzi, pinyin, translation, order_index }] }
  */
 function PartContent({ part }: { part: ModulPart }) {
   const paragraphs = Array.isArray((part.content as { paragraphs?: unknown })?.paragraphs)
@@ -295,19 +294,10 @@ function PartContent({ part }: { part: ModulPart }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {part.partType === "practice" && instructions && (
+      {instructions && (
         <div className="bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400 p-4 rounded-xl flex gap-3 items-start">
           <Mic className="w-5 h-5 shrink-0 mt-0.5" />
           <p className="text-sm leading-relaxed">{instructions}</p>
-        </div>
-      )}
-
-      {part.partType === "quiz" && (
-        <div className="bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-400 p-4 rounded-xl flex gap-3 items-start">
-          <HelpCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm leading-relaxed">
-            {instructions ?? "Bagian ini punya kuis singkat untuk cek pemahamanmu."}
-          </p>
         </div>
       )}
 
@@ -323,17 +313,82 @@ function PartContent({ part }: { part: ModulPart }) {
           </p>
         ))}
 
-        {part.vocab.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            {part.vocab.map((v) => (
-              <div key={v.id} className="bg-card border rounded-xl p-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-2xl font-bold text-primary">{v.hanzi}</span>
-                  <span className="font-mono text-sm text-muted-foreground">{v.pinyin}</span>
-                  {v.translation && <span className="text-sm">{v.translation}</span>}
+        {/* Vocab Cards - Display as Cards */}
+        {part.vocabParts.length > 0 && (
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              Kosakata
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {part.vocabParts.map((v, i) => (
+                <div key={`vocab-${i}`} className="bg-card border rounded-xl p-4 hover:border-primary/50 transition-colors">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold text-primary">{v.hanzi}</span>
+                      <button
+                        title="Dengarkan (TTS)"
+                        onClick={() => {
+                          const utterance = new SpeechSynthesisUtterance(v.hanzi)
+                          utterance.lang = "zh-CN"
+                          window.speechSynthesis.speak(utterance)
+                        }}
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                      >
+                        <Volume2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <span className="font-mono text-sm text-muted-foreground">{v.pinyin}</span>
+                    {v.translation && <span className="text-sm">{v.translation}</span>}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Kalimat/Contoh Kalimat - Display as Table */}
+        {part.kalimatParts.length > 0 && (
+          <div className="mb-8">
+            <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              Contoh Kalimat
+            </h4>
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="text-left p-3 text-sm font-medium">Hanzi</th>
+                    <th className="text-left p-3 text-sm font-medium">Pinyin</th>
+                    <th className="text-left p-3 text-sm font-medium">Arti</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {part.kalimatParts.map((k, i) => (
+                    <tr key={`kalimat-${i}`} className="border-t">
+                      <td className="p-3 font-medium">
+                        <div className="flex items-center gap-2">
+                          {k.hanzi}
+                          <button
+                            title="Dengarkan (TTS)"
+                            onClick={() => {
+                              const utterance = new SpeechSynthesisUtterance(k.hanzi)
+                              utterance.lang = "zh-CN"
+                              window.speechSynthesis.speak(utterance)
+                            }}
+                            className="text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Volume2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="p-3 font-mono text-sm text-muted-foreground">{k.pinyin}</td>
+                      <td className="p-3 text-sm">{k.translation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
