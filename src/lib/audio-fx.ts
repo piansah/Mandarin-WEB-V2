@@ -82,9 +82,14 @@ class BGMPlayer {
     329.63, 440.00, 392.00, 329.63,
     261.63, 293.66, 329.63, 440.00
   ]
+  // Speedrun theme (fast, energetic)
+  private speedrunNotes = [
+    523.25, 659.25, 783.99, 1046.50,
+    783.99, 659.25, 523.25, 392.00
+  ]
   private noteIdx = 0
 
-  start(theme: "snake" | "match" = "snake") {
+  start(theme: "snake" | "match" | "speedrun" = "snake") {
     if (this.isPlaying) return
     try {
       const AudioContext = window.AudioContext || (window as any).webkitAudioContext
@@ -102,7 +107,9 @@ class BGMPlayer {
       this.osc.start()
       this.isPlaying = true
 
-      const activeNotes = theme === "snake" ? this.snakeNotes : this.matchNotes
+      const activeNotes = theme === "snake" ? this.snakeNotes : 
+                          theme === "speedrun" ? this.speedrunNotes : 
+                          this.matchNotes
 
       const playNextNote = () => {
         if (!this.ctx || !this.gain || !this.osc) return
@@ -121,7 +128,7 @@ class BGMPlayer {
         this.noteIdx = (this.noteIdx + 1) % activeNotes.length
       }
 
-      const speed = theme === "snake" ? 250 : 350
+      const speed = theme === "snake" ? 250 : theme === "speedrun" ? 150 : 350
       this.intervalId = setInterval(playNextNote, speed) 
       playNextNote()
     } catch (e) {

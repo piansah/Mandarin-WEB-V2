@@ -55,31 +55,26 @@ import { isAdmin } from "@/lib/auth-roles"
 const todayItems = [
   {
     title: "Dashboard",
-    subtitle: "Ikhtisar & progres belajar",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
     title: "Modul",
-    subtitle: "Materi pelajaran terstruktur",
     url: "/dashboard/modul",
     icon: FolderOpen,
   },
   {
     title: "Path",
-    subtitle: "Peta perjalanan HSK",
     url: "/dashboard/path",
     icon: Target,
   },
   {
     title: "Statistik",
-    subtitle: "Analisis performa & streak",
     url: "/dashboard/statistik",
     icon: BarChart3,
   },
   {
     title: "Minigames",
-    subtitle: "Belajar sambil bermain",
     url: "/dashboard/games",
     icon: Gamepad2,
   },
@@ -251,14 +246,11 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={pathname === item.url}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto py-2 px-2.5 items-center gap-3 rounded-lg group-data-[collapsed=true]/sidebar:h-8 group-data-[collapsed=true]/sidebar:py-1.5 group-data-[collapsed=true]/sidebar:px-2"
+                  className="p-3"
                 >
-                  <item.icon className="h-4 w-4 shrink-0 transition-colors" />
-                  <div className="flex flex-col min-w-0 text-left group-data-[collapsed=true]/sidebar:hidden">
-                    <span className="font-medium text-sm leading-tight">{item.title}</span>
-                    <span className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate font-normal">
-                      {item.subtitle}
-                    </span>
+                  <div className="flex items-center gap-2 w-full">
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>

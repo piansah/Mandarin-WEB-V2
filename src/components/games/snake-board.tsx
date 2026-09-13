@@ -19,7 +19,7 @@ type FoodItem = {
 
 interface SnakeBoardProps {
   wordsPool: GameWord[]
-  onGameOver: (score: number) => void
+  onGameOver: (score: number, win?: boolean) => void
   onScoreChange: (score: number) => void
 }
 
@@ -151,7 +151,7 @@ export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardP
           if (newCleared.size >= wordsPool.length) {
             setFoods([])
             setIsGameOver(true)
-            onGameOver(ns)
+            onGameOver(ns, true)  // true = win
             return
           }
 

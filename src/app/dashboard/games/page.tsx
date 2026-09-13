@@ -21,9 +21,9 @@ export default function GameHubPage() {
         const { data: { user } } = await supa.auth.getUser()
         if (!user) return
 
-        // Mocking completed decks to 3 for now so Snake is unlocked, but Match is also unlocked.
+        // Mocking completed decks to 4 for now so Speedrun is unlocked.
         // We will implement actual deck counting logic later.
-        setCompletedDecks(3) 
+        setCompletedDecks(4) 
 
       } catch (error) {
         console.error("Failed to load user game stats:", error)

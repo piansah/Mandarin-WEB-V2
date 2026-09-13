@@ -19,12 +19,13 @@ type MatchCard = {
 
 interface MatchBoardProps {
   wordsPool: GameWord[]
-  onGameOver: (score: number) => void
+  onGameOver: (score: number, win?: boolean) => void
   onScoreChange: (score: number) => void
 }
 
 export function MatchBoard({ wordsPool, onGameOver, onScoreChange }: MatchBoardProps) {
   const [cards, setCards] = React.useState<MatchCard[]>([])
+  const [queue, setQueue] = React.useState<GameWord[]>([])
   const [flippedIndices, setFlippedIndices] = React.useState<number[]>([])
   const [isLocked, setIsLocked] = React.useState(false)
   const [score, setScore] = React.useState(0)
@@ -43,12 +44,14 @@ export function MatchBoard({ wordsPool, onGameOver, onScoreChange }: MatchBoardP
     if (!wordsPool || wordsPool.length < 8) return
     hasInitialized.current = true
 
-    // Pick 8 random words
-    const shuffledPool = [...wordsPool].sort(() => Math.random() - 0.5).slice(0, 8)
+    // Pick 8 words for board, rest to queue
+    const shuffledPool = [...wordsPool].sort(() => Math.random() - 0.5)
+    const boardWords = shuffledPool.slice(0, 8)
+    const remainingWords = shuffledPool.slice(8)
 
     // Create 2 cards per word (16 total)
     const newCards: MatchCard[] = []
-    shuffledPool.forEach(word => {
+    boardWords.forEach(word => {
       newCards.push({
         id: `hanzi-${word.id}`,
         wordId: word.id,
@@ -72,6 +75,7 @@ export function MatchBoard({ wordsPool, onGameOver, onScoreChange }: MatchBoardP
     newCards.sort(() => Math.random() - 0.5)
 
     setCards(newCards)
+    setQueue(remainingWords)
     setScore(0)
     onScoreChangeRef.current(0)
   }, [wordsPool])
@@ -97,17 +101,54 @@ export function MatchBoard({ wordsPool, onGameOver, onScoreChange }: MatchBoardP
         // Match!
         playSuccessSound()
         setTimeout(() => {
-          setCards(prev => {
-            const updated = prev.map((c, i) =>
-              i === firstIdx || i === secondIdx ? { ...c, isMatched: true } : c
-            )
-            // Check win: all cards matched
-            const totalMatched = updated.filter(c => c.isMatched).length
-            if (totalMatched === updated.length) {
-              const finalScore = score + 10
-              setTimeout(() => onGameOverRef.current(finalScore), 500)
-            }
-            return updated
+          setQueue(prevQueue => {
+            const nextQueue = [...prevQueue]
+            const nextWord = nextQueue.shift()
+
+            setCards(prevCards => {
+              const updated = [...prevCards]
+              if (nextWord) {
+                // Continuous Replenishment: Create 2 new cards and place them at matched indices
+                const newCardsToInsert: MatchCard[] = [
+                  {
+                    id: `hanzi-${nextWord.id}`,
+                    wordId: nextWord.id,
+                    type: "hanzi",
+                    hanzi: nextWord.hanzi,
+                    isFlipped: false,
+                    isMatched: false
+                  },
+                  {
+                    id: `pinyin-${nextWord.id}`,
+                    wordId: nextWord.id,
+                    type: "pinyin",
+                    pinyin: nextWord.pinyin,
+                    arti: nextWord.arti,
+                    isFlipped: false,
+                    isMatched: false
+                  }
+                ]
+                // Randomize which new card goes to which index
+                if (Math.random() > 0.5) newCardsToInsert.reverse()
+                
+                updated[firstIdx] = newCardsToInsert[0]
+                updated[secondIdx] = newCardsToInsert[1]
+              } else {
+                // Queue empty: just mark as matched (transparent)
+                updated[firstIdx] = { ...updated[firstIdx], isMatched: true }
+                updated[secondIdx] = { ...updated[secondIdx], isMatched: true }
+
+                // Check win condition
+                const totalMatched = updated.filter(c => c.isMatched).length
+                if (totalMatched === updated.length) {
+                  const finalScore = score + 10
+                  setTimeout(() => onGameOverRef.current(finalScore, true), 500)
+                }
+              }
+              return updated
+            })
+
+            return nextQueue
           })
           const newScore = score + 10
           setScore(newScore)
