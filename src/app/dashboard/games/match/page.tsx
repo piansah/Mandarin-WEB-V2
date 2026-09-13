@@ -215,60 +215,35 @@ export default function MatchGamePage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b bg-card">
-        {gameState === "idle" ? (
-          <Link
-            href="/dashboard/games"
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Game Hub
-          </Link>
-        ) : (
-          <button
-            onClick={
-              gameState === "stage-select" ? goBackToHsk :
-              gameState === "playing" || gameState === "gameover" ? goBackToStages :
-              undefined
-            }
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {gameState === "stage-select" ? "Pilih Level HSK" : "Pilih Stage"}
-          </button>
-        )}
+      {(gameState === "playing" || gameState === "gameover") && (
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b bg-card">
+          <div className="flex items-center gap-2">
+            <Gamepad2 className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-semibold">Cocokkan Hanzi</span>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <Gamepad2 className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-semibold">Cocokkan Hanzi</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsMuted(!isMuted)}
-            className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            title={isMuted ? "Nyalakan Musik" : "Matikan Musik"}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-          </button>
-          <div className={cn(
-            "flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold font-mono transition-all",
-            gameState === "playing" || gameState === "gameover"
-              ? "bg-primary/10 text-primary"
-              : "opacity-0 pointer-events-none"
-          )}>
-            <Trophy className="w-3.5 h-3.5" />
-            {score}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setIsMuted(!isMuted)}
+              className="p-1.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+              title={isMuted ? "Nyalakan Musik" : "Matikan Musik"}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-bold font-mono transition-all bg-primary/10 text-primary">
+              <Trophy className="w-3.5 h-3.5" />
+              {score}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Body */}
       <div className="flex-1 min-h-0 flex flex-col items-center overflow-auto p-4 bg-gradient-to-b from-background to-secondary/10">
 
         {/* === Idle: Pick HSK Level === */}
         {gameState === "idle" && !loading && (
-          <div className="flex flex-col items-center text-center max-w-md w-full space-y-6 my-auto animate-in fade-in zoom-in duration-500">
+          <div className="flex flex-col items-center text-center max-w-md w-full space-y-6 my-auto py-8 animate-in fade-in zoom-in duration-500">
             <div className="w-24 h-24 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center">
               <span className="text-5xl">🃏</span>
             </div>

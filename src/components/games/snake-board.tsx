@@ -4,6 +4,7 @@ import * as React from "react"
 import { GameWord } from "@/app/dashboard/games/snake/page"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { playSuccessSound, playErrorSound } from "@/lib/audio-fx"
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react"
 
 const GRID_SIZE = 15
 const INITIAL_SPEED = 200
@@ -303,7 +304,35 @@ export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardP
         </div>
       </div>
 
-      <p className="md:hidden text-center text-muted-foreground text-xs shrink-0">👆 Geser untuk bergerak</p>
+      <div className="md:hidden relative w-[136px] h-[136px] mt-4 shrink-0 mx-auto">
+        <button
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-14 h-14 bg-secondary/50 rounded-xl flex items-center justify-center active:bg-secondary active:scale-95 transition-all"
+          onClick={() => { if (direction !== "DOWN") setNextDirection("UP") }}
+        >
+          <ArrowUp className="w-6 h-6" />
+        </button>
+        
+        <button
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-14 bg-secondary/50 rounded-xl flex items-center justify-center active:bg-secondary active:scale-95 transition-all"
+          onClick={() => { if (direction !== "UP") setNextDirection("DOWN") }}
+        >
+          <ArrowDown className="w-6 h-6" />
+        </button>
+
+        <button
+          className="absolute left-0 top-1/2 -translate-y-1/2 w-14 h-14 bg-secondary/50 rounded-xl flex items-center justify-center active:bg-secondary active:scale-95 transition-all"
+          onClick={() => { if (direction !== "RIGHT") setNextDirection("LEFT") }}
+        >
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+
+        <button
+          className="absolute right-0 top-1/2 -translate-y-1/2 w-14 h-14 bg-secondary/50 rounded-xl flex items-center justify-center active:bg-secondary active:scale-95 transition-all"
+          onClick={() => { if (direction !== "LEFT") setNextDirection("RIGHT") }}
+        >
+          <ArrowRight className="w-6 h-6" />
+        </button>
+      </div>
     </div>
   )
 }

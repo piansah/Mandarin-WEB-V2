@@ -60,7 +60,7 @@ export default function GameHubPage() {
       image: "linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)",
       icon: Languages,
       url: "/dashboard/games/match",
-      decksRequired: 2, 
+      decksRequired: 1, 
       tags: ["Ingatan", "Kosakata"],
     },
     {
@@ -70,7 +70,7 @@ export default function GameHubPage() {
       image: "linear-gradient(135deg, #F87171 0%, #DC2626 100%)",
       icon: SquareStack,
       url: "/dashboard/games/speedrun",
-      decksRequired: 4,
+      decksRequired: 2,
       tags: ["Kecepatan", "Recall"],
     }
   ]
