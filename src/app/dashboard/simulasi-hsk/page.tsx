@@ -1,12 +1,24 @@
 "use client"
 
 import * as React from "react"
-import { ClipboardList } from "lucide-react"
+import { ClipboardList, FlaskConical } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function SimulasiHskPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
+
+      {/* Banner Konsep */}
+      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3.5">
+        <FlaskConical className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-400 mb-0.5">Masih dalam konsep</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Fitur Simulasi Ujian HSK ini masih belum tersedia. Fitur ini memerlukan konten soal yang terstandar, yang saat ini belum bisa disiapkan oleh developer. Terima kasih atas pengertiannya!
+          </p>
+        </div>
+      </div>
+
       {/* Page Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">

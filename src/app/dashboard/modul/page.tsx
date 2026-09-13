@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { BookOpen, Video, Search, PlayCircle, ArrowRight, Lock, CheckCircle2 } from "lucide-react"
+import { BookOpen, Video, Search, PlayCircle, ArrowRight, Lock, CheckCircle2, Construction, FlaskConical } from "lucide-react"
 
 import { fetchModulOverview, type ModulOverview, type ModulModuleSummary } from "@/lib/modul"
 
@@ -85,6 +85,17 @@ export default function ModulPage() {
 
   return (
     <div className="flex flex-col p-6 gap-8 text-foreground">
+
+      {/* Banner Konsep */}
+      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3.5">
+        <FlaskConical className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-400 mb-0.5">Masih dalam konsep</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Fitur modul ini masih bersifat konsep. Karena keterbatasan developer yang bukan ahli bahasa Mandarin, pembuatan konten modul secara penuh belum memungkinkan untuk saat ini. Terima kasih atas pengertiannya!
+          </p>
+        </div>
+      </div>
 
       {/* Banner Langkah Berikutnya */}
       {nextStep ? (
