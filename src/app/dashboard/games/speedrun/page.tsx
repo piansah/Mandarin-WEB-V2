@@ -122,13 +122,13 @@ export default function SpeedrunGamePage() {
     return levels
   }, [allSets])
 
-  // Build stages for selected HSK level (3 decks per stage)
+  // Build stages for selected HSK level (2 decks per stage)
   const stages = React.useMemo<Stage[]>(() => {
     if (selectedHsk === null) return []
     const levelSets = allSets.filter(s => s.hsk_level === selectedHsk)
     const result: Stage[] = []
-    for (let i = 0; i < levelSets.length; i += 3) {
-      const chunk = levelSets.slice(i, i + 3)
+    for (let i = 0; i < levelSets.length; i += 2) {
+      const chunk = levelSets.slice(i, i + 2)
       result.push({
         index: result.length + 1,
         sets: chunk,
@@ -297,13 +297,13 @@ export default function SpeedrunGamePage() {
             <div className="flex flex-col gap-3 w-full">
               {hskLevels.map((level, i) => {
                 const levelSets = allSets.filter(s => s.hsk_level === level)
-                const stageCount = Math.ceil(levelSets.length / 3) // 1 stage = 3 deck
+                const stageCount = Math.ceil(levelSets.length / 2) // 1 stage = 2 deck
                 // HSK is cleared when all its stages are cleared
                 const isHskCleared = stageCount > 0 && (clearedStages[level]?.size ?? 0) >= stageCount
                 // HSK is locked if it's not the first and the previous HSK isn't fully cleared
                 const prevLevel = hskLevels[i - 1]
                 const prevLevelSets = prevLevel ? allSets.filter(s => s.hsk_level === prevLevel) : []
-                const prevStageCount = Math.ceil(prevLevelSets.length / 3)
+                const prevStageCount = Math.ceil(prevLevelSets.length / 2)
                 const isLocked = i > 0 && (clearedStages[prevLevel]?.size ?? 0) < prevStageCount
 
                 return (
@@ -419,13 +419,7 @@ export default function SpeedrunGamePage() {
           </div>
         )}
 
-        {/* === Loading === */}
-        {loading && (
-          <div className="flex flex-col items-center gap-3 my-auto">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm animate-pulse">Memuat kosakata...</p>
-          </div>
-        )}
+
 
         {/* === Playing === */}
         {gameState === "playing" && !loading && words.length >= 4 && (

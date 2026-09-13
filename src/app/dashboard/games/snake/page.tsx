@@ -413,13 +413,7 @@ export default function SnakeGamePage() {
           </div>
         )}
 
-        {/* === Loading === */}
-        {loading && (
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm animate-pulse">Memuat kosakata...</p>
-          </div>
-        )}
+
 
         {/* === Playing === */}
         {gameState === "playing" && !loading && words.length >= 5 && (

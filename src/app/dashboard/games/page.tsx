@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Gamepad2, ArrowRight, Lock, Unlock, Trophy, Sparkles, LucideIcon } from "lucide-react"
+import { Gamepad2, ArrowRight, Lock, Unlock, Trophy, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -41,7 +41,7 @@ export default function GameHubPage() {
       title: "Ular Tebak Hanzi",
       description: "Kendalikan ular untuk memakan Hanzi yang sesuai dengan pinyin dan arti yang muncul. Hati-hati jangan sampai menabrak dinding atau ekormu sendiri!",
       image: "linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)",
-      icon: Sparkles,
+      icon: Worm,
       url: "/dashboard/games/snake",
       decksRequired: 0, 
       tags: ["Hanzi", "Fokus", "Refleks"],
@@ -51,7 +51,7 @@ export default function GameHubPage() {
       title: "Cocokkan Hanzi",
       description: "Latih ingatanmu! Balik kartu dan temukan pasangan Hanzi dengan Pinyin atau artinya dalam waktu yang ditentukan.",
       image: "linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)",
-      icon: Gamepad2,
+      icon: Languages,
       url: "/dashboard/games/match",
       decksRequired: 2, 
       tags: ["Ingatan", "Kosakata"],
@@ -61,7 +61,7 @@ export default function GameHubPage() {
       title: "Flashcard Speedrun",
       description: "Jawab sebanyak mungkin flashcard dengan benar dalam waktu 60 detik. Seberapa cepat kamu bisa mengingat?",
       image: "linear-gradient(135deg, #F87171 0%, #DC2626 100%)",
-      icon: Trophy,
+      icon: SquareStack,
       url: "/dashboard/games/speedrun",
       decksRequired: 4,
       tags: ["Kecepatan", "Recall"],
@@ -91,19 +91,9 @@ export default function GameHubPage() {
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight">
             Game Hub
           </h1>
-          <p className="text-muted-foreground text-lg max-w-xl">
-            Belajar Mandarin tidak harus membosankan. Mainkan mini-games untuk menguji kemampuanmu, dapatkan XP, dan buka game baru!
+          <p className="text-muted-foreground text-lg max-w-2xl">
+            Belajar Mandarin tidak harus membosankan. Mainkan minigames untuk menguji kemampuanmu, dapatkan XP, dan buka game baru!
           </p>
-        </div>
-        
-        <div className="relative z-10 flex items-center gap-3 bg-background/80 backdrop-blur-md px-5 py-3 rounded-2xl border shadow-sm">
-          <div className="bg-primary/20 p-2 rounded-full">
-            <Unlock className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground leading-none mb-1">Deck Diselesaikan</p>
-            <p className="text-2xl font-bold leading-none">{completedDecks}</p>
-          </div>
         </div>
       </div>
 

@@ -51,6 +51,9 @@ function calcXPFromRows(rows: ScoreRow[]): number {
       case "fc_session":
       case "nada_session":
       case "speaking_session":
+      case "minigame_snake":
+      case "minigame_match":
+      case "minigame_speedrun":
         xp += Math.min(score || 0, XP_CAP);
         break;
       case "cerita_quiz":
