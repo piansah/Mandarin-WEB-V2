@@ -116,6 +116,7 @@ export default function GrammarPracticePage() {
   const [states, setStates] = React.useState<QuestionState[]>([])
   const [wrongQuestions, setWrongQuestions] = React.useState<Question[]>([])
   const [reviewRound, setReviewRound] = React.useState(0)
+  const [isMobile, setIsMobile] = React.useState(false)
   const [bankWords, setBankWords] = React.useState<ChipWord[]>([])
 
   const persist = React.useCallback((next: Partial<{ questions: Question[]; states: QuestionState[]; idx: number; correctCount: number; wrongCount: number; finished: boolean }>) => {
@@ -129,6 +130,13 @@ export default function GrammarPracticePage() {
     }
     window.localStorage.setItem(sessionKey(slug), JSON.stringify(payload))
   }, [questions, states, idx, correctCount, wrongCount, slug])
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
@@ -372,7 +380,7 @@ export default function GrammarPracticePage() {
                   <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} onClick={() => removeWord(index)} />
                 ))}
               </div>
-              <div className={styles.bank}>
+              <div className={`${styles.bank} ${checked && isMobile ? 'hidden' : ''}`}>
                 {bankWords.map((item, index) => (
                   <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} used={used[index]} disabled={checked} onClick={() => addWord(index)} />
                 ))}

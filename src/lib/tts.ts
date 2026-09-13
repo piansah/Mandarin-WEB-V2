@@ -17,6 +17,7 @@ let tapTimer: ReturnType<typeof setTimeout> | null = null
 let badgeTimer: ReturnType<typeof setTimeout> | null = null
 let lastSpeakAt = 0
 let voicesListenerReady = false
+let voicesLoadAttempted = false
 
 function isSupported() {
   return typeof window !== "undefined" && "speechSynthesis" in window
@@ -25,6 +26,7 @@ function isSupported() {
 function loadVoices() {
   if (!isSupported()) return
   voices = window.speechSynthesis.getVoices()
+  voicesLoadAttempted = true
 }
 
 function ensureVoiceListener() {
@@ -32,6 +34,14 @@ function ensureVoiceListener() {
   voicesListenerReady = true
   loadVoices()
   window.speechSynthesis.addEventListener("voiceschanged", loadVoices)
+}
+
+// Pre-load voices immediately when module loads
+if (isSupported()) {
+  loadVoices()
+  // Try again after a short delay (some browsers delay voice loading)
+  setTimeout(loadVoices, 100)
+  setTimeout(loadVoices, 500)
 }
 
 function showSpeedBadge(label: string) {
@@ -59,7 +69,8 @@ export function speakMandarin(text: string, options: { silent?: boolean } = {}) 
   if (!isSupported() || !text.trim()) return
 
   const now = Date.now()
-  if (now - lastSpeakAt < 300) return
+  // Remove cooldown for first tap to make it more responsive
+  if (now - lastSpeakAt < 100 && tapCount > 0) return
   lastSpeakAt = now
 
   ensureVoiceListener()

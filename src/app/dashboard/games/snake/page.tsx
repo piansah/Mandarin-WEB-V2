@@ -21,6 +21,7 @@ export default function SnakeGamePage() {
   // --- Data ---
   const [allSets, setAllSets] = React.useState<FlashcardSet[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [completedDecks, setCompletedDecks] = React.useState(0)
 
   // --- Navigation state ---
   const [selectedHsk, setSelectedHsk] = React.useState<number | null>(null)
@@ -30,6 +31,7 @@ export default function SnakeGamePage() {
   const [words, setWords] = React.useState<GameWord[]>([])
   const [gameState, setGameState] = React.useState<"idle" | "stage-select" | "playing" | "gameover">("idle")
   const [score, setScore] = React.useState(0)
+  const [wordsEaten, setWordsEaten] = React.useState(0)
   const [isMuted, setIsMuted] = React.useState(false)
   const [isWin, setIsWin] = React.useState(false)
 
@@ -100,6 +102,28 @@ export default function SnakeGamePage() {
     fetchSets()
   }, [supa])
 
+  // Load completed decks count
+  React.useEffect(() => {
+    async function loadStats() {
+      try {
+        const { data: { user } } = await supa.auth.getUser()
+        if (!user) return
+
+        const { data: quizScores } = await supa
+          .from("user_scores")
+          .select("key")
+          .eq("user_id", user.id)
+          .eq("type", "quiz")
+
+        const count = quizScores ? new Set(quizScores.map(r => r.key)).size : 0
+        setCompletedDecks(count)
+      } catch (error) {
+        console.error("Failed to load user game stats:", error)
+      }
+    }
+    loadStats()
+  }, [supa])
+
   // Unique HSK levels available
   const hskLevels = React.useMemo(() => {
     const levels = [...new Set(allSets.map(s => s.hsk_level))].sort((a, b) => a - b)
@@ -153,6 +177,7 @@ export default function SnakeGamePage() {
     setSelectedStage(stage)
     await loadStageWords(stage)
     setScore(0)
+    setWordsEaten(0)
     setIsWin(false)
     setGameState("playing")
     history.pushState({ snake: "playing" }, "")
@@ -232,6 +257,11 @@ export default function SnakeGamePage() {
               <Trophy className="w-3.5 h-3.5" />
               {score}
             </div>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono transition-all bg-secondary/50 text-muted-foreground">
+              <span>{wordsEaten}</span>
+              <span className="text-muted-foreground/60">/</span>
+              <span>{words.length}</span>
+            </div>
           </div>
         </div>
       )}
@@ -254,11 +284,15 @@ export default function SnakeGamePage() {
                 const stageCount = Math.ceil(levelSets.length / 2)
                 // HSK is cleared when all its stages are cleared
                 const isHskCleared = stageCount > 0 && (clearedStages[level]?.size ?? 0) >= stageCount
-                // HSK is locked if it's not the first and the previous HSK isn't fully cleared
+                // HSK is locked if:
+                // 1. It's not the first AND the previous HSK isn't fully cleared
+                // 2. OR user hasn't completed enough decks (1 deck for HSK 2, 2 decks for HSK 3, etc.)
                 const prevLevel = hskLevels[i - 1]
                 const prevLevelSets = prevLevel ? allSets.filter(s => s.hsk_level === prevLevel) : []
                 const prevStageCount = Math.ceil(prevLevelSets.length / 2)
-                const isLocked = i > 0 && (clearedStages[prevLevel]?.size ?? 0) < prevStageCount
+                const prevHskCleared = prevStageCount > 0 && (clearedStages[prevLevel]?.size ?? 0) >= prevStageCount
+                const decksRequiredForLevel = level > 1 ? level - 1 : 0
+                const isLocked = (i > 0 && !prevHskCleared) || (completedDecks < decksRequiredForLevel)
 
                 return (
                   <button
@@ -387,6 +421,7 @@ export default function SnakeGamePage() {
               wordsPool={words}
               onGameOver={handleGameOver}
               onScoreChange={s => setScore(s)}
+              onWordsEatenChange={(eaten, total) => setWordsEaten(eaten)}
             />
           </div>
         )}

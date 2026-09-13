@@ -65,7 +65,6 @@ export default function ReviewPage() {
       deckTitle={deckTitle}
       deckLevel={deckLevel}
       userId={userId}
-      disableSwipe={true}
     />
   )
 }

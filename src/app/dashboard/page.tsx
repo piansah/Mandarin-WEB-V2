@@ -548,8 +548,8 @@ export default function DashboardPage() {
                     <FolderOpen className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextModule.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Lanjutan jalur kamu · bagian pertama dari modul</p>
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextModule.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Lanjutan jalur kamu · bagian pertama dari modul</p>
                   </div>
                 </div>
               </a>
@@ -559,8 +559,8 @@ export default function DashboardPage() {
                   <FolderOpen className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-muted-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">Modul Pembelajaran</h3>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Tidak ada modul tersedia saat ini</p>
+                  <h3 className="font-semibold text-muted-foreground text-sm sm:text-base truncate tracking-tight">Modul Pembelajaran</h3>
+                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Tidak ada modul tersedia saat ini</p>
                 </div>
               </div>
             )}
@@ -573,8 +573,8 @@ export default function DashboardPage() {
                     <Languages className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextDeck.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextDeck.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Flashcard, quiz, nada & tulis · HSK {nextDeck.hsk_level}</p>
                   </div>
                 </div>
               </a>
@@ -584,8 +584,8 @@ export default function DashboardPage() {
                   <CheckCircle2 className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-emerald-700 dark:text-emerald-500 text-sm sm:text-base whitespace-nowrap tracking-tight">Daftar Kata</h3>
-                  <p className="text-[10px] sm:text-xs text-emerald-600/80 dark:text-emerald-400/80 whitespace-nowrap tracking-tighter sm:tracking-normal">
+                  <h3 className="font-semibold text-emerald-700 dark:text-emerald-500 text-sm sm:text-base truncate tracking-tight">Daftar Kata</h3>
+                  <p className="text-[10px] sm:text-xs text-emerald-600/80 dark:text-emerald-400/80 truncate tracking-tighter sm:tracking-normal">
                     {deckQuotaMet ? "Target harian selesai. Lanjut besok!" : "Semua deck sudah selesai"}
                   </p>
                 </div>
@@ -600,8 +600,8 @@ export default function DashboardPage() {
                     <BookText className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base whitespace-nowrap tracking-tight">{nextEstafet.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground whitespace-nowrap tracking-tighter sm:tracking-normal">Baca kalimat berurutan untuk melatih pemahaman</p>
+                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextEstafet.title}</h3>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Baca kalimat berurutan untuk melatih pemahaman</p>
                   </div>
                 </div>
               </a>

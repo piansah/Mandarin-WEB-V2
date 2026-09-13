@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { BookOpen, Search, Camera, Loader2, Clock, X, Volume2, ChevronDown, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OCRScanner } from "@/components/ocr-scanner"
@@ -24,10 +24,24 @@ function isSentenceQuery(raw: string) {
 }
 
 export function VocabularyTabs({ children }: { children: React.ReactNode }) {
-  const [activeTab, setActiveTab] = React.useState("deck")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'search' ? 'search' : 'deck'
+  const [activeTab, setActiveTab] = React.useState(initialTab)
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    const url = new URL(window.location.href)
+    if (value === 'search') {
+      url.searchParams.set('tab', 'search')
+    } else {
+      url.searchParams.delete('tab')
+    }
+    router.replace(url.toString())
+  }
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-2">
         <TabsTrigger value="deck">
           <BookOpen className="h-4 w-4 mr-2" />

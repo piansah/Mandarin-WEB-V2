@@ -22,9 +22,10 @@ interface SnakeBoardProps {
   wordsPool: GameWord[]
   onGameOver: (score: number, win?: boolean) => void
   onScoreChange: (score: number) => void
+  onWordsEatenChange: (eaten: number, total: number) => void
 }
 
-export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardProps) {
+export function SnakeBoard({ wordsPool, onGameOver, onScoreChange, onWordsEatenChange }: SnakeBoardProps) {
   const [snake, setSnake] = React.useState<Point[]>([
     { x: 7, y: 7 }, { x: 6, y: 7 }, { x: 5, y: 7 }
   ])
@@ -147,6 +148,7 @@ export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardP
           const newCleared = new Set(clearedWordIds)
           newCleared.add(currentWord.id)
           setClearedWordIds(newCleared)
+          onWordsEatenChange(newCleared.size, wordsPool.length)
 
           // Check if all deck words have been cleared → WIN!
           if (newCleared.size >= wordsPool.length) {
@@ -200,7 +202,7 @@ export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardP
       }
     }, speed)
     return () => clearTimeout(tickId)
-  }, [snake, direction, nextDirection, foods, currentWord, isGameOver, speed, score, onGameOver, onScoreChange, wordsPool])
+  }, [snake, direction, nextDirection, foods, currentWord, isGameOver, speed, score, onGameOver, onScoreChange, onWordsEatenChange, wordsPool])
 
   // Mobile swipe
   const [touchStart, setTouchStart] = React.useState<{ x: number; y: number } | null>(null)
@@ -311,7 +313,7 @@ export function SnakeBoard({ wordsPool, onGameOver, onScoreChange }: SnakeBoardP
         >
           <ArrowUp className="w-6 h-6" />
         </button>
-        
+
         <button
           className="absolute bottom-0 left-1/2 -translate-x-1/2 w-14 h-14 bg-secondary/50 rounded-xl flex items-center justify-center active:bg-secondary active:scale-95 transition-all"
           onClick={() => { if (direction !== "UP") setNextDirection("DOWN") }}

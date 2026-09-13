@@ -26,11 +26,11 @@ function StatCard({
 }) {
   return (
     <Card className="border-muted/50">
-      <CardContent className="p-5 flex items-start gap-4">
-        <div className={`p-2.5 rounded-xl ${color}`}>
+      <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        <div className={`p-2.5 rounded-xl ${color} order-1 sm:order-none`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 text-center sm:text-left order-2 sm:order-none">
           <span className="text-xs text-muted-foreground font-medium">{label}</span>
           <span className="text-2xl font-bold tracking-tight">{value}</span>
           {sub && <span className="text-xs text-muted-foreground mt-0.5">{sub}</span>}

@@ -65,6 +65,9 @@ const TYPE_LABEL: Record<string, string> = {
   tulis_session: "Tulis Hanzi",
   modul: "Modul",
   lesson: "Lesson",
+  minigame_snake: "Snake",
+  minigame_match: "Match",
+  minigame_speedrun: "Speedrun",
 }
 
 function todayStr(): string {
