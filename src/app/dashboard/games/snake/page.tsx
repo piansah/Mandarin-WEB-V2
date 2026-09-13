@@ -4,32 +4,16 @@ import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SnakeBoard } from "@/components/games/snake-board"
 import { Button } from "@/components/ui/button"
-import { Loader2, Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Star, Lock } from "lucide-react"
+import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Lock } from "lucide-react"
 import Link from "next/link"
 import { saveUserScore } from "@/lib/user-scores"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { bgmController } from "@/lib/audio-fx"
 
-export type GameWord = {
-  id: number
-  hanzi: string
-  pinyin: string
-  arti: string
-}
+import type { GameWord, FlashcardSet, GameStage as Stage } from "@/types/game"
 
-type FlashcardSet = {
-  id: number
-  title: string
-  hsk_level: number
-  sort_order: number
-}
-
-type Stage = {
-  index: number       // 1-based stage number within HSK level
-  sets: FlashcardSet[]
-  label: string
-}
+export type { GameWord } // re-export for board component
 
 export default function SnakeGamePage() {
   const supa = useSupabase()
@@ -184,7 +168,7 @@ export default function SnakeGamePage() {
     }
     if (finalScore > 0) {
       try {
-        await saveUserScore("minigame_snake" as any, `snake_${Date.now()}`, finalScore)
+        await saveUserScore("minigame_snake", `snake_${Date.now()}`, finalScore)
       } catch (err) {
         console.error("Failed to save score:", err)
       }

@@ -16,6 +16,9 @@ export type ScoreType =
   | "nada_word"
   | "lesson"
   | "modul"
+  | "minigame_snake"
+  | "minigame_match"
+  | "minigame_speedrun"
 
 type SaveResult = { error: string | null; skipped?: boolean }
 

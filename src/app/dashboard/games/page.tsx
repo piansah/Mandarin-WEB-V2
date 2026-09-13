@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Gamepad2, ArrowRight, Lock, Unlock, Trophy, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
+import { Gamepad2, ArrowRight, Lock, Unlock, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,9 +21,16 @@ export default function GameHubPage() {
         const { data: { user } } = await supa.auth.getUser()
         if (!user) return
 
-        // Mocking completed decks to 4 for now so Speedrun is unlocked.
-        // We will implement actual deck counting logic later.
-        setCompletedDecks(4) 
+        // Hitung jumlah deck yang sudah diselesaikan berdasarkan jumlah distinct quiz key
+        // (setiap deck yang diselesaikan menyimpan 1 baris di user_scores dengan type="quiz")
+        const { data: quizScores } = await supa
+          .from("user_scores")
+          .select("key")
+          .eq("user_id", user.id)
+          .eq("type", "quiz")
+
+        const count = quizScores ? new Set(quizScores.map(r => r.key)).size : 0
+        setCompletedDecks(count)
 
       } catch (error) {
         console.error("Failed to load user game stats:", error)
@@ -164,10 +171,17 @@ export default function GameHubPage() {
                       <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                     </Link>
                   ) : (
-                    <Button className="w-full font-semibold" variant="secondary" disabled>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Terkunci
-                    </Button>
+                    <div className="space-y-2">
+                      <Button className="w-full font-semibold" variant="secondary" disabled>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Terkunci
+                      </Button>
+                      <p className="text-[11px] text-center text-muted-foreground">
+                        Selesaikan {game.decksRequired} deck di{" "}
+                        <Link href="/dashboard/flashcard" className="underline text-primary/70 hover:text-primary">Flashcard</Link>{" "}
+                        untuk membuka
+                      </p>
+                    </div>
                   )}
                 </CardContent>
               </Card>

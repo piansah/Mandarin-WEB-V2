@@ -4,32 +4,16 @@ import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SpeedrunBoard } from "@/components/games/speedrun-board"
 import { Button } from "@/components/ui/button"
-import { Loader2, Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Lock } from "lucide-react"
+import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Lock } from "lucide-react"
 import Link from "next/link"
 import { saveUserScore } from "@/lib/user-scores"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { bgmController } from "@/lib/audio-fx"
 
-export type GameWord = {
-  id: number
-  hanzi: string
-  pinyin: string
-  arti: string
-}
+import type { GameWord, FlashcardSet, GameStage as Stage } from "@/types/game"
 
-type FlashcardSet = {
-  id: number
-  title: string
-  hsk_level: number
-  sort_order: number
-}
-
-type Stage = {
-  index: number       // 1-based stage number within HSK level
-  sets: FlashcardSet[]
-  label: string
-}
+export type { GameWord } // re-export for board component
 
 export default function SpeedrunGamePage() {
   const supa = useSupabase()
@@ -47,7 +31,6 @@ export default function SpeedrunGamePage() {
   const [gameState, setGameState] = React.useState<"idle" | "stage-select" | "playing" | "gameover">("idle")
   const [score, setScore] = React.useState(0)
   const [isMuted, setIsMuted] = React.useState(false)
-  const [isWin, setIsWin] = React.useState(false)
 
   // Track cleared stages per HSK level in localStorage
   // key: `speedrun_cleared_hsk${level}` → Set of stage indexes (1-based)
@@ -171,22 +154,20 @@ export default function SpeedrunGamePage() {
     setSelectedStage(stage)
     await loadStageWords(stage)
     setScore(0)
-    setIsWin(false)
     setGameState("playing")
     history.pushState({ speedrun: "playing" }, "")
   }
 
-  const handleGameOver = async (finalScore: number, win = false) => {
+  const handleGameOver = async (finalScore: number) => {
     setScore(finalScore)
-    setIsWin(win)
     setGameState("gameover")
-    // In Speedrun, completing the time means clearing the stage
-    if (win && selectedStage && selectedHsk !== null) {
+    // Completing the 60s always clears the stage
+    if (selectedStage && selectedHsk !== null) {
       markStageCleared(selectedHsk, selectedStage.index)
     }
     if (finalScore > 0) {
       try {
-        await saveUserScore("minigame_speedrun" as any, `speedrun_${Date.now()}`, finalScore)
+        await saveUserScore("minigame_speedrun", `speedrun_${Date.now()}`, finalScore)
       } catch (err) {
         console.error("Failed to save score:", err)
       }
@@ -447,13 +428,10 @@ export default function SpeedrunGamePage() {
         {/* === Game Over === */}
         {gameState === "gameover" && (
           <div className="flex flex-col items-center text-center max-w-sm w-full px-6 space-y-5 animate-in fade-in slide-in-from-bottom-8 duration-500 my-auto">
-            <div className={cn(
-              "w-24 h-24 rounded-full flex items-center justify-center",
-              isWin ? "bg-green-500/10" : "bg-destructive/10"
-            )}>
-              <span className="text-5xl">{isWin ? "🏆" : "⏰"}</span>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center bg-red-500/10">
+              <span className="text-5xl">⏱️</span>
             </div>
-            <h2 className="text-3xl font-bold">{isWin ? "Waktu Habis!" : "Game Over!"}</h2>
+            <h2 className="text-3xl font-bold">Waktu Habis!</h2>
             {selectedStage && (
               <p className="text-sm text-muted-foreground">
                 HSK {selectedHsk} · Stage {selectedStage.index}

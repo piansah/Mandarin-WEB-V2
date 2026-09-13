@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { BookOpen, Video, Search, PlayCircle, ArrowRight, Lock, CheckCircle2, Construction, FlaskConical } from "lucide-react"
+import { BookOpen, Video, Search, PlayCircle, ArrowRight, Lock, CheckCircle2, FlaskConical } from "lucide-react"
 
 import { fetchModulOverview, type ModulOverview, type ModulModuleSummary } from "@/lib/modul"
 
