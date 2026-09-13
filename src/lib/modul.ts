@@ -19,6 +19,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
+import { saveUserScore } from "@/lib/user-scores"
 
 export type ModulStatus = "locked" | "active" | "completed"
 
@@ -372,6 +373,7 @@ export async function saveModulePartProgress(
   } = await supa.auth.getUser()
   if (!user) return
 
+  // Simpan progress bagian ke modul_user_module_progress
   const { error } = await supa.from("modul_user_module_progress").upsert(
     {
       user_id: user.id,
@@ -384,6 +386,12 @@ export async function saveModulePartProgress(
     { onConflict: "user_id,module_id" },
   )
   if (error) console.warn("[modul] Gagal menyimpan progress bagian:", error.message)
+
+  // Catat progress ke user_scores (type 'modul') untuk XP tracking & streak.
+  // Key = 'module:{moduleId}' → satu baris per modul per user.
+  // Score = progressPercent (0–100), sehingga XP bertahap seiring modul dibaca.
+  const { error: scoreError } = await saveUserScore("modul", `module:${moduleId}`, Math.round(progressPercent))
+  if (scoreError) console.warn("[modul] Gagal menyimpan skor progress modul:", scoreError)
 }
 
 export async function setModuleBookmark(moduleId: string, bookmarked: boolean): Promise<void> {
@@ -497,8 +505,8 @@ export async function saveQuizResult(
   } = await supa.auth.getUser()
   if (!user) return
 
-  // Tandai modul selesai jika lulus
   if (passed) {
+    // Tandai modul selesai di modul_user_module_progress
     const { error } = await supa.from("modul_user_module_progress").upsert(
       {
         user_id: user.id,
@@ -510,5 +518,9 @@ export async function saveQuizResult(
       { onConflict: "user_id,module_id" },
     )
     if (error) console.warn("[modul] Gagal menandai modul selesai:", error.message)
+
+    // Update user_scores ke 100 — modul benar-benar selesai (termasuk kuis)
+    const { error: scoreError } = await saveUserScore("modul", `module:${moduleId}`, 100)
+    if (scoreError) console.warn("[modul] Gagal menyimpan skor kuis modul:", scoreError)
   }
 }

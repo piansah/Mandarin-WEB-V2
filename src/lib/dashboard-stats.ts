@@ -63,6 +63,8 @@ const TYPE_LABEL: Record<string, string> = {
   speaking_session: "Speaking",
   nada_session: "Nada",
   tulis_session: "Tulis Hanzi",
+  modul: "Modul",
+  lesson: "Lesson",
 }
 
 function todayStr(): string {
@@ -210,6 +212,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       const kalKeys: string[] = []       // kal
       const grammarKeys: string[] = []   // grammar
       const ceritaKeys: string[] = []    // cerita, cerita_quiz
+      const moduleIds: string[] = []     // lesson (key: "module:{id}")
 
       const FLASHCARD_TYPES = new Set(["fc_session", "nada_session", "speaking_session", "tulis_session"])
 
@@ -220,10 +223,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         else if (r.type === "kal") kalKeys.push(r.key)
         else if (r.type === "grammar") grammarKeys.push(r.key)
         else if (r.type === "cerita" || r.type === "cerita_quiz") ceritaKeys.push(r.key)
+        else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
+          moduleIds.push(r.key.slice("module:".length))
+        }
       }
 
       // Batch queries paralel
-      const [deckRows, hanziRows, quizRows, kalRows, grammarRows, ceritaRows] = await Promise.all([
+      const [deckRows, hanziRows, quizRows, kalRows, grammarRows, ceritaRows, moduleRows] = await Promise.all([
         deckIds.length > 0
           ? supa.from("flashcard_sets").select("id, title").in("id", deckIds)
           : Promise.resolve({ data: [] }),
@@ -242,11 +248,17 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         ceritaKeys.length > 0
           ? supa.from("cerita_sets").select("key, title").in("key", ceritaKeys)
           : Promise.resolve({ data: [] }),
+        moduleIds.length > 0
+          ? supa.from("modul_modules").select("id, title").in("id", moduleIds)
+          : Promise.resolve({ data: [] }),
       ])
 
       // Bangun title maps
       const deckMap: Record<number, string> = {}
       ;(deckRows.data ?? []).forEach((d: { id: number; title: string }) => { deckMap[d.id] = d.title })
+
+      const moduleMap: Record<string, string> = {}
+      ;(moduleRows.data ?? []).forEach((m: { id: string; title: string }) => { moduleMap[m.id] = m.title })
 
       const keyTitleMap: Record<string, string> = {}
       const mapRows = (rows: { data: { key: string; title: string }[] | null } | { data: [] }) => {
@@ -262,6 +274,9 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         let resolvedTitle: string
         if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
           resolvedTitle = deckMap[Number(r.key)] ?? `Deck #${r.key}`
+        } else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
+          const modId = r.key.slice("module:".length)
+          resolvedTitle = moduleMap[modId] ?? "Modul Pembelajaran"
         } else if (keyTitleMap[r.key]) {
           resolvedTitle = keyTitleMap[r.key]
         } else {

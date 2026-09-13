@@ -17,6 +17,7 @@ import {
   type ModulDetail,
   type ModulPart,
 } from "@/lib/modul"
+import { TonePinyin } from "@/components/tone-pinyin"
 
 export default function ModulDetailPage() {
   const params = useParams<{ slug: string }>()
@@ -283,6 +284,25 @@ export default function ModulDetailPage() {
  * - vocab_parts: { cards: [{ hanzi, pinyin, translation, order_index }] }
  * - kalimat_parts: { cards: [{ hanzi, pinyin, translation, order_index }] }
  */
+function renderNarrativeText(text: string) {
+  // Regex untuk menangkap pola dalam kurung e.g. (wǒ jiào)
+  const parts = text.split(/(\([^)]+\))/g)
+  return parts.map((part, index) => {
+    if (part.startsWith("(") && part.endsWith(")")) {
+      const inner = part.slice(1, -1)
+      // Periksa apakah di dalam kurung terdapat pinyin bernada
+      if (/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(inner)) {
+        return (
+          <span key={index}>
+            (<TonePinyin text={inner} className="font-semibold" />)
+          </span>
+        )
+      }
+    }
+    return <React.Fragment key={index}>{part}</React.Fragment>
+  })
+}
+
 function PartContent({ part }: { part: ModulPart }) {
   const paragraphs = Array.isArray((part.content as { paragraphs?: unknown })?.paragraphs)
     ? ((part.content as { paragraphs: string[] }).paragraphs)
@@ -297,7 +317,7 @@ function PartContent({ part }: { part: ModulPart }) {
       {instructions && (
         <div className="bg-orange-500/10 border border-orange-500/20 text-orange-700 dark:text-orange-400 p-4 rounded-xl flex gap-3 items-start">
           <Mic className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm leading-relaxed">{instructions}</p>
+          <p className="text-sm leading-relaxed">{renderNarrativeText(instructions)}</p>
         </div>
       )}
 
@@ -309,7 +329,7 @@ function PartContent({ part }: { part: ModulPart }) {
 
         {paragraphs.map((p, i) => (
           <p key={i} className="text-lg leading-relaxed text-muted-foreground mb-6">
-            {p}
+            {renderNarrativeText(p)}
           </p>
         ))}
 
@@ -338,7 +358,7 @@ function PartContent({ part }: { part: ModulPart }) {
                         <Volume2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <span className="font-mono text-sm text-muted-foreground">{v.pinyin}</span>
+                    <TonePinyin text={v.pinyin} className="text-sm font-semibold tracking-wide" />
                     {v.translation && <span className="text-sm">{v.translation}</span>}
                   </div>
                 </div>
@@ -382,7 +402,9 @@ function PartContent({ part }: { part: ModulPart }) {
                           </button>
                         </div>
                       </td>
-                      <td className="p-3 font-mono text-sm text-muted-foreground">{k.pinyin}</td>
+                      <td className="p-3 text-sm font-medium">
+                        <TonePinyin text={k.pinyin} />
+                      </td>
                       <td className="p-3 text-sm">{k.translation}</td>
                     </tr>
                   ))}

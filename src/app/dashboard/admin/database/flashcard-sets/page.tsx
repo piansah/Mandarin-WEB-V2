@@ -51,11 +51,7 @@ export default function FlashcardSetsPage() {
 
   const supa = createClient()
 
-  React.useEffect(() => {
-    fetchFlashcardSets()
-  }, [currentPage, rowsPerPage])
-
-  const fetchFlashcardSets = async () => {
+  const fetchFlashcardSets = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       const { count: totalCount, error: countError } = await supa
@@ -78,25 +74,20 @@ export default function FlashcardSetsPage() {
 
       if (error) throw error
 
-      console.log("Flashcard Sets fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
-      
       setSets(data || [])
     } catch (error) {
       console.error("Error fetching flashcard sets:", error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchFlashcardSets()
+  }, [fetchFlashcardSets])
 
   const handleAdd = async () => {
     try {
-      console.log("Adding flashcard set:", formData)
       const { error } = await supa
         .from("flashcard_sets")
         .insert({
@@ -158,15 +149,11 @@ export default function FlashcardSetsPage() {
     if (!deletingSet) return
 
     try {
-      console.log("Deleting flashcard set:", deletingSet.id)
-      
       // Cek apakah ada cards yang terkait dengan set ini
       const { count: cardCount, error: countError } = await supa
         .from("flashcard_cards")
         .select("*", { count: "exact", head: true })
         .eq("set_id", deletingSet.id)
-
-      console.log("Card count check:", { cardCount, error: countError })
 
       if (countError) {
         console.error("Error checking card count:", countError)
@@ -176,7 +163,6 @@ export default function FlashcardSetsPage() {
       }
 
       if (cardCount && cardCount > 0) {
-        console.log("Blocking delete due to related cards:", cardCount)
         setBlockingAlert({ 
           message: `Tidak dapat menghapus set ini karena masih ada ${cardCount} kartu yang terkait. Pindahkan atau hapus kartu terlebih dahulu.` 
         })
@@ -184,7 +170,6 @@ export default function FlashcardSetsPage() {
         return
       }
 
-      console.log("Proceeding with delete, no related cards found")
       const { error } = await supa
         .from("flashcard_sets")
         .delete()
@@ -232,15 +217,10 @@ export default function FlashcardSetsPage() {
   // Pagination logic (server-side)
   const totalPages = Math.ceil(totalRows / rowsPerPage)
   
-  // Reset to page 1 when search or rowsPerPage changes
+  // Reset ke page 1 ketika search/rowsPerPage berubah
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, rowsPerPage])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchFlashcardSets()
-  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">

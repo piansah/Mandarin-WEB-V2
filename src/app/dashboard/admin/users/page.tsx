@@ -27,6 +27,8 @@ export default function AdminUsersPage() {
   const [editModalOpen, setEditModalOpen] = React.useState(false)
   const [editingUser, setEditingUser] = React.useState<UserProfileWithRole | null>(null)
 
+  const [roleFilter, setRoleFilter] = React.useState<"all" | "user" | "admin" | "superadmin">("all")
+
   React.useEffect(() => {
     async function loadData() {
       try {
@@ -94,10 +96,12 @@ export default function AdminUsersPage() {
     setEditingUser(null)
   }
 
-  const filteredUsers = users.filter(user =>
-    user.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.user_id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.display_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.user_id.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesRole = roleFilter === "all" || user.role === roleFilter
+    return matchesSearch && matchesRole
+  })
 
   if (loading) {
     return (
@@ -129,18 +133,30 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search & Filter */}
       <Card className="border-muted/50">
         <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Cari user berdasarkan nama atau email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Cari user berdasarkan nama atau email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as any)}
+              className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">Semua Role</option>
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="superadmin">Superadmin</option>
+            </select>
           </div>
         </CardContent>
       </Card>

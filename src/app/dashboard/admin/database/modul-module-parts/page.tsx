@@ -74,12 +74,7 @@ export default function ModulModulePartsPage() {
 
   const supa = createClient()
 
-  React.useEffect(() => {
-    fetchModulModules()
-    fetchModulModuleParts()
-  }, [selectedModuleId, currentPage, rowsPerPage, searchQuery])
-
-  const fetchModulModules = async () => {
+  const fetchModulModules = React.useCallback(async () => {
     try {
       const { data, error } = await supa
         .from("modul_modules")
@@ -91,9 +86,9 @@ export default function ModulModulePartsPage() {
     } catch (error) {
       console.error("Error fetching modul modules:", error)
     }
-  }
+  }, [])
 
-  const fetchModulModuleParts = async () => {
+  const fetchModulModuleParts = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       let countQuery = supa
@@ -136,21 +131,18 @@ export default function ModulModulePartsPage() {
 
       if (error) throw error
 
-      console.log("Modul Module Parts fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
-      
       setParts(data || [])
     } catch (error) {
       console.error("Error fetching modul module parts:", error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedModuleId, currentPage, rowsPerPage, searchQuery])
+
+  React.useEffect(() => {
+    fetchModulModules()
+    fetchModulModuleParts()
+  }, [fetchModulModules, fetchModulModuleParts])
 
   const handleAdd = async () => {
     if (!formData.module_id) {
@@ -340,33 +332,24 @@ export default function ModulModulePartsPage() {
     if (!deletingPart) return
 
     try {
-      console.log("Deleting modul module part:", deletingPart.id)
-      
-      // Cek apakah ada vocab cards yang terkait dengan part ini
-      const { count: vocabCount, error: countError } = await supa
-        .from("modul_vocab_cards")
-        .select("*", { count: "exact", head: true })
-        .eq("module_part_id", deletingPart.id)
+      // Cek vocab_parts secara lokal — vocab disimpan sebagai JSONB di kolom vocab_parts,
+      // bukan di tabel terpisah. Jika ada vocab, peringatkan user.
+      const hasVocab =
+        deletingPart.vocab_parts &&
+        typeof deletingPart.vocab_parts === 'object' &&
+        'cards' in deletingPart.vocab_parts &&
+        Array.isArray((deletingPart.vocab_parts as any).cards) &&
+        (deletingPart.vocab_parts as any).cards.length > 0
 
-      console.log("Vocab count check:", { vocabCount, error: countError })
-
-      if (countError) {
-        console.error("Error checking vocab count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek vocab terkait" })
-        setDeletingPart(null)
-        return
-      }
-
-      if (vocabCount && vocabCount > 0) {
-        console.log("Blocking delete due to related vocab:", vocabCount)
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus part ini karena masih ada ${vocabCount} vocab cards yang terkait. Pindahkan atau hapus vocab terlebih dahulu.` 
+      if (hasVocab) {
+        const vocabCount = (deletingPart.vocab_parts as any).cards.length
+        setBlockingAlert({
+          message: `Part ini masih memiliki ${vocabCount} vocab cards. Hapus vocab terlebih dahulu sebelum menghapus part ini.`
         })
         setDeletingPart(null)
         return
       }
 
-      console.log("Proceeding with delete, no related vocab found")
       const { error } = await supa
         .from("modul_module_parts")
         .delete()

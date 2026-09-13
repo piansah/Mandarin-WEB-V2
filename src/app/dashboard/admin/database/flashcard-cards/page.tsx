@@ -57,12 +57,7 @@ export default function FlashcardCardsPage() {
 
   const supa = createClient()
 
-  React.useEffect(() => {
-    fetchFlashcardSets()
-    fetchFlashcardCards()
-  }, [selectedSetId, currentPage, rowsPerPage])
-
-  const fetchFlashcardSets = async () => {
+  const fetchFlashcardSets = React.useCallback(async () => {
     try {
       const { data, error } = await supa
         .from("flashcard_sets")
@@ -74,9 +69,9 @@ export default function FlashcardCardsPage() {
     } catch (error) {
       console.error("Error fetching flashcard sets:", error)
     }
-  }
+  }, [])
 
-  const fetchFlashcardCards = async () => {
+  const fetchFlashcardCards = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       let countQuery = supa
@@ -111,23 +106,18 @@ export default function FlashcardCardsPage() {
 
       if (error) throw error
 
-      console.log("Flashcard Cards fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`,
-        selectedSetId
-      })
-      
       setCards(data || [])
-      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching flashcard cards:", error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedSetId, currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchFlashcardSets()
+    fetchFlashcardCards()
+  }, [fetchFlashcardSets, fetchFlashcardCards])
 
   const handleAdd = async () => {
     if (!formData.set_id) {
@@ -136,7 +126,6 @@ export default function FlashcardCardsPage() {
     }
 
     try {
-      console.log("Adding flashcard card:", formData)
       const { error } = await supa
         .from("flashcard_cards")
         .insert({
@@ -171,7 +160,6 @@ export default function FlashcardCardsPage() {
     }
 
     try {
-      console.log("Updating flashcard card:", formData)
       const { error } = await supa
         .from("flashcard_cards")
         .update({
@@ -202,7 +190,6 @@ export default function FlashcardCardsPage() {
     if (!deletingCard) return
 
     try {
-      console.log("Deleting flashcard card:", deletingCard.id)
       const { error } = await supa
         .from("flashcard_cards")
         .delete()
@@ -239,7 +226,7 @@ export default function FlashcardCardsPage() {
     setShowAddModal(true)
   }
 
-  const filteredCards = cards.filter(card => 
+  const filteredCards = cards.filter(card =>
     card.hanzi.toLowerCase().includes(searchQuery.toLowerCase()) ||
     card.pinyin.toLowerCase().includes(searchQuery.toLowerCase()) ||
     card.arti.toLowerCase().includes(searchQuery.toLowerCase())
@@ -247,16 +234,12 @@ export default function FlashcardCardsPage() {
 
   // Pagination logic (server-side)
   const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
-  // Reset to page 1 when search or rowsPerPage changes
+
+  // Reset ke page 1 ketika filter berubah
+  // Re-fetch ditangani otomatis oleh useCallback deps (selectedSetId, currentPage, rowsPerPage)
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, rowsPerPage, selectedSetId])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchFlashcardCards()
-  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">

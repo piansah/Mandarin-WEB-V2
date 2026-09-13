@@ -240,7 +240,9 @@ export default function FlashcardDeckPage() {
       {/* Header sticky */}
       <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md border-b border-border/40 px-6 py-4">
         <h1 className="text-lg font-bold text-primary truncate">{deck?.title}</h1>
-        <p className="text-xs text-muted-foreground">{deck?.description}</p>
+        <p className="text-xs text-muted-foreground">
+          {deck?.description} {cards.length > 0 ? `- ${cards.length} kosakata` : ""}
+        </p>
       </div>
 
       {/* Card List */}

@@ -13,7 +13,9 @@ export type ScoreType =
   | "nada_session"
   | "speaking_session"
   | "tulis_session"
+  | "nada_word"
   | "lesson"
+  | "modul"
 
 type SaveResult = { error: string | null; skipped?: boolean }
 
