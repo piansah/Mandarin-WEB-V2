@@ -55,8 +55,11 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         
         await w.setParameters({
           tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-          tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef',
-          preserve_interword_spaces: '1',
+          tessjs_create_hocr: '0',
+          tessjs_create_tsv: '0',
+          tessjs_create_box: '0',
+          tessjs_create_unlv: '0',
+          tessjs_create_osd: '0',
         })
         
         if (!cancelled) {
@@ -192,17 +195,16 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
     ctx.fillStyle = "white"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Enhanced preprocessing for better OCR accuracy
-    ctx.filter = "grayscale(100%) contrast(200%) brightness(120%)"
+    // Filter kontras tinggi + sedikit penajaman (same as old system)
+    ctx.filter = "grayscale(100%) contrast(220%) brightness(110%)"
     ctx.drawImage(video, sx, sy, sw, sh, padding, padding, sw * 2, sh * 2)
 
-    // Binarization with adaptive threshold
+    // Binarization with threshold 128 (same as old system)
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
     for (let i = 0; i < data.length; i += 4) {
       const gray = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114)
-      // Adaptive threshold: if pixel is dark enough, make it black
-      const val = gray < 120 ? 0 : 255
+      const val = gray < 128 ? 0 : 255
       data[i] = data[i+1] = data[i+2] = val
       data[i+3] = 255
     }
