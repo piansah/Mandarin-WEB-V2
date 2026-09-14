@@ -54,12 +54,19 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         })
         
         await w.setParameters({
-          tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+          // Auto page segmentation - better for various layouts
+          tessedit_pageseg_mode: PSM.AUTO,
+          // Improve character recognition accuracy
+          tessedit_char_blacklist: '|[]{}<>',
+          // Disable unnecessary outputs for speed
           tessjs_create_hocr: '0',
           tessjs_create_tsv: '0',
           tessjs_create_box: '0',
           tessjs_create_unlv: '0',
           tessjs_create_osd: '0',
+          // Improve accuracy with these settings
+          tessedit_do_invert: '0',
+          tessedit_min_characters_to_try: '4',
         })
         
         if (!cancelled) {
@@ -189,22 +196,65 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
     const sh = boxRect.height * scaleY
 
     const padding = 40
-    canvas.width = (sw * 2) + (padding * 2)
-    canvas.height = (sh * 2) + (padding * 2)
+    // Use higher resolution for better accuracy (2.2x for balance between speed and accuracy)
+    const scale = 2.2
+    canvas.width = (sw * scale) + (padding * 2)
+    canvas.height = (sh * scale) + (padding * 2)
 
     ctx.fillStyle = "white"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    // Filter kontras tinggi + sedikit penajaman (same as old system)
-    ctx.filter = "grayscale(100%) contrast(220%) brightness(110%)"
-    ctx.drawImage(video, sx, sy, sw, sh, padding, padding, sw * 2, sh * 2)
+    // Advanced preprocessing pipeline
+    // 1. Draw image with filters
+    ctx.filter = "grayscale(100%) contrast(150%) brightness(110%)"
+    ctx.drawImage(video, sx, sy, sw, sh, padding, padding, sw * scale, sh * scale)
+    ctx.filter = "none" // Reset filter
 
-    // Binarization with threshold 128 (same as old system)
+    // 2. Adaptive thresholding (Otsu's method)
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
+
+    // Calculate histogram
+    const histogram = new Array(256).fill(0)
     for (let i = 0; i < data.length; i += 4) {
-      const gray = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114)
-      const val = gray < 128 ? 0 : 255
+      const gray = Math.round(data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114)
+      histogram[gray]++
+    }
+
+    // Calculate Otsu's threshold
+    let sum = 0
+    for (let i = 0; i < 256; i++) sum += i * histogram[i]
+    let sumB = 0
+    let wB = 0
+    let wF = 0
+    let maxVar = 0
+    let threshold = 128
+
+    const total = data.length / 4
+    for (let i = 0; i < 256; i++) {
+      wB += histogram[i]
+      if (wB === 0) continue
+      if (wB === total) break
+
+      wF = total - wB
+      sumB += i * histogram[i]
+      const mB = sumB / wB
+      const mF = (sum - sumB) / wF
+
+      const varBetween = wB * wF * (mB - mF) * (mB - mF)
+      if (varBetween > maxVar) {
+        maxVar = varBetween
+        threshold = i
+      }
+    }
+
+    // Apply threshold with slight offset for better edge detection
+    const adaptiveThreshold = threshold + 5
+
+    // 3. Apply binarization with Otsu threshold
+    for (let i = 0; i < data.length; i += 4) {
+      const gray = Math.round(data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114)
+      const val = gray < adaptiveThreshold ? 0 : 255
       data[i] = data[i+1] = data[i+2] = val
       data[i+3] = 255
     }
@@ -214,7 +264,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
       setStatus("Memulai pengenalan...")
       const { data: { text, confidence } } = await worker.recognize(canvas)
       
-      if (confidence < 35) {
+      if (confidence < 30) {
         setStatus("Hasil kurang yakin, coba fokuskan lagi")
         setIsProcessing(false)
         return
