@@ -28,7 +28,7 @@ type SaveResult = { error: string | null; skipped?: boolean }
  * - Kalau sudah ada dan skor baru lebih tinggi/sama → di-upsert (overwrite).
  * - Kalau skor baru lebih rendah → dilewati (skor terbaik tetap dipertahankan).
  */
-export async function saveUserScore(type: ScoreType, key: string, score: number): Promise<SaveResult> {
+export async function saveUserScore(type: ScoreType, key: string, score: number, meta?: Record<string, any>): Promise<SaveResult> {
   const supa = createClient()
   const {
     data: { user },
@@ -74,7 +74,7 @@ export async function saveUserScore(type: ScoreType, key: string, score: number)
 
   const { error } = await supa
     .from("user_scores")
-    .upsert({ user_id: user.id, type, key, score }, { onConflict: "user_id,type,key" })
+    .upsert({ user_id: user.id, type, key, score, ...(meta && { meta }) }, { onConflict: "user_id,type,key" })
 
   return { error: error?.message ?? null }
 }

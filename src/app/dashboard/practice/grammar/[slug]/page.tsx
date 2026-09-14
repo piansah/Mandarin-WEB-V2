@@ -380,11 +380,13 @@ export default function GrammarPracticePage() {
                   <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} onClick={() => removeWord(index)} />
                 ))}
               </div>
-              <div className={`${styles.bank} ${checked && isMobile ? 'hidden' : ''}`}>
-                {bankWords.map((item, index) => (
-                  <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} used={used[index]} disabled={checked} onClick={() => addWord(index)} />
-                ))}
-              </div>
+              {checked && isMobile ? null : (
+                <div className={styles.bank}>
+                  {bankWords.map((item, index) => (
+                    <Chip key={`${item.word}-${index}`} word={item.word} pinyin={item.pinyin} used={used[index]} disabled={checked} onClick={() => addWord(index)} />
+                  ))}
+                </div>
+              )}
               {checked && (
                 <div className={`${styles.resultBox} ${ok ? styles.resultOk : styles.resultBad}`}>
                   <button type="button" className={styles.resultMain} onClick={() => speakMandarin(question.correct_order.join(""))}>

@@ -163,12 +163,14 @@ export async function recordSrsReview(
   userId: string,
   cardId: string,
   quality: 0 | 3 | 4 | 5,
-  currentLevel: number
+  currentLevel: number,
+  sessionId?: string
 ) {
   const update = computeSrsUpdate(currentLevel, quality)
   const payload = {
     ...update,
     last_reviewed: todayStr(),
+    ...(sessionId && { session_id: sessionId }),
   }
 
   const { data: existing } = await supa

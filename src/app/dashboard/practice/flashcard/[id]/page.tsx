@@ -7,47 +7,6 @@ import { saveUserScore } from "@/lib/user-scores"
 import { recordSrsReview } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
-// Key localStorage untuk menandai kartu mana saja yang sudah dinilai
-// dalam sesi yang BELUM selesai, per user + per deck. Dipakai supaya
-// kalau user keluar di tengah sesi lalu buka deck yang sama lagi,
-// kartu yang sudah dinilai tidak muncul dan ke-rating dobel.
-function sessionStorageKey(userId: string, deckId: number) {
-  return `mj_practice_session_${userId}_${deckId}`
-}
-
-function readRatedCardIds(userId: string, deckId: number): Set<string> {
-  if (typeof window === "undefined") return new Set()
-  try {
-    const raw = window.localStorage.getItem(sessionStorageKey(userId, deckId))
-    if (!raw) return new Set()
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? new Set(arr.map(String)) : new Set()
-  } catch {
-    return new Set()
-  }
-}
-
-function addRatedCardId(userId: string, deckId: number, cardId: string) {
-  if (typeof window === "undefined") return
-  try {
-    const key = sessionStorageKey(userId, deckId)
-    const current = readRatedCardIds(userId, deckId)
-    current.add(cardId)
-    window.localStorage.setItem(key, JSON.stringify(Array.from(current)))
-  } catch {
-    // localStorage penuh/diblokir browser — abaikan, tidak fatal
-  }
-}
-
-function clearRatedCardIds(userId: string, deckId: number) {
-  if (typeof window === "undefined") return
-  try {
-    window.localStorage.removeItem(sessionStorageKey(userId, deckId))
-  } catch {
-    // abaikan
-  }
-}
-
 export default function FlashcardPracticePage() {
   const params = useParams()
   const searchParams = useSearchParams()
@@ -60,11 +19,19 @@ export default function FlashcardPracticePage() {
   const [userId, setUserId] = React.useState<string | null>(null)
   const [deckTitle, setDeckTitle] = React.useState<string>("Kartu Hafalan")
   const [deckLevel, setDeckLevel] = React.useState<string>("Level A1")
+  const [allCardIds, setAllCardIds] = React.useState<string[]>([])
+  const [sessionId, setSessionId] = React.useState<string | null>(null)
+  const sessionCompletedRef = React.useRef(false)
 
   React.useEffect(() => {
     async function load() {
       const { data: { user } } = await supa.auth.getUser()
       setUserId(user?.id ?? null)
+
+      // Generate unique session ID
+      const newSessionId = crypto.randomUUID()
+      setSessionId(newSessionId)
+      console.log("Session ID generated:", newSessionId)
 
       let rawCards: any[] = []
       let srsLevelByCard = new Map<string, number>()
@@ -163,23 +130,8 @@ export default function FlashcardPracticePage() {
         }
       })
 
-      // Skip kartu yang sudah dinilai dalam sesi sebelumnya yang belum
-      // selesai (misal user keluar di tengah jalan). Kartu-kartu itu
-      // dicatat di localStorage per user+deck saat dinilai (lihat
-      // handleReview), dan dihapus begitu sesi benar-benar tuntas (lihat
-      // handleComplete). Kalau ternyata SEMUA kartu sudah masuk daftar itu
-      // (edge case: localStorage tidak sempat ke-clear), tetap tampilkan
-      // deck penuh daripada layar kosong.
-      let finalCards = cardsWithExamples
-      if (user?.id && !isPersonal) {
-        const ratedIds = readRatedCardIds(user.id, deckId)
-        if (ratedIds.size > 0) {
-          const remaining = cardsWithExamples.filter(c => !ratedIds.has(String(c.id)))
-          finalCards = remaining.length > 0 ? remaining : cardsWithExamples
-        }
-      }
-
-      setCards(finalCards)
+      setCards(cardsWithExamples)
+      setAllCardIds(rawCards.map(c => String(c.id)))
       setLoading(false)
     }
     load()
@@ -197,13 +149,31 @@ export default function FlashcardPracticePage() {
     const total = stats.hafal + stats.lupa + stats.ragu
     const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
+    
+    // Session completed - mark as completed so cleanup won't delete
+    sessionCompletedRef.current = true
+  }, [deckId, isPersonal])
 
-    // Sesi tuntas — hapus catatan kartu-yang-sudah-dinilai supaya attempt
-    // berikutnya (besok, atau lewat tombol "Ulangi") mulai dari deck penuh.
-    if (userId) {
-      clearRatedCardIds(userId, deckId)
+  // Cleanup: Delete progress when user leaves session without completing
+  React.useEffect(() => {
+    const cleanup = async () => {
+      if (sessionId && userId && !isPersonal && !sessionCompletedRef.current) {
+        console.log("Cleaning up session progress for session:", sessionId)
+        await supa
+          .from("user_card_progress")
+          .delete()
+          .eq("session_id", sessionId)
+          .eq("user_id", userId)
+      }
     }
-  }, [deckId, userId, isPersonal])
+    
+    // Store cleanup function to call on unmount
+    const cleanupFn = () => {
+      cleanup().catch(console.error)
+    }
+    
+    return cleanupFn
+  }, [sessionId, userId, isPersonal, supa])
 
   // Persists each rating to user_card_progress (srs_level + next_review).
   // Without this, "Jatuh Tempo Hari Ini" never updates because no due date
@@ -213,12 +183,8 @@ export default function FlashcardPracticePage() {
     if (isPersonal) return
 
     if (!userId) return
-    await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0)
-    // Catat kartu ini sudah dinilai di sesi yang sedang berjalan, supaya
-    // kalau user keluar sebelum sesi selesai lalu buka deck ini lagi,
-    // kartu ini di-skip dan tidak ke-rating dobel.
-    addRatedCardId(userId, deckId, String(card.id))
-  }, [supa, userId, deckId, isPersonal])
+    await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0, sessionId ?? undefined)
+  }, [supa, userId, deckId, isPersonal, sessionId])
 
   return (
     <SwipeFlashcardSession
@@ -230,7 +196,8 @@ export default function FlashcardPracticePage() {
       deckTitle={deckTitle}
       deckLevel={deckLevel}
       userId={userId}
-      deckCardIds={cards.map(c => String(c.id))}
+      deckCardIds={allCardIds}
+      deckId={isPersonal ? undefined : deckId}
     />
   )
 }

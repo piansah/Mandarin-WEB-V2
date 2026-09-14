@@ -5,13 +5,24 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-/* ── Konstanta XP (harus sinkron dengan level.js di client) ── */
+/* ── Konstanta XP (Hierarchy dari paling penting ke paling tidak penting) ── */
+// Tier 1: Core Learning (Paling Penting) - 36 XP
+const XP_CORE = 36;
 const XP_HIGH = 36;
 const XP_MID  = 18;
 const XP_LOW  = 9;
-const XP_FLAT = 36;
-const XP_CAP  = 36;
-const XP_TULIS = 36;
+
+// Tier 2: Practice (Penting) - 24 XP
+const XP_PRACTICE = 24;
+
+// Tier 3: Games (Medium) - 20 XP
+const XP_MINIGAME = 20;
+
+// Tier 4: Completion (Kecil) - 10 XP
+const XP_COMPLETION = 10;
+
+// Tier 5: Progress Tracking (Terkecil) - 1 XP
+const XP_PER_KOSAKATA = 1;
 
 function xpFromQuizScore(score: number): number {
   if (score >= 80) return XP_HIGH;
@@ -35,6 +46,7 @@ function calcXPFromRows(rows: ScoreRow[]): number {
   let xp = 0;
   for (const { type, score } of rows) {
     switch (type) {
+      // Tier 1: Core Learning (36 XP)
       case "quiz":
       case "grammar":
         xp += xpFromQuizScore(score);
@@ -43,29 +55,38 @@ function calcXPFromRows(rows: ScoreRow[]): number {
         xp += xpFromKalScore(score);
         break;
       case "hanzi":
-        if (score >= 100) xp += XP_FLAT;
+        if (score >= 100) xp += XP_CORE;
         break;
       case "cerita":
-        if (score >= 95) xp += XP_FLAT;
+        if (score >= 95) xp += XP_CORE;
         break;
       case "fc_session":
+        xp += Math.min(score || 0, XP_CORE);
+        break;
+
+      // Tier 2: Practice (24 XP)
       case "nada_session":
       case "speaking_session":
+      case "tulis_session":
+        xp += Math.min(score || 0, XP_PRACTICE);
+        break;
+
+      // Tier 3: Games (Fixed 20 XP per stage completion)
       case "minigame_snake":
       case "minigame_match":
       case "minigame_speedrun":
-        xp += Math.min(score || 0, XP_CAP);
+        xp += XP_MINIGAME;  // 20 XP fixed
         break;
-      case "cerita_quiz":
-        xp += score >= 80 ? 20 : score >= 60 ? 12 : 6;
-        break;
-      case "tulis_session":
-        if (score >= 100) xp += XP_TULIS;
-        break;
+
+      // Tier 4: Completion (10 XP)
       case "lesson":
       case "modul":
-      case "minigame_snake":
-        xp += score || 0;
+        xp += XP_COMPLETION;
+        break;
+
+      // Cerita Quiz (special case)
+      case "cerita_quiz":
+        xp += score >= 80 ? 20 : score >= 60 ? 12 : 6;
         break;
     }
   }
@@ -160,10 +181,13 @@ Deno.serve(async (req: Request) => {
       .select("card_id", { count: "exact", head: true })
       .eq("user_id", userId);
 
+    // Tier 5: Progress Tracking (1 XP per kosakata)
+    const kosakataXP = (kosakataCount ?? 0) * XP_PER_KOSAKATA;
+
     /* ── Kembalikan hanya data yang diperlukan client ── */
     return Response.json(
       {
-        xp: myXP,
+        xp: myXP + kosakataXP,
         rank,           // angka saja, bukan raw data user lain
         akurasi,
         sesiCount,

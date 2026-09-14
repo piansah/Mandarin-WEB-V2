@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw, Settings2, X, Shuffle, AlignJustify, Volume2, VolumeX } from "lucide-react"
+import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Eye, Zap, Brain, HelpCircle, RotateCcw, Settings2, X, Shuffle, AlignJustify, Volume2, VolumeX, RefreshCw, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -189,6 +189,7 @@ type SwipeFlashcardSessionProps = {
   userId?: string | null
   disableSwipe?: boolean
   deckCardIds?: string[] // For filtering stats by deck
+  deckId?: number // For SRS reset functionality
 }
 
 export function SwipeFlashcardSession({
@@ -204,12 +205,16 @@ export function SwipeFlashcardSession({
   userId,
   disableSwipe: disableSwipeProp = false,
   deckCardIds,
+  deckId,
 }: SwipeFlashcardSessionProps) {
   const router = useRouter()
   const supa = useSupabase()
 
   const [prefs, setPrefs] = React.useState<FlashcardPrefs>(DEFAULT_PREFS)
   const [showSettings, setShowSettings] = React.useState(false)
+  const [showResetModal, setShowResetModal] = React.useState(false)
+  const [resetting, setResetting] = React.useState(false)
+  const [resetSuccess, setResetSuccess] = React.useState(false)
   const [orderedCards, setOrderedCards] = React.useState<SwipeFlashcard[]>([])
 
   // Load prefs from localStorage on mount
@@ -424,6 +429,17 @@ export function SwipeFlashcardSession({
         ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
         : dueData ?? []
 
+      // Fetch total cards with progress in this deck
+      const { data: allProgressData } = await supa
+        .from("user_card_progress")
+        .select("card_id")
+        .eq("user_id", userId)
+
+      // Filter by deck if deckCardIds provided
+      const filteredProgressData = deckCardIds
+        ? allProgressData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? []
+        : allProgressData ?? []
+
       // Calculate total cards in current session
       const totalCardsInSession = cards.length
 
@@ -445,7 +461,7 @@ export function SwipeFlashcardSession({
 
       setHeaderStats({
         dueToday: filteredDueData.length,
-        totalCards: totalCardsInSession,
+        totalCards: hafal + sulit + ragu + lupa,  // ← jumlah kartu yang sudah di-review di session ini
         accuracy: accuracy,
         mastered: sessionMastered + filteredMasteredData.length,
         rated: hafal + sulit + ragu + lupa,
@@ -1050,7 +1066,112 @@ export function SwipeFlashcardSession({
                   }`} />
                 </button>
               </div>
+
+              {/* Reset SRS */}
+              {deckId && (
+                <div className="pt-2 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowResetModal(true)}
+                    className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-orange-500/30 bg-orange-500/5 text-orange-500 hover:bg-orange-500/10 transition-colors text-sm font-medium"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Hapus Progress SRS
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* Reset SRS Confirmation Modal */}
+        {showResetModal && (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+            onClick={() => setShowResetModal(false)}
+          >
+            <div
+              className="relative w-full max-w-sm bg-card border border-border/50 rounded-2xl shadow-2xl p-6 space-y-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-10 w-10 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <h3 className="text-lg font-bold">Hapus Progress SRS?</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Semua progress SRS akan dihapus. Kartu akan dianggap baru dan akan muncul di review hari ini.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResetModal(false)}
+                  disabled={resetting}
+                  className="flex-1"
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={async () => {
+                    try {
+                      setResetting(true)
+                      const { data: { user } } = await supa.auth.getUser()
+                      if (!user) return
+
+                      // Fetch all card IDs from the deck
+                      const { data: cardData } = await supa
+                        .from("flashcard_cards")
+                        .select("id")
+                        .eq("set_id", deckId)
+
+                      if (cardData && cardData.length > 0) {
+                        const cardIds = cardData.map(c => c.id)
+                        
+                        const { error } = await supa
+                          .from("user_card_progress")
+                          .delete()
+                          .in("card_id", cardIds)
+                          .eq("user_id", user.id)
+
+                        if (error) {
+                          console.error("Delete error:", error)
+                          throw error
+                        }
+                      }
+
+                      console.log("SRS progress deleted successfully")
+                      setShowResetModal(false)
+                      setResetSuccess(true)
+                      
+                      // Refresh halaman untuk update UI
+                      setTimeout(() => {
+                        window.location.reload()
+                      }, 1500)
+                      
+                      setTimeout(() => setResetSuccess(false), 3000)
+                    } catch (error) {
+                      console.error("Error resetting SRS:", error)
+                      alert("Gagal reset SRS: " + (error as any).message)
+                    } finally {
+                      setResetting(false)
+                    }
+                  }}
+                  disabled={resetting}
+                  className="flex-1"
+                >
+                  {resetting ? "Menghapus..." : "Hapus"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Toast */}
+        {resetSuccess && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-emerald-500 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top fade-in duration-300">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="text-sm font-medium">Progress SRS berhasil dihapus!</span>
           </div>
         )}
 

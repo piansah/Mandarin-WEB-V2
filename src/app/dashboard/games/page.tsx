@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Gamepad2, ArrowRight, Lock, Unlock, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
+import { Gamepad2, ArrowRight, Unlock, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -12,26 +12,12 @@ import { cn } from "@/lib/utils"
 
 export default function GameHubPage() {
   const supa = useSupabase()
-  const [completedDecks, setCompletedDecks] = React.useState(0)
   const [loading, setLoading] = React.useState(true)
 
   React.useEffect(() => {
     async function loadStats() {
       try {
-        const { data: { user } } = await supa.auth.getUser()
-        if (!user) return
-
-        // Hitung jumlah deck yang sudah diselesaikan berdasarkan jumlah distinct quiz key
-        // (setiap deck yang diselesaikan menyimpan 1 baris di user_scores dengan type="quiz")
-        const { data: quizScores } = await supa
-          .from("user_scores")
-          .select("key")
-          .eq("user_id", user.id)
-          .eq("type", "quiz")
-
-        const count = quizScores ? new Set(quizScores.map(r => r.key)).size : 0
-        setCompletedDecks(count)
-
+        setLoading(false)
       } catch (error) {
         console.error("Failed to load user game stats:", error)
       } finally {
@@ -42,7 +28,7 @@ export default function GameHubPage() {
     loadStats()
   }, [supa])
 
-  const games: { id: string; title: string; description: string; image: string; icon: LucideIcon; url: string; decksRequired: number; tags: string[] }[] = [
+  const games: { id: string; title: string; description: string; image: string; icon: LucideIcon; url: string; tags: string[] }[] = [
     {
       id: "snake",
       title: "Ular Tebak Hanzi",
@@ -50,7 +36,6 @@ export default function GameHubPage() {
       image: "linear-gradient(135deg, #4ADE80 0%, #16A34A 100%)",
       icon: Worm,
       url: "/dashboard/games/snake",
-      decksRequired: 0, 
       tags: ["Hanzi", "Fokus", "Refleks"],
     },
     {
@@ -60,7 +45,6 @@ export default function GameHubPage() {
       image: "linear-gradient(135deg, #60A5FA 0%, #2563EB 100%)",
       icon: Languages,
       url: "/dashboard/games/match",
-      decksRequired: 1, 
       tags: ["Ingatan", "Kosakata"],
     },
     {
@@ -70,7 +54,6 @@ export default function GameHubPage() {
       image: "linear-gradient(135deg, #F87171 0%, #DC2626 100%)",
       icon: SquareStack,
       url: "/dashboard/games/speedrun",
-      decksRequired: 2,
       tags: ["Kecepatan", "Recall"],
     }
   ]
@@ -107,15 +90,13 @@ export default function GameHubPage() {
       {/* Games Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {games.map((game, idx) => {
-          const isUnlocked = completedDecks >= game.decksRequired
-          
           return (
             <div 
               key={game.id}
               className="animate-in fade-in slide-in-from-bottom-4 duration-700"
               style={{ animationDelay: `${idx * 100}ms`, animationFillMode: "both" }}
             >
-              <Card className={`group overflow-hidden h-full flex flex-col border-2 transition-all duration-300 hover:shadow-xl ${isUnlocked ? 'hover:border-primary/50' : 'opacity-80 grayscale-[30%]'}`}>
+              <Card className="group overflow-hidden h-full flex flex-col border-2 transition-all duration-300 hover:shadow-xl hover:border-primary/50">
                 {/* Thumbnail Area */}
                 <div 
                   className="h-48 relative overflow-hidden"
@@ -129,18 +110,10 @@ export default function GameHubPage() {
                   
                   {/* Status Badge */}
                   <div className="absolute top-4 right-4">
-                    {!isUnlocked && (
-                      <Badge variant="secondary" className="bg-background/80 backdrop-blur-md flex gap-1.5 items-center px-3 py-1">
-                        <Lock className="w-3 h-3" />
-                        Butuh {game.decksRequired} Deck
-                      </Badge>
-                    )}
-                    {isUnlocked && (
-                      <Badge variant="default" className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-white/20 flex gap-1.5 items-center px-3 py-1">
-                        <Unlock className="w-3 h-3" />
-                        Terbuka
-                      </Badge>
-                    )}
+                    <Badge variant="default" className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-white/20 flex gap-1.5 items-center px-3 py-1">
+                      <Unlock className="w-3 h-3" />
+                      Terbuka
+                    </Badge>
                   </div>
                 </div>
 
@@ -162,27 +135,13 @@ export default function GameHubPage() {
                     ))}
                   </div>
 
-                  {isUnlocked ? (
-                    <Link
-                      href={game.url}
-                      className={cn(buttonVariants({ variant: "default" }), "w-full font-semibold group/btn h-8 justify-center")}
-                    >
-                      Mainkan Sekarang
-                      <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                    </Link>
-                  ) : (
-                    <div className="space-y-2">
-                      <Button className="w-full font-semibold" variant="secondary" disabled>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Terkunci
-                      </Button>
-                      <p className="text-[11px] text-center text-muted-foreground">
-                        Selesaikan {game.decksRequired} deck di{" "}
-                        <Link href="/dashboard/flashcard" className="underline text-primary/70 hover:text-primary">Flashcard</Link>{" "}
-                        untuk membuka
-                      </p>
-                    </div>
-                  )}
+                  <Link
+                    href={game.url}
+                    className={cn(buttonVariants({ variant: "default" }), "w-full font-semibold group/btn h-8 justify-center")}
+                  >
+                    Mainkan Sekarang
+                    <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                  </Link>
                 </CardContent>
               </Card>
             </div>

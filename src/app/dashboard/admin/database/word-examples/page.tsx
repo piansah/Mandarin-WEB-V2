@@ -47,26 +47,63 @@ export default function WordExamplesPage() {
 
   const supa = createClient()
 
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Reset ke page 1 ketika user mengetik search
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
+
   React.useEffect(() => {
     fetchWordExamples()
-  }, [currentPage, rowsPerPage])
+  }, [currentPage, rowsPerPage, debouncedSearch])
 
   const fetchWordExamples = async () => {
     try {
-      // Dapatkan total count dulu
+      // Build base query dengan search filter
+      let query = supa
+        .from("word_examples")
+        .select("*")
+
+      // Apply search filter di level database (server-side)
+      if (debouncedSearch.trim()) {
+        query = query.or(`word_hanzi.ilike.%${debouncedSearch}%,hanzi.ilike.%${debouncedSearch}%,pinyin.ilike.%${debouncedSearch}%,arti.ilike.%${debouncedSearch}%`)
+      }
+
+      // Dapatkan total count dengan filter yang sama
       const { count: totalCount, error: countError } = await supa
         .from("word_examples")
         .select("*", { count: "exact", head: true })
 
-      if (countError) throw countError
+      if (debouncedSearch.trim()) {
+        // Apply search filter untuk count query juga
+        const { count: searchCount, error: searchCountError } = await supa
+          .from("word_examples")
+          .select("*", { count: "exact", head: true })
+          .or(`word_hanzi.ilike.%${debouncedSearch}%,hanzi.ilike.%${debouncedSearch}%,pinyin.ilike.%${debouncedSearch}%,arti.ilike.%${debouncedSearch}%`)
+        
+        if (!searchCountError) {
+          setTotalRows(searchCount || 0)
+        } else {
+          throw searchCountError
+        }
+      } else {
+        if (countError) throw countError
+        setTotalRows(totalCount || 0)
+      }
 
-      // Fetch data dengan pagination di level Supabase
+      // Fetch data dengan pagination
       const from = (currentPage - 1) * rowsPerPage
       const to = from + rowsPerPage - 1
 
-      const { data, error } = await supa
-        .from("word_examples")
-        .select("*")
+      const { data, error } = await query
         .order("created_at", { ascending: false })
         .range(from, to)
 
@@ -77,24 +114,17 @@ export default function WordExamplesPage() {
         dataLength: data?.length, 
         currentPage, 
         rowsPerPage,
+        debouncedSearch,
         range: `${from}-${to}`
       })
       
       setExamples(data || [])
-      setTotalRows(totalCount || 0)
     } catch (error) {
       console.error("Error fetching word examples:", error)
     } finally {
       setLoading(false)
     }
   }
-
-  const filteredExamples = examples.filter(example => 
-    example.word_hanzi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    example.hanzi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (example.pinyin && example.pinyin.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (example.arti && example.arti.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
 
   // Pagination logic (server-side)
   const totalPages = Math.ceil(totalRows / rowsPerPage)
@@ -241,7 +271,7 @@ export default function WordExamplesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredExamples.map((example) => (
+                {examples.map((example) => (
                   <TableRow key={example.id}>
                     <TableCell className="font-medium">{example.id}</TableCell>
                     <TableCell>{example.word_hanzi}</TableCell>
@@ -271,7 +301,7 @@ export default function WordExamplesPage() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredExamples.length === 0 && (
+                {examples.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       Tidak ada data

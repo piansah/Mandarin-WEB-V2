@@ -4,7 +4,7 @@ import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SnakeBoard } from "@/components/games/snake-board"
 import { Button } from "@/components/ui/button"
-import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Lock } from "lucide-react"
+import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight } from "lucide-react"
 import Link from "next/link"
 import { saveUserScore } from "@/lib/user-scores"
 import { buttonVariants } from "@/components/ui/button"
@@ -21,7 +21,6 @@ export default function SnakeGamePage() {
   // --- Data ---
   const [allSets, setAllSets] = React.useState<FlashcardSet[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [completedDecks, setCompletedDecks] = React.useState(0)
 
   // --- Navigation state ---
   const [selectedHsk, setSelectedHsk] = React.useState<number | null>(null)
@@ -102,28 +101,6 @@ export default function SnakeGamePage() {
     fetchSets()
   }, [supa])
 
-  // Load completed decks count
-  React.useEffect(() => {
-    async function loadStats() {
-      try {
-        const { data: { user } } = await supa.auth.getUser()
-        if (!user) return
-
-        const { data: quizScores } = await supa
-          .from("user_scores")
-          .select("key")
-          .eq("user_id", user.id)
-          .eq("type", "quiz")
-
-        const count = quizScores ? new Set(quizScores.map(r => r.key)).size : 0
-        setCompletedDecks(count)
-      } catch (error) {
-        console.error("Failed to load user game stats:", error)
-      }
-    }
-    loadStats()
-  }, [supa])
-
   // Unique HSK levels available
   const hskLevels = React.useMemo(() => {
     const levels = [...new Set(allSets.map(s => s.hsk_level))].sort((a, b) => a - b)
@@ -193,7 +170,12 @@ export default function SnakeGamePage() {
     }
     if (finalScore > 0) {
       try {
-        await saveUserScore("minigame_snake", `snake_${Date.now()}`, finalScore)
+        const key = `snake_hsk${selectedHsk}_stage${selectedStage?.index}`
+        await saveUserScore("minigame_snake", key, finalScore, {
+          hsk_level: selectedHsk,
+          stage: selectedStage?.index,
+          stage_title: selectedStage?.label,
+        })
       } catch (err) {
         console.error("Failed to save score:", err)
       }
@@ -257,11 +239,6 @@ export default function SnakeGamePage() {
               <Trophy className="w-3.5 h-3.5" />
               {score}
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono transition-all bg-secondary/50 text-muted-foreground">
-              <span>{wordsEaten}</span>
-              <span className="text-muted-foreground/60">/</span>
-              <span>{words.length}</span>
-            </div>
           </div>
         </div>
       )}
@@ -284,38 +261,16 @@ export default function SnakeGamePage() {
                 const stageCount = Math.ceil(levelSets.length / 2)
                 // HSK is cleared when all its stages are cleared
                 const isHskCleared = stageCount > 0 && (clearedStages[level]?.size ?? 0) >= stageCount
-                // HSK is locked if:
-                // 1. It's not the first AND the previous HSK isn't fully cleared
-                // 2. OR user hasn't completed enough decks (1 deck for HSK 2, 2 decks for HSK 3, etc.)
-                const prevLevel = hskLevels[i - 1]
-                const prevLevelSets = prevLevel ? allSets.filter(s => s.hsk_level === prevLevel) : []
-                const prevStageCount = Math.ceil(prevLevelSets.length / 2)
-                const prevHskCleared = prevStageCount > 0 && (clearedStages[prevLevel]?.size ?? 0) >= prevStageCount
-                const decksRequiredForLevel = level > 1 ? level - 1 : 0
-                const isLocked = (i > 0 && !prevHskCleared) || (completedDecks < decksRequiredForLevel)
 
                 return (
                   <button
                     key={level}
-                    onClick={() => !isLocked && handleSelectHsk(level)}
-                    disabled={isLocked}
-                    className={cn(
-                      "group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full",
-                      isLocked
-                        ? "border-border opacity-50 cursor-not-allowed"
-                        : "hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
-                    )}
+                    onClick={() => handleSelectHsk(level)}
+                    className="group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
                   >
                     {/* Level icon */}
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-black text-base",
-                      isLocked ? "bg-muted text-muted-foreground" :
-                      isHskCleared ? "bg-green-500/10 text-green-500" :
-                      "bg-primary/10 text-primary"
-                    )}>
-                      {isLocked ? <Lock className="w-5 h-5" /> :
-                       isHskCleared ? "✓" :
-                       level}
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-black text-base bg-primary/10 text-primary">
+                      {isHskCleared ? "✓" : level}
                     </div>
 
                     {/* Info */}
@@ -325,18 +280,13 @@ export default function SnakeGamePage() {
                         {isHskCleared && (
                           <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full font-semibold">Selesai</span>
                         )}
-                        {isLocked && (
-                          <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-semibold">Terkunci</span>
-                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {stageCount} stage · {levelSets.length} deck
                       </p>
                     </div>
 
-                    {!isLocked && (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                    )}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
                   </button>
                 )
               })}
@@ -358,29 +308,16 @@ export default function SnakeGamePage() {
             <div className="flex flex-col gap-3 w-full">
               {stages.map(stage => {
                 const isCleared = clearedStages[selectedHsk]?.has(stage.index) ?? false
-                const isLocked = stage.index > 1 && !(clearedStages[selectedHsk]?.has(stage.index - 1) ?? false)
                 return (
                   <button
                     key={stage.index}
-                    onClick={() => !isLocked && handleSelectStage(stage)}
-                    disabled={loading || isLocked}
-                    className={cn(
-                      "group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full",
-                      isLocked
-                        ? "border-border opacity-50 cursor-not-allowed"
-                        : "hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
-                    )}
+                    onClick={() => handleSelectStage(stage)}
+                    disabled={loading}
+                    className="group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
                   >
                     {/* Stage icon */}
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-lg font-black",
-                      isLocked ? "bg-muted text-muted-foreground" :
-                      isCleared ? "bg-green-500/10 text-green-500" :
-                      "bg-primary/10 text-primary"
-                    )}>
-                      {isLocked ? <Lock className="w-5 h-5" /> :
-                       isCleared ? "✓" :
-                       stage.index}
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-lg font-black bg-primary/10 text-primary">
+                      {isCleared ? "✓" : stage.index}
                     </div>
 
                     {/* Info */}
@@ -390,16 +327,11 @@ export default function SnakeGamePage() {
                         {isCleared && (
                           <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full font-semibold">Selesai</span>
                         )}
-                        {isLocked && (
-                          <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-semibold">Terkunci</span>
-                        )}
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{stage.label}</p>
                     </div>
 
-                    {!isLocked && (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
-                    )}
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
                   </button>
                 )
               })}
@@ -414,7 +346,7 @@ export default function SnakeGamePage() {
           <div className="w-full max-w-xl h-full flex flex-col min-h-0 px-3 py-2">
             {selectedStage && (
               <p className="text-center text-xs text-muted-foreground mb-1 shrink-0">
-                Stage {selectedStage.index} · {words.length} kata
+                Stage {selectedStage.index} · {wordsEaten} / {words.length}
               </p>
             )}
             <SnakeBoard
@@ -451,7 +383,7 @@ export default function SnakeGamePage() {
             <div className="bg-card p-6 rounded-3xl w-full border shadow-sm">
               <p className="text-muted-foreground mb-2 font-medium">Skor Akhir</p>
               <p className="text-6xl font-black text-primary">{score}</p>
-              <p className="text-sm text-muted-foreground mt-3">+ {score} XP ditambahkan</p>
+              <p className="text-sm text-muted-foreground mt-3">+ 20 XP ditambahkan</p>
             </div>
             <div className="flex gap-3 w-full">
               <Button variant="outline" className="flex-1 rounded-xl" onClick={goBackToStages}>

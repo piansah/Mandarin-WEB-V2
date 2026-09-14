@@ -267,16 +267,6 @@ export default function WordDetailPage() {
   }
 
   return <div className={styles.page}>
-    {fromSearch && (
-      <button
-        type="button"
-        onClick={() => router.push('/dashboard/flashcard?tab=search')}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Kembali ke pencarian
-      </button>
-    )}
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
     <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} cacheReady={cacheReady} card={card} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>

@@ -170,7 +170,12 @@ export default function MatchGamePage() {
     }
     if (finalScore > 0) {
       try {
-        await saveUserScore("minigame_match", `match_${Date.now()}`, finalScore)
+        const key = `match_hsk${selectedHsk}_stage${selectedStage?.index}`
+        await saveUserScore("minigame_match", key, finalScore, {
+          hsk_level: selectedHsk,
+          stage: selectedStage?.index,
+          stage_title: selectedStage?.label,
+        })
       } catch (err) {
         console.error("Failed to save score:", err)
       }
@@ -421,7 +426,7 @@ export default function MatchGamePage() {
             <div className="bg-card p-6 rounded-3xl w-full border shadow-sm">
               <p className="text-muted-foreground mb-2 font-medium">Skor Akhir</p>
               <p className="text-6xl font-black text-primary">{score}</p>
-              <p className="text-sm text-muted-foreground mt-3">+ {score} XP ditambahkan</p>
+              <p className="text-sm text-muted-foreground mt-3">+ 20 XP ditambahkan</p>
             </div>
             <div className="flex gap-3 w-full">
               <Button variant="outline" className="flex-1 rounded-xl" onClick={goBackToStages}>

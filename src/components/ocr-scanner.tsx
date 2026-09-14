@@ -2,10 +2,12 @@
 
 import * as React from "react"
 import { createWorker, Worker, PSM } from "tesseract.js"
-import { Camera, X, Zap, RefreshCcw, Loader2 } from "lucide-react"
+import { Camera, X, Zap, RefreshCcw, Loader2, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SegmentedWord, segmentText } from "@/lib/hanzi-segmentation"
 import { TonePinyin } from "@/components/tone-pinyin"
+import { HskBadge } from "@/components/hsk-badge"
+import { speakMandarin } from "@/lib/tts"
 
 interface OCRScannerProps {
   onClose: () => void
@@ -53,6 +55,8 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         
         await w.setParameters({
           tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
+          tessedit_char_whitelist: '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef',
+          preserve_interword_spaces: '1',
         })
         
         if (!cancelled) {
@@ -187,16 +191,18 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
 
     ctx.fillStyle = "white"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    ctx.filter = "grayscale(100%) contrast(220%) brightness(110%)"
+
+    // Enhanced preprocessing for better OCR accuracy
+    ctx.filter = "grayscale(100%) contrast(200%) brightness(120%)"
     ctx.drawImage(video, sx, sy, sw, sh, padding, padding, sw * 2, sh * 2)
 
-    // Binarization
+    // Binarization with adaptive threshold
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
     for (let i = 0; i < data.length; i += 4) {
       const gray = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114)
-      const val = gray < 128 ? 0 : 255
+      // Adaptive threshold: if pixel is dark enough, make it black
+      const val = gray < 120 ? 0 : 255
       data[i] = data[i+1] = data[i+2] = val
       data[i+3] = 255
     }
@@ -294,32 +300,32 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
             {results.map((word, i) => (
               word.found ? (
-                <div 
-                  key={i} 
-                  className="p-4 rounded-xl border border-border/50 bg-card flex flex-col gap-1 cursor-pointer hover:border-primary/50 transition-colors"
+                <div
+                  key={i}
+                  className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
                   onClick={() => {
                     onWordClick(word.hanzi)
                     onClose() // Auto close on select
                   }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-hanzi text-2xl">{word.hanzi}</span>
-                    {word.hsk && (
-                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase border border-primary/20">
-                        HSK {word.hsk}
-                      </span>
-                    )}
-                    {word.badge && (
-                      <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase border border-orange-500/20">
-                        {word.badge}
-                      </span>
-                    )}
+                  <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{word.hanzi}</div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    {word.pinyin && <TonePinyin text={word.pinyin} className="text-sm font-medium" />}
+                    {word.arti && <span className="truncate text-sm text-muted-foreground">{word.arti}</span>}
                   </div>
-                  <div className="text-sm font-semibold">
-                    <TonePinyin text={word.pinyin || ""} />
-                  </div>
-                  <div className="text-sm text-muted-foreground line-clamp-2">
-                    {word.arti}
+                  <div className="ml-1 flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        speakMandarin(word.hanzi)
+                      }}
+                      className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      aria-label="Dengar"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </button>
+                    <HskBadge hskLevel={word.hsk === 0 ? undefined : word.hsk} badge={word.hsk === 0 ? "common" : undefined} />
                   </div>
                 </div>
               ) : (
@@ -328,9 +334,11 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
                     {word.hanzi}
                   </div>
                 ) : (
-                  <div key={i} className="p-4 rounded-xl border border-border/50 bg-muted/20 flex flex-col gap-1 opacity-70">
-                    <span className="font-hanzi text-2xl">{word.hanzi}</span>
-                    <span className="text-xs text-muted-foreground italic">Tidak ada di kamus</span>
+                  <div key={i} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-muted/20 p-4 opacity-70">
+                    <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{word.hanzi}</div>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <span className="text-xs text-muted-foreground italic">Tidak ada di kamus</span>
+                    </div>
                   </div>
                 )
               )

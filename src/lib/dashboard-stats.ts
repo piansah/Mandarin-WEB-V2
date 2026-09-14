@@ -33,6 +33,7 @@ export type RecentActivityItem = {
   key: string
   typeLabel: string
   score: number
+  xp: number
   timeAgo: string
 }
 
@@ -68,6 +69,55 @@ const TYPE_LABEL: Record<string, string> = {
   minigame_snake: "Snake",
   minigame_match: "Match",
   minigame_speedrun: "Speedrun",
+}
+
+// XP Constants (must match Edge Function)
+const XP_CORE = 36;
+const XP_PRACTICE = 24;
+const XP_MINIGAME = 20;
+const XP_COMPLETION = 10;
+
+function xpFromQuizScore(score: number): number {
+  if (score >= 80) return XP_CORE;
+  if (score >= 60) return XP_CORE / 2;
+  return XP_CORE / 4;
+}
+
+function xpFromKalScore(score: number): number {
+  if (score >= 48) return XP_CORE;
+  if (score >= 36) return XP_CORE / 2;
+  return XP_CORE / 4;
+}
+
+function calcXPForItem(type: string, score: number): number {
+  switch (type) {
+    case "quiz":
+    case "grammar":
+      return xpFromQuizScore(score);
+    case "kal":
+      return xpFromKalScore(score);
+    case "hanzi":
+      return score >= 100 ? XP_CORE : 0;
+    case "cerita":
+      return score >= 95 ? XP_CORE : 0;
+    case "fc_session":
+      return Math.min(score, XP_CORE);
+    case "nada_session":
+    case "speaking_session":
+    case "tulis_session":
+      return Math.min(score, XP_PRACTICE);
+    case "minigame_snake":
+    case "minigame_match":
+    case "minigame_speedrun":
+      return XP_MINIGAME;
+    case "lesson":
+    case "modul":
+      return XP_COMPLETION;
+    case "cerita_quiz":
+      return score >= 80 ? 20 : score >= 60 ? 12 : 6;
+    default:
+      return 0;
+  }
 }
 
 function todayStr(): string {
@@ -170,14 +220,14 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       supa
         .from("user_scores")
-        .select("type, key, score, updated_at")
+        .select("type, key, score, updated_at, meta")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false })
         .limit(4),
       fetchUnlockedTiers(),
     ])
 
-  const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
+    const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
 
   const progressByCard = new Map<string, { srs_level: number; next_review: string | null }>()
   ;(progressRes.data ?? []).forEach((row) => {
@@ -275,7 +325,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
       return items.map((r) => {
         let resolvedTitle: string
-        if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
+        // Handle minigames with metadata
+        if (r.type.startsWith("minigame_") && r.meta) {
+          const meta = r.meta as { hsk_level?: number; stage?: number; stage_title?: string }
+          const hskLevel = meta.hsk_level !== undefined ? `HSK ${meta.hsk_level}` : ""
+          const stageTitle = meta.stage_title || (meta.stage !== undefined ? `Stage ${meta.stage + 1}` : "")
+          resolvedTitle = [hskLevel, stageTitle].filter(Boolean).join(" · ")
+        } else if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
           resolvedTitle = deckMap[Number(r.key)] ?? `Deck #${r.key}`
         } else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
           const modId = r.key.slice("module:".length)
@@ -285,11 +341,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         } else {
           resolvedTitle = r.key
         }
+        const xp = calcXPForItem(r.type, r.score)
         return {
           key: resolvedTitle,
           typeLabel: TYPE_LABEL[r.type] ?? r.type,
           score: r.score,
-          timeAgo: timeAgo(r.updated_at),
+          xp: xp,
+          timeAgo: timeAgo(r.updated_at ?? new Date().toISOString()),
         }
       })
     })(),

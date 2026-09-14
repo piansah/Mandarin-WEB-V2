@@ -481,6 +481,14 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
+                {/* Empty message when due = 0 */}
+                {srsStats.due === 0 && (
+                  <div className="flex items-center justify-center gap-2 py-4 text-center">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <p className="text-sm text-muted-foreground">tidak ada kosakata untuk direview hari ini</p>
+                  </div>
+                )}
+
                 {/* Today's Progress */}
                 {srsStats.totalToday > 0 && (
                   <div className="space-y-2">
@@ -674,14 +682,14 @@ export default function DashboardPage() {
                   className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    +{act.score}
+                    +{act.xp}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{act.key}</p>
                     <p className="text-xs text-muted-foreground">{act.typeLabel} · {act.timeAgo}</p>
                   </div>
                   <Badge variant="outline" className="text-xs shrink-0">
-                    {act.score} XP
+                    {act.xp} XP
                   </Badge>
                 </div>
               ))}
