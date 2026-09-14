@@ -109,7 +109,7 @@ function calcXPForItem(type: string, score: number): number {
     case "minigame_snake":
     case "minigame_match":
     case "minigame_speedrun":
-      return XP_MINIGAME;
+      return Math.min(Math.floor(score / 20), XP_MINIGAME);
     case "lesson":
     case "modul":
       return XP_COMPLETION;
@@ -328,9 +328,15 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         // Handle minigames with metadata
         if (r.type.startsWith("minigame_") && r.meta) {
           const meta = r.meta as { hsk_level?: number; stage?: number; stage_title?: string }
+          const gameNames: Record<string, string> = {
+            minigame_snake: "Ular Tebak Hanzi",
+            minigame_match: "Cocokan Hanzi",
+            minigame_speedrun: "Speedrun",
+          }
+          const gameName = gameNames[r.type] || r.type.replace("minigame_", "")
           const hskLevel = meta.hsk_level !== undefined ? `HSK ${meta.hsk_level}` : ""
-          const stageTitle = meta.stage_title || (meta.stage !== undefined ? `Stage ${meta.stage + 1}` : "")
-          resolvedTitle = [hskLevel, stageTitle].filter(Boolean).join(" · ")
+          const stageNum = meta.stage !== undefined ? `Stage ${meta.stage + 1}` : ""
+          resolvedTitle = [gameName, hskLevel, stageNum].filter(Boolean).join(" ")
         } else if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
           resolvedTitle = deckMap[Number(r.key)] ?? `Deck #${r.key}`
         } else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {

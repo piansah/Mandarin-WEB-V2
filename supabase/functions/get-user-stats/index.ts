@@ -71,11 +71,11 @@ function calcXPFromRows(rows: ScoreRow[]): number {
         xp += Math.min(score || 0, XP_PRACTICE);
         break;
 
-      // Tier 3: Games (Fixed 20 XP per stage completion)
+      // Tier 3: Games (Scaling: 20 poin = 1 XP, max 20 XP untuk 40 kosakata)
       case "minigame_snake":
       case "minigame_match":
       case "minigame_speedrun":
-        xp += XP_MINIGAME;  // 20 XP fixed
+        xp += Math.min(Math.floor((score || 0) / 20), XP_MINIGAME);
         break;
 
       // Tier 4: Completion (10 XP)
