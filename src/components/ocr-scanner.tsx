@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { createWorker, Worker, PSM } from "tesseract.js"
 import { Camera, X, Zap, RefreshCcw, Loader2, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,7 @@ import { speakMandarin } from "@/lib/tts"
 interface OCRScannerProps {
   onClose: () => void
   onWordClick: (hanzi: string) => void
+  onScanComplete?: (text: string) => void
 }
 type CameraCapabilities = MediaTrackCapabilities & {
   torch?: boolean
@@ -22,10 +24,14 @@ type CameraConstraintSet = MediaTrackConstraintSet & {
   focusMode?: string
 }
 
-export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
+export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerProps) {
+  const router = useRouter()
   const videoRef = React.useRef<HTMLVideoElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const scanBoxRef = React.useRef<HTMLDivElement>(null)
+
+  const HISTORY_KEY = "hanzi_search_history"
+  const HISTORY_LIMIT = 8
   
   const [stream, setStream] = React.useState<MediaStream | null>(null)
   const [worker, setWorker] = React.useState<Worker | null>(null)
@@ -226,6 +232,23 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         setRawText(scannedText)
         setResults(segmentText(scannedText))
         setMode("result")
+
+        // Add to search history
+        try {
+          const stored = window.localStorage.getItem(HISTORY_KEY)
+          const parsed = stored ? JSON.parse(stored) : []
+          if (Array.isArray(parsed)) {
+            const updated = [scannedText, ...parsed.filter((item) => item !== scannedText)].slice(0, HISTORY_LIMIT)
+            window.localStorage.setItem(HISTORY_KEY, JSON.stringify(updated))
+          }
+        } catch (err) {
+          console.error("Failed to save to history:", err)
+        }
+
+        // Notify parent component
+        if (onScanComplete) {
+          onScanComplete(scannedText)
+        }
       } else {
         setStatus("Tidak terbaca, coba lagi")
       }
@@ -294,6 +317,15 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
         </div>
       ) : (
         <div className="flex-1 bg-background flex flex-col">
+          <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-full" onClick={() => setMode("camera")}>
+              <X className="h-6 w-6" />
+            </Button>
+            <div className="text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+              Hasil Scan
+            </div>
+            <div className="w-10" />
+          </div>
           <div className="p-6 pt-20 bg-muted/30 border-b border-border/50">
             <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Teks Dipindai</h3>
             <p className="font-hanzi text-lg">{rawText}</p>
@@ -307,7 +339,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
                   className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
                   onClick={() => {
                     onWordClick(word.hanzi)
-                    onClose() // Auto close on select
+                    // Don't close - allow back navigation to scanner
                   }}
                 >
                   <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{word.hanzi}</div>
@@ -327,7 +359,7 @@ export function OCRScanner({ onClose, onWordClick }: OCRScannerProps) {
                     >
                       <Volume2 className="h-4 w-4" />
                     </button>
-                    <HskBadge hskLevel={word.hsk === 0 ? undefined : word.hsk} badge={word.hsk === 0 ? "common" : undefined} />
+                    <HskBadge hskLevel={word.hsk} badge={word.badge} />
                   </div>
                 </div>
               ) : (
