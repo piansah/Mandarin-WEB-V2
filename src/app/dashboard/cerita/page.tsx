@@ -54,6 +54,7 @@ export default function CeritaListPage() {
   const levels = React.useMemo(() => [...new Set(sets.map((set) => set.hsk_level))].sort((a, b) => a - b), [sets])
   const effectiveLevel = levels.includes(selectedLevel) ? selectedLevel : levels.includes(1) ? 1 : levels[0]
   const visible = React.useMemo(() => sets.filter((set) => set.hsk_level === effectiveLevel), [sets, effectiveLevel])
+  const totalBacaCount = visible.length
 
   if (loading) {
     return (
@@ -91,7 +92,12 @@ export default function CeritaListPage() {
       </div>
 
       <section className="flex flex-col gap-5">
-        <HskLevelFilter levels={levels} selectedLevel={effectiveLevel} onChange={setSelectedLevel} />
+        <HskLevelFilter
+          levels={levels}
+          selectedLevel={effectiveLevel}
+          onChange={setSelectedLevel}
+          label={`HSK ${effectiveLevel} - ${totalBacaCount} Baca`}
+        />
 
         {visible.length === 0 ? (
           <p className="py-12 text-center text-sm text-muted-foreground">Belum ada cerita untuk HSK {effectiveLevel}.</p>

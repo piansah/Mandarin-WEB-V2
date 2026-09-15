@@ -20,6 +20,14 @@ export default async function FlashcardPage() {
     )
   }
 
+  // Calculate total vocabulary count per HSK level
+  const vocabCountByLevel: Record<number, number> = {}
+  ;(sets ?? []).forEach(set => {
+    const level = set.hsk_level ?? 1
+    const count = set.flashcard_cards?.[0]?.count ?? 0
+    vocabCountByLevel[level] = (vocabCountByLevel[level] || 0) + count
+  })
+
   const deckContent = (
     <>
       {/* Header */}
@@ -31,7 +39,10 @@ export default async function FlashcardPage() {
         <p className="text-sm text-muted-foreground">Pilih deck untuk mulai belajar</p>
       </div>
 
-      <FlashcardDeckList sets={(sets ?? []).map(set => ({ ...set, wordCount: set.flashcard_cards?.[0]?.count ?? 0 })) as FlashcardSet[]} />
+      <FlashcardDeckList
+        sets={(sets ?? []).map(set => ({ ...set, wordCount: set.flashcard_cards?.[0]?.count ?? 0 })) as FlashcardSet[]}
+        vocabCountByLevel={vocabCountByLevel}
+      />
     </>
   )
 

@@ -49,6 +49,7 @@ export default function GrammarListPage() {
   const effectiveLevel = unlockedHSK ? clampToUnlockedLevel(rawLevel, unlockedHSK) : rawLevel
   const isLevelLocked = !!unlockedHSK && !unlockedHSK.includes(effectiveLevel)
   const visible = React.useMemo(() => patterns.filter((item) => item.hsk_level === effectiveLevel), [patterns, effectiveLevel])
+  const totalGrammarCount = visible.length
 
   if (loading) {
     return (
@@ -83,6 +84,7 @@ export default function GrammarListPage() {
           selectedLevel={effectiveLevel}
           onChange={setSelectedLevel}
           unlockedLevels={unlockedHSK ?? undefined}
+          label={`HSK ${effectiveLevel} - ${totalGrammarCount} Tata Bahasa`}
         />
 
         {isLevelLocked ? (

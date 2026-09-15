@@ -20,7 +20,7 @@ export type FlashcardSet = {
   wordCount: number
 }
 
-export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
+export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: FlashcardSet[]; vocabCountByLevel?: Record<number, number> }) {
   const supa = useSupabase()
   const unlockedHSK = useUnlockedHSK()
   const levels = [...new Set(sets.map(set => set.hsk_level ?? 1))].sort((a, b) => a - b)
@@ -28,6 +28,7 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
   const effectiveLevel = unlockedHSK ? clampToUnlockedLevel(selectedLevel, unlockedHSK) : selectedLevel
   const isLevelLocked = !!unlockedHSK && !unlockedHSK.includes(effectiveLevel)
   const decks = sets.filter(deck => (deck.hsk_level ?? 1) === effectiveLevel)
+  const totalVocabCount = vocabCountByLevel?.[effectiveLevel] ?? 0
 
   // Badge "%"/"Belum" di tiap kartu masih pakai skor flashcard-nya sendiri.
   // Buka-kunci Day berikutnya mengikuti skor QUIZ dari Day sebelumnya
@@ -47,6 +48,7 @@ export function FlashcardDeckList({ sets }: { sets: FlashcardSet[] }) {
         selectedLevel={effectiveLevel}
         onChange={setSelectedLevel}
         unlockedLevels={unlockedHSK ?? undefined}
+        label={`HSK ${effectiveLevel} - ${totalVocabCount} Kosakata`}
       />
 
       {isLevelLocked ? (
