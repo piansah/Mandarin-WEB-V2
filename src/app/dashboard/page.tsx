@@ -387,7 +387,7 @@ export default function DashboardPage() {
             <Flame className="w-32 h-32 text-primary" />
           </div>
 
-          <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center">
+          <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center h-full">
             <div className="flex justify-between items-center mb-6 w-full">
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-bold text-primary">{stats.streak}</span>

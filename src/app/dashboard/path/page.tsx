@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Map, CheckCircle2, Lock, PlayCircle, BookOpen, PenTool, Milestone, Library } from "lucide-react"
+import Link from "next/link"
 
 import { fetchLearningPath, PathStep } from "@/lib/path"
 import { Loader2 } from "lucide-react"
@@ -104,22 +105,22 @@ export default function PathPage() {
                         <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
                         
                         <div className="flex flex-wrap items-center gap-3 mt-4">
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md">
+                          <Link href="/dashboard/modul" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
                             <Library className="w-3.5 h-3.5" />
                             <span>{step.modules?.length || 0} Modul</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md">
+                          </Link>
+                          <Link href="/dashboard/flashcard" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>{step.vocabCount} Kata ({step.deckCount} Deck)</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md">
+                          </Link>
+                          <Link href="/dashboard/grammar" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
                             <PenTool className="w-3.5 h-3.5" />
                             <span>{step.grammarCount} Tata Bahasa</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md">
+                          </Link>
+                          <Link href="/dashboard/cerita" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
                             <Map className="w-3.5 h-3.5" />
                             <span>{step.estafetCount} Estafet</span>
-                          </div>
+                          </Link>
                         </div>
                       </div>
 
@@ -138,12 +139,9 @@ export default function PathPage() {
                         {isActive && (
                           <div className="flex flex-col items-start md:items-end w-full">
                             <span className="text-sm font-bold text-primary mb-2">Progress {step.progress}%</span>
-                            <div className="w-full h-2.5 bg-primary/20 rounded-full overflow-hidden mb-4">
+                            <div className="w-full h-2.5 bg-primary/20 rounded-full overflow-hidden">
                               <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${step.progress}%` }} />
                             </div>
-                            <Button className="w-full rounded-full gap-2">
-                              Lanjutkan <PlayCircle className="w-4 h-4" />
-                            </Button>
                           </div>
                         )}
 
