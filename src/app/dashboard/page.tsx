@@ -387,8 +387,8 @@ export default function DashboardPage() {
             <Flame className="w-32 h-32 text-primary" />
           </div>
 
-          <CardContent className="p-6 relative z-10">
-            <div className="flex justify-between items-center mb-6">
+          <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center">
+            <div className="flex justify-between items-center mb-6 w-full">
               <div className="flex items-baseline gap-2">
                 <span className="text-4xl font-bold text-primary">{stats.streak}</span>
                 <span className="text-sm font-medium text-muted-foreground">Hari Beruntun!</span>
@@ -396,7 +396,7 @@ export default function DashboardPage() {
               <Flame className="h-6 w-6 text-primary drop-shadow-md" />
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-6">
+            <div className="grid grid-cols-7 gap-2 mb-6 w-full">
               {stats.weekDots.map((dot, i) => (
                 <div
                   key={i}
@@ -424,7 +424,7 @@ export default function DashboardPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 w-full">
               <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 p-4">
                 <span className="text-xl font-bold text-primary">{stats.bestStreak}</span>
                 <span className="text-xs text-muted-foreground mt-1">Streak terbaik</span>
