@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { listFavorites, removeFavorite, type FavoriteCard } from "@/lib/personal-decks"
 import { Heart, Trash2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -16,6 +17,9 @@ export default function FavoritesPage() {
   const router = useRouter()
   const [favorites, setFavorites] = React.useState<FavoriteCard[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = React.useState(false)
+  const [cardToDelete, setCardToDelete] = React.useState<FavoriteCard | null>(null)
 
   React.useEffect(() => {
     loadFavorites()
@@ -29,13 +33,32 @@ export default function FavoritesPage() {
   }
 
   async function handleRemoveFavorite(id: number) {
-    if (!confirm("Yakin ingin menghapus kata ini dari favorit?")) return
-    const result = await removeFavorite(id)
+    const card = favorites.find(f => f.id === id)
+    if (!card) return
+    setCardToDelete(card)
+    setDeleteDialogOpen(true)
+  }
+
+  async function confirmRemoveFavorite() {
+    if (!cardToDelete) return
+    const result = await removeFavorite(cardToDelete.id)
     if (!result.error) {
       loadFavorites()
     } else {
       alert(result.error)
     }
+    setDeleteDialogOpen(false)
+    setCardToDelete(null)
+  }
+
+  async function handleRemoveAll() {
+    setDeleteAllDialogOpen(true)
+  }
+
+  async function confirmRemoveAll() {
+    await Promise.all(favorites.map(f => removeFavorite(f.id)))
+    loadFavorites()
+    setDeleteAllDialogOpen(false)
   }
 
   async function handleOpenDetail(card: FavoriteCard) {
@@ -122,7 +145,7 @@ export default function FavoritesPage() {
           <p className="text-sm text-muted-foreground">Koleksi kata yang kamu simpan untuk referensi</p>
         </div>
         {favorites.length > 0 && (
-          <Button variant="ghost" size="icon" onClick={() => { if (confirm("Hapus semua kata favorit?")) { favorites.forEach(f => handleRemoveFavorite(f.id)) } }}>
+          <Button variant="ghost" size="icon" onClick={handleRemoveAll}>
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
@@ -161,6 +184,46 @@ export default function FavoritesPage() {
           </div>
         </>
       )}
+
+      {/* Delete Single Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Kata Favorit</DialogTitle>
+            <DialogDescription>
+              Yakin ingin menghapus "{cardToDelete?.hanzi}" dari favorit?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={confirmRemoveFavorite}>
+              Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Dialog */}
+      <Dialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus Semua Kata Favorit</DialogTitle>
+            <DialogDescription>
+              Yakin ingin menghapus semua {favorites.length} kata favorit? Tindakan ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteAllDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={confirmRemoveAll}>
+              Hapus Semua
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

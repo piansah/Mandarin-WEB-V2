@@ -15,10 +15,7 @@ const XP_LOW  = 9;
 // Tier 2: Practice (Penting) - 24 XP
 const XP_PRACTICE = 24;
 
-// Tier 3: Games (Medium) - 20 XP
-const XP_MINIGAME = 20;
-
-// Tier 4: Completion (Kecil) - 10 XP
+// Tier 3: Completion (Kecil) - 10 XP
 const XP_COMPLETION = 10;
 
 // Tier 5: Progress Tracking (Terkecil) - 1 XP
@@ -71,14 +68,7 @@ function calcXPFromRows(rows: ScoreRow[]): number {
         xp += Math.min(score || 0, XP_PRACTICE);
         break;
 
-      // Tier 3: Games (Scaling: 20 poin = 1 XP, max 20 XP untuk 40 kosakata)
-      case "minigame_snake":
-      case "minigame_match":
-      case "minigame_speedrun":
-        xp += Math.min(Math.floor((score || 0) / 20), XP_MINIGAME);
-        break;
-
-      // Tier 4: Completion (10 XP)
+      // Tier 3: Completion (10 XP)
       case "lesson":
       case "modul":
         xp += XP_COMPLETION;

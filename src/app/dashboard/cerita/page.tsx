@@ -83,7 +83,7 @@ export default function CeritaListPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 mb-4">
         <div className="flex items-center gap-2">
           <BookMarked className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Baca</h1>

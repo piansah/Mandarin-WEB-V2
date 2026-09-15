@@ -33,7 +33,7 @@ export type RecentActivityItem = {
   key: string
   typeLabel: string
   score: number
-  xp: number
+  xp: number | null
   timeAgo: string
 }
 
@@ -74,7 +74,6 @@ const TYPE_LABEL: Record<string, string> = {
 // XP Constants (must match Edge Function)
 const XP_CORE = 36;
 const XP_PRACTICE = 24;
-const XP_MINIGAME = 20;
 const XP_COMPLETION = 10;
 
 function xpFromQuizScore(score: number): number {
@@ -106,10 +105,6 @@ function calcXPForItem(type: string, score: number): number {
     case "speaking_session":
     case "tulis_session":
       return Math.min(score, XP_PRACTICE);
-    case "minigame_snake":
-    case "minigame_match":
-    case "minigame_speedrun":
-      return Math.min(Math.floor(score / 20), XP_MINIGAME);
     case "lesson":
     case "modul":
       return XP_COMPLETION;
@@ -241,13 +236,17 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
   const currentTier = [...TIER_ORDER].reverse().find((t) => unlockedTiers.includes(t)) ?? TIER_ORDER[0]
 
+  // Handle different response formats from Supabase RPC
+  const xpData = statsRpcRes.data ?? statsRpcRes ?? {}
+  const totalScore = xpData.xp ?? xpData.totalScore ?? 0
+
   return {
     displayName: profileRes.data?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
     streak: calcCurrentStreak(dates),
     bestStreak: calcBestStreak(dates),
     consistency: calcConsistency(dates),
     weekDots: buildWeekDots(dates),
-    totalScore: statsRpcRes.data?.xp ?? 0,
+    totalScore,
     tier: currentTier,
     tierLabel: TIER_LABEL[currentTier],
     tierHsk: `HSK ${TIER_HSK[currentTier].join("–")}`,
@@ -348,11 +347,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
           resolvedTitle = r.key
         }
         const xp = calcXPForItem(r.type, r.score)
+        // Minigames only show score, not XP
+        const isMinigame = r.type.startsWith("minigame_")
         return {
           key: resolvedTitle,
           typeLabel: TYPE_LABEL[r.type] ?? r.type,
           score: r.score,
-          xp: xp,
+          xp: isMinigame ? null : xp, // No XP for minigames
           timeAgo: timeAgo(r.updated_at ?? new Date().toISOString()),
         }
       })

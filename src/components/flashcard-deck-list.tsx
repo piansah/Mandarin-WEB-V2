@@ -92,7 +92,7 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
                 <CardContent className="flex flex-1 flex-col p-4 pt-2">
                   <h3 className="mb-1 text-sm font-bold leading-tight transition-colors group-hover:text-primary">{deck.title}</h3>
                   <p className="text-xs text-muted-foreground">{deck.description ?? ""}</p>
-                  <p className="mb-4 mt-3 text-xs text-primary/80">{deck.wordCount} Kosakata · HSK {deck.hsk_level ?? 1}</p>
+                  <p className="mb-4 mt-3 text-xs text-primary/80">{deck.wordCount} Kosakata</p>
                   <div className="mt-auto">
                     <Button
                       size="sm"

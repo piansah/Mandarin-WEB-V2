@@ -176,7 +176,9 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       fetchUnlockedTiers(),
     ])
 
-  const totalScore = statsRpcRes.data?.xp ?? 0
+  // Handle different response formats from Supabase RPC
+  const xpData = statsRpcRes.data ?? statsRpcRes ?? {}
+  const totalScore = xpData.xp ?? xpData.totalScore ?? 0
   const level = calculateLevel(totalScore)
   const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
   

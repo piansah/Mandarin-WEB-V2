@@ -672,14 +672,14 @@ export default function DashboardPage() {
                   className="flex items-center gap-3 rounded-lg px-3 py-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                    +{act.xp}
+                    {act.xp !== null ? `+${act.xp}` : act.score}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{act.key}</p>
                     <p className="text-xs text-muted-foreground">{act.typeLabel} · {act.timeAgo}</p>
                   </div>
                   <Badge variant="outline" className="text-xs shrink-0">
-                    {act.xp} XP
+                    {act.xp !== null ? `${act.xp} XP` : `Score: ${act.score}`}
                   </Badge>
                 </div>
               ))}

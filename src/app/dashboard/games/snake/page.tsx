@@ -4,7 +4,7 @@ import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SnakeBoard } from "@/components/games/snake-board"
 import { Button } from "@/components/ui/button"
-import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight } from "lucide-react"
+import { Trophy, ArrowLeft, Gamepad2, Volume2, VolumeX, ChevronRight, Lock } from "lucide-react"
 import Link from "next/link"
 import { saveUserScore } from "@/lib/user-scores"
 import { buttonVariants } from "@/components/ui/button"
@@ -261,16 +261,28 @@ export default function SnakeGamePage() {
                 const stageCount = Math.ceil(levelSets.length / 2)
                 // HSK is cleared when all its stages are cleared
                 const isHskCleared = stageCount > 0 && (clearedStages[level]?.size ?? 0) >= stageCount
+                // HSK is locked if it's not the first level and the previous level is not cleared
+                const prevLevel = i > 0 ? hskLevels[i - 1] : null
+                const prevLevelSets = prevLevel ? allSets.filter(s => s.hsk_level === prevLevel) : []
+                const prevStageCount = prevLevel ? Math.ceil(prevLevelSets.length / 2) : 0
+                const isPrevLevelCleared = prevLevel ? (clearedStages[prevLevel]?.size ?? 0) >= prevStageCount : true
+                const isLocked = !isPrevLevelCleared
 
                 return (
                   <button
                     key={level}
-                    onClick={() => handleSelectHsk(level)}
-                    className="group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                    onClick={() => !isLocked && handleSelectHsk(level)}
+                    disabled={isLocked}
+                    className={cn(
+                      "group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full",
+                      isLocked
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                    )}
                   >
                     {/* Level icon */}
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-black text-base bg-primary/10 text-primary">
-                      {isHskCleared ? "✓" : level}
+                      {isLocked ? <Lock className="w-5 h-5" /> : isHskCleared ? "✓" : level}
                     </div>
 
                     {/* Info */}
@@ -280,13 +292,16 @@ export default function SnakeGamePage() {
                         {isHskCleared && (
                           <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full font-semibold">Selesai</span>
                         )}
+                        {isLocked && (
+                          <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-semibold">Terkunci</span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {stageCount} stage · {levelSets.length} deck
                       </p>
                     </div>
 
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                    <ChevronRight className={cn("w-4 h-4 shrink-0 transition-colors", isLocked ? "text-muted-foreground/50" : "text-muted-foreground group-hover:text-primary")} />
                   </button>
                 )
               })}
@@ -308,16 +323,24 @@ export default function SnakeGamePage() {
             <div className="flex flex-col gap-3 w-full">
               {stages.map(stage => {
                 const isCleared = clearedStages[selectedHsk]?.has(stage.index) ?? false
+                // Stage is locked if it's not the first stage and the previous stage is not cleared
+                const isLocked = stage.index > 1 && !clearedStages[selectedHsk]?.has(stage.index - 1)
+
                 return (
                   <button
                     key={stage.index}
-                    onClick={() => handleSelectStage(stage)}
-                    disabled={loading}
-                    className="group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                    onClick={() => !isLocked && handleSelectStage(stage)}
+                    disabled={isLocked || loading}
+                    className={cn(
+                      "group flex items-center gap-4 px-5 py-4 rounded-2xl border bg-card transition-all duration-200 text-left w-full",
+                      isLocked
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:border-primary hover:bg-primary/5 hover:shadow-md hover:scale-[1.02] cursor-pointer"
+                    )}
                   >
                     {/* Stage icon */}
                     <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-lg font-black bg-primary/10 text-primary">
-                      {isCleared ? "✓" : stage.index}
+                      {isLocked ? <Lock className="w-5 h-5" /> : isCleared ? "✓" : stage.index}
                     </div>
 
                     {/* Info */}
@@ -327,11 +350,14 @@ export default function SnakeGamePage() {
                         {isCleared && (
                           <span className="text-[10px] bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full font-semibold">Selesai</span>
                         )}
+                        {isLocked && (
+                          <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-semibold">Terkunci</span>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{stage.label}</p>
                     </div>
 
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+                    <ChevronRight className={cn("w-4 h-4 shrink-0 transition-colors", isLocked ? "text-muted-foreground/50" : "text-muted-foreground group-hover:text-primary")} />
                   </button>
                 )
               })}
@@ -383,7 +409,6 @@ export default function SnakeGamePage() {
             <div className="bg-card p-6 rounded-3xl w-full border shadow-sm">
               <p className="text-muted-foreground mb-2 font-medium">Skor Akhir</p>
               <p className="text-6xl font-black text-primary">{score}</p>
-              <p className="text-sm text-muted-foreground mt-3">+ {Math.min(Math.floor(score / 20), 20)} XP ditambahkan</p>
             </div>
             <div className="flex gap-3 w-full">
               <Button variant="outline" className="flex-1 rounded-xl" onClick={goBackToStages}>

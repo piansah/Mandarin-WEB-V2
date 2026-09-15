@@ -31,7 +31,7 @@ export default async function FlashcardPage() {
   const deckContent = (
     <>
       {/* Header */}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 mb-4">
         <div className="flex items-center gap-2">
           <Languages className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Daftar Kata</h1>
