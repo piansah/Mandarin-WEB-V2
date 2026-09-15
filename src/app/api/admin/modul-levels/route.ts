@@ -26,7 +26,9 @@ export async function GET(request: NextRequest) {
       .range(from, to)
 
     if (search) {
-      query = query.or(`code.ilike.%${search}%,label.ilike.%${search}%,description.ilike.%${search}%`)
+      // Escape special characters to prevent filter injection
+      const escapedSearch = search.replace(/[%,().]/g, '\\$&')
+      query = query.or(`code.ilike.%${escapedSearch}%,label.ilike.%${escapedSearch}%,description.ilike.%${escapedSearch}%`)
     }
 
     const { data, error, count } = await query

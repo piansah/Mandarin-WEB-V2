@@ -10,11 +10,11 @@ export async function verifyAdminRole() {
     return { error: "Unauthorized", status: 401 }
   }
 
-  // Get user role from profiles table
+  // Get user role from user_profile table
   const { data: profile, error: profileError } = await supa
-    .from("profiles")
+    .from("user_profile")
     .select("role")
-    .eq("id", user.id)
+    .eq("user_id", user.id)
     .single()
 
   if (profileError || !profile) {

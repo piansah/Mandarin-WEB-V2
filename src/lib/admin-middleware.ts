@@ -1,19 +1,19 @@
 /**
  * ADMIN MIDDLEWARE — Proteksi admin routes
- * 
+ *
  * Dipakai di admin pages untuk memastikan hanya admin yang bisa akses.
  * Bisa dipakai di server components dan route handlers.
  */
 
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/browser"
+import { createClient } from "@/lib/supabase/server"
 
 /**
  * Middleware untuk admin pages - redirect ke dashboard jika bukan admin
  * Dipakai di server components
  */
 export async function requireAdmin() {
-  const supa = createClient()
+  const supa = await createClient()
   const { data: { user } } = await supa.auth.getUser()
   if (!user) {
     redirect("/login")
@@ -35,7 +35,7 @@ export async function requireAdmin() {
  * Dipakai untuk conditional rendering
  */
 export async function checkAdminStatus(): Promise<boolean> {
-  const supa = createClient()
+  const supa = await createClient()
   const { data: { user } } = await supa.auth.getUser()
   if (!user) return false
 
