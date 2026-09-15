@@ -1,19 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { createWorker, Worker, PSM } from "tesseract.js"
-import { Camera, X, Zap, RefreshCcw, Loader2, Volume2 } from "lucide-react"
+import { Camera, X, Zap, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SegmentedWord, segmentText } from "@/lib/hanzi-segmentation"
-import { TonePinyin } from "@/components/tone-pinyin"
-import { HskBadge } from "@/components/hsk-badge"
-import { speakMandarin } from "@/lib/tts"
 
 interface OCRScannerProps {
   onClose: () => void
-  onWordClick: (hanzi: string) => void
-  onScanComplete?: (text: string) => void
+  onScanComplete: (text: string) => void
 }
 type CameraCapabilities = MediaTrackCapabilities & {
   torch?: boolean
@@ -24,8 +18,7 @@ type CameraConstraintSet = MediaTrackConstraintSet & {
   focusMode?: string
 }
 
-export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerProps) {
-  const router = useRouter()
+export function OCRScanner({ onClose, onScanComplete }: OCRScannerProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null)
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const scanBoxRef = React.useRef<HTMLDivElement>(null)
@@ -39,9 +32,6 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [isTorchOn, setIsTorchOn] = React.useState(false)
   const [torchAvailable, setTorchAvailable] = React.useState(false)
-  const [mode, setMode] = React.useState<"camera" | "result">("camera")
-  const [results, setResults] = React.useState<SegmentedWord[]>([])
-  const [rawText, setRawText] = React.useState("")
 
   // Initialize Tesseract Worker
   React.useEffect(() => {
@@ -123,16 +113,14 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
       }
     }
 
-    if (mode === "camera") {
-      startCamera()
-    }
+    startCamera()
 
     return () => {
       if (currentStream) {
         currentStream.getTracks().forEach(track => track.stop())
       }
     }
-  }, [mode])
+  }, [])
 
   const toggleTorch = async () => {
     if (!stream) return
@@ -229,10 +217,6 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
       const scannedText = text.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3000-\u303F\uFF00-\uFFEF]/g, "")
       
       if (scannedText.length > 0) {
-        setRawText(scannedText)
-        setResults(segmentText(scannedText))
-        setMode("result")
-
         // Add to search history
         try {
           const stored = window.localStorage.getItem(HISTORY_KEY)
@@ -245,10 +229,9 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
           console.error("Failed to save to history:", err)
         }
 
-        // Notify parent component
-        if (onScanComplete) {
-          onScanComplete(scannedText)
-        }
+        // Notify parent component and close
+        onScanComplete(scannedText)
+        onClose()
       } else {
         setStatus("Tidak terbaca, coba lagi")
       }
@@ -267,10 +250,10 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
         <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-full" onClick={onClose}>
           <X className="h-6 w-6" />
         </Button>
-        {torchAvailable && mode === "camera" && (
-          <Button 
-            variant="ghost" 
-            size="icon" 
+        {torchAvailable && (
+          <Button
+            variant="ghost"
+            size="icon"
             className={`rounded-full ${isTorchOn ? "text-yellow-400 bg-yellow-400/20" : "text-white hover:bg-white/20"}`}
             onClick={toggleTorch}
           >
@@ -279,113 +262,41 @@ export function OCRScanner({ onClose, onWordClick, onScanComplete }: OCRScannerP
         )}
       </div>
 
-      {mode === "camera" ? (
-        <div className="flex-1 relative overflow-hidden flex flex-col justify-end pb-12">
-          <video 
-            ref={videoRef} 
-            autoPlay 
-            playsInline 
-            muted 
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          
-          <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-            {/* Scan Box Overlay */}
-            <div className="relative w-[80%] h-[150px] border-2 border-white/50 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]" ref={scanBoxRef}>
-              <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-primary rounded-tl-lg -mt-1 -ml-1"></div>
-              <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-primary rounded-tr-lg -mt-1 -mr-1"></div>
-              <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-primary rounded-bl-lg -mb-1 -ml-1"></div>
-              <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-primary rounded-br-lg -mb-1 -mr-1"></div>
-            </div>
-          </div>
-          
-          <div className="relative z-10 w-full flex flex-col items-center gap-6 px-6">
-            <div className="text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
-              {status}
-            </div>
-            
-            <button 
-              onClick={captureAndProcess}
-              disabled={isProcessing || !worker}
-              className="w-20 h-20 rounded-full bg-white/20 border-4 border-white flex items-center justify-center p-1 hover:bg-white/30 transition-all disabled:opacity-50"
-            >
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                {isProcessing ? <Loader2 className="w-8 h-8 text-black animate-spin" /> : <Camera className="w-8 h-8 text-black" />}
-              </div>
-            </button>
+      <div className="flex-1 relative overflow-hidden flex flex-col justify-end pb-12">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {/* Scan Box Overlay */}
+          <div className="relative w-[80%] h-[150px] border-2 border-white/50 rounded-xl shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]" ref={scanBoxRef}>
+            <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-primary rounded-tl-lg -mt-1 -ml-1"></div>
+            <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-primary rounded-tr-lg -mt-1 -mr-1"></div>
+            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-primary rounded-bl-lg -mb-1 -ml-1"></div>
+            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-primary rounded-br-lg -mb-1 -mr-1"></div>
           </div>
         </div>
-      ) : (
-        <div className="flex-1 bg-background flex flex-col">
-          <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20 rounded-full" onClick={() => setMode("camera")}>
-              <X className="h-6 w-6" />
-            </Button>
-            <div className="text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
-              Hasil Scan
-            </div>
-            <div className="w-10" />
-          </div>
-          <div className="p-6 pt-20 bg-muted/30 border-b border-border/50">
-            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-2">Teks Dipindai</h3>
-            <p className="font-hanzi text-lg">{rawText}</p>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
-            {results.map((word, i) => (
-              word.found ? (
-                <div
-                  key={i}
-                  className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
-                  onClick={() => {
-                    onWordClick(word.hanzi)
-                    // Don't close - allow back navigation to scanner
-                  }}
-                >
-                  <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{word.hanzi}</div>
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    {word.pinyin && <TonePinyin text={word.pinyin} className="text-sm font-medium" />}
-                    {word.arti && <span className="truncate text-sm text-muted-foreground">{word.arti}</span>}
-                  </div>
-                  <div className="ml-1 flex shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        speakMandarin(word.hanzi)
-                      }}
-                      className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                      aria-label="Dengar"
-                    >
-                      <Volume2 className="h-4 w-4" />
-                    </button>
-                    <HskBadge hskLevel={word.hsk} badge={word.badge} />
-                  </div>
-                </div>
-              ) : (
-                word.isPunct ? (
-                  <div key={i} className="p-3 text-center text-xl text-muted-foreground">
-                    {word.hanzi}
-                  </div>
-                ) : (
-                  <div key={i} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-muted/20 p-4 opacity-70">
-                    <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{word.hanzi}</div>
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-xs text-muted-foreground italic">Tidak ada di kamus</span>
-                    </div>
-                  </div>
-                )
-              )
-            ))}
+
+        <div className="relative z-10 w-full flex flex-col items-center gap-6 px-6">
+          <div className="text-white text-sm font-medium bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+            {status}
           </div>
 
-          <div className="p-4 border-t border-border bg-background">
-            <Button className="w-full gap-2 rounded-xl h-12" onClick={() => setMode("camera")}>
-              <RefreshCcw className="w-4 h-4" /> Scan Ulang
-            </Button>
-          </div>
+          <button
+            onClick={captureAndProcess}
+            disabled={isProcessing || !worker}
+            className="w-20 h-20 rounded-full bg-white/20 border-4 border-white flex items-center justify-center p-1 hover:bg-white/30 transition-all disabled:opacity-50"
+          >
+            <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
+              {isProcessing ? <Loader2 className="w-8 h-8 text-black animate-spin" /> : <Camera className="w-8 h-8 text-black" />}
+            </div>
+          </button>
         </div>
-      )}
+      </div>
       
       {/* Hidden canvas for processing */}
       <canvas ref={canvasRef} className="hidden" />

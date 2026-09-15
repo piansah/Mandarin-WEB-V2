@@ -179,15 +179,12 @@ function VocabularySearch() {
         <div className="fixed inset-0 z-50 bg-background">
           <OCRScanner
             onClose={() => setShowScanner(false)}
-            onWordClick={(hanzi) => {
-              // Don't close scanner - allow back navigation
-              setShowScanner(false)
-              setQuery(hanzi)
-              handleSearch(hanzi, searchFilter, searchType)
-            }}
             onScanComplete={(text) => {
-              // Add to history when scan completes
+              // Close scanner and set text to search bar
+              setShowScanner(false)
+              setQuery(text)
               saveHistory(text)
+              handleSearch(text, searchFilter, searchType)
             }}
           />
         </div>
