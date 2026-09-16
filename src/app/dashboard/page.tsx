@@ -365,7 +365,7 @@ export default function DashboardPage() {
           <GreetingIcon className="h-5 w-5" />
           <span>{greetingText}</span>
         </div>
-        <h1 className="text-[clamp(12px,4vw,2.5rem)] font-extrabold tracking-tight uppercase whitespace-nowrap">
+        <h1 className="text-[clamp(12px,4vw,2.5rem)] font-extrabold tracking-tight uppercase">
           <span className="text-foreground">HALO {stats.displayName}.</span>{" "}
           <span className="text-foreground/70">LANJUT BELAJAR MANDARIN?</span>
         </h1>

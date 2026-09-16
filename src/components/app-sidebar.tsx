@@ -23,6 +23,7 @@ import {
   FolderOpen,
   Shield,
   Gamepad2,
+  MoreHorizontal,
 } from "lucide-react"
 import {
   Sidebar,
@@ -347,7 +348,7 @@ export function AppSidebar({
                     </AvatarFallback>
                   </Avatar>
                   <span className="font-medium flex-1 group-data-[collapsed=true]/sidebar:hidden">{user.name}</span>
-                  <ChevronUp className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
+                  <MoreHorizontal className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent
