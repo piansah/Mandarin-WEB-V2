@@ -388,8 +388,10 @@ export default function DashboardPage() {
       {/* Grid Atas: Streak & Review SRS (30/70) */}
       <div className="grid gap-6 lg:grid-cols-[4fr_6fr] relative">
         {/* Ambient Glow background for the grid */}
-        <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
-        <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden -mx-6">
+          <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full" />
+          <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full" />
+        </div>
 
         {/* Streak Widget */}
         <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative lg:col-span-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(23,166,115,0.15)] group">
