@@ -358,6 +358,9 @@ export default function DashboardPage() {
           animation: flame-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           opacity: 0;
         }
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
       `}} />
       {/* Header Greeting */}
       <div className="flex flex-col gap-2 mb-2">
@@ -365,10 +368,13 @@ export default function DashboardPage() {
           <GreetingIcon className="h-5 w-5" />
           <span>{greetingText}</span>
         </div>
-        <h1 className="text-[clamp(12px,4vw,2.5rem)] font-extrabold tracking-tight uppercase">
-          <span className="text-foreground">HALO {stats.displayName}.</span>{" "}
-          <span className="text-foreground/70">LANJUT BELAJAR MANDARIN?</span>
+        <h1 className="text-3xl sm:text-4xl font-normal tracking-tight">
+          <span className="text-foreground/90">Halo, </span>
+          <span className="font-extrabold text-foreground capitalize">{stats.displayName.toLowerCase()}</span>
         </h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
+          Siap lanjut belajar Mandarin hari ini?
+        </p>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
             {stats.tierLabel}
@@ -380,10 +386,14 @@ export default function DashboardPage() {
       </div>
 
       {/* Grid Atas: Streak & Review SRS (30/70) */}
-      <div className="grid gap-6 lg:grid-cols-[4fr_6fr]">
+      <div className="grid gap-6 lg:grid-cols-[4fr_6fr] relative">
+        {/* Ambient Glow background for the grid */}
+        <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none" />
+
         {/* Streak Widget */}
-        <Card className="border-border/50 bg-card/80 backdrop-blur-sm shadow-sm overflow-hidden relative lg:col-span-1">
-          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative lg:col-span-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(23,166,115,0.15)] group">
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
             <Flame className="w-32 h-32 text-primary" />
           </div>
 
@@ -396,7 +406,11 @@ export default function DashboardPage() {
               <Flame className="h-6 w-6 text-primary drop-shadow-md" />
             </div>
 
-            <div className="grid grid-cols-7 gap-2 mb-6 w-full">
+            <div className="relative mb-6 w-full px-2">
+              {/* Connecting line behind dots */}
+              <div className="absolute top-[22px] left-6 right-6 h-[2px] bg-border/40 -z-10" />
+              
+              <div className="grid grid-cols-7 gap-1 w-full relative z-10">
               {stats.weekDots.map((dot, i) => (
                 <div
                   key={i}
@@ -422,6 +436,7 @@ export default function DashboardPage() {
                   <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
                 </div>
               ))}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 w-full">
@@ -438,7 +453,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Review Kosakata (SRS) - 60% */}
-        <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(59,130,246,0.1)]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -487,11 +502,13 @@ export default function DashboardPage() {
                     <span className="text-muted-foreground">Progress Hari Ini</span>
                     <span className="font-medium">{srsStats.pctToday}%</span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-2.5 rounded-full bg-muted/60 overflow-hidden border border-border/50 shadow-inner">
                     <div
-                      className="h-full rounded-full bg-primary transition-all duration-500"
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-400 transition-all duration-1000 ease-out relative"
                       style={{ width: `${srsStats.pctToday}%` }}
-                    />
+                    >
+                      <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-r from-transparent to-white/30" />
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>{srsStats.hafalToday} hafal hari ini</span>
@@ -521,7 +538,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Sesi Hari Ini - Full Width */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+      <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm transition-all duration-300 hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)]">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -620,11 +637,12 @@ export default function DashboardPage() {
             return (
               <div className="mt-8 space-y-5">
                 <Button
-                  className="w-full bg-foreground text-background hover:bg-foreground/90 rounded-full h-14 gap-2 text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full bg-foreground text-background hover:bg-white rounded-full h-14 gap-2 text-base font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.25)] hover:scale-[1.01] active:scale-[0.98] group relative overflow-hidden"
                   disabled={!firstSessionUrl}
                   onClick={() => firstSessionUrl && router.push(firstSessionUrl)}
                 >
-                  <Play className="h-5 w-5 fill-current" /> Mulai sesi
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
+                  <Play className="h-5 w-5 fill-current transition-transform group-hover:scale-110" /> Mulai sesi
                 </Button>
                 <div className="flex flex-col items-center gap-1.5 text-[10px] sm:text-xs tracking-tight sm:tracking-normal text-foreground/80 text-center overflow-hidden w-full">
                   <p className="whitespace-nowrap">
@@ -643,7 +661,7 @@ export default function DashboardPage() {
 
 
       {/* Aktivitas Terbaru */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+      <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-purple-500">
