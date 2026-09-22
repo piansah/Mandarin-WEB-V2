@@ -1,8 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { ChevronLeft, Eye, EyeOff, SkipForward } from "lucide-react"
+import { ChevronLeft, Eye, EyeOff, SkipForward, Volume2 } from "lucide-react"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
+import { speakMandarin } from "@/lib/tts"
 
 type ShowcaseWord = {
   hanzi: string
@@ -176,6 +177,9 @@ export const FlashcardShowcase = ({
     if (absX < TAP_THRESHOLD && absY < TAP_THRESHOLD) {
       if (!tapHandledRef.current) {
         tapHandledRef.current = true
+        if (!flipped) {
+          speakMandarin(WORDS[idx].hanzi)
+        }
         setFlipped((f) => !f)
       }
       setDragX(0)
@@ -282,11 +286,24 @@ export const FlashcardShowcase = ({
               {wordClassLabel}
             </span>
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-2 text-center">
-              <div
-                className="text-[52px] font-semibold text-white leading-none"
-                style={{ fontFamily: "'Noto Serif SC', serif" }}
-              >
-                {word.hanzi}
+              <div className="flex items-center justify-center gap-3 translate-x-3">
+                <div
+                  className="text-[52px] font-semibold text-white leading-none"
+                  style={{ fontFamily: "'Noto Serif SC', serif" }}
+                >
+                  {word.hanzi}
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    speakMandarin(word.hanzi)
+                  }}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-[#9AA7B5] hover:text-white transition-colors cursor-pointer"
+                  title="Dengarkan pengucapan"
+                >
+                  <Volume2 className="h-6 w-6" />
+                </button>
               </div>
               <div className="text-[11px] text-[#5D6B7A] flex items-center gap-1.5 mt-1">
                 <Eye className="h-3 w-3 shrink-0" />
@@ -316,11 +333,24 @@ export const FlashcardShowcase = ({
               {wordClassLabel}
             </span>
             <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-1.5 text-center">
-              <div
-                className="text-[34px] font-semibold text-white leading-none"
-                style={{ fontFamily: "'Noto Serif SC', serif" }}
-              >
-                {word.hanzi}
+              <div className="flex items-center justify-center gap-3 translate-x-3">
+                <div
+                  className="text-[34px] font-semibold text-white leading-none"
+                  style={{ fontFamily: "'Noto Serif SC', serif" }}
+                >
+                  {word.hanzi}
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    speakMandarin(word.hanzi)
+                  }}
+                  className="p-1.5 rounded-full hover:bg-white/10 text-[#9AA7B5] hover:text-white transition-colors cursor-pointer"
+                  title="Dengarkan pengucapan"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </button>
               </div>
               <div className="text-sm text-[#9AA7B5] tracking-wide">{word.pinyin}</div>
               <div className="text-[15px] text-[#4FDDA5] font-semibold mt-1">{word.arti}</div>
