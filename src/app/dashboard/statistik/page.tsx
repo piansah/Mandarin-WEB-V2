@@ -111,7 +111,7 @@ export default function StatistikPage() {
       </div>
 
       {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"> 
 
         {/* Aktivitas Mingguan (Bar Chart) */}
         <Card className="lg:col-span-2 border-muted/50">

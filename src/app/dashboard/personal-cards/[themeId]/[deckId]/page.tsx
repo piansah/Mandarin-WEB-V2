@@ -116,15 +116,10 @@ export default function DeckDetailPage() {
     setIsSearching(true)
 
     try {
-      console.log("=== Starting search ===")
-      console.log("Query:", query)
-      console.log("Search filter:", searchFilter)
-      console.log("Search type:", searchType)
 
       // Use the existing search system from hanzi-segmentation
       const results = await performSmartSearch(query, searchFilter, searchType)
 
-      console.log("Search results from performSmartSearch:", results.length)
       setSearchResults(results)
     } catch (e) {
       console.error("Search error:", e)

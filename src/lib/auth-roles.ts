@@ -180,7 +180,6 @@ export async function updateUserRole(
     }
   }
   
-  console.log("Role update successful:", { targetUserId, newRole })
   return { error: null }
 }
 
@@ -201,10 +200,8 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
   const callerIsAdmin = await isAdmin()
   const callerIsRegularAdmin = callerIsAdmin && !callerIsSuperAdmin
 
-  console.log("getAllUsersWithRoles - Role check:", { callerIsSuperAdmin, callerIsAdmin, callerIsRegularAdmin })
 
   if (!callerIsAdmin) {
-    console.log("getAllUsersWithRoles - Not authorized")
     return []
   }
 
@@ -224,11 +221,9 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
         return []
       }
       
-      console.log("getAllUsersWithRoles - Success (fallback):", { count: fallbackData?.length, roles: fallbackData?.map((u: any) => u.role) })
       return fallbackData as UserProfileWithRole[] || []
     }
     
-    console.log("getAllUsersWithRoles - Success (RPC):", { count: data?.length, roles: data?.map((u: any) => u.role) })
     return data as UserProfileWithRole[] || []
   }
 
@@ -251,16 +246,13 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
         return []
       }
       
-      console.log("getAllUsersWithRoles - Success (fallback):", { count: fallbackData?.length, roles: fallbackData?.map((u: any) => u.role) })
       return fallbackData as UserProfileWithRole[] || []
     }
     
-    console.log("getAllUsersWithRoles - Success (RPC regular admin):", { count: data?.length, roles: data?.map((u: any) => u.role) })
     return data as UserProfileWithRole[] || []
   }
 
   // Fallback untuk kasus lain (tidak seharusnya terjadi)
-  console.log("getAllUsersWithRoles - Unexpected state, returning empty")
   return []
 }
 
@@ -283,7 +275,6 @@ export async function getAdminStats(): Promise<{
 }> {
   const supa = createClient()
   
-  console.log("getAdminStats: Starting to fetch admin stats")
   
   try {
     // Gunakan RPC yang sama dengan user management untuk konsistensi
@@ -291,7 +282,6 @@ export async function getAdminStats(): Promise<{
     const callerIsAdmin = await isAdmin()
     
     if (!callerIsAdmin) {
-      console.log("getAdminStats: Not authorized")
       return { totalUsers: 0, activeToday: 0, adminUsers: 0 }
     }
     
@@ -312,7 +302,6 @@ export async function getAdminStats(): Promise<{
     const today = new Date().toISOString().split('T')[0]
     const activeToday = users.filter((u: any) => u.updated_at?.startsWith(today)).length
     
-    console.log("Admin stats (success):", { totalUsers, activeToday, adminUsers })
     return { totalUsers, activeToday, adminUsers }
   } catch (error) {
     console.error("Error fetching admin stats:", error)

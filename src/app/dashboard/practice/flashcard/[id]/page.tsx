@@ -21,7 +21,6 @@ export default function FlashcardPracticePage() {
   const [deckLevel, setDeckLevel] = React.useState<string>("Level A1")
   const [allCardIds, setAllCardIds] = React.useState<string[]>([])
   const [sessionId, setSessionId] = React.useState<string | null>(null)
-  const sessionCompletedRef = React.useRef(false)
 
   React.useEffect(() => {
     async function load() {
@@ -31,7 +30,6 @@ export default function FlashcardPracticePage() {
       // Generate unique session ID
       const newSessionId = crypto.randomUUID()
       setSessionId(newSessionId)
-      console.log("Session ID generated:", newSessionId)
 
       let rawCards: any[] = []
       let srsLevelByCard = new Map<string, number>()
