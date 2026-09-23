@@ -221,7 +221,7 @@ export default function SpeakingPracticePage() {
       const average = finalScores.length
         ? Math.round(finalScores.reduce((sum, s) => sum + s, 0) / finalScores.length)
         : 0
-      saveUserScore("speaking_session", key, average || 0).catch(() => {})
+      saveUserScore("speaking_session", key, average || 0).catch(() => { })
     }
   }
 
@@ -310,7 +310,7 @@ export default function SpeakingPracticePage() {
               </svg>
               <div className="absolute flex flex-col items-center">
                 <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi Rata-rata</span>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
               </div>
             </div>
 

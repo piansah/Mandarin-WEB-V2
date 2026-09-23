@@ -182,8 +182,7 @@ type SwipeFlashcardSessionProps = {
   emptyTitle?: string
   emptyEmoji?: string
   wordDetailPath?: (card: SwipeFlashcard) => string | null
-  onReview?: (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => void | Promise<void>
-  onComplete?: (stats: SessionStats) => void
+  onComplete?: (stats: SessionStats, reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]) => void
   deckTitle?: string
   deckLevel?: string
   userId?: string | null
@@ -198,7 +197,6 @@ export function SwipeFlashcardSession({
   emptyTitle = "Belum Ada Kartu",
   emptyEmoji = "📭",
   wordDetailPath,
-  onReview,
   onComplete,
   deckTitle = "Kartu Hafalan",
   deckLevel = "Level A1",
@@ -237,6 +235,7 @@ export function SwipeFlashcardSession({
   const [sulit, setSulit] = React.useState(0)
   const [done, setDone] = React.useState(false)
   const [sessionMastered, setSessionMastered] = React.useState(0)
+  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>([])
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -311,8 +310,8 @@ export function SwipeFlashcardSession({
   React.useEffect(() => {
     if (!done || cards.length === 0 || scoreSavedRef.current) return
     scoreSavedRef.current = true
-    onComplete?.({ hafal, lupa, ragu, sulit })
-  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete])
+    onComplete?.({ hafal, lupa, ragu, sulit }, sessionReviews)
+  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete, sessionReviews])
 
   // Animasikan ring akurasi di layar "Sesi Selesai" begitu sesi tuntas.
   // hafal/sulit/ragu/lupa sudah final di render yang sama dengan
@@ -489,7 +488,17 @@ export function SwipeFlashcardSession({
 
   function advance(quality: 0 | 3 | 4 | 5) {
     if (!card) return
-    onReview?.(card, quality)
+    
+    // Simpan hasil review ke state sessionReviews
+    setSessionReviews(prev => [
+      ...prev,
+      {
+        cardId: String(card.id),
+        quality,
+        currentLevel: card.srsLevel ?? 0
+      }
+    ])
+
     if (quality === 5) setHafal((h) => h + 1)
     else if (quality === 4) setSulit((s) => s + 1)
     else if (quality === 3) setRagu((r) => r + 1)
@@ -514,6 +523,28 @@ export function SwipeFlashcardSession({
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
+      // Call onComplete when done
+      const stats = {
+        hafal: quality === 5 ? hafal + 1 : hafal,
+        sulit: quality === 4 ? sulit + 1 : sulit,
+        ragu: quality === 3 ? ragu + 1 : ragu,
+        lupa: quality === 0 ? lupa + 1 : lupa,
+      }
+      
+      const newReviews = [
+        ...sessionReviews,
+        {
+          cardId: String(card.id),
+          quality,
+          currentLevel: card.srsLevel ?? 0
+        }
+      ]
+      
+      // Gunakan requestAnimationFrame atau timeout agar state sempat terupdate dulu (opsional, tapi disarankan)
+      setTimeout(() => {
+        onComplete?.(stats, newReviews)
+      }, 0)
+      
     } else {
       setIdx((i) => i + 1)
     }

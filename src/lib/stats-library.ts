@@ -52,6 +52,7 @@ export type StatsData = {
   streak: number
   bestStreak: number
   totalWordsLearned: number
+  totalCards: number
   totalStudyMinutes: number
   monthlyStudyMinutes: number
 }
@@ -434,6 +435,11 @@ export async function fetchStatsData(): Promise<StatsData | null> {
     .eq("user_id", user.id)
     .gte("srs_level", 1)
 
+  // Total flashcard_cards
+  const { count: totalCards } = await supa
+    .from("flashcard_cards")
+    .select("id", { count: "exact", head: true })
+
   // Total menit belajar (estimasi dari total sesi)
   const { count: totalSessions } = await supa
     .from("user_scores")
@@ -474,6 +480,7 @@ export async function fetchStatsData(): Promise<StatsData | null> {
     streak,
     bestStreak,
     totalWordsLearned: totalWordsLearned ?? 0,
+    totalCards: totalCards ?? 0,
     totalStudyMinutes,
     monthlyStudyMinutes,
   }

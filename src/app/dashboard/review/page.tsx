@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchDueFlashcards, recordSrsReview, type DueFlashcard } from "@/lib/srs"
+import { fetchDueFlashcards, recordSrsReviewBatch, type DueFlashcard } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function ReviewPage() {
@@ -40,10 +40,16 @@ export default function ReviewPage() {
     load()
   }, [supa])
 
-  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
+  const handleComplete = React.useCallback(async (
+    stats: { hafal: number; lupa: number; ragu: number; sulit: number },
+    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]
+  ) => {
     const { data: { user } } = await supa.auth.getUser()
     if (!user) return
-    await recordSrsReview(supa, user.id, String(card.id), quality, card.srsLevel ?? 0)
+    
+    if (reviews.length > 0) {
+      await recordSrsReviewBatch(supa, user.id, reviews)
+    }
   }, [supa])
 
   const wordDetailPath = React.useCallback((card: SwipeFlashcard) => {
@@ -61,7 +67,7 @@ export default function ReviewPage() {
       emptyTitle="Semua kartu sudah direview!"
       emptyEmoji="✅"
       wordDetailPath={wordDetailPath}
-      onReview={handleReview}
+      onComplete={handleComplete}
       deckTitle={deckTitle}
       deckLevel={deckLevel}
       userId={userId}

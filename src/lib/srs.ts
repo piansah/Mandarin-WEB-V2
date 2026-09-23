@@ -158,6 +158,85 @@ export async function fetchDueFlashcards(
   return cards
 }
 
+export async function recordSrsReviewBatch(
+  supa: SupabaseClient,
+  userId: string,
+  reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[],
+  sessionId?: string
+) {
+  if (reviews.length === 0) return
+
+  // 1. Dapatkan progress yang ada untuk batch ini
+  const cardIds = reviews.map(r => r.cardId)
+  const { data: existingProgress } = await supa
+    .from("user_card_progress")
+    .select("card_id")
+    .eq("user_id", userId)
+    .in("card_id", cardIds)
+
+  const existingCardIds = new Set(existingProgress?.map(p => String(p.card_id)) || [])
+
+  const upserts = reviews.map(review => {
+    const update = computeSrsUpdate(review.currentLevel, review.quality)
+    return {
+      user_id: userId,
+      card_id: review.cardId,
+      ...update,
+      last_reviewed: todayStr(),
+      ...(sessionId && { session_id: sessionId }),
+    }
+  })
+
+  // 2. Pisahkan mana yang insert baru dan mana yang update
+  const inserts = upserts.filter(u => !existingCardIds.has(String(u.card_id)))
+  const updates = upserts.filter(u => existingCardIds.has(String(u.card_id)))
+
+  if (inserts.length > 0) {
+    await supa.from("user_card_progress").insert(inserts)
+  }
+
+  // Supabase update array tidak semudah insert, jadi upsert per baris atau gunakan upsert()
+  // Tapi karena user_id & card_id mungkin jadi primary key, kita bisa pakai upsert() jika ada constraint.
+  // Jika tidak, karena kita tidak punya id progressnya, upsert mungkin akan insert baru jika
+  // tidak ada conflict. Cara aman:
+  if (updates.length > 0) {
+    for (const update of updates) {
+      await supa
+        .from("user_card_progress")
+        .update({
+          srs_level: update.srs_level,
+          next_review: update.next_review,
+          last_reviewed: update.last_reviewed,
+          session_id: update.session_id,
+        })
+        .eq("user_id", userId)
+        .eq("card_id", update.card_id)
+    }
+  }
+
+  // Rekam streak (user menyelesaikan task/review card)
+  const { data: existingStreak } = await supa
+    .from("daily_streaks")
+    .select("date")
+    .eq("user_id", userId)
+    .eq("date", todayStr())
+    .maybeSingle()
+    
+  if (!existingStreak) {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("playStreakAnim", "true")
+    }
+  }
+
+  const { error: streakErr } = await supa.from("daily_streaks").upsert(
+    { user_id: userId, date: todayStr() },
+    { onConflict: "user_id,date", ignoreDuplicates: true }
+  )
+  if (streakErr) {
+    console.error("Gagal merekam daily streak di srs:", streakErr)
+  }
+}
+
 export async function recordSrsReview(
   supa: SupabaseClient,
   userId: string,

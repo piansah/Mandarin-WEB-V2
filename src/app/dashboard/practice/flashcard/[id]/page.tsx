@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
-import { recordSrsReview } from "@/lib/srs"
+import { recordSrsReviewBatch } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function FlashcardPracticePage() {
@@ -142,56 +142,27 @@ export default function FlashcardPracticePage() {
     [deckId]
   )
 
-  const handleComplete = React.useCallback((stats: { hafal: number; lupa: number; ragu: number }) => {
+  const handleComplete = React.useCallback(async (
+    stats: { hafal: number; lupa: number; ragu: number; sulit: number },
+    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]
+  ) => {
     // For personal decks, don't save scores or SRS progress
     if (isPersonal) return
 
-    const total = stats.hafal + stats.lupa + stats.ragu
+    const total = stats.hafal + stats.lupa + stats.ragu + stats.sulit
     const pct = total > 0 ? Math.round((stats.hafal / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
     
-    // Session completed - mark as completed so cleanup won't delete
-    sessionCompletedRef.current = true
-  }, [deckId, isPersonal])
-
-  // Cleanup: Delete progress when user leaves session without completing
-  React.useEffect(() => {
-    const cleanup = async () => {
-      if (sessionId && userId && !isPersonal && !sessionCompletedRef.current) {
-        console.log("Cleaning up session progress for session:", sessionId)
-        await supa
-          .from("user_card_progress")
-          .delete()
-          .eq("session_id", sessionId)
-          .eq("user_id", userId)
-      }
+    if (userId && reviews.length > 0) {
+      await recordSrsReviewBatch(supa, userId, reviews, sessionId ?? undefined)
     }
-    
-    // Store cleanup function to call on unmount
-    const cleanupFn = () => {
-      cleanup().catch(console.error)
-    }
-    
-    return cleanupFn
-  }, [sessionId, userId, isPersonal, supa])
-
-  // Persists each rating to user_card_progress (srs_level + next_review).
-  // Without this, "Jatuh Tempo Hari Ini" never updates because no due date
-  // is ever written for cards reviewed in this practice session.
-  const handleReview = React.useCallback(async (card: SwipeFlashcard, quality: 0 | 3 | 4 | 5) => {
-    // For personal decks, don't save SRS progress
-    if (isPersonal) return
-
-    if (!userId) return
-    await recordSrsReview(supa, userId, String(card.id), quality, card.srsLevel ?? 0, sessionId ?? undefined)
-  }, [supa, userId, deckId, isPersonal, sessionId])
+  }, [deckId, isPersonal, userId, sessionId, supa])
 
   return (
     <SwipeFlashcardSession
       cards={cards}
       loading={loading}
       wordDetailPath={wordDetailPath}
-      onReview={handleReview}
       onComplete={handleComplete}
       deckTitle={deckTitle}
       deckLevel={deckLevel}

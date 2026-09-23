@@ -26,11 +26,11 @@ function StatCard({
 }) {
   return (
     <Card className="border-muted/50">
-      <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <div className={`p-2.5 rounded-xl ${color} order-1 sm:order-none`}>
+      <CardContent className="p-5 flex flex-col items-start gap-3">
+        <div className={`p-2.5 rounded-xl ${color}`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
-        <div className="flex flex-col min-w-0 text-center sm:text-left order-2 sm:order-none">
+        <div className="flex flex-col min-w-0 text-left">
           <span className="text-xs text-muted-foreground font-medium">{label}</span>
           <span className="text-2xl font-bold tracking-tight">{value}</span>
           {sub && <span className="text-xs text-muted-foreground mt-0.5">{sub}</span>}
@@ -105,8 +105,8 @@ export default function StatistikPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Flame} label="Streak Saat Ini" value={`${data.streak} hari`} sub={`Rekor: ${data.bestStreak} hari`} color="bg-orange-500" />
-        <StatCard icon={Brain} label="Kata Dipelajari" value={data.totalWordsLearned.toString()} sub="Kata unik" color="bg-violet-500" />
-        <StatCard icon={Target} label="Akurasi Rata-rata" value={`${avgAccuracy}%`} sub="Dari semua sesi" color="bg-emerald-500" />
+        <StatCard icon={Brain} label="Kata Dipelajari" value={data.totalWordsLearned.toString()} sub={`dari total ${data.totalCards ?? 0} kosakata`} color="bg-violet-500" />
+        <StatCard icon={Target} label="Akurasi" value={`${avgAccuracy}%`} sub="Dari semua sesi" color="bg-emerald-500" />
         <StatCard icon={Clock} label="Total Belajar" value={`${totalHours}j ${totalMins}m`} sub={`Bulan ini: ${monthlyHours}j ${monthlyMins}m`} color="bg-blue-500" />
       </div>
 
