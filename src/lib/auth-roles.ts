@@ -161,7 +161,7 @@ export async function updateUserRole(
   const supa = createClient()
   
   // Coba gunakan RPC untuk bypass RLS
-  const { data, error } = await supa.rpc('update_user_role_admin', {
+  const { data: _data, error } = await supa.rpc('update_user_role_admin', {
     target_user_id: targetUserId,
     new_role: newRole
   })
@@ -296,11 +296,11 @@ export async function getAdminStats(): Promise<{
     
     const users = data as UserProfileWithRole[] || []
     const totalUsers = users.length
-    const adminUsers = users.filter((u: any) => u.role === 'admin' || u.role === 'superadmin').length
+    const adminUsers = users.filter((u: UserProfileWithRole) => u.role === 'admin' || u.role === 'superadmin').length
     
     // Active today = users yang updated hari ini
     const today = new Date().toISOString().split('T')[0]
-    const activeToday = users.filter((u: any) => u.updated_at?.startsWith(today)).length
+    const activeToday = users.filter((u: UserProfileWithRole) => u.updated_at?.startsWith(today)).length
     
     return { totalUsers, activeToday, adminUsers }
   } catch (error) {
