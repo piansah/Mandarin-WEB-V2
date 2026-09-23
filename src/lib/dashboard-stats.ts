@@ -76,19 +76,19 @@ const XP_CORE = 36;
 const XP_PRACTICE = 24;
 const XP_COMPLETION = 10;
 
-function xpFromQuizScore(score: number): number {
+export function xpFromQuizScore(score: number): number {
   if (score >= 80) return XP_CORE;
   if (score >= 60) return XP_CORE / 2;
   return XP_CORE / 4;
 }
 
-function xpFromKalScore(score: number): number {
+export function xpFromKalScore(score: number): number {
   if (score >= 48) return XP_CORE;
   if (score >= 36) return XP_CORE / 2;
   return XP_CORE / 4;
 }
 
-function calcXPForItem(type: string, score: number): number {
+export function calcXPForItem(type: string, score: number): number {
   switch (type) {
     case "quiz":
     case "grammar":
@@ -115,11 +115,11 @@ function calcXPForItem(type: string, score: number): number {
   }
 }
 
-function todayStr(): string {
+export function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function calcCurrentStreak(dates: Set<string>): number {
+export function calcCurrentStreak(dates: Set<string>): number {
   const today = todayStr()
   const yesterday = (() => {
     const d = new Date()
@@ -138,7 +138,7 @@ function calcCurrentStreak(dates: Set<string>): number {
   return streak
 }
 
-function calcBestStreak(dates: Set<string>): number {
+export function calcBestStreak(dates: Set<string>): number {
   if (!dates.size) return 0
   const sorted = [...dates].sort()
   let best = 1
@@ -156,7 +156,7 @@ function calcBestStreak(dates: Set<string>): number {
   return best
 }
 
-function calcConsistency(dates: Set<string>): number {
+export function calcConsistency(dates: Set<string>): number {
   if (!dates.size) return 0
   const sorted = [...dates].sort()
   const first = new Date(sorted[0])
@@ -165,7 +165,7 @@ function calcConsistency(dates: Set<string>): number {
   return Math.round((dates.size / totalDays) * 100)
 }
 
-function buildWeekDots(dates: Set<string>): WeekDot[] {
+export function buildWeekDots(dates: Set<string>): WeekDot[] {
   const DAY_LABEL = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
   const today = new Date()
   const todayStr_ = todayStr()
@@ -181,7 +181,7 @@ function buildWeekDots(dates: Set<string>): WeekDot[] {
   })
 }
 
-function timeAgo(iso: string): string {
+export function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diffMs / 60_000)
   if (mins < 1) return "baru saja"

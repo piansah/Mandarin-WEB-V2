@@ -57,11 +57,11 @@ export type StatsData = {
   monthlyStudyMinutes: number
 }
 
-function todayStr(): string {
+export function todayStr(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function calcCurrentStreak(dates: Set<string>): number {
+export function calcCurrentStreak(dates: Set<string>): number {
   const today = todayStr()
   const yesterday = (() => {
     const d = new Date()
@@ -80,7 +80,7 @@ function calcCurrentStreak(dates: Set<string>): number {
   return streak
 }
 
-function calcBestStreak(dates: Set<string>): number {
+export function calcBestStreak(dates: Set<string>): number {
   if (!dates.size) return 0
   const sorted = [...dates].sort()
   let best = 1
