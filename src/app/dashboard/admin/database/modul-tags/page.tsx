@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Edit, Trash2, Search, Tag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -36,13 +38,7 @@ export default function ModulTagsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
-
-  React.useEffect(() => {
-    fetchModulTags()
-  }, [currentPage, rowsPerPage, searchQuery])
-
-  const fetchModulTags = async () => {
+  const fetchModulTags = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       let countQuery = supa
@@ -91,7 +87,11 @@ export default function ModulTagsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, rowsPerPage, searchQuery])
+
+  React.useEffect(() => {
+    fetchModulTags()
+  }, [fetchModulTags])
 
   const handleAdd = async () => {
     try {

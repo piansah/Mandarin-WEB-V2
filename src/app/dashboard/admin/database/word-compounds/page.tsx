@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -44,13 +46,8 @@ export default function WordCompoundsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
-  React.useEffect(() => {
-    fetchWordCompounds()
-  }, [currentPage, rowsPerPage])
-
-  const fetchWordCompounds = async () => {
+  const fetchWordCompounds = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       const { count: totalCount, error: countError } = await supa
@@ -86,7 +83,12 @@ export default function WordCompoundsPage() {
     } finally {
       setLoading(false)
     }
-  }
+    }, [currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchWordCompounds()
+  }, [fetchWordCompounds])
+
 
   const handleAdd = async () => {
     try {

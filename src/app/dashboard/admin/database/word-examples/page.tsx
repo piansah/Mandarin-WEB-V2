@@ -18,6 +18,8 @@ import { Pagination } from "@/components/ui/pagination"
 import { Plus, Edit, Trash2, Search } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
+const supa = createClient()
+
 interface WordExample {
   id: number
   word_hanzi: string
@@ -45,7 +47,6 @@ export default function WordExamplesPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
   const [debouncedSearch, setDebouncedSearch] = React.useState("")
 
@@ -61,11 +62,7 @@ export default function WordExamplesPage() {
     setCurrentPage(1)
   }, [searchQuery])
 
-  React.useEffect(() => {
-    fetchWordExamples()
-  }, [currentPage, rowsPerPage, debouncedSearch])
-
-  const fetchWordExamples = async () => {
+  const fetchWordExamples = React.useCallback(async () => {
     try {
       // Build base query dengan search filter
       let query = supa
@@ -124,7 +121,12 @@ export default function WordExamplesPage() {
     } finally {
       setLoading(false)
     }
-  }
+    }, [currentPage, rowsPerPage, debouncedSearch])
+
+  React.useEffect(() => {
+    fetchWordExamples()
+  }, [fetchWordExamples])
+
 
   // Pagination logic (server-side)
   const totalPages = Math.ceil(totalRows / rowsPerPage)

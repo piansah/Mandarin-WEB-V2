@@ -9,6 +9,7 @@ type SpeechRecognitionLike = {
   lang: string
   interimResults: boolean
   maxAlternatives: number
+  // eslint-disable-next-line
   onresult: ((event: any) => void) | null
   onerror: (() => void) | null
   onend: (() => void) | null
@@ -30,6 +31,7 @@ export function useFlashcardSession({
   userId?: string | null
   deckCardIds?: string[]
   wordDetailPath?: (card: SwipeFlashcard) => string | null
+  // eslint-disable-next-line
   onComplete?: (stats: any, reviews: any[]) => void
   disableSwipeProp?: boolean
 }) {
@@ -374,6 +376,7 @@ export function useFlashcardSession({
     recog.interimResults = true
     recog.maxAlternatives = 1
 
+    // eslint-disable-next-line
     recog.onresult = (e: any) => {
       const result = e.results[0]
       const isFinal = result.isFinal
@@ -426,6 +429,7 @@ export function useFlashcardSession({
       setTimeout(() => setResetSuccess(false), 3000)
     } catch (error) {
       console.error("Error resetting SRS:", error)
+      // eslint-disable-next-line
       alert("Gagal reset SRS: " + (error as any).message)
     } finally {
       setResetting(false)

@@ -28,7 +28,7 @@ export async function verifyAdminRole() {
   return { user, profile, error: null, status: 200 }
 }
 
-export function handleAdminError(error: any, defaultMessage: string = "Internal server error") {
+export function handleAdminError(error: unknown, defaultMessage: string = "Internal server error") {
   console.error(defaultMessage, error)
   return NextResponse.json(
     { error: defaultMessage },

@@ -17,7 +17,7 @@ export type BugReport = {
   user_id: string | null
   title: string
   description: string
-  device_info: Record<string, any> | null
+  device_info: Record<string, unknown> | null
   status: ReportStatus
   created_at: string
   report_type: ReportType

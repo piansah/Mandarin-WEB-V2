@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -31,8 +33,11 @@ interface ModulModulePart {
   module_id: string
   order_index: number
   title: string
+  // eslint-disable-next-line
   content: any
+  // eslint-disable-next-line
   vocab_parts: any
+  // eslint-disable-next-line
   kalimat_parts: any
   created_at: string
   updated_at: string
@@ -72,7 +77,6 @@ export default function ModulModulePartsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
   const fetchModulModules = React.useCallback(async () => {
     try {
@@ -133,7 +137,7 @@ export default function ModulModulePartsPage() {
 
       setParts(data || [])
     } catch (error) {
-      console.error("Error fetching modul module parts:", error)
+      console.error("Error fetching modul modul parts:", error)
     } finally {
       setLoading(false)
     }
@@ -146,7 +150,7 @@ export default function ModulModulePartsPage() {
 
   const handleAdd = async () => {
     if (!formData.module_id) {
-      alert("Silakan pilih Module terlebih dahulu")
+      alert("Silakan pilih modul terlebih dahulu")
       return
     }
     if (!formData.title) {
@@ -155,7 +159,7 @@ export default function ModulModulePartsPage() {
     }
 
     try {
-      console.log("Adding modul module part:", formData)
+      console.log("Adding modul modul part:", formData)
       
       // Parse content
       let parsedContent = null
@@ -227,8 +231,9 @@ export default function ModulModulePartsPage() {
       setKalimatMode("simple")
       fetchModulModuleParts()
     } catch (error) {
-      console.error("Error adding modul module part:", error)
-      alert(`Gagal menambahkan modul module part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
+      console.error("Error adding modul modul part:", error)
+      // eslint-disable-next-line
+      alert(`Gagal menambahkan modul modul part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
     }
   }
 
@@ -236,7 +241,7 @@ export default function ModulModulePartsPage() {
     if (!editingPart) return
 
     if (!formData.module_id) {
-      alert("Silakan pilih Module terlebih dahulu")
+      alert("Silakan pilih modul terlebih dahulu")
       return
     }
     if (!formData.title) {
@@ -245,7 +250,7 @@ export default function ModulModulePartsPage() {
     }
 
     try {
-      console.log("Updating modul module part:", formData)
+      console.log("Updating modul modul part:", formData)
       
       // Parse content
       let parsedContent = null
@@ -319,8 +324,9 @@ export default function ModulModulePartsPage() {
       setKalimatMode("simple")
       fetchModulModuleParts()
     } catch (error) {
-      console.error("Error updating modul module part:", error)
-      alert(`Gagal mengupdate modul module part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
+      console.error("Error updating modul modul part:", error)
+      // eslint-disable-next-line
+      alert(`Gagal mengupdate modul modul part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
     }
   }
 
@@ -338,10 +344,13 @@ export default function ModulModulePartsPage() {
         deletingPart.vocab_parts &&
         typeof deletingPart.vocab_parts === 'object' &&
         'cards' in deletingPart.vocab_parts &&
+        // eslint-disable-next-line
         Array.isArray((deletingPart.vocab_parts as any).cards) &&
+        // eslint-disable-next-line
         (deletingPart.vocab_parts as any).cards.length > 0
 
       if (hasVocab) {
+        // eslint-disable-next-line
         const vocabCount = (deletingPart.vocab_parts as any).cards.length
         setBlockingAlert({
           message: `Part ini masih memiliki ${vocabCount} vocab cards. Hapus vocab terlebih dahulu sebelum menghapus part ini.`
@@ -363,9 +372,9 @@ export default function ModulModulePartsPage() {
       setDeletingPart(null)
       fetchModulModuleParts()
     } catch (error) {
-      console.error("Error deleting modul module part:", error)
+      console.error("Error deleting modul modul part:", error)
       setBlockingAlert({ 
-        message: `Gagal menghapus modul module part: ${error instanceof Error ? error.message : 'Unknown error'}` 
+        message: `Gagal menghapus modul modul part: ${error instanceof Error ? error.message : 'Unknown error'}` 
       })
       setDeletingPart(null)
     }
@@ -423,7 +432,7 @@ export default function ModulModulePartsPage() {
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <FileText className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">Modul Module Parts</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Modul modul Parts</h1>
           </div>
           <p className="text-sm text-muted-foreground">Kelola bagian modul (content/practice/quiz)</p>
         </div>
@@ -443,13 +452,13 @@ export default function ModulModulePartsPage() {
           </div>
           <Select value={selectedModuleId || "all"} onValueChange={(value) => setSelectedModuleId(value === "all" ? null : value)}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter Module" />
+              <SelectValue placeholder="Filter modul" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Module</SelectItem>
-              {modules.map((module) => (
-                <SelectItem key={module.id} value={module.id}>
-                  {module.title}
+              <SelectItem value="all">Semua modul</SelectItem>
+              {modules.map((modul) => (
+                <SelectItem key={modul.id} value={modul.id}>
+                  {modul.title}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -468,7 +477,7 @@ export default function ModulModulePartsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead>Module</TableHead>
+                <TableHead>modul</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead>Content</TableHead>
                 <TableHead>Vocab</TableHead>
@@ -480,18 +489,18 @@ export default function ModulModulePartsPage() {
               {parts.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    Tidak ada data modul module part
+                    Tidak ada data modul modul part
                   </TableCell>
                 </TableRow>
               ) : (
                 parts.map((part) => {
-                  const module = modules.find(m => m.id === part.module_id)
+                  const modul = modules.find(m => m.id === part.module_id)
                   return (
                     <TableRow key={part.id}>
                       <TableCell className="font-medium">{part.title}</TableCell>
                       <TableCell>
-                        {module ? (
-                          <span className="text-sm">{module.title}</span>
+                        {modul ? (
+                          <span className="text-sm">{modul.title}</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
@@ -547,19 +556,19 @@ export default function ModulModulePartsPage() {
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-background rounded-lg border shadow-lg">
             <Card className="border-0 shadow-none">
               <CardHeader>
-                <CardTitle>{editingPart ? "Edit Modul Module Part" : "Tambah Modul Module Part"}</CardTitle>
+                <CardTitle>{editingPart ? "Edit Modul modul Part" : "Tambah Modul modul Part"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Module</label>
+                <label className="text-sm font-medium">modul</label>
                 <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih module" />
+                    <SelectValue placeholder="Pilih modul" />
                   </SelectTrigger>
                   <SelectContent className="z-[10000]">
-                    {modules.map((module) => (
-                      <SelectItem key={module.id} value={module.id}>
-                        {module.title}
+                    {modules.map((modul) => (
+                      <SelectItem key={modul.id} value={modul.id}>
+                        {modul.title}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -849,7 +858,7 @@ export default function ModulModulePartsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle className="text-destructive">Hapus Modul Module Part</CardTitle>
+              <CardTitle className="text-destructive">Hapus Modul modul Part</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">

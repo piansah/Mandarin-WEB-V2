@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, Flag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -53,13 +55,8 @@ export default function HanziSetsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
-  React.useEffect(() => {
-    fetchHanziSets()
-  }, [currentPage, rowsPerPage])
-
-  const fetchHanziSets = async () => {
+  const fetchHanziSets = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       const { count: totalCount, error: countError } = await supa
@@ -95,7 +92,12 @@ export default function HanziSetsPage() {
     } finally {
       setLoading(false)
     }
-  }
+    }, [currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchHanziSets()
+  }, [fetchHanziSets])
+
 
   const handleAdd = async () => {
     try {

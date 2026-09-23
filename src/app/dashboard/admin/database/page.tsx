@@ -483,7 +483,7 @@ export default function AdminDatabasePage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Klik tombol <strong>"Kelola"</strong> untuk mengelola data secara langsung di web. 
+            Klik tombol <strong>&quot;Kelola&quot;</strong> untuk mengelola data secara langsung di web. 
             CRUD interface sudah tersedia untuk <strong>Flashcard Sets</strong>, <strong>Flashcard Cards</strong>, 
             <strong>Word Compounds</strong>, <strong>Word Examples</strong>, <strong>Grammar Patterns</strong>, 
             <strong>Grammar Questions</strong>, <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.

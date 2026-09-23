@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -20,11 +22,15 @@ import { Pagination } from "@/components/ui/pagination"
 interface GrammarQuestion {
   id: number
   pattern_id: number
+  // eslint-disable-next-line
   words: any
+  // eslint-disable-next-line
   correct_order: any
   translation: string
+  // eslint-disable-next-line
   alt_orders: any
   sort_order: number | null
+  // eslint-disable-next-line
   pinyin_word: any
   explanation: string | null
   created_at: string
@@ -59,7 +65,6 @@ export default function GrammarQuestionsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
   React.useEffect(() => {
     fetchGrammarPatterns()

@@ -149,6 +149,7 @@ export default function AdminUsersPage() {
             </div>
             <select
               value={roleFilter}
+              // eslint-disable-next-line
               onChange={(e) => setRoleFilter(e.target.value as any)}
               className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
             >

@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, HelpCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -31,6 +33,7 @@ interface ModulQuizQuestion {
   module_id: string
   question_text: string
   question_type: string
+  // eslint-disable-next-line
   options: any
   correct_option_id: string
   order_index: number
@@ -63,7 +66,6 @@ export default function ModulQuizQuestionsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
   React.useEffect(() => {
     fetchModulModules()
@@ -307,13 +309,13 @@ export default function ModulQuizQuestionsPage() {
           </div>
           <Select value={selectedModuleId || "all"} onValueChange={(value) => setSelectedModuleId(value === "all" ? null : value)}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter Module" />
+              <SelectValue placeholder="Filter modul" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Module</SelectItem>
-              {modules.map((module) => (
-                <SelectItem key={module.id} value={module.id}>
-                  {module.title}
+              <SelectItem value="all">Semua modul</SelectItem>
+              {modules.map((modul) => (
+                <SelectItem key={modul.id} value={modul.id}>
+                  {modul.title}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -332,7 +334,7 @@ export default function ModulQuizQuestionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Question</TableHead>
-                <TableHead>Module</TableHead>
+                <TableHead>modul</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Correct Answer</TableHead>
                 <TableHead>Order</TableHead>
@@ -348,13 +350,13 @@ export default function ModulQuizQuestionsPage() {
                 </TableRow>
               ) : (
                 questions.map((question) => {
-                  const module = modules.find(m => m.id === question.module_id)
+                  const modul = modules.find(m => m.id === question.module_id)
                   return (
                     <TableRow key={question.id}>
                       <TableCell className="font-medium max-w-xs truncate">{question.question_text}</TableCell>
                       <TableCell>
-                        {module ? (
-                          <span className="text-sm">{module.title}</span>
+                        {modul ? (
+                          <span className="text-sm">{modul.title}</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
@@ -409,15 +411,15 @@ export default function ModulQuizQuestionsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Module</label>
+                <label className="text-sm font-medium">modul</label>
                 <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih module" />
+                    <SelectValue placeholder="Pilih modul" />
                   </SelectTrigger>
                   <SelectContent className="z-[10000]">
-                    {modules.map((module) => (
-                      <SelectItem key={module.id} value={module.id}>
-                        {module.title}
+                    {modules.map((modul) => (
+                      <SelectItem key={modul.id} value={modul.id}>
+                        {modul.title}
                       </SelectItem>
                     ))}
                   </SelectContent>

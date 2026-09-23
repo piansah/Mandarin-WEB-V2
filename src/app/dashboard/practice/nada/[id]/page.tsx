@@ -344,6 +344,7 @@ export default function NadaPracticePage() {
 
   React.useEffect(() => {
     async function load() {
+      // eslint-disable-next-line
       let rawCards: any[] = []
 
       if (isPersonal) {

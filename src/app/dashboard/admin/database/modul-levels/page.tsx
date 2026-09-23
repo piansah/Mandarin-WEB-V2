@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -44,13 +46,8 @@ export default function ModulLevelsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
-  React.useEffect(() => {
-    fetchModulLevels()
-  }, [currentPage, rowsPerPage])
-
-  const fetchModulLevels = async () => {
+  const fetchModulLevels = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       const { count: totalCount, error: countError } = await supa
@@ -87,7 +84,12 @@ export default function ModulLevelsPage() {
     } finally {
       setLoading(false)
     }
-  }
+    }, [currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchModulLevels()
+  }, [fetchModulLevels])
+
 
   const handleAdd = async () => {
     try {

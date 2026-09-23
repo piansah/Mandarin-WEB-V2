@@ -28,7 +28,7 @@ type SaveResult = { error: string | null; skipped?: boolean }
  * - Kalau sudah ada dan skor baru lebih tinggi/sama → di-upsert (overwrite).
  * - Kalau skor baru lebih rendah → dilewati (skor terbaik tetap dipertahankan).
  */
-export async function saveUserScore(type: ScoreType, key: string, score: number, meta?: Record<string, any>): Promise<SaveResult> {
+export async function saveUserScore(type: ScoreType, key: string, score: number, meta?: Record<string, unknown>): Promise<SaveResult> {
   const supa = createClient()
   const {
     data: { user },

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, Edit, Trash2, Search, ClipboardCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -56,7 +58,6 @@ export default function ModulQuizzesPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
   React.useEffect(() => {
     fetchModulModules()
@@ -270,13 +271,13 @@ export default function ModulQuizzesPage() {
           </div>
           <Select value={selectedModuleId || "all"} onValueChange={(value) => setSelectedModuleId(value === "all" ? null : value)}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter Module" />
+              <SelectValue placeholder="Filter modul" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Module</SelectItem>
-              {modules.map((module) => (
-                <SelectItem key={module.id} value={module.id}>
-                  {module.title}
+              <SelectItem value="all">Semua modul</SelectItem>
+              {modules.map((modul) => (
+                <SelectItem key={modul.id} value={modul.id}>
+                  {modul.title}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -295,7 +296,7 @@ export default function ModulQuizzesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead>Module</TableHead>
+                <TableHead>modul</TableHead>
                 <TableHead>Passing Score</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -310,13 +311,13 @@ export default function ModulQuizzesPage() {
                 </TableRow>
               ) : (
                 quizzes.map((quiz) => {
-                  const module = modules.find(m => m.id === quiz.module_id)
+                  const modul = modules.find(m => m.id === quiz.module_id)
                   return (
                     <TableRow key={quiz.id}>
                       <TableCell className="font-medium">{quiz.title}</TableCell>
                       <TableCell>
-                        {module ? (
-                          <span className="text-sm">{module.title}</span>
+                        {modul ? (
+                          <span className="text-sm">{modul.title}</span>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
@@ -362,15 +363,15 @@ export default function ModulQuizzesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Module</label>
+                <label className="text-sm font-medium">modul</label>
                 <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih module" />
+                    <SelectValue placeholder="Pilih modul" />
                   </SelectTrigger>
                   <SelectContent className="z-[10000]">
-                    {modules.map((module) => (
-                      <SelectItem key={module.id} value={module.id}>
-                        {module.title}
+                    {modules.map((modul) => (
+                      <SelectItem key={modul.id} value={modul.id}>
+                        {modul.title}
                       </SelectItem>
                     ))}
                   </SelectContent>

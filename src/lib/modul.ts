@@ -484,9 +484,9 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
         id: q.id,
         questionText: q.question_text,
         correctOptionId: q.correct_option_id,
-        options: opts.map((o: any) => ({
+        options: opts.map((o: { id: string; text?: string; option_text?: string }) => ({
           id: o.id,
-          text: o.text || o.option_text,
+          text: o.text ?? o.option_text ?? "",
         })),
       }
     }),

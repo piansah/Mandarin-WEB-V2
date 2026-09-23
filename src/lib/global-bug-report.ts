@@ -73,5 +73,5 @@ function closeModal() {
 
 // Register ke window object
 if (typeof window !== "undefined") {
-  ;(window as any).openBugReportModal = openBugReportModal
+  ;(window as Window & { openBugReportModal?: typeof openBugReportModal }).openBugReportModal = openBugReportModal
 }

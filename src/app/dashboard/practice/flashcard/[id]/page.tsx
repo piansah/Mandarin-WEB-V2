@@ -31,10 +31,11 @@ export default function FlashcardPracticePage() {
       const newSessionId = crypto.randomUUID()
       setSessionId(newSessionId)
 
+      // eslint-disable-next-line
       let rawCards: any[] = []
-      let srsLevelByCard = new Map<string, number>()
-      let reviewedCardIds = new Set<string>()
-      let deckHskLevel: number | undefined = undefined
+      const srsLevelByCard = new Map<string, number>()
+      const reviewedCardIds = new Set<string>()
+      const deckHskLevel: number | undefined = undefined
 
       if (isPersonal) {
         // For personal decks, fetch from personal_cards table

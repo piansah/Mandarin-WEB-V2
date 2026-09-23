@@ -1,6 +1,10 @@
+interface WindowWithWebkit extends Window {
+  webkitAudioContext?: typeof AudioContext
+}
+
 export function playSuccessSound() {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+    const AudioContext = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext
     if (!AudioContext) return
     const ctx = new AudioContext()
     
@@ -33,7 +37,7 @@ export function playSuccessSound() {
 
 export function playErrorSound() {
   try {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+    const AudioContext = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext
     if (!AudioContext) return
     const ctx = new AudioContext()
 
@@ -69,7 +73,7 @@ class BGMPlayer {
   private ctx: AudioContext | null = null
   private osc: OscillatorNode | null = null
   private gain: GainNode | null = null
-  private intervalId: any = null
+  private intervalId: ReturnType<typeof setInterval> | null = null
   private isPlaying = false
 
   // Snake theme (upbeat)
@@ -92,7 +96,7 @@ class BGMPlayer {
   start(theme: "snake" | "match" | "speedrun" = "snake") {
     if (this.isPlaying) return
     try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+      const AudioContext = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext
       if (!AudioContext) return
       this.ctx = new AudioContext()
       

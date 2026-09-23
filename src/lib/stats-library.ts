@@ -11,6 +11,8 @@
 
 import { createClient } from "@/lib/supabase/browser"
 
+type SupabaseClient = ReturnType<typeof createClient>
+
 export type WeeklyActivity = {
   day: string
   minutes: number
@@ -103,7 +105,7 @@ export function calcBestStreak(dates: Set<string>): number {
  * - minutes: total menit belajar (dari user_scores)
  * - words: kata baru dipelajari (dari user_card_progress)
  */
-async function fetchWeeklyActivity(supa: any, userId: string): Promise<WeeklyActivity[]> {
+async function fetchWeeklyActivity(supa: SupabaseClient, userId: string): Promise<WeeklyActivity[]> {
   const DAY_LABEL = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
   const today = new Date()
   const dayOfWeek = today.getDay() // 0 = Min
@@ -163,7 +165,7 @@ async function fetchWeeklyActivity(supa: any, userId: string): Promise<WeeklyAct
  * - total: total kartu di flashcard_sets dengan hsk_level tersebut
  * - learned: kartu dengan srs_level >= 1 di user_card_progress
  */
-async function fetchHskProgress(supa: any, userId: string): Promise<HskProgress[]> {
+async function fetchHskProgress(supa: SupabaseClient, userId: string): Promise<HskProgress[]> {
   const levels = [
     { level: "HSK 1", hskLevel: 1, color: "bg-emerald-500" },
     { level: "HSK 2", hskLevel: 2, color: "bg-blue-500" },
@@ -196,7 +198,7 @@ async function fetchHskProgress(supa: any, userId: string): Promise<HskProgress[
     .eq("user_id", userId)
     .gte("srs_level", 1)
 
-  const learnedCardIds = new Set<string>(progressData?.map((p: any) => String(p.card_id)) ?? [])
+  const learnedCardIds = new Set<string>(progressData?.map((p: { card_id: string | number }) => String(p.card_id)) ?? [])
 
   for (const level of levels) {
     const deckIds = decksByLevel.get(level.hskLevel) ?? []
@@ -219,7 +221,7 @@ async function fetchHskProgress(supa: any, userId: string): Promise<HskProgress[
         .select("id")
         .in("set_id", deckIds)
 
-      learned = cardsInLevel?.filter((c: any) => learnedCardIds.has(String(c.id))).length ?? 0
+      learned = cardsInLevel?.filter((c: { id: string | number }) => learnedCardIds.has(String(c.id))).length ?? 0
     }
 
     progress.push({
@@ -236,7 +238,7 @@ async function fetchHskProgress(supa: any, userId: string): Promise<HskProgress[
 /**
  * Ambil akurasi per fitur dari user_scores
  */
-async function fetchAccuracyData(supa: any, userId: string): Promise<AccuracyItem[]> {
+async function fetchAccuracyData(supa: SupabaseClient, userId: string): Promise<AccuracyItem[]> {
   const typeMap: Record<string, { label: string; color: string }> = {
     fc_session: { label: "Flashcard", color: "bg-emerald-500" },
     quiz: { label: "Kuis Modul", color: "bg-blue-500" },
@@ -256,7 +258,7 @@ async function fetchAccuracyData(supa: any, userId: string): Promise<AccuracyIte
       .eq("type", type)
 
     if (data && data.length > 0) {
-      const avgScore = data.reduce((sum: number, row: any) => sum + (row.score ?? 0), 0) / data.length
+      const avgScore = data.reduce((sum: number, row: { score: number | null }) => sum + (row.score ?? 0), 0) / data.length
       accuracyData.push({
         label: info.label,
         value: Math.round(avgScore),
@@ -272,7 +274,7 @@ async function fetchAccuracyData(supa: any, userId: string): Promise<AccuracyIte
  * Ambil kosakata yang perlu perhatian (akurasi rendah)
  * Dihitung dari user_card_progress dengan srs_level rendah
  */
-async function fetchDifficultWords(supa: any, userId: string): Promise<DifficultWord[]> {
+async function fetchDifficultWords(supa: SupabaseClient, userId: string): Promise<DifficultWord[]> {
   // Ambil kartu dengan srs_level rendah (0-2) = sering salah/lupa
   const { data: progressData } = await supa
     .from("user_card_progress")
@@ -284,7 +286,7 @@ async function fetchDifficultWords(supa: any, userId: string): Promise<Difficult
 
   if (!progressData || progressData.length === 0) return []
 
-  const cardIds = progressData.map((p: any) => p.card_id)
+  const cardIds = progressData.map((p: { card_id: string | number; srs_level: number }) => p.card_id)
   const { data: cards } = await supa
     .from("flashcard_cards")
     .select("id, hanzi, pinyin, arti")
@@ -293,7 +295,7 @@ async function fetchDifficultWords(supa: any, userId: string): Promise<Difficult
   const difficultWords: DifficultWord[] = []
 
   for (const card of cards ?? []) {
-    const progress = progressData.find((p: any) => p.card_id === card.id)
+    const progress = progressData.find((p: { card_id: string | number; srs_level: number }) => p.card_id === card.id)
     // Hitung akurasi berdasarkan srs_level (0 = sangat sulit, 2 = agak sulit)
     const accuracy = 30 + (progress?.srs_level ?? 0) * 20 // 30%, 50%, 70%
 
@@ -311,7 +313,7 @@ async function fetchDifficultWords(supa: any, userId: string): Promise<Difficult
 /**
  * Ambil pencapaian (achievements)
  */
-async function fetchAchievements(supa: any, userId: string): Promise<Achievement[]> {
+async function fetchAchievements(supa: SupabaseClient, userId: string): Promise<Achievement[]> {
   const achievements: Achievement[] = []
 
   // Streak 7 hari
@@ -319,7 +321,7 @@ async function fetchAchievements(supa: any, userId: string): Promise<Achievement
     .from("daily_streaks")
     .select("date")
     .eq("user_id", userId)
-  const dates = new Set<string>(streakData?.map((s: any) => s.date) ?? [])
+  const dates = new Set<string>(streakData?.map((s: { date: string }) => s.date) ?? [])
   const currentStreak = calcCurrentStreak(dates)
   achievements.push({
     label: "Streak 7 Hari",
@@ -364,7 +366,7 @@ async function fetchAchievements(supa: any, userId: string): Promise<Achievement
     .select("id")
     .eq("hsk_level", 1)
 
-  const hsk1DeckIds = hsk1Decks?.map((d: any) => d.id) ?? []
+  const hsk1DeckIds = hsk1Decks?.map((d: { id: number }) => d.id) ?? []
   let hsk1Total = 0
   let hsk1Learned = 0
 
@@ -381,7 +383,7 @@ async function fetchAchievements(supa: any, userId: string): Promise<Achievement
       .select("id")
       .in("set_id", hsk1DeckIds)
 
-    const hsk1CardIds = new Set<string>(hsk1Cards?.map((c: any) => String(c.id)) ?? [])
+    const hsk1CardIds = new Set<string>(hsk1Cards?.map((c: { id: string | number }) => String(c.id)) ?? [])
 
     const { data: userProgress } = await supa
       .from("user_card_progress")
@@ -389,7 +391,7 @@ async function fetchAchievements(supa: any, userId: string): Promise<Achievement
       .eq("user_id", userId)
       .gte("srs_level", 1)
 
-    hsk1Learned = userProgress?.filter((p: any) => hsk1CardIds.has(String(p.card_id))).length ?? 0
+    hsk1Learned = userProgress?.filter((p: { card_id: string | number }) => hsk1CardIds.has(String(p.card_id))).length ?? 0
   }
 
   achievements.push({

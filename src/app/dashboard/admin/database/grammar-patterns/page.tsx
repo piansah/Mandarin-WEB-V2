@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
+
+const supa = createClient()
 import {
   Table,
   TableBody,
@@ -23,6 +25,7 @@ interface GrammarPattern {
   slug: string
   hsk_level: number | null
   theory_text: string | null
+  // eslint-disable-next-line
   example_json: any
   badge: string | null
   sort_order: number | null
@@ -53,13 +56,8 @@ export default function GrammarPatternsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-  const supa = createClient()
 
-  React.useEffect(() => {
-    fetchGrammarPatterns()
-  }, [currentPage, rowsPerPage])
-
-  const fetchGrammarPatterns = async () => {
+  const fetchGrammarPatterns = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
       const { count: totalCount, error: countError } = await supa
@@ -95,7 +93,12 @@ export default function GrammarPatternsPage() {
     } finally {
       setLoading(false)
     }
-  }
+    }, [currentPage, rowsPerPage])
+
+  React.useEffect(() => {
+    fetchGrammarPatterns()
+  }, [fetchGrammarPatterns])
+
 
   const handleAdd = async () => {
     try {
