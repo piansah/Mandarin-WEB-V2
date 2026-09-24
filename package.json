@@ -10,7 +10,11 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "supabase:types": "npx supabase gen types typescript --project-id lnrtzyvhnqzkomklyfct --schema public > src/lib/database.types.ts"
+    "supabase:types": "npx supabase gen types typescript --project-id lnrtzyvhnqzkomklyfct --schema public > src/lib/database.types.ts",
+    "db:pull": "npx supabase db pull --linked",
+    "db:push": "npx supabase db push --linked",
+    "db:new": "npx supabase migration new",
+    "db:diff": "npx supabase db diff --linked"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
