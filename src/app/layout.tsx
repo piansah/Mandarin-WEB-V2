@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerProvider } from "@/components/service-worker-provider"
 import { HanziFontProvider } from "@/components/hanzi-font-provider";
+import { ReactQueryProvider } from "@/components/query-provider";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -64,13 +65,15 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <HanziFontProvider>
-            <TooltipProvider>
-              <ServiceWorkerProvider>
-                {children}
-              </ServiceWorkerProvider>
-            </TooltipProvider>
-          </HanziFontProvider>
+          <ReactQueryProvider>
+            <HanziFontProvider>
+              <TooltipProvider>
+                <ServiceWorkerProvider>
+                  {children}
+                </ServiceWorkerProvider>
+              </TooltipProvider>
+            </HanziFontProvider>
+          </ReactQueryProvider>
         </ThemeProvider>
       </body>
     </html>

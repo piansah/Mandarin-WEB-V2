@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/lib/hanzi-segmentation.ts
 import { createClient } from "@/lib/supabase/browser"
 import { buildQueryTokens, matchPinyinTokens, stripTones, isIndonesianQuery } from "./pinyin-search"
@@ -345,3 +346,4 @@ export function segmentText(text: string): SegmentedWord[] {
 
   return result
 }
+

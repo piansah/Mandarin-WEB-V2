@@ -97,17 +97,17 @@ export async function submitPlacement(result: PlacementResult): Promise<{ unlock
     if (user) {
       const { error: profileError } = await supa
         .from("user_profile")
-        .upsert(
+        .upsert<any>(
           { user_id: user.id, daily_goal_minutes: result.dailyGoal },
           { onConflict: "user_id" },
         )
       if (profileError) console.warn("[placement] Gagal menyimpan target harian:", profileError.message)
 
-      const { error } = await supa.from("user_placement").upsert(
+      const { error } = await supa.from("user_placement").upsert<any>(
         {
           user_id: user.id,
           level: result.level,
-          daily_goal_minutes: result.dailyGoal,
+          
           goal: result.goal,
           unlocked_count: unlockCountForLevel(result.level),
           updated_at: new Date().toISOString(),

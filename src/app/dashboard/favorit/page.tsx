@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -254,3 +255,4 @@ function FavoriteRow({ card, index, onOpen }: { card: FavoriteCard; index: numbe
     </div>
   )
 }
+

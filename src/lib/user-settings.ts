@@ -31,7 +31,7 @@ export async function fetchUserSettings(): Promise<UserSettings | null> {
   return {
     displayName: profile?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
     email: user.email ?? null,
-    hanziMode: placement?.hanzi_mode ?? null,
+    hanziMode: (placement?.hanzi_mode as HanziMode) ?? null,
     hanziFont: profile?.hanzi_font ?? null,
   }
 }
@@ -45,10 +45,8 @@ export async function updateDisplayName(name: string): Promise<{ error: string |
 
   const { error } = await supa
     .from("user_profile")
-    .upsert(
-      { user_id: user.id, display_name: name, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" },
-    )
+    .update({ display_name: name, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
   return { error: error?.message ?? null }
 }
 
@@ -61,7 +59,8 @@ export async function updateHanziMode(mode: HanziMode): Promise<{ error: string 
 
   const { error } = await supa
     .from("user_placement")
-    .upsert({ user_id: user.id, hanzi_mode: mode, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+    .update({ hanzi_mode: mode, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
   return { error: error?.message ?? null }
 }
 
@@ -74,7 +73,8 @@ export async function updateHanziFont(font: string): Promise<{ error: string | n
 
   const { error } = await supa
     .from("user_profile")
-    .upsert({ user_id: user.id, hanzi_font: font, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
+    .update({ hanzi_font: font, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
   return { error: error?.message ?? null }
 }
 

@@ -5,10 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, Search, Layers, Loader2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -18,237 +15,152 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { Database } from "@/lib/database.types"
 
-interface GrammarPattern {
-  id: number
-  title: string
-  slug: string
-  hsk_level: number | null
-  theory_text: string | null
-  // eslint-disable-next-line
-  example_json: any
-  badge: string | null
-  sort_order: number | null
-  sub_title: string | null
-  created_at: string
-  updated_at: string
-}
+type GrammarPattern = Database["public"]["Tables"]["grammar_patterns"]["Row"]
+
+const EMPTY_FORM = { title: "", slug: "", hsk_level: 1, theory_text: "", example_json: "", badge: "", sort_order: 0, sub_title: "" }
 
 export default function GrammarPatternsPage() {
-  const [patterns, setPatterns] = React.useState<GrammarPattern[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingPattern, setEditingPattern] = React.useState<GrammarPattern | null>(null)
   const [deletingPattern, setDeletingPattern] = React.useState<GrammarPattern | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    title: "",
-    slug: "",
-    hsk_level: 1,
-    theory_text: "",
-    example_json: "",
-    badge: "",
-    sort_order: 0,
-    sub_title: ""
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
 
-
-  const fetchGrammarPatterns = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      const { count: totalCount, error: countError } = await supa
-        .from("grammar_patterns")
-        .select("*", { count: "exact", head: true })
-
-      if (countError) throw countError
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      const { data, error } = await supa
-        .from("grammar_patterns")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .range(from, to)
-
-      if (error) throw error
-
-      console.log("Grammar Patterns fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
-      
-      setPatterns(data || [])
-      setTotalRows(totalCount || 0)
-    } catch (error) {
-      console.error("Error fetching grammar patterns:", error)
-    } finally {
-      setLoading(false)
-    }
-    }, [currentPage, rowsPerPage])
-
+  // Debounce search
   React.useEffect(() => {
-    fetchGrammarPatterns()
-  }, [fetchGrammarPatterns])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
-  const handleAdd = async () => {
-    try {
-      const { error } = await supa
-        .from("grammar_patterns")
-        .insert({
-          title: formData.title,
-          slug: formData.slug,
-          hsk_level: formData.hsk_level,
-          theory_text: formData.theory_text || null,
-          example_json: formData.example_json ? JSON.parse(formData.example_json) : null,
-          badge: formData.badge || null,
-          sort_order: formData.sort_order,
-          sub_title: formData.sub_title || null
-        })
-
+  // --- QUERY ---
+  const { data, isLoading } = useQuery({
+    queryKey: ["grammar-patterns", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("grammar_patterns").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) {
+        const t = `%${debouncedSearch}%`
+        query = query.or(`title.ilike.${t},slug.ilike.${t}`)
+      }
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query
+        .order("sort_order", { ascending: true })
+        .range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data ?? [], total: count ?? 0 }
+    },
+  })
 
+  const patterns = data?.rows ?? []
+  const totalRows = data?.total ?? 0
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+
+  // --- MUTATIONS ---
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("grammar_patterns").insert({
+        title: formData.title,
+        slug: formData.slug,
+        hsk_level: formData.hsk_level,
+        theory_text: formData.theory_text || null,
+        example_json: formData.example_json ? JSON.parse(formData.example_json) : null,
+        badge: formData.badge || null,
+        sort_order: formData.sort_order,
+        sub_title: formData.sub_title || null,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setShowAddModal(false)
-      setFormData({ title: "", slug: "", hsk_level: 1, theory_text: "", example_json: "", badge: "", sort_order: 0, sub_title: "" })
-      fetchGrammarPatterns()
-    } catch (error) {
-      console.error("Error adding grammar pattern:", error)
-      alert("Gagal menambahkan grammar pattern")
-    }
-  }
+      setFormData(EMPTY_FORM)
+    },
+    onError: () => alert("Gagal menambahkan grammar pattern"),
+  })
 
-  const handleEdit = async () => {
-    if (!editingPattern) return
-
-    try {
-      const { error } = await supa
-        .from("grammar_patterns")
-        .update({
-          title: formData.title,
-          slug: formData.slug,
-          hsk_level: formData.hsk_level,
-          theory_text: formData.theory_text || null,
-          example_json: formData.example_json ? JSON.parse(formData.example_json) : null,
-          badge: formData.badge || null,
-          sort_order: formData.sort_order,
-          sub_title: formData.sub_title || null
-        })
-        .eq("id", editingPattern.id)
-
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingPattern) return
+      const { error } = await supa.from("grammar_patterns").update({
+        title: formData.title,
+        slug: formData.slug,
+        hsk_level: formData.hsk_level,
+        theory_text: formData.theory_text || null,
+        example_json: formData.example_json ? JSON.parse(formData.example_json) : null,
+        badge: formData.badge || null,
+        sort_order: formData.sort_order,
+        sub_title: formData.sub_title || null,
+      }).eq("id", editingPattern.id)
       if (error) throw error
-
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setEditingPattern(null)
-      setFormData({ title: "", slug: "", hsk_level: 1, theory_text: "", example_json: "", badge: "", sort_order: 0, sub_title: "" })
-      fetchGrammarPatterns()
-    } catch (error) {
-      console.error("Error updating grammar pattern:", error)
-      alert("Gagal mengupdate grammar pattern")
-    }
-  }
+      setFormData(EMPTY_FORM)
+    },
+    onError: () => alert("Gagal mengupdate grammar pattern"),
+  })
 
-  const handleDeleteClick = (pattern: GrammarPattern) => {
-    setDeletingPattern(pattern)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingPattern) return
-
-    try {
-      console.log("Deleting grammar pattern:", deletingPattern.id)
-      
-      // Cek apakah ada questions yang terkait dengan pattern ini
-      const { count: questionCount, error: countError } = await supa
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingPattern) return
+      // Cek soal terkait
+      const { count, error: countError } = await supa
         .from("grammar_questions")
         .select("*", { count: "exact", head: true })
         .eq("pattern_id", deletingPattern.id)
-
-      console.log("Question count check:", { questionCount, error: countError })
-
-      if (countError) {
-        console.error("Error checking question count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek soal terkait" })
+      if (countError) throw countError
+      if (count && count > 0) {
         setDeletingPattern(null)
+        setBlockingAlert({ message: `Tidak dapat menghapus pattern ini karena masih ada ${count} soal terkait. Hapus soal terlebih dahulu.` })
         return
       }
-
-      if (questionCount && questionCount > 0) {
-        console.log("Blocking delete due to related questions:", questionCount)
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus pattern ini karena masih ada ${questionCount} soal yang terkait. Pindahkan atau hapus soal terlebih dahulu.` 
-        })
-        setDeletingPattern(null)
-        return
-      }
-
-      console.log("Proceeding with delete, no related questions found")
-      const { error } = await supa
-        .from("grammar_patterns")
-        .delete()
-        .eq("id", deletingPattern.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
+      const { error } = await supa.from("grammar_patterns").delete().eq("id", deletingPattern.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setDeletingPattern(null)
-      fetchGrammarPatterns()
-    } catch (error) {
-      console.error("Error deleting grammar pattern:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus grammar pattern: ${error instanceof Error ? error.message : 'Unknown error'}` 
-      })
+    },
+    onError: (err: Error) => {
       setDeletingPattern(null)
-    }
-  }
+      setBlockingAlert({ message: `Gagal menghapus: ${err.message}` })
+    },
+  })
 
   const openEditModal = (pattern: GrammarPattern) => {
     setEditingPattern(pattern)
     setFormData({
       title: pattern.title,
       slug: pattern.slug,
-      hsk_level: pattern.hsk_level || 1,
-      theory_text: pattern.theory_text || "",
+      hsk_level: pattern.hsk_level ?? 1,
+      theory_text: pattern.theory_text ?? "",
       example_json: pattern.example_json ? JSON.stringify(pattern.example_json, null, 2) : "",
-      badge: pattern.badge || "",
-      sort_order: pattern.sort_order || 0,
-      sub_title: pattern.sub_title || ""
+      badge: pattern.badge ?? "",
+      sort_order: pattern.sort_order ?? 0,
+      sub_title: pattern.sub_title ?? "",
     })
   }
 
   const openAddModal = () => {
     setEditingPattern(null)
-    setFormData({ title: "", slug: "", hsk_level: 1, theory_text: "", example_json: "", badge: "", sort_order: 0, sub_title: "" })
+    setFormData(EMPTY_FORM)
     setShowAddModal(true)
   }
 
-  const filteredPatterns = patterns.filter(pattern => 
-    pattern.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    pattern.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (pattern.sub_title && pattern.sub_title.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  // Pagination logic (server-side)
-  const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
-  // Reset to page 1 when search or rowsPerPage changes
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, rowsPerPage])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchGrammarPatterns()
-  }, [currentPage, rowsPerPage])
+  const isMutating = addMutation.isPending || editMutation.isPending || deleteMutation.isPending
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -266,13 +178,8 @@ export default function GrammarPatternsPage() {
       {/* Actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari grammar pattern..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Cari grammar pattern..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
         <Button onClick={openAddModal}>
           <Plus className="h-4 w-4 mr-2" />
@@ -280,12 +187,12 @@ export default function GrammarPatternsPage() {
         </Button>
       </div>
 
-      {/* Grammar Patterns Table */}
-      {loading ? (
+      {/* Table */}
+      {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      ) : filteredPatterns.length === 0 ? (
+      ) : patterns.length === 0 ? (
         <Card className="border-muted/50">
           <CardContent className="py-12 text-center">
             <Layers className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -309,27 +216,19 @@ export default function GrammarPatternsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPatterns.map((pattern) => (
+                {patterns.map((pattern) => (
                   <TableRow key={pattern.id}>
                     <TableCell className="font-medium">{pattern.id}</TableCell>
                     <TableCell>{pattern.title}</TableCell>
                     <TableCell className="font-mono text-xs">{pattern.slug}</TableCell>
-                    <TableCell className="max-w-xs truncate">{pattern.sub_title || "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">HSK {pattern.hsk_level || "-"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {pattern.badge && <Badge variant="default">{pattern.badge}</Badge>}
-                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{pattern.sub_title ?? "-"}</TableCell>
+                    <TableCell><Badge variant="outline">HSK {pattern.hsk_level ?? "-"}</Badge></TableCell>
+                    <TableCell>{pattern.badge && <Badge variant="default">{pattern.badge}</Badge>}</TableCell>
                     <TableCell>{pattern.sort_order}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(pattern)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(pattern)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(pattern)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingPattern(pattern)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -337,14 +236,7 @@ export default function GrammarPatternsPage() {
               </TableBody>
             </Table>
             <div className="p-4 border-t">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                rowsPerPage={rowsPerPage}
-                totalRows={totalRows}
-                onPageChange={setCurrentPage}
-                onRowsPerPageChange={setRowsPerPage}
-              />
+              <Pagination currentPage={currentPage} totalPages={totalPages} rowsPerPage={rowsPerPage} totalRows={totalRows} onPageChange={setCurrentPage} onRowsPerPageChange={setRowsPerPage} />
             </div>
           </CardContent>
         </Card>
@@ -354,122 +246,59 @@ export default function GrammarPatternsPage() {
       {(showAddModal || editingPattern) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <CardTitle>{editingPattern ? "Edit Grammar Pattern" : "Tambah Grammar Pattern"}</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>{editingPattern ? "Edit Grammar Pattern" : "Tambah Grammar Pattern"}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Contoh: Noun + Noun Construction"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Slug</label>
-                <Input
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  placeholder="noun-noun-construction"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sub Title</label>
-                <Input
-                  value={formData.sub_title}
-                  onChange={(e) => setFormData({ ...formData, sub_title: e.target.value })}
-                  placeholder="Deskripsi singkat..."
-                />
-              </div>
+              {[
+                { label: "Title", key: "title", placeholder: "Noun + Noun Construction" },
+                { label: "Slug", key: "slug", placeholder: "noun-noun-construction" },
+                { label: "Sub Title", key: "sub_title", placeholder: "Deskripsi singkat..." },
+                { label: "Theory Text", key: "theory_text", placeholder: "Penjelasan teori..." },
+                { label: "Badge", key: "badge", placeholder: "Beginner" },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="space-y-2">
+                  <label className="text-sm font-medium">{label}</label>
+                  <Input value={(formData as any)[key]} onChange={(e) => setFormData({ ...formData, [key]: e.target.value })} placeholder={placeholder} />
+                </div>
+              ))}
               <div className="space-y-2">
                 <label className="text-sm font-medium">HSK Level</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="6"
-                  value={formData.hsk_level}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, hsk_level: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Theory Text</label>
-                <Input
-                  value={formData.theory_text}
-                  onChange={(e) => setFormData({ ...formData, theory_text: e.target.value })}
-                  placeholder="Penjelasan teori..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Example JSON</label>
-                <textarea
-                  value={formData.example_json}
-                  onChange={(e) => setFormData({ ...formData, example_json: e.target.value })}
-                  placeholder='{"examples": [...] }'
-                  className="w-full px-3 py-2 border rounded-md bg-background min-h-[100px] font-mono text-xs"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Badge</label>
-                <Input
-                  value={formData.badge}
-                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                  placeholder="Contoh: Beginner"
-                />
+                <Input type="number" min="1" max="6" value={formData.hsk_level} onChange={(e) => setFormData({ ...formData, hsk_level: parseInt(e.target.value) || 1 })} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Sort Order</label>
-                <Input
-                  type="number"
-                  value={formData.sort_order}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
+                <Input type="number" value={formData.sort_order} onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Example JSON</label>
+                <textarea value={formData.example_json} onChange={(e) => setFormData({ ...formData, example_json: e.target.value })} placeholder='{"examples": [...]}' className="w-full px-3 py-2 border rounded-md bg-background min-h-[100px] font-mono text-xs" />
               </div>
               <div className="flex gap-2 pt-4">
-                <Button onClick={editingPattern ? handleEdit : handleAdd} className="flex-1">
-                  {editingPattern ? "Update" : "Tambah"}
+                <Button onClick={() => editingPattern ? editMutation.mutate() : addMutation.mutate()} className="flex-1" disabled={isMutating}>
+                  {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : editingPattern ? "Update" : "Tambah"}
                 </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingPattern(null) }}>
-                  Batal
-                </Button>
+                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingPattern(null) }}>Batal</Button>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Delete Confirm Modal */}
+      {/* Delete Modal */}
       {deletingPattern && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="text-destructive">Hapus Grammar Pattern</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-destructive">Hapus Grammar Pattern</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus grammar pattern ini?
-                </p>
-                <div className="p-3 bg-muted rounded-md space-y-1">
-                  <p className="text-sm font-medium">Title: {deletingPattern.title}</p>
-                  <p className="text-sm">Slug: {deletingPattern.slug}</p>
-                </div>
-                <p className="text-xs text-destructive">
-                  Tindakan ini tidak dapat dibatalkan.
-                </p>
+              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus grammar pattern ini?</p>
+              <div className="p-3 bg-muted rounded-md space-y-1">
+                <p className="text-sm font-medium">Title: {deletingPattern.title}</p>
+                <p className="text-sm">Slug: {deletingPattern.slug}</p>
               </div>
+              <p className="text-xs text-destructive">Tindakan ini tidak dapat dibatalkan.</p>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setDeletingPattern(null)}>
-                  Batal
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Hapus
+                <Button variant="outline" onClick={() => setDeletingPattern(null)}>Batal</Button>
+                <Button variant="destructive" onClick={() => deleteMutation.mutate()} disabled={isMutating}>
+                  {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hapus"}
                 </Button>
               </div>
             </CardContent>
@@ -477,21 +306,15 @@ export default function GrammarPatternsPage() {
         </div>
       )}
 
-      {/* Blocking Alert Modal */}
+      {/* Blocking Alert */}
       {blockingAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="text-destructive">Peringatan</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-destructive">Peringatan</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm">{blockingAlert.message}</p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button onClick={() => setBlockingAlert(null)}>
-                  OK
-                </Button>
+              <p className="text-sm">{blockingAlert.message}</p>
+              <div className="flex justify-end">
+                <Button onClick={() => setBlockingAlert(null)}>OK</Button>
               </div>
             </CardContent>
           </Card>

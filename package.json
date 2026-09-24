@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "supabase:types": "npx supabase gen types typescript --project-id lnrtzyvhnqzkomklyfct --schema public > src/lib/database.types.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -18,6 +19,8 @@
     "@sentry/nextjs": "^11.0.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
+    "@tanstack/react-query": "^5.103.2",
+    "@tanstack/react-query-devtools": "^5.103.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^13.3.0",
@@ -45,6 +48,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.2",
     "jsdom": "^29.1.1",
+    "supabase": "^2.117.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite": "^8.3.0",

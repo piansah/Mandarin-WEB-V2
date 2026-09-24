@@ -26,13 +26,13 @@ import { performSmartSearch, initGlobalSearchCache, getWordDetailPath, type Glob
 import { useSidebar } from "@/components/ui/sidebar"
 
 type Card = {
-  id: number
+  id: string
   hanzi: string
   pinyin: string
-  arti: string
+  arti: string | null
   word_class: string | null
   catatan: string | null
-  created_at: string
+  created_at: string | null
 }
 
 export default function DeckDetailPage() {
@@ -129,7 +129,7 @@ export default function DeckDetailPage() {
     }
   }
 
-  async function handleDeleteCard(id: number) {
+  async function handleDeleteCard(id: string) {
     if (!confirm("Yakin ingin menghapus kartu ini?")) return
     const result = await deleteCard(id)
     if (!result.error) {

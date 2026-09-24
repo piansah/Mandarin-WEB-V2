@@ -5,306 +5,138 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, BookOpen } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, Search, BookOpen, Loader2 } from "lucide-react"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { Database } from "@/lib/database.types"
 
-interface FlashcardSet {
-  id: number
-  day_number: number
-  title: string
-  is_default: boolean
-  description: string | null
-  hsk_level: number
-  badge: string
-  sort_order: number
-  created_at: string
-}
+type FlashcardSet = Database["public"]["Tables"]["flashcard_sets"]["Row"]
+
+const EMPTY_FORM = { day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 }
 
 export default function FlashcardSetsPage() {
-  const [sets, setSets] = React.useState<FlashcardSet[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingSet, setEditingSet] = React.useState<FlashcardSet | null>(null)
   const [deletingSet, setDeletingSet] = React.useState<FlashcardSet | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    day_number: 1,
-    title: "",
-    description: "",
-    hsk_level: 1,
-    badge: "",
-    sort_order: 0
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
 
+  React.useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
-  const fetchFlashcardSets = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      const { count: totalCount, error: countError } = await supa
-        .from("flashcard_sets")
-        .select("*", { count: "exact", head: true })
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
+  const { data, isLoading } = useQuery({
+    queryKey: ["flashcard-sets", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("flashcard_sets").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) query = query.ilike("title", `%${debouncedSearch}%`)
       const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      const { data, error } = await supa
-        .from("flashcard_sets")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .range(from, to)
-
+      const { data, count, error } = await query.order("sort_order", { ascending: true }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data ?? [], total: count ?? 0 }
+    },
+  })
 
-      setSets(data || [])
-    } catch (error) {
-      console.error("Error fetching flashcard sets:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [currentPage, rowsPerPage])
-
-  React.useEffect(() => {
-    fetchFlashcardSets()
-  }, [fetchFlashcardSets])
-
-  const handleAdd = async () => {
-    try {
-      const { error } = await supa
-        .from("flashcard_sets")
-        .insert({
-          day_number: formData.day_number,
-          title: formData.title,
-          description: formData.description,
-          hsk_level: formData.hsk_level,
-          badge: formData.badge,
-          sort_order: formData.sort_order,
-          is_default: true
-        })
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setShowAddModal(false)
-      setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
-      fetchFlashcardSets()
-    } catch (error) {
-      console.error("Error adding flashcard set:", error)
-      alert(`Gagal menambahkan flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  const handleEdit = async () => {
-    if (!editingSet) return
-
-    try {
-      const { error } = await supa
-        .from("flashcard_sets")
-        .update({
-          day_number: formData.day_number,
-          title: formData.title,
-          description: formData.description,
-          hsk_level: formData.hsk_level,
-          badge: formData.badge,
-          sort_order: formData.sort_order
-        })
-        .eq("id", editingSet.id)
-
-      if (error) throw error
-
-      setEditingSet(null)
-      setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
-      fetchFlashcardSets()
-    } catch (error) {
-      console.error("Error updating flashcard set:", error)
-      alert("Gagal mengupdate flashcard set")
-    }
-  }
-
-  const handleDeleteClick = (set: FlashcardSet) => {
-    setDeletingSet(set)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingSet) return
-
-    try {
-      // Cek apakah ada cards yang terkait dengan set ini
-      const { count: cardCount, error: countError } = await supa
-        .from("flashcard_cards")
-        .select("*", { count: "exact", head: true })
-        .eq("set_id", deletingSet.id)
-
-      if (countError) {
-        console.error("Error checking card count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek kartu terkait" })
-        setDeletingSet(null)
-        return
-      }
-
-      if (cardCount && cardCount > 0) {
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus set ini karena masih ada ${cardCount} kartu yang terkait. Pindahkan atau hapus kartu terlebih dahulu.` 
-        })
-        setDeletingSet(null)
-        return
-      }
-
-      const { error } = await supa
-        .from("flashcard_sets")
-        .delete()
-        .eq("id", deletingSet.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingSet(null)
-      fetchFlashcardSets()
-    } catch (error) {
-      console.error("Error deleting flashcard set:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus flashcard set: ${error instanceof Error ? error.message : 'Unknown error'}` 
-      })
-      setDeletingSet(null)
-    }
-  }
-
-  const openEditModal = (set: FlashcardSet) => {
-    setEditingSet(set)
-    setFormData({
-      day_number: set.day_number,
-      title: set.title,
-      description: set.description || "",
-      hsk_level: set.hsk_level,
-      badge: set.badge,
-      sort_order: set.sort_order
-    })
-  }
-
-  const openAddModal = () => {
-    setEditingSet(null)
-    setFormData({ day_number: 1, title: "", description: "", hsk_level: 1, badge: "", sort_order: 0 })
-    setShowAddModal(true)
-  }
-
-  const filteredSets = sets.filter(set => 
-    set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (set.description && set.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  // Pagination logic (server-side)
+  const sets = data?.rows ?? []
+  const totalRows = data?.total ?? 0
   const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
-  // Reset ke page 1 ketika search/rowsPerPage berubah
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, rowsPerPage])
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("flashcard_sets").insert({ ...formData, is_default: true })
+      if (error) throw error
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (e: Error) => alert(e.message),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingSet) return
+      const { error } = await supa.from("flashcard_sets").update(formData).eq("id", editingSet.id)
+      if (error) throw error
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setEditingSet(null); setFormData(EMPTY_FORM) },
+    onError: (e: Error) => alert(e.message),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingSet) return
+      const { count, error: ce } = await supa.from("flashcard_cards").select("*", { count: "exact", head: true }).eq("set_id", deletingSet.id)
+      if (ce) throw ce
+      if (count && count > 0) {
+        setDeletingSet(null)
+        setBlockingAlert({ message: `Tidak dapat menghapus set karena masih ada ${count} kartu terkait.` })
+        return
+      }
+      const { error } = await supa.from("flashcard_sets").delete().eq("id", deletingSet.id)
+      if (error) throw error
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setDeletingSet(null) },
+    onError: (e: Error) => { setDeletingSet(null); setBlockingAlert({ message: e.message }) },
+  })
+
+  const openEditModal = (s: FlashcardSet) => {
+    setEditingSet(s)
+    setFormData({ day_number: s.day_number, title: s.title, description: s.description ?? "", hsk_level: s.hsk_level, badge: s.badge, sort_order: s.sort_order })
+  }
+  const openAddModal = () => { setEditingSet(null); setFormData(EMPTY_FORM); setShowAddModal(true) }
+  const isMutating = addMutation.isPending || editMutation.isPending || deleteMutation.isPending
 
   return (
     <div className="flex flex-col p-6 gap-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold tracking-tight">Flashcard Sets</h1>
-          </div>
-          <p className="text-sm text-muted-foreground">Kelola deck flashcard dan vocabulary</p>
-        </div>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2"><BookOpen className="h-6 w-6 text-primary" /><h1 className="text-2xl font-bold tracking-tight">Flashcard Sets</h1></div>
+        <p className="text-sm text-muted-foreground">Kelola deck flashcard dan vocabulary</p>
       </div>
-
-      {/* Actions */}
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari flashcard set..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Cari flashcard set..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
         </div>
-        <Button onClick={openAddModal}>
-          <Plus className="h-4 w-4 mr-2" />
-          Tambah Set
-        </Button>
+        <Button onClick={openAddModal}><Plus className="h-4 w-4 mr-2" />Tambah Set</Button>
       </div>
 
-      {/* Flashcard Sets Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-        </div>
-      ) : filteredSets.length === 0 ? (
-        <Card className="border-muted/50">
-          <CardContent className="py-12 text-center">
-            <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Tidak ada flashcard set ditemukan</p>
-          </CardContent>
-        </Card>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+      ) : sets.length === 0 ? (
+        <Card className="border-muted/50"><CardContent className="py-12 text-center"><BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" /><p className="text-muted-foreground">Tidak ada flashcard set ditemukan</p></CardContent></Card>
       ) : (
         <Card className="border-muted/50">
           <CardContent className="p-0">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Day</TableHead>
-                  <TableHead>HSK Level</TableHead>
-                  <TableHead>Badge</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Sort Order</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
+              <TableHeader><TableRow>
+                <TableHead>ID</TableHead><TableHead>Title</TableHead><TableHead>Day</TableHead>
+                <TableHead>HSK Level</TableHead><TableHead>Badge</TableHead><TableHead>Description</TableHead>
+                <TableHead>Sort Order</TableHead><TableHead className="text-right">Actions</TableHead>
+              </TableRow></TableHeader>
               <TableBody>
-                {filteredSets.map((set) => (
-                  <TableRow key={set.id}>
-                    <TableCell className="font-medium">{set.id}</TableCell>
-                    <TableCell>{set.title}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">Day {set.day_number}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">HSK {set.hsk_level}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {set.badge && <Badge variant="default">{set.badge}</Badge>}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">{set.description || "-"}</TableCell>
-                    <TableCell>{set.sort_order}</TableCell>
+                {sets.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell>{s.id}</TableCell><TableCell>{s.title}</TableCell>
+                    <TableCell><Badge variant="secondary">Day {s.day_number}</Badge></TableCell>
+                    <TableCell><Badge variant="outline">HSK {s.hsk_level}</Badge></TableCell>
+                    <TableCell>{s.badge && <Badge variant="default">{s.badge}</Badge>}</TableCell>
+                    <TableCell className="max-w-xs truncate">{s.description ?? "-"}</TableCell>
+                    <TableCell>{s.sort_order}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(set)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(s)}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingSet(s)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -312,125 +144,53 @@ export default function FlashcardSetsPage() {
               </TableBody>
             </Table>
             <div className="p-4 border-t">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                rowsPerPage={rowsPerPage}
-                totalRows={totalRows}
-                onPageChange={setCurrentPage}
-                onRowsPerPageChange={setRowsPerPage}
-              />
+              <Pagination currentPage={currentPage} totalPages={totalPages} rowsPerPage={rowsPerPage} totalRows={totalRows} onPageChange={setCurrentPage} onRowsPerPageChange={setRowsPerPage} />
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Add/Edit Modal */}
       {(showAddModal || editingSet) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
           <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>{editingSet ? "Edit Flashcard Set" : "Tambah Flashcard Set"}</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>{editingSet ? "Edit Flashcard Set" : "Tambah Flashcard Set"}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Day Number</label>
-                <Input
-                  type="number"
-                  value={formData.day_number}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, day_number: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Contoh: Day 1 - Basic Greetings"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Deskripsi singkat..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">HSK Level</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="6"
-                  value={formData.hsk_level}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, hsk_level: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Badge</label>
-                <Input
-                  value={formData.badge}
-                  onChange={(e) => setFormData({ ...formData, badge: e.target.value })}
-                  placeholder="Contoh: Beginner"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sort Order</label>
-                <Input
-                  type="number"
-                  value={formData.sort_order}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, sort_order: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
-              </div>
+              {[
+                { label: "Title", key: "title", ph: "Day 1 - Basic Greetings", type: "text" },
+                { label: "Description", key: "description", ph: "Deskripsi singkat...", type: "text" },
+                { label: "Badge", key: "badge", ph: "Beginner", type: "text" },
+                { label: "Day Number", key: "day_number", ph: "", type: "number" },
+                { label: "HSK Level", key: "hsk_level", ph: "", type: "number" },
+                { label: "Sort Order", key: "sort_order", ph: "", type: "number" },
+              ].map(({ label, key, ph, type }) => (
+                <div key={key} className="space-y-2">
+                  <label className="text-sm font-medium">{label}</label>
+                  <Input type={type} value={(formData as any)[key]} onChange={(e) => setFormData({ ...formData, [key]: type === "number" ? (parseInt(e.target.value) || 0) : e.target.value })} placeholder={ph} />
+                </div>
+              ))}
               <div className="flex gap-2 pt-4">
-                <Button onClick={editingSet ? handleEdit : handleAdd} className="flex-1">
-                  {editingSet ? "Update" : "Tambah"}
+                <Button onClick={() => editingSet ? editMutation.mutate() : addMutation.mutate()} className="flex-1" disabled={isMutating}>
+                  {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : editingSet ? "Update" : "Tambah"}
                 </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingSet(null) }}>
-                  Batal
-                </Button>
+                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingSet(null) }}>Batal</Button>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Delete Confirm Modal */}
       {deletingSet && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="text-destructive">Hapus Flashcard Set</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-destructive">Hapus Flashcard Set</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus flashcard set ini?
-                </p>
-                <div className="p-3 bg-muted rounded-md space-y-1">
-                  <p className="text-sm font-medium">Title: {deletingSet.title}</p>
-                  <p className="text-sm">Day: {deletingSet.day_number}</p>
-                </div>
-                <p className="text-xs text-destructive">
-                  Tindakan ini tidak dapat dibatalkan.
-                </p>
-              </div>
+              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus set ini?</p>
+              <div className="p-3 bg-muted rounded-md"><p className="text-sm font-medium">Title: {deletingSet.title}</p><p className="text-sm">Day: {deletingSet.day_number}</p></div>
+              <p className="text-xs text-destructive">Tindakan ini tidak dapat dibatalkan.</p>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setDeletingSet(null)}>
-                  Batal
-                </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Hapus
+                <Button variant="outline" onClick={() => setDeletingSet(null)}>Batal</Button>
+                <Button variant="destructive" onClick={() => deleteMutation.mutate()} disabled={isMutating}>
+                  {isMutating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hapus"}
                 </Button>
               </div>
             </CardContent>
@@ -438,22 +198,13 @@ export default function FlashcardSetsPage() {
         </div>
       )}
 
-      {/* Blocking Alert Modal */}
       {blockingAlert && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
           <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle className="text-destructive">Peringatan</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-destructive">Peringatan</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm">{blockingAlert.message}</p>
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button onClick={() => setBlockingAlert(null)}>
-                  OK
-                </Button>
-              </div>
+              <p className="text-sm">{blockingAlert.message}</p>
+              <div className="flex justify-end"><Button onClick={() => setBlockingAlert(null)}>OK</Button></div>
             </CardContent>
           </Card>
         </div>

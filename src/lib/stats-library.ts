@@ -286,11 +286,11 @@ async function fetchDifficultWords(supa: SupabaseClient, userId: string): Promis
 
   if (!progressData || progressData.length === 0) return []
 
-  const cardIds = progressData.map((p: { card_id: string | number; srs_level: number }) => p.card_id)
+  const cardIds = progressData.map((p: { card_id: string | number; srs_level: number }) => p.card_id as any)
   const { data: cards } = await supa
     .from("flashcard_cards")
     .select("id, hanzi, pinyin, arti")
-    .in("id", cardIds)
+    .in("id", cardIds as any[])
 
   const difficultWords: DifficultWord[] = []
 

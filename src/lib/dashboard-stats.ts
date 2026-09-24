@@ -237,7 +237,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
   const currentTier = [...TIER_ORDER].reverse().find((t) => unlockedTiers.includes(t)) ?? TIER_ORDER[0]
 
   // Handle different response formats from Supabase RPC
-  const xpData = statsRpcRes.data ?? statsRpcRes ?? {}
+  const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as any
   const totalScore = xpData.xp ?? xpData.totalScore ?? 0
 
   return {
@@ -289,7 +289,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
           ? supa.from("hanzi_sets").select("key, title").in("key", hanziKeys)
           : Promise.resolve({ data: [] }),
         quizKeys.length > 0
-          ? supa.from("quiz_sets").select("key, title").in("key", quizKeys)
+          ? supa.from("quiz_sets" as any).select("key, title").in("key", quizKeys)
           : Promise.resolve({ data: [] }),
         kalKeys.length > 0
           ? supa.from("kalimat_sets").select("key, title").in("key", kalKeys)

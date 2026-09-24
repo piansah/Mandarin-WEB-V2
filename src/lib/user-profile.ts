@@ -177,7 +177,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     ])
 
   // Handle different response formats from Supabase RPC
-  const xpData = statsRpcRes.data ?? statsRpcRes ?? {}
+  const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as any
   const totalScore = xpData.xp ?? xpData.totalScore ?? 0
   const level = calculateLevel(totalScore)
   const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))

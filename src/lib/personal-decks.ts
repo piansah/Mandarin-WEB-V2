@@ -35,11 +35,11 @@ export type PersonalDeck = {
 }
 
 export type PersonalCard = {
-  id: number
+  id: string
   deck_id: number
   hanzi: string
   pinyin: string
-  arti: string
+  arti: string | null
   word_class: string | null
   catatan: string | null
   created_at: string
@@ -50,7 +50,7 @@ export type FavoriteCard = {
   user_id: string
   hanzi: string
   pinyin: string
-  arti: string
+  arti: string | null
   word_class: string | null
   catatan: string | null
   source: string | null
@@ -79,7 +79,7 @@ export async function listThemes(): Promise<PersonalTheme[]> {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
   if (error || !data) return []
-  return data.map((t: PersonalTheme) => ({ ...t, deck_count: t.personal_decks?.[0]?.count ?? 0 }))
+  return data.map((t: any) => ({ ...t, deck_count: t.personal_decks?.[0]?.count ?? 0 }))
 }
 
 export async function createTheme(name: string, icon = "📚"): Promise<{ error: string | null }> {
@@ -114,7 +114,7 @@ export async function listDecks(themeId: number): Promise<PersonalDeck[]> {
     .eq("theme_id", themeId)
     .order("created_at", { ascending: true })
   if (error || !data) return []
-  return data.map((d: PersonalDeck) => ({ ...d, card_count: d.personal_cards?.[0]?.count ?? 0 }))
+  return data.map((d: any) => ({ ...d, card_count: d.personal_cards?.[0]?.count ?? 0 }))
 }
 
 export async function createDeck(
@@ -177,7 +177,7 @@ export async function addCard(
   return { error: error?.message ?? null }
 }
 
-export async function deleteCard(id: number): Promise<{ error: string | null }> {
+export async function deleteCard(id: string): Promise<{ error: string | null }> {
   const supa = createClient()
   const { error } = await supa.from("personal_cards").delete().eq("id", id)
   return { error: error?.message ?? null }

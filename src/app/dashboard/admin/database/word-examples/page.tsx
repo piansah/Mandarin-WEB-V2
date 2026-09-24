@@ -15,25 +15,20 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Search } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { Plus, Edit, Trash2, Search, Loader2 } from "lucide-react"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { Database } from "@/lib/database.types"
 
-const supa = createClient()
-
-interface WordExample {
-  id: number
-  word_hanzi: string
-  hanzi: string
-  pinyin: string | null
-  arti: string | null
-  added_by: string | null
-  created_at: string
-}
+type WordExample = Database["public"]["Tables"]["word_examples"]["Row"]
 
 export default function WordExamplesPage() {
-  const [examples, setExamples] = React.useState<WordExample[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  // UI State
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingExample, setEditingExample] = React.useState<WordExample | null>(null)
   const [deletingExample, setDeletingExample] = React.useState<WordExample | null>(null)
@@ -43,167 +38,129 @@ export default function WordExamplesPage() {
     pinyin: "",
     arti: ""
   })
+  
+  // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
 
-
-  const [debouncedSearch, setDebouncedSearch] = React.useState("")
-
+  // Debounce search
   React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery)
+      setCurrentPage(1) // Reset to page 1 on new search
     }, 300)
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  // Reset ke page 1 ketika user mengetik search
+  // Reset to page 1 when rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [rowsPerPage])
 
-  const fetchWordExamples = React.useCallback(async () => {
-    try {
-      // Build base query dengan search filter
-      let query = supa
-        .from("word_examples")
-        .select("*")
-
-      // Apply search filter di level database (server-side)
-      if (debouncedSearch.trim()) {
-        query = query.or(`word_hanzi.ilike.%${debouncedSearch}%,hanzi.ilike.%${debouncedSearch}%,pinyin.ilike.%${debouncedSearch}%,arti.ilike.%${debouncedSearch}%`)
-      }
-
-      // Dapatkan total count dengan filter yang sama
-      const { count: totalCount, error: countError } = await supa
-        .from("word_examples")
-        .select("*", { count: "exact", head: true })
+  // --- QUERY: Fetch Word Examples ---
+  const { data, isLoading } = useQuery({
+    queryKey: ["word-examples", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("word_examples").select("*", { count: "exact" })
 
       if (debouncedSearch.trim()) {
-        // Apply search filter untuk count query juga
-        const { count: searchCount, error: searchCountError } = await supa
-          .from("word_examples")
-          .select("*", { count: "exact", head: true })
-          .or(`word_hanzi.ilike.%${debouncedSearch}%,hanzi.ilike.%${debouncedSearch}%,pinyin.ilike.%${debouncedSearch}%,arti.ilike.%${debouncedSearch}%`)
-        
-        if (!searchCountError) {
-          setTotalRows(searchCount || 0)
-        } else {
-          throw searchCountError
-        }
-      } else {
-        if (countError) throw countError
-        setTotalRows(totalCount || 0)
+        const term = `%${debouncedSearch}%`
+        query = query.or(`word_hanzi.ilike.${term},hanzi.ilike.${term},pinyin.ilike.${term},arti.ilike.${term}`)
       }
 
-      // Fetch data dengan pagination
       const from = (currentPage - 1) * rowsPerPage
       const to = from + rowsPerPage - 1
 
-      const { data, error } = await query
+      const { data, count, error } = await query
         .order("created_at", { ascending: false })
         .range(from, to)
 
       if (error) throw error
-
-      console.log("Word Examples fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        debouncedSearch,
-        range: `${from}-${to}`
-      })
       
-      setExamples(data || [])
-    } catch (error) {
-      console.error("Error fetching word examples:", error)
-    } finally {
-      setLoading(false)
+      return {
+        examples: data || [],
+        totalCount: count || 0
+      }
     }
-    }, [currentPage, rowsPerPage, debouncedSearch])
+  })
 
-  React.useEffect(() => {
-    fetchWordExamples()
-  }, [fetchWordExamples])
-
-
-  // Pagination logic (server-side)
+  const examples = data?.examples || []
+  const totalRows = data?.totalCount || 0
   const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
-  // Reset to page 1 when search or rowsPerPage changes
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, rowsPerPage])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchWordExamples()
-  }, [currentPage, rowsPerPage])
 
-  const handleAdd = async () => {
-    try {
-      const { error } = await supa
-        .from("word_examples")
-        .insert({
-          word_hanzi: formData.word_hanzi,
-          hanzi: formData.hanzi,
-          pinyin: formData.pinyin || null,
-          arti: formData.arti || null
-        })
-
+  // --- MUTATIONS ---
+  const addMutation = useMutation({
+    mutationFn: async (newExample: { word_hanzi: string; hanzi: string; pinyin: string | null; arti: string | null }) => {
+      const { error } = await supa.from("word_examples").insert(newExample)
       if (error) throw error
-
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
       setShowAddModal(false)
       setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
-      fetchWordExamples()
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Error adding word example:", error)
       alert("Gagal menambahkan contoh kalimat")
     }
-  }
+  })
 
-  const handleEdit = async () => {
-    if (!editingExample) return
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: { word_hanzi: string; hanzi: string; pinyin: string | null; arti: string | null } }) => {
+      const { error } = await supa.from("word_examples").update(data).eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
+      setEditingExample(null)
+      setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
+    },
+    onError: (error) => {
+      console.error("Error updating word example:", error)
+      alert("Gagal mengupdate contoh kalimat")
+    }
+  })
 
-    try {
-      const { error } = await supa
-        .from("word_examples")
-        .update({
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supa.from("word_examples").delete().eq("id", id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
+      setDeletingExample(null)
+    },
+    onError: (error) => {
+      console.error("Error deleting word example:", error)
+      alert("Gagal menghapus contoh kalimat")
+    }
+  })
+
+  // Handlers
+  const handleAdd = () => addMutation.mutate({
+    word_hanzi: formData.word_hanzi,
+    hanzi: formData.hanzi,
+    pinyin: formData.pinyin || null,
+    arti: formData.arti || null
+  })
+
+  const handleEdit = () => {
+    if (editingExample) {
+      updateMutation.mutate({
+        id: editingExample.id,
+        data: {
           word_hanzi: formData.word_hanzi,
           hanzi: formData.hanzi,
           pinyin: formData.pinyin || null,
           arti: formData.arti || null
-        })
-        .eq("id", editingExample.id)
-
-      if (error) throw error
-
-      setEditingExample(null)
-      setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
-      fetchWordExamples()
-    } catch (error) {
-      console.error("Error updating word example:", error)
-      alert("Gagal mengupdate contoh kalimat")
+        }
+      })
     }
   }
 
-  const handleDelete = async () => {
-    if (!deletingExample) return
-
-    try {
-      const { error } = await supa
-        .from("word_examples")
-        .delete()
-        .eq("id", deletingExample.id)
-
-      if (error) throw error
-
-      setDeletingExample(null)
-      fetchWordExamples()
-    } catch (error) {
-      console.error("Error deleting word example:", error)
-      alert("Gagal menghapus contoh kalimat")
+  const handleDelete = () => {
+    if (deletingExample) {
+      deleteMutation.mutate(deletingExample.id)
     }
   }
 
@@ -217,13 +174,7 @@ export default function WordExamplesPage() {
     })
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    )
-  }
+  const isMutating = addMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -231,7 +182,7 @@ export default function WordExamplesPage() {
       <div className="flex items-center gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold tracking-tight">Word Examples</h1>
-          <p className="text-sm text-muted-foreground">Kelola contoh kalimat kata</p>
+          <p className="text-sm text-muted-foreground">Kelola contoh kalimat kata (Powered by React Query)</p>
         </div>
       </div>
 
@@ -248,7 +199,7 @@ export default function WordExamplesPage() {
                 className="pl-10"
               />
             </div>
-            <Button onClick={() => setShowAddModal(true)}>
+            <Button onClick={() => setShowAddModal(true)} disabled={isLoading || isMutating}>
               <Plus className="h-4 w-4 mr-2" />
               Tambah
             </Button>
@@ -256,75 +207,81 @@ export default function WordExamplesPage() {
         </CardContent>
       </Card>
 
-      {/* Table */}
-      {!loading && (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Word Hanzi</TableHead>
-                  <TableHead>Kalimat Hanzi</TableHead>
-                  <TableHead>Pinyin</TableHead>
-                  <TableHead>Arti</TableHead>
-                  <TableHead>Dibuat</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {examples.map((example) => (
-                  <TableRow key={example.id}>
-                    <TableCell className="font-medium">{example.id}</TableCell>
-                    <TableCell>{example.word_hanzi}</TableCell>
-                    <TableCell>{example.hanzi}</TableCell>
-                    <TableCell>{example.pinyin || "-"}</TableCell>
-                    <TableCell>{example.arti || "-"}</TableCell>
-                    <TableCell>
-                      {new Date(example.created_at).toLocaleDateString("id-ID")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEditModal(example)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setDeletingExample(example)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {examples.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Tidak ada data
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-            <div className="p-4 border-t">
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                rowsPerPage={rowsPerPage}
-                totalRows={totalRows}
-                onPageChange={setCurrentPage}
-                onRowsPerPageChange={setRowsPerPage}
-              />
+      {/* Table Area */}
+      <Card>
+        <CardContent className="p-0 relative min-h-[300px]">
+          {isLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/50 backdrop-blur-sm">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Word Hanzi</TableHead>
+                <TableHead>Kalimat Hanzi</TableHead>
+                <TableHead>Pinyin</TableHead>
+                <TableHead>Arti</TableHead>
+                <TableHead>Dibuat</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {examples.map((example) => (
+                <TableRow key={example.id}>
+                  <TableCell className="font-medium">{example.id}</TableCell>
+                  <TableCell>{example.word_hanzi}</TableCell>
+                  <TableCell>{example.hanzi}</TableCell>
+                  <TableCell>{example.pinyin || "-"}</TableCell>
+                  <TableCell>{example.arti || "-"}</TableCell>
+                  <TableCell>
+                    {new Date(example.created_at || "").toLocaleDateString("id-ID")}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openEditModal(example)}
+                        disabled={isMutating}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeletingExample(example)}
+                        disabled={isMutating}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!isLoading && examples.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    Tidak ada data
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <div className="p-4 border-t">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              rowsPerPage={rowsPerPage}
+              totalRows={totalRows}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={setRowsPerPage}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Add Modal */}
       {showAddModal && (
@@ -369,11 +326,11 @@ export default function WordExamplesPage() {
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                <Button variant="outline" onClick={() => setShowAddModal(false)} disabled={addMutation.isPending}>
                   Batal
                 </Button>
-                <Button onClick={handleAdd}>
-                  Simpan
+                <Button onClick={handleAdd} disabled={addMutation.isPending}>
+                  {addMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan"}
                 </Button>
               </div>
             </CardContent>
@@ -420,11 +377,11 @@ export default function WordExamplesPage() {
                 />
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setEditingExample(null)}>
+                <Button variant="outline" onClick={() => setEditingExample(null)} disabled={updateMutation.isPending}>
                   Batal
                 </Button>
-                <Button onClick={handleEdit}>
-                  Update
+                <Button onClick={handleEdit} disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update"}
                 </Button>
               </div>
             </CardContent>
@@ -453,11 +410,11 @@ export default function WordExamplesPage() {
                 </p>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setDeletingExample(null)}>
+                <Button variant="outline" onClick={() => setDeletingExample(null)} disabled={deleteMutation.isPending}>
                   Batal
                 </Button>
-                <Button variant="destructive" onClick={handleDelete}>
-                  Hapus
+                <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+                  {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Hapus"}
                 </Button>
               </div>
             </CardContent>
