@@ -3,8 +3,14 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, Search, ClipboardCheck } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, ClipboardCheck } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -57,7 +63,6 @@ export default function ModulQuizzesPage() {
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
-
 
   React.useEffect(() => {
     fetchModulModules()
@@ -121,13 +126,6 @@ export default function ModulQuizzesPage() {
 
       if (error) throw error
 
-      console.log("Modul Quizzes fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
       
       setQuizzes(data || [])
     } catch (error) {
@@ -139,7 +137,7 @@ export default function ModulQuizzesPage() {
 
   const handleAdd = async () => {
     try {
-      console.log("Adding modul quiz:", formData)
+
       const { error } = await supa
         .from("modul_quizzes")
         .insert({
@@ -167,7 +165,7 @@ export default function ModulQuizzesPage() {
     if (!editingQuiz) return
 
     try {
-      console.log("Updating modul quiz:", formData)
+
       const { error } = await supa
         .from("modul_quizzes")
         .update({
@@ -201,7 +199,7 @@ export default function ModulQuizzesPage() {
     if (!deletingQuiz) return
 
     try {
-      console.log("Deleting modul quiz:", deletingQuiz.id)
+
       
       // Quiz questions are linked to module_id, not quiz_id
       // So we can delete quiz without checking for questions
@@ -325,15 +323,24 @@ export default function ModulQuizzesPage() {
                       <TableCell>{quiz.passing_score}%</TableCell>
                       <TableCell>{new Date(quiz.created_at).toLocaleDateString('id-ID')}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(quiz)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(quiz)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(quiz)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(quiz)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                     </TableRow>
                   )
                 })

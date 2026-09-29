@@ -3,11 +3,17 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, HelpCircle } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, HelpCircle } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -65,7 +71,6 @@ export default function ModulQuizQuestionsPage() {
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
-
 
   React.useEffect(() => {
     fetchModulModules()
@@ -129,14 +134,6 @@ export default function ModulQuizQuestionsPage() {
 
       if (error) throw error
 
-      console.log("Modul Quiz Questions fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
-      
       setQuestions(data || [])
     } catch (error) {
       console.error("Error fetching modul quiz questions:", error)
@@ -147,8 +144,7 @@ export default function ModulQuizQuestionsPage() {
 
   const handleAdd = async () => {
     try {
-      console.log("Adding modul quiz question:", formData)
-      
+
       // Parse JSON options
       let parsedOptions = null
       try {
@@ -191,8 +187,7 @@ export default function ModulQuizQuestionsPage() {
     if (!editingQuestion) return
 
     try {
-      console.log("Updating modul quiz question:", formData)
-      
+
       // Parse JSON options
       let parsedOptions = null
       try {
@@ -241,7 +236,7 @@ export default function ModulQuizQuestionsPage() {
     if (!deletingQuestion) return
 
     try {
-      console.log("Deleting modul quiz question:", deletingQuestion.id)
+
       const { error } = await supa
         .from("modul_quiz_questions")
         .delete()
@@ -364,8 +359,8 @@ export default function ModulQuizQuestionsPage() {
                       <TableCell>
                         <Badge variant={
                           question.question_type === "mcq" ? "default" :
-                          question.question_type === "audio" ? "secondary" :
-                          "outline"
+                            question.question_type === "audio" ? "secondary" :
+                              "outline"
                         }>
                           {question.question_type}
                         </Badge>
@@ -373,14 +368,23 @@ export default function ModulQuizQuestionsPage() {
                       <TableCell className="font-mono text-sm">{question.correct_option_id}</TableCell>
                       <TableCell>{question.order_index}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(question)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(question)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                              <MoreVertical className="h-4 w-4" />
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditModal(question)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteClick(question)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   )
@@ -410,83 +414,83 @@ export default function ModulQuizQuestionsPage() {
                 <CardTitle>{editingQuestion ? "Edit Modul Quiz Question" : "Tambah Modul Quiz Question"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">modul</label>
-                <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih modul" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {modules.map((modul) => (
-                      <SelectItem key={modul.id} value={modul.id}>
-                        {modul.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Question Text</label>
-                <Textarea
-                  value={formData.question_text}
-                  onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                  placeholder="Pertanyaan quiz..."
-                  className="min-h-[80px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Question Type</label>
-                <Select value={formData.question_type} onValueChange={(value) => setFormData({ ...formData, question_type: value })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    <SelectItem value="mcq">Multiple Choice</SelectItem>
-                    <SelectItem value="audio">Audio</SelectItem>
-                    <SelectItem value="speaking">Speaking</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Options (JSON)</label>
-                <Textarea
-                  value={formData.options}
-                  onChange={(e) => setFormData({ ...formData, options: e.target.value })}
-                  placeholder='[{"id": "A", "text": "Option A"}, {"id": "B", "text": "Option B"}]'
-                  className="font-mono text-sm min-h-[150px]"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format JSON untuk pilihan jawaban. Contoh: {`[{"id": "A", "text": "Option A"}, {"id": "B", "text": "Option B"}]`}
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Correct Option ID</label>
-                <Input
-                  value={formData.correct_option_id}
-                  onChange={(e) => setFormData({ ...formData, correct_option_id: e.target.value })}
-                  placeholder="Contoh: A"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Order Index</label>
-                <Input
-                  type="number"
-                  value={formData.order_index}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, order_index: Number.isNaN(parsed) ? 0 : parsed })
-                  }}
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button onClick={editingQuestion ? handleEdit : handleAdd} className="flex-1">
-                  {editingQuestion ? "Update" : "Tambah"}
-                </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingQuestion(null); setFormData({ module_id: "", question_text: "", question_type: "mcq", options: "", correct_option_id: "", order_index: 0 }) }}>
-                  Batal
-                </Button>
-              </div>
-            </CardContent>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">modul</label>
+                  <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih modul" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[10000]">
+                      {modules.map((modul) => (
+                        <SelectItem key={modul.id} value={modul.id}>
+                          {modul.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Question Text</label>
+                  <Textarea
+                    value={formData.question_text}
+                    onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
+                    placeholder="Pertanyaan quiz..."
+                    className="min-h-[80px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Question Type</label>
+                  <Select value={formData.question_type} onValueChange={(value) => setFormData({ ...formData, question_type: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="z-[10000]">
+                      <SelectItem value="mcq">Multiple Choice</SelectItem>
+                      <SelectItem value="audio">Audio</SelectItem>
+                      <SelectItem value="speaking">Speaking</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Options (JSON)</label>
+                  <Textarea
+                    value={formData.options}
+                    onChange={(e) => setFormData({ ...formData, options: e.target.value })}
+                    placeholder='[{"id": "A", "text": "Option A"}, {"id": "B", "text": "Option B"}]'
+                    className="font-mono text-sm min-h-[150px]"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format JSON untuk pilihan jawaban. Contoh: {`[{"id": "A", "text": "你好"}, {"id": "B", "text": "再见"}]`}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Correct Option ID</label>
+                  <Input
+                    value={formData.correct_option_id}
+                    onChange={(e) => setFormData({ ...formData, correct_option_id: e.target.value })}
+                    placeholder="Contoh: A"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Order Index</label>
+                  <Input
+                    type="number"
+                    value={formData.order_index}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10)
+                      setFormData({ ...formData, order_index: Number.isNaN(parsed) ? 0 : parsed })
+                    }}
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={editingQuestion ? handleEdit : handleAdd} className="flex-1">
+                    {editingQuestion ? "Update" : "Tambah"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingQuestion(null); setFormData({ module_id: "", question_text: "", question_type: "mcq", options: "", correct_option_id: "", order_index: 0 }) }}>
+                    Batal
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
         </div>

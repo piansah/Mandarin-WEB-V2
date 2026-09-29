@@ -3,8 +3,14 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -46,7 +52,6 @@ export default function ModulLevelsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-
   const fetchModulLevels = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
@@ -70,13 +75,6 @@ export default function ModulLevelsPage() {
 
       if (error) throw error
 
-      console.log("Modul Levels fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
       
       setLevels(data || [])
     } catch (error) {
@@ -90,10 +88,9 @@ export default function ModulLevelsPage() {
     fetchModulLevels()
   }, [fetchModulLevels])
 
-
   const handleAdd = async () => {
     try {
-      console.log("Adding modul level:", formData)
+
       const { error } = await supa
         .from("modul_levels")
         .insert({
@@ -118,7 +115,7 @@ export default function ModulLevelsPage() {
     if (!editingLevel) return
 
     try {
-      console.log("Updating modul level:", formData)
+
       const { error } = await supa
         .from("modul_levels")
         .update({
@@ -149,15 +146,13 @@ export default function ModulLevelsPage() {
     if (!deletingLevel) return
 
     try {
-      console.log("Deleting modul level:", deletingLevel.id)
+
       
       // Cek apakah ada modules yang terkait dengan level ini
       const { count: moduleCount, error: countError } = await supa
         .from("modul_modules")
         .select("*", { count: "exact", head: true })
         .eq("level_id", deletingLevel.id)
-
-      console.log("Module count check:", { moduleCount, error: countError })
 
       if (countError) {
         console.error("Error checking module count:", countError)
@@ -167,7 +162,7 @@ export default function ModulLevelsPage() {
       }
 
       if (moduleCount && moduleCount > 0) {
-        console.log("Blocking delete due to related modules:", moduleCount)
+
         setBlockingAlert({ 
           message: `Tidak dapat menghapus level ini karena masih ada ${moduleCount} modul yang terkait. Pindahkan atau hapus modul terlebih dahulu.` 
         })
@@ -175,7 +170,6 @@ export default function ModulLevelsPage() {
         return
       }
 
-      console.log("Proceeding with delete, no related modules found")
       const { error } = await supa
         .from("modul_levels")
         .delete()
@@ -282,14 +276,23 @@ export default function ModulLevelsPage() {
                     <TableCell>{level.order_index}</TableCell>
                     <TableCell>{new Date(level.created_at).toLocaleDateString('id-ID')}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(level)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(level)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(level)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(level)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))

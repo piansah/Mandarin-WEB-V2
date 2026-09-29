@@ -661,7 +661,6 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-
       {/* Aktivitas Terbaru */}
       <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm">
         <CardHeader className="pb-3">

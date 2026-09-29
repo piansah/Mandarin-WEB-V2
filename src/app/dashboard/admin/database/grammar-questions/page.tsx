@@ -3,9 +3,15 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Layers, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, Layers, Loader2 } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -231,10 +237,23 @@ export default function GrammarQuestionsPage() {
                     <TableCell>{q.sort_order}</TableCell>
                     <TableCell className="max-w-xs truncate">{q.explanation ?? "-"}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(q)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingQuestion(q)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(q)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeletingQuestion(q)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

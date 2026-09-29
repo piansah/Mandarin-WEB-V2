@@ -3,9 +3,15 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, FileText, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, FileText, Loader2 } from "lucide-react"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -177,7 +183,7 @@ export default function FlashcardCardsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>ID</TableHead><TableHead>Hanzi</TableHead><TableHead>Pinyin</TableHead>
-                  <TableHead>Arti</TableHead><TableHead>Word Class</TableHead><TableHead>Set</TableHead>
+                  <TableHead>Meaning</TableHead><TableHead>Word Class</TableHead><TableHead>Set</TableHead>
                   <TableHead>Catatan</TableHead><TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -192,10 +198,23 @@ export default function FlashcardCardsPage() {
                     <TableCell><Badge variant="outline">Set {card.set_id}</Badge></TableCell>
                     <TableCell className="max-w-xs truncate">{card.catatan ?? "-"}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(card)}><Edit className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingCard(card)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(card)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeletingCard(card)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

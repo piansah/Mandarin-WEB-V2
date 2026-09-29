@@ -48,8 +48,6 @@ export default function ModulKuisPage() {
     }
   }, [params.slug])
 
-
-
   const questions = quiz?.questions ?? []
   const currentQuestion = questions[currentIndex]
   const isLastQuestion = currentIndex === questions.length - 1

@@ -4,7 +4,12 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { BookOpen, Search, Camera, Loader2, Clock, X, Volume2, ChevronDown, Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { OCRScanner } from "@/components/ocr-scanner"
+import dynamic from "next/dynamic"
+
+const OCRScanner = dynamic(() => import("@/components/ocr-scanner").then(mod => mod.OCRScanner), {
+  ssr: false,
+  loading: () => <div className="p-10 flex justify-center text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
+})
 import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalSearchCache, getWordDetailPath } from "@/lib/hanzi-segmentation"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"

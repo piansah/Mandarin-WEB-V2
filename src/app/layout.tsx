@@ -29,7 +29,6 @@ const zcoolXiaoWei = ZCOOL_XiaoWei({
   adjustFontFallback: false,
 });
 
-
 export const metadata: Metadata = {
   title: "Journey Learning - Belajar Bahasa Selangkah Demi Selangkah",
   description: "Platform belajar bahasa modern — dimulai dari Mandarin HSK 3.0, dengan lebih banyak bahasa segera menyusul.",

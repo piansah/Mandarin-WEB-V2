@@ -3,9 +3,15 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Layers } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, Layers } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -46,7 +52,6 @@ export default function WordCompoundsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-
   const fetchWordCompounds = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
@@ -68,13 +73,6 @@ export default function WordCompoundsPage() {
 
       if (error) throw error
 
-      console.log("Word Compounds fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
       
       setCompounds(data || [])
       setTotalRows(totalCount || 0)
@@ -88,7 +86,6 @@ export default function WordCompoundsPage() {
   React.useEffect(() => {
     fetchWordCompounds()
   }, [fetchWordCompounds])
-
 
   const handleAdd = async () => {
     try {
@@ -143,7 +140,7 @@ export default function WordCompoundsPage() {
     if (!deletingCompound) return
 
     try {
-      console.log("Deleting word compound:", deletingCompound.id)
+
       const { error } = await supa
         .from("word_compounds")
         .delete()
@@ -249,7 +246,7 @@ export default function WordCompoundsPage() {
                   <TableHead>ID</TableHead>
                   <TableHead>Hanzi</TableHead>
                   <TableHead>Pinyin</TableHead>
-                  <TableHead>Arti</TableHead>
+                  <TableHead>Meaning</TableHead>
                   <TableHead>Badge</TableHead>
                   <TableHead>Frequency</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -269,14 +266,23 @@ export default function WordCompoundsPage() {
                     </TableCell>
                     <TableCell>{compound.frequency}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(compound)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingCompound(compound)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(compound)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeletingCompound(compound)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -3,6 +3,12 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Pagination } from "@/components/ui/pagination"
-import { Plus, Edit, Trash2, Search, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, Loader2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import type { Database } from "@/lib/database.types"
@@ -223,8 +229,8 @@ export default function WordExamplesPage() {
                 <TableHead>Word Hanzi</TableHead>
                 <TableHead>Kalimat Hanzi</TableHead>
                 <TableHead>Pinyin</TableHead>
-                <TableHead>Arti</TableHead>
-                <TableHead>Dibuat</TableHead>
+                <TableHead>Meaning</TableHead>
+                <TableHead>Created</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
@@ -240,24 +246,23 @@ export default function WordExamplesPage() {
                     {new Date(example.created_at || "").toLocaleDateString("id-ID")}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openEditModal(example)}
-                        disabled={isMutating}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setDeletingExample(example)}
-                        disabled={isMutating}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(example)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeletingExample(example)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

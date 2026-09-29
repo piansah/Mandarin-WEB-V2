@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -132,10 +131,10 @@ export default function MatchGamePage() {
         .from("flashcard_cards")
         .select("id, hanzi, pinyin, arti")
         .in("set_id", setIds)
-        .neq("hanzi", null)
-        .neq("pinyin", null)
+        .not("hanzi", "is", null)
+        .not("pinyin", "is", null)
       if (error) throw error
-      const valid = (data as GameWord[]).filter(w => w.hanzi && w.pinyin)
+      const valid = (data as unknown as GameWord[]).filter(w => w.hanzi && w.pinyin)
       // Shuffle the valid words
       valid.sort(() => Math.random() - 0.5)
       setWords(valid)
@@ -383,8 +382,6 @@ export default function MatchGamePage() {
             </div>
           </div>
         )}
-
-
 
         {/* === Playing === */}
         {gameState === "playing" && !loading && words.length >= 8 && (

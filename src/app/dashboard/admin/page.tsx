@@ -114,11 +114,11 @@ export default function AdminDashboardPage() {
           const Icon = stat.icon
           return (
             <Card key={stat.label} className="border-muted/50">
-              <CardContent className="p-5 flex items-start gap-4">
+              <CardContent className="p-5 flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div className={`p-2.5 rounded-xl bg-muted`}>
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 text-left">
                   <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
                   <span className="text-2xl font-bold tracking-tight">{stat.value}</span>
                 </div>

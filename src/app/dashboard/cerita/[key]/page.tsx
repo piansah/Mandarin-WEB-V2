@@ -25,7 +25,6 @@ import { PracticeHeader } from "@/components/practice-header"
 import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 
-
 type QuizQuestion = {
   q: string
   options: string[]
@@ -173,7 +172,6 @@ export default function CeritaReadPage() {
     // level di atas. Lihat juga catatan serupa di swipe-flashcard-session.tsx.
     return (rootRef.current?.closest(".overflow-auto") as HTMLElement | null) ?? rootRef.current
   }, [])
-
 
   /* ── Load data ── */
   React.useEffect(() => {

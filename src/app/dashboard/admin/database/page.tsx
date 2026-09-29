@@ -1,10 +1,15 @@
-// @ts-nocheck
 "use client"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare, HelpCircle, Tag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 

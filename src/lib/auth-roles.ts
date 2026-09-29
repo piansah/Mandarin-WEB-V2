@@ -24,6 +24,8 @@ export interface UserProfileWithRole {
   email: string | null  // Email akan diambil secara terpisah dari auth.users jika diperlukan
   created_at: string | null
   updated_at: string | null
+  title_id: string | null
+  unlocked_tiers: string[] | null
 }
 
 // Hardcoded superadmin emails (hanya superadmin yang bisa menambah/hapus admin)
@@ -200,7 +202,6 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
   const callerIsAdmin = await isAdmin()
   const callerIsRegularAdmin = callerIsAdmin && !callerIsSuperAdmin
 
-
   if (!callerIsAdmin) {
     return []
   }
@@ -213,7 +214,7 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
       // Fallback ke query biasa jika RPC tidak ada
       const { data: fallbackData, error: fallbackError } = await supa
         .from("user_profile")
-        .select("user_id, display_name, role, created_at, updated_at")
+        .select("user_id, display_name, role, created_at, updated_at, title_id, unlocked_tiers")
         .order("created_at", { ascending: false })
       
       if (fallbackError) {
@@ -235,7 +236,7 @@ export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
       // Fallback ke query biasa
       let query = supa
         .from("user_profile")
-        .select("user_id, display_name, role, created_at, updated_at")
+        .select("user_id, display_name, role, created_at, updated_at, title_id, unlocked_tiers")
         .order("created_at", { ascending: false })
       
       query = query.in("role", ["user", "admin"])

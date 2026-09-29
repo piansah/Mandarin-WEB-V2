@@ -3,11 +3,17 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -76,7 +82,6 @@ export default function ModulModulePartsPage() {
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
-
 
   const fetchModulModules = React.useCallback(async () => {
     try {
@@ -159,7 +164,7 @@ export default function ModulModulePartsPage() {
     }
 
     try {
-      console.log("Adding modul modul part:", formData)
+
       
       // Parse content
       let parsedContent = null
@@ -250,7 +255,7 @@ export default function ModulModulePartsPage() {
     }
 
     try {
-      console.log("Updating modul modul part:", formData)
+
       
       // Parse content
       let parsedContent = null
@@ -522,15 +527,24 @@ export default function ModulModulePartsPage() {
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(part)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(part)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(part)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(part)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                     </TableRow>
                   )
                 })

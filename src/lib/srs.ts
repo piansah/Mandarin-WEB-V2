@@ -12,6 +12,7 @@ export type DueFlashcard = {
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
+  wordClass?: string
 }
 
 function todayStr() {
@@ -87,7 +88,7 @@ export async function fetchDueFlashcards(
     const chunk = cardIds.slice(i, i + 100)
     const { data } = await supa
       .from("flashcard_cards")
-      .select("id, hanzi, pinyin, arti, set_id")
+      .select("id, hanzi, pinyin, arti, set_id, word_class")
       .in("id", chunk)
 
     // Fetch deck info for all unique set_ids
@@ -148,6 +149,7 @@ export async function fetchDueFlashcards(
         srsLevel: progressByCard.get(String(card.id))?.srs_level ?? 0,
         deckTitle: deckInfo?.title,
         deckHskLevel: deckInfo?.hsk_level,
+        wordClass: card.word_class ?? undefined,
         exampleSentence: example?.hanzi,
         examplePinyin: example?.pinyin,
         exampleTranslation: example?.arti,

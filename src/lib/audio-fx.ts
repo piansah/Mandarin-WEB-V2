@@ -68,7 +68,6 @@ export function playErrorSound() {
   }
 }
 
-
 class BGMPlayer {
   private ctx: AudioContext | null = null
   private osc: OscillatorNode | null = null

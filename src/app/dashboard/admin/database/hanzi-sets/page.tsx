@@ -3,9 +3,15 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, Flag } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, Flag } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -55,7 +61,6 @@ export default function HanziSetsPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-
   const fetchHanziSets = React.useCallback(async () => {
     try {
       // Dapatkan total count dulu
@@ -77,13 +82,6 @@ export default function HanziSetsPage() {
 
       if (error) throw error
 
-      console.log("Hanzi Sets fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
       
       setSets(data || [])
       setTotalRows(totalCount || 0)
@@ -97,7 +95,6 @@ export default function HanziSetsPage() {
   React.useEffect(() => {
     fetchHanziSets()
   }, [fetchHanziSets])
-
 
   const handleAdd = async () => {
     try {
@@ -162,15 +159,13 @@ export default function HanziSetsPage() {
     if (!deletingSet) return
 
     try {
-      console.log("Deleting hanzi set:", deletingSet.id)
+
       
       // Cek apakah ada items yang terkait dengan set ini
       const { count: itemCount, error: countError } = await supa
         .from("hanzi_items")
         .select("*", { count: "exact", head: true })
         .eq("hanzi_key", deletingSet.key)
-
-      console.log("Item count check:", { itemCount, error: countError })
 
       if (countError) {
         console.error("Error checking item count:", countError)
@@ -180,7 +175,7 @@ export default function HanziSetsPage() {
       }
 
       if (itemCount && itemCount > 0) {
-        console.log("Blocking delete due to related items:", itemCount)
+
         setBlockingAlert({ 
           message: `Tidak dapat menghapus set ini karena masih ada ${itemCount} item yang terkait. Pindahkan atau hapus item terlebih dahulu.` 
         })
@@ -188,7 +183,6 @@ export default function HanziSetsPage() {
         return
       }
 
-      console.log("Proceeding with delete, no related items found")
       const { error } = await supa
         .from("hanzi_sets")
         .delete()
@@ -324,14 +318,23 @@ export default function HanziSetsPage() {
                     <TableCell>{set.unlock_after}</TableCell>
                     <TableCell>{set.sort_order}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(set)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(set)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(set)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(set)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

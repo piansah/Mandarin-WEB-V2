@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -63,10 +62,9 @@ export default function FavoritesPage() {
   }
 
   async function handleOpenDetail(card: FavoriteCard) {
-    console.log("Opening detail for card:", card)
 
     if (!card.source_id) {
-      console.log("No source_id, trying to search by hanzi")
+
       // If no source_id, try to find by hanzi
       const { createClient } = await import("@/lib/supabase/browser")
       const supa = createClient()
@@ -79,7 +77,7 @@ export default function FavoritesPage() {
         .maybeSingle()
 
       if (flashcardData) {
-        console.log("Found in flashcard_cards:", flashcardData)
+
         router.push(`/dashboard/flashcard/${flashcardData.set_id}/word/${flashcardData.id}`)
         return
       }
@@ -92,12 +90,11 @@ export default function FavoritesPage() {
         .maybeSingle()
 
       if (compoundData) {
-        console.log("Found in word_compounds:", compoundData)
+
         router.push(`/dashboard/flashcard/search/word/${compoundData.id}`)
         return
       }
 
-      console.log("Not found in any table")
       alert("Kata ini tidak ditemukan di database utama")
       return
     }

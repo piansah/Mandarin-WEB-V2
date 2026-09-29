@@ -12,9 +12,11 @@ import { SwipeFlashcard, SwipeFlashcardSessionProps } from "./flashcard-session/
 import { formatIntervalDays } from "./flashcard-session/utils"
 import { useFlashcardSession } from "./flashcard-session/use-flashcard-session"
 import { FlashcardCard } from "./flashcard-session/flashcard-card"
-import { FlashcardSettingsModal } from "./flashcard-session/flashcard-settings-modal"
-import { FlashcardResetModal } from "./flashcard-session/flashcard-reset-modal"
-import { FlashcardSessionSummary } from "./flashcard-session/flashcard-session-summary"
+import dynamic from "next/dynamic"
+
+const FlashcardSettingsModal = dynamic(() => import("./flashcard-session/flashcard-settings-modal").then(mod => mod.FlashcardSettingsModal))
+const FlashcardResetModal = dynamic(() => import("./flashcard-session/flashcard-reset-modal").then(mod => mod.FlashcardResetModal))
+const FlashcardSessionSummary = dynamic(() => import("./flashcard-session/flashcard-session-summary").then(mod => mod.FlashcardSessionSummary))
 
 export type { SwipeFlashcard }
 

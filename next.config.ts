@@ -13,7 +13,13 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
+const analyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+const configWithSentry = withSentryConfig(nextConfig, {
   org: "your-org-name",
   project: "your-project-name",
 
@@ -36,3 +42,5 @@ export default withSentryConfig(nextConfig, {
     automaticVercelMonitors: true,
   },
 });
+
+export default analyzer(configWithSentry);

@@ -3,9 +3,15 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, Search, BookOpen, ExternalLink } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, BookOpen, ExternalLink } from "lucide-react"
 import { createClient } from "@/lib/supabase/browser"
 
 const supa = createClient()
@@ -74,7 +80,6 @@ export default function ModulModulesPage() {
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
   const [totalRows, setTotalRows] = React.useState(0)
 
-
   React.useEffect(() => {
     fetchModulLevels()
     fetchModulModules()
@@ -96,7 +101,7 @@ export default function ModulModulesPage() {
 
       if (error) throw error
       setLevels(data || [])
-      console.log("Levels fetched:", data)
+
     } catch (error) {
       console.error("Error fetching modul levels:", error)
     }
@@ -137,13 +142,6 @@ export default function ModulModulesPage() {
 
       if (error) throw error
 
-      console.log("Modul Modules fetched:", { 
-        totalCount, 
-        dataLength: data?.length, 
-        currentPage, 
-        rowsPerPage,
-        range: `${from}-${to}`
-      })
       
       setModules(data || [])
     } catch (error) {
@@ -155,7 +153,7 @@ export default function ModulModulesPage() {
 
   const handleAdd = async () => {
     try {
-      console.log("Adding modul module:", formData)
+
       const { error } = await supa
         .from("modul_modules")
         .insert({
@@ -197,7 +195,7 @@ export default function ModulModulesPage() {
     if (!editingModule) return
 
     try {
-      console.log("Updating modul module:", formData)
+
       const { error } = await supa
         .from("modul_modules")
         .update({
@@ -245,15 +243,13 @@ export default function ModulModulesPage() {
     if (!deletingModule) return
 
     try {
-      console.log("Deleting modul module:", deletingModule.id)
+
       
       // Cek apakah ada parts yang terkait dengan module ini
       const { count: partCount, error: countError } = await supa
         .from("modul_module_parts")
         .select("*", { count: "exact", head: true })
         .eq("module_id", deletingModule.id)
-
-      console.log("Part count check:", { partCount, error: countError })
 
       if (countError) {
         console.error("Error checking part count:", countError)
@@ -263,7 +259,7 @@ export default function ModulModulesPage() {
       }
 
       if (partCount && partCount > 0) {
-        console.log("Blocking delete due to related parts:", partCount)
+
         setBlockingAlert({ 
           message: `Tidak dapat menghapus modul ini karena masih ada ${partCount} part yang terkait. Pindahkan atau hapus part terlebih dahulu.` 
         })
@@ -271,7 +267,6 @@ export default function ModulModulesPage() {
         return
       }
 
-      console.log("Proceeding with delete, no related parts found")
       const { error } = await supa
         .from("modul_modules")
         .delete()
@@ -425,15 +420,24 @@ export default function ModulModulesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(module)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(module)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger>
+                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEditModal(module)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDeleteClick(module)} className="text-destructive">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Hapus
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                     </TableRow>
                   )
                 })

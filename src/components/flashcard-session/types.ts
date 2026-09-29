@@ -12,6 +12,7 @@ export type SwipeFlashcard = {
   setId?: string | number | null
   deckTitle?: string
   deckHskLevel?: number
+  wordClass?: string
 }
 
 export type SessionStats = {
