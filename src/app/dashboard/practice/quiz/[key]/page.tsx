@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { RotateCcw, SkipForward, CheckCircle2 } from "lucide-react"
+import { RotateCcw, SkipForward, CheckCircle2, Volume2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { Button } from "@/components/ui/button"
@@ -238,20 +238,35 @@ export default function QuizPage() {
 
       if (cancelled) return
 
-      // Generate quiz from cards
-      const generatedQuiz = generateQuizFromCards(cards, hanziKey, hanziItems)
-      const internalQuiz = convertToInternalQuiz(generatedQuiz)
-
-      // Save to localStorage
+      // Check localStorage for existing quiz state
       const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
-      const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-      saved[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false }
-      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
+      const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
+      const existingQuiz = savedState[storageKey]
+
+      let internalQuiz: QuizQuestion[]
+      let initialAnswered: Answered = {}
+      let initialSubmitted = false
+
+      if (existingQuiz && !existingQuiz.submitted) {
+        // Restore from localStorage
+        internalQuiz = existingQuiz.allQ
+        initialAnswered = existingQuiz.answered ?? {}
+        initialSubmitted = existingQuiz.submitted ?? false
+      } else {
+        // Generate new quiz
+        const generatedQuiz = generateQuizFromCards(cards, hanziKey, hanziItems)
+        internalQuiz = convertToInternalQuiz(generatedQuiz)
+
+        // Save to localStorage
+        savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false }
+        localStorage.setItem("hsk_quiz_state", JSON.stringify(savedState))
+      }
 
       setQuizTitle(deckTitle)
       setQuizSub(deckSub)
       setAllQ(internalQuiz)
-      setAnswered({})
+      setAnswered(initialAnswered)
+      setSubmitted(initialSubmitted)
       setLoading(false)
     }
     load()
@@ -304,6 +319,12 @@ export default function QuizPage() {
     // Calculate percentage
     const pct = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
     saveUserScore("quiz", key, pct).catch(() => {})
+    // Clear localStorage after successful submission
+    setTimeout(() => {
+      const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
+      delete saved[storageKey]
+      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
+    }, 1000)
   }
 
   /* ── Retry quiz ── */
@@ -520,7 +541,7 @@ export default function QuizPage() {
                               onClick={(e) => { e.stopPropagation(); replayQuestion(q.gi) }}
                               aria-label="Putar ulang"
                             >
-                              <RotateCcw className="h-3.5 w-3.5" />
+                              <Volume2 className="h-3.5 w-3.5" />
                             </button>
                           )}
                         </div>

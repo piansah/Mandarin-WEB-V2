@@ -117,13 +117,13 @@ export function DashboardHeader() {
 
         // Search stories
         const { data: stories } = await supa
-          .from("stories")
+          .from("cerita_sets")
           .select("key, title, title_zh")
           .or(`title.ilike.%${query}%,title_zh.ilike.%${query}%`)
           .limit(5)
 
-        if (stories) {
-          stories.forEach(story => {
+        if (stories && Array.isArray(stories)) {
+          stories.forEach((story: any) => {
             results.push({
               type: 'story',
               title: story.title,
@@ -137,13 +137,13 @@ export function DashboardHeader() {
 
         // Search grammar
         const { data: grammarRules } = await supa
-          .from("grammar_rules")
+          .from("grammar_patterns")
           .select("slug, title, description")
           .ilike("title", `%${query}%`)
           .limit(5)
 
-        if (grammarRules) {
-          grammarRules.forEach(rule => {
+        if (grammarRules && Array.isArray(grammarRules)) {
+          grammarRules.forEach((rule: any) => {
             results.push({
               type: 'grammar',
               title: rule.title,

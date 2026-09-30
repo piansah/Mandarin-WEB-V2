@@ -55,12 +55,6 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
     .eq("user_id", user.id)
     .eq("date", today)
     .maybeSingle()
-    
-  if (!existingStreak) {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("playStreakAnim", "true")
-    }
-  }
 
   const { error: streakErr } = await supa.from("daily_streaks").upsert(
     { user_id: user.id, date: today },

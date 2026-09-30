@@ -179,8 +179,6 @@ Rating engineering saat ini: **7.5 / 10** (Mid-Senior level).
 
 | Item | Detail |
 |---|---|
-| **Hapus `console.log` production** | 47 `console.log` masih ada — kebocoran info internal ke user |
-| **Hapus `@ts-nocheck`** | 1 file admin masih menggunakan escape hatch ini |
 | **React Server Components (RSC)** | Halaman yang tidak butuh interaktivitas bisa di-render penuh di server |
 | **Optimistic Updates** | Saat CRUD Admin, UI bisa berubah instan tanpa nunggu respons DB |
 

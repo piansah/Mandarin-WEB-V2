@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 "use client"
 
 import * as React from "react"
@@ -103,7 +103,7 @@ export default function WordDetailPage() {
         return
       }
 
-      const compoundRes = await supa.from("word_compounds").select("id, hanzi, pinyin, arti, badge").eq("id", cardId).maybeSingle()
+      const compoundRes = await supa.from("word_compounds").select("id, hanzi, pinyin, arti, badge").eq("id", Number(cardId)).maybeSingle()
       if (cancelled) return
       if (compoundRes.data) {
         setCard({

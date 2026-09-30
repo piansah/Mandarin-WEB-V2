@@ -223,12 +223,6 @@ export async function recordSrsReviewBatch(
     .eq("user_id", userId)
     .eq("date", todayStr())
     .maybeSingle()
-    
-  if (!existingStreak) {
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("playStreakAnim", "true")
-    }
-  }
 
   const { error: streakErr } = await supa.from("daily_streaks").upsert(
     { user_id: userId, date: todayStr() },

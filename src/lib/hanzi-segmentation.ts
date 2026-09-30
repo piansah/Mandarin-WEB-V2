@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 // src/lib/hanzi-segmentation.ts
 import { createClient } from "@/lib/supabase/browser"
 import { buildQueryTokens, matchPinyinTokens, stripTones, isIndonesianQuery } from "./pinyin-search"
@@ -123,7 +123,7 @@ export async function initGlobalSearchCache(forceRefresh = false) {
       
       while (hasMore) {
         const { data, error } = await supabase
-          .from(table)
+          .from(table as any)
           .select(select)
           .order("id", { ascending: true })
           .range(from, from + limit - 1)

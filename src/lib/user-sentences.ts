@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * USER SENTENCES — fitur untuk user menambahkan contoh kalimat ke word_examples
  * 
@@ -51,6 +51,7 @@ export async function submitUserSentence(
       hanzi: sentence.hanzi,
       pinyin: sentence.pinyin,
       arti: sentence.arti,
+      word_hanzi: sentence.hanzi_key,
       // section_label: "",
       // section_tag: "",
       // hanzi_item_id: null,

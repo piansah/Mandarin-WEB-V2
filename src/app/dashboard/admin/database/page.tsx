@@ -46,7 +46,7 @@ export default function AdminDatabasePage() {
         const countPromises = tables.map(async (table) => {
           try {
             const { count, error } = await supa
-              .from(table)
+              .from(table as any)
               .select("*", { count: "exact", head: true })
             
             if (!error && count !== null) {

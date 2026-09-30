@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * MODUL — data layer untuk `/dashboard/modul` dan `/dashboard/modul/[slug]`.
  *
@@ -178,7 +178,7 @@ export async function fetchModulOverview(): Promise<ModulOverview> {
 
   const progressByModule = new Map<string, { status: ModulStatus; progress_percent: number }>()
     ; (progressRes.data ?? []).forEach((row) => {
-      progressByModule.set(row.module_id, { status: row.status, progress_percent: row.progress_percent })
+      progressByModule.set(row.module_id, { status: row.status as ModulStatus, progress_percent: row.progress_percent })
     })
 
   // Urutan global: level dulu (order_index level), baru order_index modul di dalamnya.
@@ -318,7 +318,7 @@ export async function fetchModuleDetail(slug: string): Promise<ModulDetail | nul
     }),
     progress: progressRes.data
       ? {
-        status: progressRes.data.status,
+        status: progressRes.data.status as ModulStatus,
         currentPartId: progressRes.data.current_part_id,
         progressPercent: progressRes.data.progress_percent,
       }

@@ -55,7 +55,24 @@ export function useFlashcardSession({
 
   const disableSwipe = disableSwipeProp || !prefs.swipeEnabled
 
-  const [idx, setIdx] = React.useState(0)
+  const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+
+  const [idx, setIdx] = React.useState(() => {
+    if (typeof window === "undefined") return 0
+    try {
+      const saved = localStorage.getItem(sessionStorageKey)
+      if (!saved) return 0
+      const { savedIdx, timestamp } = JSON.parse(saved)
+      const hoursDiff = (Date.now() - timestamp) / (1000 * 60 * 60)
+      if (hoursDiff >= 24) {
+        localStorage.removeItem(sessionStorageKey)
+        return 0
+      }
+      return savedIdx
+    } catch {
+      return 0
+    }
+  })
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
   const [hafal, setHafal] = React.useState(0)
   const [lupa, setLupa] = React.useState(0)
@@ -108,6 +125,7 @@ export function useFlashcardSession({
     setFeedback(null)
     scoreSavedRef.current = false
     setSelectedRating(null)
+    localStorage.removeItem(sessionStorageKey)
   }, [sessionKey])
 
   const totalOriginal = orderedCards.length
@@ -130,8 +148,10 @@ export function useFlashcardSession({
   React.useEffect(() => {
     if (!done || cards.length === 0 || scoreSavedRef.current) return
     scoreSavedRef.current = true
+    const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+    localStorage.removeItem(key)
     onComplete?.({ hafal, lupa, ragu, sulit }, sessionReviews)
-  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete, sessionReviews])
+  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete, sessionReviews, userId, deckCardIds])
 
   React.useEffect(() => {
     if (!done || cards.length === 0) {
@@ -159,6 +179,18 @@ export function useFlashcardSession({
     const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
     return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
   }, [done, cards.length, hafal, sulit, ragu, lupa])
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || done) return
+    try {
+      const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+      localStorage.setItem(key, JSON.stringify({
+        savedIdx: idx,
+        timestamp: Date.now()
+      }))
+    } catch {
+    }
+  }, [idx, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -278,14 +310,14 @@ export function useFlashcardSession({
       const newReviews = [...sessionReviews, { cardId: String(card.id), quality, currentLevel: card.srsLevel ?? 0 }]
       setTimeout(() => onComplete?.(stats, newReviews), 0)
     } else {
-      setIdx(i => i + 1)
+      setIdx((i: number) => i + 1)
     }
   }
 
   function goToPrevious() {
     if (idx === 0) return
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
-    setIdx(i => Math.max(0, i - 1))
+    setIdx((i: number) => Math.max(0, i - 1))
   }
 
   function hideAnswer() {
@@ -296,7 +328,7 @@ export function useFlashcardSession({
     if (!card) return
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
     if (idx + 1 >= currentTotal) setDone(true)
-    else setIdx(i => i + 1)
+    else setIdx((i: number) => i + 1)
   }
 
   function onPointerDown(e: React.PointerEvent) {

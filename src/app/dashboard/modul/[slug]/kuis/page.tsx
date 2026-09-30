@@ -6,8 +6,9 @@ import { useParams, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { RotateCcw, ArrowLeft, CheckCircle2, XCircle, PartyPopper, ChevronRight } from "lucide-react"
+import { RotateCcw, ArrowLeft, CheckCircle2, XCircle, PartyPopper, ChevronRight, Volume2 } from "lucide-react"
 import { fetchModuleQuiz, saveQuizResult, type ModulQuiz } from "@/lib/modul"
+import { speakMandarin } from "@/lib/tts"
 
 export default function ModulKuisPage() {
   const params = useParams<{ slug: string }>()
@@ -35,7 +36,25 @@ export default function ModulKuisPage() {
           setError("Kuis untuk modul ini belum tersedia.")
           return
         }
-        setQuiz(data)
+
+        // Check localStorage for existing quiz state
+        const storageKey = `modul_quiz_${params.slug}`
+        const savedState = JSON.parse(localStorage.getItem("modul_quiz_state") ?? "{}")
+        const existingQuiz = savedState[storageKey]
+
+        if (existingQuiz && !existingQuiz.finished) {
+          // Restore from localStorage
+          setQuiz(data)
+          setAnswers(existingQuiz.answers ?? {})
+          setCurrentIndex(existingQuiz.currentIndex ?? 0)
+          setFinished(existingQuiz.finished ?? false)
+        } else {
+          // New quiz
+          setQuiz(data)
+          // Save initial state to localStorage
+          savedState[storageKey] = { answers: {}, currentIndex: 0, finished: false }
+          localStorage.setItem("modul_quiz_state", JSON.stringify(savedState))
+        }
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : String(err))
@@ -84,16 +103,38 @@ export default function ModulKuisPage() {
         await saveQuizResult(quiz.moduleId, scorePercent, passed)
         setSaving(false)
         setFinished(true)
+
+        // Clear localStorage after successful submission
+        const storageKey = `modul_quiz_${params.slug}`
+        const savedState = JSON.parse(localStorage.getItem("modul_quiz_state") ?? "{}")
+        delete savedState[storageKey]
+        localStorage.setItem("modul_quiz_state", JSON.stringify(savedState))
       } else {
         const nextIndex = currentIndex + 1
         setCurrentIndex(nextIndex)
         setSelectedOptionId(answers[questions[nextIndex].id] ?? null)
+
+        // Save to localStorage
+        const storageKey = `modul_quiz_${params.slug}`
+        const savedState = JSON.parse(localStorage.getItem("modul_quiz_state") ?? "{}")
+        if (savedState[storageKey]) {
+          savedState[storageKey].currentIndex = nextIndex
+          localStorage.setItem("modul_quiz_state", JSON.stringify(savedState))
+        }
       }
       return
     }
 
     const nextAnswers = { ...answers, [currentQuestion.id]: selectedOptionId }
     setAnswers(nextAnswers)
+
+    // Save to localStorage
+    const storageKey = `modul_quiz_${params.slug}`
+    const savedState = JSON.parse(localStorage.getItem("modul_quiz_state") ?? "{}")
+    if (savedState[storageKey]) {
+      savedState[storageKey].answers = nextAnswers
+      localStorage.setItem("modul_quiz_state", JSON.stringify(savedState))
+    }
   }
 
   function goToQuestion(index: number) {
@@ -231,9 +272,16 @@ export default function ModulKuisPage() {
 
         {/* Mobile Back Button */}
         <div className="flex sm:hidden items-center">
-          <Link href={`/dashboard/modul/${params.slug}`} className="flex items-center gap-1.5 hover:text-foreground transition-colors font-medium">
-            <ArrowLeft className="w-4 h-4" /> Kembali ke Modul
-          </Link>
+          <button
+            onClick={() => {
+              if (currentQuestion?.questionText) {
+                speakMandarin(currentQuestion.questionText)
+              }
+            }}
+            className="flex items-center gap-1.5 hover:text-foreground transition-colors font-medium"
+          >
+            <Volume2 className="w-4 h-4" /> Putar TTS
+          </button>
         </div>
 
         {/* Progress Bar (Desktop Only) */}
@@ -264,13 +312,25 @@ export default function ModulKuisPage() {
             </Badge>
             <span className="text-sm sm:text-base font-medium">{currentQuestion.questionText}</span>
           </div>
-          <button
-            onClick={handleReset}
-            disabled={!selectedOptionId}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <RotateCcw className="w-3.5 h-3.5" /> Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (currentQuestion?.questionText) {
+                  speakMandarin(currentQuestion.questionText)
+                }
+              }}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleReset}
+              disabled={!selectedOptionId}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <RotateCcw className="w-3.5 h-3.5" /> Reset
+            </button>
+          </div>
         </div>
 
         <div className={`grid ${currentQuestion.options.every(o => o.text.length < 25) ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-3`}>

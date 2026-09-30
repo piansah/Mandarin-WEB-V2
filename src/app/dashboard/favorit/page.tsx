@@ -108,7 +108,7 @@ export default function FavoritesPage() {
       const { data: cardData } = await supa
         .from("flashcard_cards")
         .select("set_id")
-        .eq("id", card.source_id)
+        .eq("id", String(card.source_id))
         .maybeSingle()
 
       if (cardData?.set_id) {

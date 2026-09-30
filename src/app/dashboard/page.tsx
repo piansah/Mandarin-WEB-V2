@@ -51,7 +51,6 @@ export default function DashboardPage() {
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
   const [completedDeckCount, setCompletedDeckCount] = React.useState(0)
   const [deckQuotaMet, setDeckQuotaMet] = React.useState(false)
-  const [showStreakAnim, setShowStreakAnim] = React.useState(false)
 
   React.useEffect(() => {
     fetchDashboardStats().then((s) => {
@@ -60,14 +59,6 @@ export default function DashboardPage() {
     })
     loadSrsStats()
     loadNextContent()
-
-    if (typeof window !== "undefined") {
-      if (sessionStorage.getItem("playStreakAnim") === "true") {
-        setShowStreakAnim(true)
-        sessionStorage.removeItem("playStreakAnim")
-        setTimeout(() => setShowStreakAnim(false), 3500)
-      }
-    }
   }, [supa])
 
   async function loadNextContent() {
@@ -325,29 +316,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      {showStreakAnim && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <style dangerouslySetInnerHTML={{__html: `
-            @keyframes streak-pop {
-              0% { transform: scale(0.3); opacity: 0; }
-              50% { transform: scale(1.1); opacity: 1; }
-              70% { transform: scale(0.9); }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            @keyframes streak-fade {
-              0% { opacity: 0; transform: translateY(20px); }
-              100% { opacity: 1; transform: translateY(0); }
-            }
-            .anim-streak-icon { animation: streak-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-            .anim-streak-text { animation: streak-fade 0.5s ease-out 0.3s forwards; opacity: 0; }
-          `}} />
-          <div className="flex flex-col items-center justify-center text-center p-8 rounded-3xl bg-card border border-amber-500/30 shadow-2xl shadow-amber-500/20">
-            <Flame className="w-32 h-32 text-amber-500 fill-amber-500 anim-streak-icon drop-shadow-[0_0_15px_rgba(245,158,11,0.5)]" />
-            <h2 className="text-3xl font-extrabold text-foreground mt-6 anim-streak-text">Streak Harian Terjaga!</h2>
-            <p className="text-muted-foreground mt-2 anim-streak-text">Pertahankan terus semangat belajarmu 🔥</p>
-          </div>
-        </div>
-      )}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes flame-pop {
           0% { transform: scale(0.3) translateY(5px); opacity: 0; }
