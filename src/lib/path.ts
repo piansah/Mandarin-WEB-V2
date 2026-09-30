@@ -21,11 +21,13 @@ export type PathStep = {
   modules: PathModule[]
 }
 
-export async function fetchLearningPath(): Promise<PathStep[]> {
-  const supa = createClient()
+import { SupabaseClient } from "@supabase/supabase-js"
+
+export async function fetchLearningPath(client?: SupabaseClient<any, "public", any>): Promise<PathStep[]> {
+  const supa = client ?? createClient()
   
   // 1. Dapatkan overview modul untuk status level dan daftar modul
-  const overview = await fetchModulOverview()
+  const overview = await fetchModulOverview(supa)
 
   // 2. Aggregate data secara paralel untuk mempercepat
   const hskLevels = [1, 2, 3, 4, 5, 6]

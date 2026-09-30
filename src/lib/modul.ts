@@ -138,8 +138,12 @@ function computeModuleStatuses(
    OVERVIEW (list + roadmap)
 ══════════════════════════════════════════ */
 
-export async function fetchModulOverview(): Promise<ModulOverview> {
-  const supa = createClient()
+import { SupabaseClient } from "@supabase/supabase-js"
+
+export async function fetchModulOverview(
+  client?: SupabaseClient<any, "public", any>
+): Promise<ModulOverview> {
+  const supa = client ?? createClient()
   const {
     data: { user },
   } = await supa.auth.getUser()

@@ -1,41 +1,19 @@
-"use client"
-
 import * as React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Map, CheckCircle2, Lock, PlayCircle, BookOpen, PenTool, Milestone, Library } from "lucide-react"
+import { Map, CheckCircle2, Lock, Milestone, Library, BookOpen, PenTool } from "lucide-react"
 import Link from "next/link"
 
-import { fetchLearningPath, PathStep } from "@/lib/path"
-import { Loader2 } from "lucide-react"
+import { fetchLearningPath } from "@/lib/path"
+import { createClient } from "@/lib/supabase/server"
 
-export default function PathPage() {
-  const [pathSteps, setPathSteps] = React.useState<PathStep[]>([])
-  const [loading, setLoading] = React.useState(true)
+export const metadata = {
+  title: "Learning Path - Mandarin Web",
+}
 
-  React.useEffect(() => {
-    async function loadData() {
-      try {
-        const data = await fetchLearningPath()
-        setPathSteps(data)
-      } catch (error) {
-        console.error("Failed to load learning path:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    loadData()
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm">Memuat peta belajar...</p>
-      </div>
-    )
-  }
+export default async function PathPage() {
+  const supa = await createClient()
+  const pathSteps = await fetchLearningPath(supa)
 
   return (
     <div className="flex flex-col p-6 gap-8 text-foreground max-w-4xl mx-auto w-full">
