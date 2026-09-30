@@ -1,8 +1,8 @@
 "use client"
+import { toast } from "sonner";
 
 import { useState } from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-
 export default function TestLogin() {
   const supabase = useSupabase()
   const [email, setEmail] = useState("")
@@ -21,7 +21,7 @@ export default function TestLogin() {
     })
     
     if (error) {
-      alert("Error: " + error.message)
+      toast.error("Error: " + error.message)
     } else {
       window.location.href = "/dashboard"
     }

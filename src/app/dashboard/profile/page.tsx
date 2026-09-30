@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -17,7 +18,6 @@ import {
   type UserProfile,
 } from "@/lib/user-profile"
 import { Trophy, Star, Flame, BookOpen, Target, Award, Settings, Camera, Loader2 } from "lucide-react"
-
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -46,7 +46,7 @@ export default function ProfilePage() {
       setEditingName(false)
       fetchUserProfile().then(setProfile)
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -57,7 +57,7 @@ export default function ProfilePage() {
     if (!result.error) {
       fetchUserProfile().then(setProfile)
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -71,11 +71,11 @@ export default function ProfilePage() {
 
     // Validasi tipe & ukuran
     if (!file.type.startsWith("image/")) {
-      alert("Hanya file gambar yang diizinkan.")
+      toast.error("Hanya file gambar yang diizinkan.")
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert("Ukuran foto maksimal 5 MB.")
+      toast.error("Ukuran foto maksimal 5 MB.")
       return
     }
 
@@ -88,7 +88,7 @@ export default function ProfilePage() {
     setUploading(false)
 
     if (result.error) {
-      alert("Gagal upload: " + result.error)
+      toast.error("Gagal upload: " + result.error)
       setPreviewUrl(null)
     } else {
       // Langsung update state untuk data database.

@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, MoreVertical, Search, ClipboardCheck } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, ClipboardCheck, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -46,198 +46,142 @@ interface ModulModule {
 }
 
 export default function ModulQuizzesPage() {
-  const [quizzes, setQuizzes] = React.useState<ModulQuiz[]>([])
-  const [modules, setModules] = React.useState<ModulModule[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  const EMPTY_FORM = { module_id: "", title: "", passing_score: 70 }
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [selectedModuleId, setSelectedModuleId] = React.useState<string | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingQuiz, setEditingQuiz] = React.useState<ModulQuiz | null>(null)
   const [deletingQuiz, setDeletingQuiz] = React.useState<ModulQuiz | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    module_id: "",
-    title: "",
-    passing_score: 70
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
 
   React.useEffect(() => {
-    fetchModulModules()
-    fetchModulQuizzes()
-  }, [selectedModuleId, currentPage, rowsPerPage, searchQuery])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const fetchModulModules = async () => {
-    try {
-      const { data, error } = await supa
-        .from("modul_modules")
-        .select("id, title, slug")
-        .order("order_index", { ascending: true })
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage, selectedModuleId])
 
+  const { data: modulesData } = useQuery({
+    queryKey: ["modul-modules-list"],
+    queryFn: async () => {
+      const { data, error } = await supa.from("modul_modules").select("id, title, slug").order("order_index", { ascending: true })
       if (error) throw error
-      setModules(data || [])
-    } catch (error) {
-      console.error("Error fetching modul modules:", error)
-    }
-  }
+      return data || []
+    },
+  })
+  const modules = modulesData || []
 
-  const fetchModulQuizzes = async () => {
-    try {
-      // Dapatkan total count dulu
-      let countQuery = supa
-        .from("modul_quizzes")
-        .select("*", { count: "exact", head: true })
-
-      if (selectedModuleId) {
-        countQuery = countQuery.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        countQuery = countQuery.ilike("title", `%${searchQuery}%`)
-      }
-
-      const { count: totalCount, error: countError } = await countQuery
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["modul-quizzes", currentPage, rowsPerPage, debouncedSearch, selectedModuleId],
+    queryFn: async () => {
+      let query = supa.from("modul_quizzes").select("*", { count: "exact" })
+      if (selectedModuleId) query = query.eq("module_id", selectedModuleId)
+      if (debouncedSearch.trim()) query = query.ilike("title", `%${debouncedSearch}%`)
       const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      let query = supa
-        .from("modul_quizzes")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(from, to)
-
-      if (selectedModuleId) {
-        query = query.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        query = query.ilike("title", `%${searchQuery}%`)
-      }
-
-      const { data, error } = await query
-
+      const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      
-      setQuizzes(data || [])
-    } catch (error) {
-      console.error("Error fetching modul quizzes:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const quizzes = data?.rows || []
+  const totalRows = data?.total || 0
 
-  const handleAdd = async () => {
-    try {
-
-      const { error } = await supa
-        .from("modul_quizzes")
-        .insert({
-          module_id: formData.module_id,
-          title: formData.title,
-          passing_score: formData.passing_score
-        })
-
-      if (error) throw error
-
-      setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        title: "",
-        passing_score: 70
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("modul_quizzes").insert({
+        module_id: formData.module_id, title: formData.title, passing_score: formData.passing_score
       })
-      fetchModulQuizzes()
-    } catch (error) {
-      console.error("Error adding modul quiz:", error)
-      alert("Gagal menambahkan modul quiz")
-    }
-  }
-
-  const handleEdit = async () => {
-    if (!editingQuiz) return
-
-    try {
-
-      const { error } = await supa
-        .from("modul_quizzes")
-        .update({
-          module_id: formData.module_id,
-          title: formData.title,
-          passing_score: formData.passing_score
-        })
-        .eq("id", editingQuiz.id)
-
       if (error) throw error
-
-      setEditingQuiz(null)
-      setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        title: "",
-        passing_score: 70
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...formData, created_at: new Date().toISOString() }, ...old.rows], total: old.total + 1 }
       })
-      fetchModulQuizzes()
-    } catch (error) {
-      console.error("Error updating modul quiz:", error)
-      alert("Gagal mengupdate modul quiz")
-    }
-  }
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan modul quiz")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
+  })
 
-  const handleDeleteClick = (quiz: ModulQuiz) => {
-    setDeletingQuiz(quiz)
-  }
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingQuiz) return
+      const { error } = await supa.from("modul_quizzes").update({
+        module_id: formData.module_id, title: formData.title, passing_score: formData.passing_score
+      }).eq("id", editingQuiz.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuiz?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingQuiz(null); setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate modul quiz")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
+  })
 
-  const handleDelete = async () => {
-    if (!deletingQuiz) return
-
-    try {
-
-      
-      // Quiz questions are linked to module_id, not quiz_id
-      // So we can delete quiz without checking for questions
-      const { error } = await supa
-        .from("modul_quizzes")
-        .delete()
-        .eq("id", deletingQuiz.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingQuiz) return
+      const { error } = await supa.from("modul_quizzes").delete().eq("id", deletingQuiz.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuiz?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingQuiz(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      setBlockingAlert({ message: error.message })
       setDeletingQuiz(null)
-      fetchModulQuizzes()
-    } catch (error) {
-      console.error("Error deleting modul quiz:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus modul quiz: ${error instanceof Error ? error.message : 'Unknown error'}` 
-      })
-      setDeletingQuiz(null)
-    }
-  }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
+  })
+
+  const handleAdd = () => addMutation.mutate()
+  const handleEdit = () => editMutation.mutate()
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (quiz: ModulQuiz) => { setDeletingQuiz(quiz) }
 
   const openEditModal = (quiz: ModulQuiz) => {
     setEditingQuiz(quiz)
-    setFormData({
-      module_id: quiz.module_id,
-      title: quiz.title,
-      passing_score: quiz.passing_score
-    })
+    setFormData({ module_id: quiz.module_id, title: quiz.title, passing_score: quiz.passing_score })
     setShowAddModal(true)
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )
   }

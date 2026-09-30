@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -9,7 +10,6 @@ import { fetchUserSettings, updateDisplayName, updateHanziMode, updateHanziFont,
 import type { HanziMode } from "@/lib/placement"
 import { User, Mic, LogOut, Save, Check, Type, Smartphone, Download, Share } from "lucide-react"
 import { usePwaInstall } from "@/hooks/use-pwa-install"
-
 export default function SettingsPage() {
   const router = useRouter()
   const [settings, setSettings] = React.useState<UserSettings | null>(null)
@@ -48,7 +48,7 @@ export default function SettingsPage() {
       showSaveSuccess()
       loadSettings()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       showSaveSuccess()
       loadSettings()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -78,7 +78,7 @@ export default function SettingsPage() {
         window.location.reload()
       }, 1000)
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 

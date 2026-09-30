@@ -88,12 +88,24 @@ export default function GrammarPatternsPage() {
       })
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: () => alert("Gagal menambahkan grammar pattern"),
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      alert("Gagal menambahkan grammar pattern")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
 
   const editMutation = useMutation({
@@ -111,12 +123,24 @@ export default function GrammarPatternsPage() {
       }).eq("id", editingPattern.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingPattern?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setEditingPattern(null)
       setFormData(EMPTY_FORM)
     },
-    onError: () => alert("Gagal mengupdate grammar pattern"),
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      alert("Gagal mengupdate grammar pattern")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
 
   const deleteMutation = useMutation({
@@ -136,14 +160,24 @@ export default function GrammarPatternsPage() {
       const { error } = await supa.from("grammar_patterns").delete().eq("id", deletingPattern.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingPattern?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] })
       setDeletingPattern(null)
     },
-    onError: (err: Error) => {
+    onError: (err: Error, _v: unknown, context: any) => {
       setDeletingPattern(null)
       setBlockingAlert({ message: `Gagal menghapus: ${err.message}` })
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
     },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
 
   const openEditModal = (pattern: GrammarPattern) => {

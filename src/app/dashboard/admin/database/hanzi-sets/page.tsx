@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, MoreVertical, Search, Flag } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, Flag, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -40,181 +40,139 @@ interface HanziSet {
 }
 
 export default function HanziSetsPage() {
-  const [sets, setSets] = React.useState<HanziSet[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  const EMPTY_FORM = { key: "", title: "", sub: "", description: "", badge: "", hsk_level: 1, sort_order: 0, unlock_after: 0 }
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingSet, setEditingSet] = React.useState<HanziSet | null>(null)
   const [deletingSet, setDeletingSet] = React.useState<HanziSet | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    key: "",
-    title: "",
-    sub: "",
-    description: "",
-    badge: "",
-    hsk_level: 1,
-    sort_order: 0,
-    unlock_after: 0
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
-
-  const fetchHanziSets = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      const { count: totalCount, error: countError } = await supa
-        .from("hanzi_sets")
-        .select("*", { count: "exact", head: true })
-
-      if (countError) throw countError
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      const { data, error } = await supa
-        .from("hanzi_sets")
-        .select("*")
-        .order("sort_order", { ascending: true })
-        .range(from, to)
-
-      if (error) throw error
-
-      
-      setSets(data || [])
-      setTotalRows(totalCount || 0)
-    } catch (error) {
-      console.error("Error fetching hanzi sets:", error)
-    } finally {
-      setLoading(false)
-    }
-    }, [currentPage, rowsPerPage])
 
   React.useEffect(() => {
-    fetchHanziSets()
-  }, [fetchHanziSets])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const handleAdd = async () => {
-    try {
-      const { error } = await supa
-        .from("hanzi_sets")
-        .insert({
-          key: formData.key,
-          title: formData.title,
-          sub: formData.sub,
-          description: formData.description || null,
-          badge: formData.badge,
-          hsk_level: formData.hsk_level,
-          sort_order: formData.sort_order,
-          unlock_after: formData.unlock_after
-        })
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["hanzi-sets", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("hanzi_sets").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) {
+        const t = `%${debouncedSearch}%`
+        query = query.or(`title.ilike.${t},key.ilike.${t}`)
+      }
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query.order("sort_order", { ascending: true }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      setShowAddModal(false)
-      setFormData({ key: "", title: "", sub: "", description: "", badge: "", hsk_level: 1, sort_order: 0, unlock_after: 0 })
-      fetchHanziSets()
-    } catch (error) {
-      console.error("Error adding hanzi set:", error)
-      alert("Gagal menambahkan hanzi set")
-    }
-  }
+  const sets = data?.rows || []
+  const totalRows = data?.total || 0
 
-  const handleEdit = async () => {
-    if (!editingSet) return
-
-    try {
-      const { error } = await supa
-        .from("hanzi_sets")
-        .update({
-          key: formData.key,
-          title: formData.title,
-          sub: formData.sub,
-          description: formData.description || null,
-          badge: formData.badge,
-          hsk_level: formData.hsk_level,
-          sort_order: formData.sort_order,
-          unlock_after: formData.unlock_after
-        })
-        .eq("id", editingSet.id)
-
-      if (error) throw error
-
-      setEditingSet(null)
-      setFormData({ key: "", title: "", sub: "", description: "", badge: "", hsk_level: 1, sort_order: 0, unlock_after: 0 })
-      fetchHanziSets()
-    } catch (error) {
-      console.error("Error updating hanzi set:", error)
-      alert("Gagal mengupdate hanzi set")
-    }
-  }
-
-  const handleDeleteClick = (set: HanziSet) => {
-    setDeletingSet(set)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingSet) return
-
-    try {
-
-      
-      // Cek apakah ada items yang terkait dengan set ini
-      const { count: itemCount, error: countError } = await supa
-        .from("hanzi_items")
-        .select("*", { count: "exact", head: true })
-        .eq("hanzi_key", deletingSet.key)
-
-      if (countError) {
-        console.error("Error checking item count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek item terkait" })
-        setDeletingSet(null)
-        return
-      }
-
-      if (itemCount && itemCount > 0) {
-
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus set ini karena masih ada ${itemCount} item yang terkait. Pindahkan atau hapus item terlebih dahulu.` 
-        })
-        setDeletingSet(null)
-        return
-      }
-
-      const { error } = await supa
-        .from("hanzi_sets")
-        .delete()
-        .eq("id", deletingSet.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingSet(null)
-      fetchHanziSets()
-    } catch (error) {
-      console.error("Error deleting hanzi set:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus hanzi set: ${error instanceof Error ? error.message : 'Unknown error'}` 
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("hanzi_sets").insert({
+        key: formData.key, title: formData.title, sub: formData.sub,
+        description: formData.description || null, badge: formData.badge,
+        hsk_level: formData.hsk_level, sort_order: formData.sort_order, unlock_after: formData.unlock_after
       })
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: Date.now(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan hanzi set")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingSet) return
+      const { error } = await supa.from("hanzi_sets").update({
+        key: formData.key, title: formData.title, sub: formData.sub,
+        description: formData.description || null, badge: formData.badge,
+        hsk_level: formData.hsk_level, sort_order: formData.sort_order, unlock_after: formData.unlock_after
+      }).eq("id", editingSet.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingSet?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingSet(null); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate hanzi set")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingSet) return
+      const { count: itemCount, error: countError } = await supa
+        .from("hanzi_items").select("*", { count: "exact", head: true }).eq("hanzi_key", deletingSet.key)
+      if (countError) throw new Error("Gagal mengecek item terkait")
+      if (itemCount && itemCount > 0) {
+        throw new Error(`Tidak dapat menghapus set ini karena masih ada ${itemCount} item yang terkait.`)
+      }
+      const { error } = await supa.from("hanzi_sets").delete().eq("id", deletingSet.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingSet?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingSet(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      setBlockingAlert({ message: error.message })
       setDeletingSet(null)
-    }
-  }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
+  })
+
+  const handleAdd = () => addMutation.mutate()
+  const handleEdit = () => editMutation.mutate()
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (set: HanziSet) => { setDeletingSet(set) }
 
   const openEditModal = (set: HanziSet) => {
     setEditingSet(set)
     setFormData({
-      key: set.key,
-      title: set.title,
-      sub: set.sub,
-      description: set.description || "",
-      badge: set.badge,
-      hsk_level: set.hsk_level,
-      sort_order: set.sort_order,
-      unlock_after: set.unlock_after
+      key: set.key, title: set.title, sub: set.sub,
+      description: set.description || "", badge: set.badge,
+      hsk_level: set.hsk_level, sort_order: set.sort_order, unlock_after: set.unlock_after
     })
   }
 
@@ -237,11 +195,6 @@ export default function HanziSetsPage() {
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, rowsPerPage])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchHanziSets()
-  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">

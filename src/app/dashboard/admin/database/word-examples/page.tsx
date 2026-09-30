@@ -100,15 +100,25 @@ export default function WordExamplesPage() {
       const { error } = await supa.from("word_examples").insert(newExample)
       if (error) throw error
     },
+    onMutate: async (newExample) => {
+      await queryClient.cancelQueries({ queryKey: ["word-examples"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, examples: [{ id: Date.now(), ...newExample }, ...old.examples], totalCount: old.totalCount + 1 }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
       setShowAddModal(false)
       setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
     },
-    onError: (error) => {
+    onError: (error, _v, context: any) => {
       console.error("Error adding word example:", error)
       alert("Gagal menambahkan contoh kalimat")
-    }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
 
   const updateMutation = useMutation({
@@ -116,15 +126,25 @@ export default function WordExamplesPage() {
       const { error } = await supa.from("word_examples").update(data).eq("id", id)
       if (error) throw error
     },
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: ["word-examples"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, examples: old.examples.map((row: any) => row.id === id ? { ...row, ...data } : row) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
       setEditingExample(null)
       setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
     },
-    onError: (error) => {
+    onError: (error, _v, context: any) => {
       console.error("Error updating word example:", error)
       alert("Gagal mengupdate contoh kalimat")
-    }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
 
   const deleteMutation = useMutation({
@@ -132,14 +152,24 @@ export default function WordExamplesPage() {
       const { error } = await supa.from("word_examples").delete().eq("id", id)
       if (error) throw error
     },
+    onMutate: async (deletedId) => {
+      await queryClient.cancelQueries({ queryKey: ["word-examples"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, examples: old.examples.filter((row: any) => row.id !== deletedId), totalCount: Math.max(0, old.totalCount - 1) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["word-examples"] })
       setDeletingExample(null)
     },
-    onError: (error) => {
+    onError: (error, _v, context: any) => {
       console.error("Error deleting word example:", error)
       alert("Gagal menghapus contoh kalimat")
-    }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
 
   // Handlers

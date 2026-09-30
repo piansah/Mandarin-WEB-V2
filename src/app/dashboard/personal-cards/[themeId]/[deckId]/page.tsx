@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
@@ -24,7 +25,6 @@ import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
 import { performSmartSearch, initGlobalSearchCache, getWordDetailPath, type GlobalWord } from "@/lib/hanzi-segmentation"
 import { useSidebar } from "@/components/ui/sidebar"
-
 type Card = {
   id: string
   hanzi: string
@@ -101,7 +101,7 @@ export default function DeckDetailPage() {
       setSearchResults([])
       loadData()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -135,7 +135,7 @@ export default function DeckDetailPage() {
     if (!result.error) {
       loadData()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -451,7 +451,7 @@ function PersonalCardRow({ card, index, onDelete }: { card: Card; index: number;
         router.push(`/dashboard/flashcard/search/word/${compoundData.id}`)
       } else {
         // If not found in either, show alert
-        alert("Kata ini tidak ditemukan di database utama")
+        toast.error("Kata ini tidak ditemukan di database utama")
       }
     }
   }

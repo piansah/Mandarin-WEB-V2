@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter, useParams } from "next/navigation"
@@ -8,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { listDecks, createDeck, updateDeck, deleteDeck, type PersonalDeck } from "@/lib/personal-decks"
 import { listThemes, type PersonalTheme } from "@/lib/personal-decks"
 import { Plus, Trash2, ArrowLeft, Layers, ChevronRight, Edit2 } from "lucide-react"
-
 export default function ThemeDetailPage() {
   const params = useParams()
   const themeId = parseInt(params.themeId as string)
@@ -51,7 +51,7 @@ export default function ThemeDetailPage() {
       setDeckDescription("")
       loadThemeAndDecks()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -67,7 +67,7 @@ export default function ThemeDetailPage() {
       setDeckDescription("")
       loadThemeAndDecks()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -77,7 +77,7 @@ export default function ThemeDetailPage() {
     if (!result.error) {
       loadThemeAndDecks()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 

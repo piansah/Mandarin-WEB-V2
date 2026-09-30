@@ -99,12 +99,24 @@ export default function GrammarQuestionsPage() {
       })
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-questions"] })
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: () => alert("Gagal menambahkan grammar question"),
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      alert("Gagal menambahkan grammar question")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
 
   const editMutation = useMutation({
@@ -122,12 +134,24 @@ export default function GrammarQuestionsPage() {
       }).eq("id", editingQuestion.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuestion?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-questions"] })
       setEditingQuestion(null)
       setFormData(EMPTY_FORM)
     },
-    onError: () => alert("Gagal mengupdate grammar question"),
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      alert("Gagal mengupdate grammar question")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
 
   const deleteMutation = useMutation({
@@ -136,11 +160,23 @@ export default function GrammarQuestionsPage() {
       const { error } = await supa.from("grammar_questions").delete().eq("id", deletingQuestion.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["grammar-questions"] })
       setDeletingQuestion(null)
     },
-    onError: (err: Error) => alert(`Gagal menghapus: ${err.message}`),
+    onError: (err: Error, _v: unknown, context: any) => {
+      alert(`Gagal menghapus: ${err.message}`)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
 
   const openEditModal = (q: GrammarQuestion) => {

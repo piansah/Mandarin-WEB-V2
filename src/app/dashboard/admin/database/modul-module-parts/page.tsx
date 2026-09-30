@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, MoreVertical, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, FileText, ExternalLink, BookOpen, MessageSquare, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -56,10 +56,14 @@ interface ModulModule {
 }
 
 export default function ModulModulePartsPage() {
-  const [parts, setParts] = React.useState<ModulModulePart[]>([])
-  const [modules, setModules] = React.useState<ModulModule[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  const EMPTY_FORM = {
+    module_id: "", order_index: 0, title: "", content: "", vocab_parts: "", kalimat_parts: ""
+  }
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [selectedModuleId, setSelectedModuleId] = React.useState<string | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingPart, setEditingPart] = React.useState<ModulModulePart | null>(null)
@@ -71,361 +75,199 @@ export default function ModulModulePartsPage() {
   const [vocabCards, setVocabCards] = React.useState<Array<{ hanzi: string; pinyin: string; translation: string; order_index: number }>>([])
   const [kalimatMode, setKalimatMode] = React.useState<"simple" | "json">("simple")
   const [kalimatCards, setKalimatCards] = React.useState<Array<{ hanzi: string; pinyin: string; translation: string; order_index: number }>>([])
-  const [formData, setFormData] = React.useState({
-    module_id: "",
-    order_index: 0,
-    title: "",
-    content: "",
-    vocab_parts: "",
-    kalimat_parts: ""
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
-
-  const fetchModulModules = React.useCallback(async () => {
-    try {
-      const { data, error } = await supa
-        .from("modul_modules")
-        .select("id, title, slug")
-        .order("order_index", { ascending: true })
-
-      if (error) throw error
-      setModules(data || [])
-    } catch (error) {
-      console.error("Error fetching modul modules:", error)
-    }
-  }, [])
-
-  const fetchModulModuleParts = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      let countQuery = supa
-        .from("modul_module_parts")
-        .select("*", { count: "exact", head: true })
-
-      if (selectedModuleId) {
-        countQuery = countQuery.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        countQuery = countQuery.ilike('title', `%${searchQuery}%`)
-      }
-
-      const { count: totalCount, error: countError } = await countQuery
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      let query = supa
-        .from("modul_module_parts")
-        .select("id, module_id, order_index, title, content, vocab_parts, kalimat_parts, created_at, updated_at")
-        .order("order_index", { ascending: true })
-        .range(from, to)
-
-      if (selectedModuleId) {
-        query = query.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        query = query.ilike('title', `%${searchQuery}%`)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      setParts(data || [])
-    } catch (error) {
-      console.error("Error fetching modul modul parts:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedModuleId, currentPage, rowsPerPage, searchQuery])
 
   React.useEffect(() => {
-    fetchModulModules()
-    fetchModulModuleParts()
-  }, [fetchModulModules, fetchModulModuleParts])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const handleAdd = async () => {
-    if (!formData.module_id) {
-      alert("Silakan pilih modul terlebih dahulu")
-      return
-    }
-    if (!formData.title) {
-      alert("Judul (Title) tidak boleh kosong")
-      return
-    }
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage, selectedModuleId])
 
-    try {
-
-      
-      // Parse content
-      let parsedContent = null
-      try {
-        if (contentMode === "text" && plainContent) {
-          const paragraphs = plainContent.split('\n').filter(p => p.trim())
-          parsedContent = { paragraphs }
-        } else if (formData.content) {
-          parsedContent = JSON.parse(formData.content)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for content")
-        return
-      }
-
-      // Parse vocab_parts
-      let parsedVocabParts = null
-      try {
-        if (vocabMode === "simple" && vocabCards.length > 0) {
-          parsedVocabParts = { cards: vocabCards }
-        } else if (formData.vocab_parts) {
-          parsedVocabParts = JSON.parse(formData.vocab_parts)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for vocab_parts")
-        return
-      }
-
-      // Parse kalimat_parts
-      let parsedKalimatParts = null
-      try {
-        if (kalimatMode === "simple" && kalimatCards.length > 0) {
-          parsedKalimatParts = { cards: kalimatCards }
-        } else if (formData.kalimat_parts) {
-          parsedKalimatParts = JSON.parse(formData.kalimat_parts)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for kalimat_parts")
-        return
-      }
-
-      const { error } = await supa
-        .from("modul_module_parts")
-        .insert({
-          module_id: formData.module_id,
-          order_index: formData.order_index,
-          title: formData.title,
-          content: parsedContent,
-          vocab_parts: parsedVocabParts,
-          kalimat_parts: parsedKalimatParts
-        })
-
+  const { data: modulesData } = useQuery({
+    queryKey: ["modul-modules-list"],
+    queryFn: async () => {
+      const { data, error } = await supa.from("modul_modules").select("id, title, slug").order("order_index", { ascending: true })
       if (error) throw error
+      return data || []
+    },
+  })
+  const modules = modulesData || []
 
-      setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        order_index: 0,
-        title: "",
-        content: "",
-        vocab_parts: "",
-        kalimat_parts: ""
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["modul-module-parts", currentPage, rowsPerPage, debouncedSearch, selectedModuleId],
+    queryFn: async () => {
+      let query = supa.from("modul_module_parts").select("id, module_id, order_index, title, content, vocab_parts, kalimat_parts, created_at, updated_at", { count: "exact" })
+      if (selectedModuleId) query = query.eq("module_id", selectedModuleId)
+      if (debouncedSearch.trim()) query = query.ilike('title', `%${debouncedSearch}%`)
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query.order("order_index", { ascending: true }).range(from, from + rowsPerPage - 1)
+      if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
+
+  const parts = data?.rows || []
+  const totalRows = data?.total || 0
+
+  const addMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const { error } = await supa.from("modul_module_parts").insert(payload)
+      if (error) throw error
+    },
+    onMutate: async (payload: any) => {
+      await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...payload }, ...old.rows], total: old.total + 1 }
       })
-      setPlainContent("")
-      setContentMode("text")
-      setVocabCards([])
-      setVocabMode("simple")
-      setKalimatCards([])
-      setKalimatMode("simple")
-      fetchModulModuleParts()
-    } catch (error) {
-      console.error("Error adding modul modul part:", error)
-      // eslint-disable-next-line
-      alert(`Gagal menambahkan modul modul part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
-    }
-  }
+      return { previousData }
+    },
+    onSuccess: () => {
+      setShowAddModal(false)
+      setFormData(EMPTY_FORM)
+      setPlainContent(""); setContentMode("text")
+      setVocabCards([]); setVocabMode("simple")
+      setKalimatCards([]); setKalimatMode("simple")
+    },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan modul modul part")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
+  })
 
-  const handleEdit = async () => {
-    if (!editingPart) return
-
-    if (!formData.module_id) {
-      alert("Silakan pilih modul terlebih dahulu")
-      return
-    }
-    if (!formData.title) {
-      alert("Judul (Title) tidak boleh kosong")
-      return
-    }
-
-    try {
-
-      
-      // Parse content
-      let parsedContent = null
-      try {
-        if (contentMode === "text" && plainContent) {
-          const paragraphs = plainContent.split('\n').filter(p => p.trim())
-          parsedContent = { paragraphs }
-        } else if (formData.content) {
-          parsedContent = JSON.parse(formData.content)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for content")
-        return
-      }
-
-      // Parse vocab_parts
-      let parsedVocabParts = null
-      try {
-        if (vocabMode === "simple" && vocabCards.length > 0) {
-          parsedVocabParts = { cards: vocabCards }
-        } else if (formData.vocab_parts) {
-          parsedVocabParts = JSON.parse(formData.vocab_parts)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for vocab_parts")
-        return
-      }
-
-      // Parse kalimat_parts
-      let parsedKalimatParts = null
-      try {
-        if (kalimatMode === "simple" && kalimatCards.length > 0) {
-          parsedKalimatParts = { cards: kalimatCards }
-        } else if (formData.kalimat_parts) {
-          parsedKalimatParts = JSON.parse(formData.kalimat_parts)
-        }
-      } catch (e) {
-        alert("Invalid JSON format for kalimat_parts")
-        return
-      }
-
-      const { error } = await supa
-        .from("modul_module_parts")
-        .update({
-          module_id: formData.module_id,
-          order_index: formData.order_index,
-          title: formData.title,
-          content: parsedContent,
-          vocab_parts: parsedVocabParts,
-          kalimat_parts: parsedKalimatParts
-        })
-        .eq("id", editingPart.id)
-
+  const editMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (!editingPart) return
+      const { error } = await supa.from("modul_module_parts").update(payload).eq("id", editingPart.id)
       if (error) throw error
-
+    },
+    onMutate: async (payload: any) => {
+      await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingPart?.id ? { ...row, ...payload } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => {
       setEditingPart(null)
       setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        order_index: 0,
-        title: "",
-        content: "",
-        vocab_parts: "",
-        kalimat_parts: ""
-      })
-      setPlainContent("")
-      setContentMode("text")
-      setVocabCards([])
-      setVocabMode("simple")
-      setKalimatCards([])
-      setKalimatMode("simple")
-      fetchModulModuleParts()
-    } catch (error) {
-      console.error("Error updating modul modul part:", error)
-      // eslint-disable-next-line
-      alert(`Gagal mengupdate modul modul part: ${error instanceof Error ? error.message : (error as any)?.message || 'Unknown error'}`)
-    }
-  }
+      setFormData(EMPTY_FORM)
+      setPlainContent(""); setContentMode("text")
+      setVocabCards([]); setVocabMode("simple")
+      setKalimatCards([]); setKalimatMode("simple")
+    },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate modul modul part")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
+  })
 
-  const handleDeleteClick = (part: ModulModulePart) => {
-    setDeletingPart(part)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingPart) return
-
-    try {
-      // Cek vocab_parts secara lokal — vocab disimpan sebagai JSONB di kolom vocab_parts,
-      // bukan di tabel terpisah. Jika ada vocab, peringatkan user.
-      const hasVocab =
-        deletingPart.vocab_parts &&
-        typeof deletingPart.vocab_parts === 'object' &&
-        'cards' in deletingPart.vocab_parts &&
-        // eslint-disable-next-line
-        Array.isArray((deletingPart.vocab_parts as any).cards) &&
-        // eslint-disable-next-line
-        (deletingPart.vocab_parts as any).cards.length > 0
-
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingPart) return
+      const hasVocab = deletingPart.vocab_parts && typeof deletingPart.vocab_parts === 'object' && 'cards' in deletingPart.vocab_parts && Array.isArray((deletingPart.vocab_parts as any).cards) && (deletingPart.vocab_parts as any).cards.length > 0
       if (hasVocab) {
-        // eslint-disable-next-line
-        const vocabCount = (deletingPart.vocab_parts as any).cards.length
-        setBlockingAlert({
-          message: `Part ini masih memiliki ${vocabCount} vocab cards. Hapus vocab terlebih dahulu sebelum menghapus part ini.`
-        })
-        setDeletingPart(null)
-        return
+        throw new Error(`Part ini masih memiliki ${(deletingPart.vocab_parts as any).cards.length} vocab cards. Hapus vocab terlebih dahulu.`)
       }
-
-      const { error } = await supa
-        .from("modul_module_parts")
-        .delete()
-        .eq("id", deletingPart.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingPart(null)
-      fetchModulModuleParts()
-    } catch (error) {
-      console.error("Error deleting modul modul part:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus modul modul part: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      const { error } = await supa.from("modul_module_parts").delete().eq("id", deletingPart.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingPart?.id), total: Math.max(0, old.total - 1) }
       })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingPart(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      setBlockingAlert({ message: error.message })
       setDeletingPart(null)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
+  })
+
+  const parsePayload = () => {
+    let parsedContent = null
+    try {
+      if (contentMode === "text" && plainContent) parsedContent = { paragraphs: plainContent.split('\n').filter(p => p.trim()) }
+      else if (formData.content) parsedContent = JSON.parse(formData.content)
+    } catch { alert("Invalid JSON format for content"); return null }
+
+    let parsedVocabParts = null
+    try {
+      if (vocabMode === "simple" && vocabCards.length > 0) parsedVocabParts = { cards: vocabCards }
+      else if (formData.vocab_parts) parsedVocabParts = JSON.parse(formData.vocab_parts)
+    } catch { alert("Invalid JSON format for vocab_parts"); return null }
+
+    let parsedKalimatParts = null
+    try {
+      if (kalimatMode === "simple" && kalimatCards.length > 0) parsedKalimatParts = { cards: kalimatCards }
+      else if (formData.kalimat_parts) parsedKalimatParts = JSON.parse(formData.kalimat_parts)
+    } catch { alert("Invalid JSON format for kalimat_parts"); return null }
+
+    return {
+      module_id: formData.module_id, order_index: formData.order_index, title: formData.title,
+      content: parsedContent, vocab_parts: parsedVocabParts, kalimat_parts: parsedKalimatParts
     }
   }
+
+  const handleAdd = () => {
+    if (!formData.module_id) return alert("Silakan pilih modul terlebih dahulu")
+    if (!formData.title) return alert("Judul (Title) tidak boleh kosong")
+    const payload = parsePayload()
+    if (payload) addMutation.mutate(payload)
+  }
+
+  const handleEdit = () => {
+    if (!formData.module_id) return alert("Silakan pilih modul terlebih dahulu")
+    if (!formData.title) return alert("Judul (Title) tidak boleh kosong")
+    const payload = parsePayload()
+    if (payload) editMutation.mutate(payload)
+  }
+
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (part: ModulModulePart) => { setDeletingPart(part) }
 
   const openEditModal = (part: ModulModulePart) => {
     setEditingPart(part)
     setFormData({
-      module_id: part.module_id,
-      order_index: part.order_index,
-      title: part.title,
+      module_id: part.module_id, order_index: part.order_index, title: part.title,
       content: part.content ? JSON.stringify(part.content, null, 2) : "",
       vocab_parts: part.vocab_parts ? JSON.stringify(part.vocab_parts, null, 2) : "",
       kalimat_parts: part.kalimat_parts ? JSON.stringify(part.kalimat_parts, null, 2) : ""
     })
-    // Convert content to plain text if it has paragraphs
+    
     if (part.content && typeof part.content === 'object' && 'paragraphs' in part.content && Array.isArray(part.content.paragraphs)) {
-      setPlainContent(part.content.paragraphs.join('\n'))
-      setContentMode("text")
-    } else {
-      setPlainContent("")
-      setContentMode("json")
-    }
-    // Convert vocab_parts to simple mode if it has cards
+      setPlainContent(part.content.paragraphs.join('\n')); setContentMode("text")
+    } else { setPlainContent(""); setContentMode("json") }
+
     if (part.vocab_parts && typeof part.vocab_parts === 'object' && 'cards' in part.vocab_parts && Array.isArray(part.vocab_parts.cards)) {
-      setVocabCards(part.vocab_parts.cards)
-      setVocabMode("simple")
-    } else {
-      setVocabCards([])
-      setVocabMode("json")
-    }
-    // Convert kalimat_parts to simple mode if it has cards
+      setVocabCards(part.vocab_parts.cards); setVocabMode("simple")
+    } else { setVocabCards([]); setVocabMode("json") }
+
     if (part.kalimat_parts && typeof part.kalimat_parts === 'object' && 'cards' in part.kalimat_parts && Array.isArray(part.kalimat_parts.cards)) {
-      setKalimatCards(part.kalimat_parts.cards)
-      setKalimatMode("simple")
-    } else {
-      setKalimatCards([])
-      setKalimatMode("json")
-    }
+      setKalimatCards(part.kalimat_parts.cards); setKalimatMode("simple")
+    } else { setKalimatCards([]); setKalimatMode("json") }
+    
     setShowAddModal(true)
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -513,17 +355,17 @@ export default function ModulModulePartsPage() {
                       <TableCell>{part.order_index}</TableCell>
                       <TableCell className="max-w-xs truncate font-mono text-xs">
                         {part.content && typeof part.content === 'object' && 'paragraphs' in part.content 
-                          ? `${part.content.paragraphs?.length || 0} paragraf` 
+                          ? `${(part.content as any).paragraphs?.length || 0} paragraf` 
                           : "-"}
                       </TableCell>
                       <TableCell className="max-w-xs truncate font-mono text-xs">
                         {part.vocab_parts && typeof part.vocab_parts === 'object' && 'cards' in part.vocab_parts 
-                          ? `${part.vocab_parts.cards?.length || 0} vocab` 
+                          ? `${(part.vocab_parts as any).cards?.length || 0} vocab` 
                           : "-"}
                       </TableCell>
                       <TableCell className="max-w-xs truncate font-mono text-xs">
                         {part.kalimat_parts && typeof part.kalimat_parts === 'object' && 'cards' in part.kalimat_parts 
-                          ? `${part.kalimat_parts.cards?.length || 0} kalimat` 
+                          ? `${(part.kalimat_parts as any).cards?.length || 0} kalimat` 
                           : "-"}
                       </TableCell>
                       <TableCell className="text-right">

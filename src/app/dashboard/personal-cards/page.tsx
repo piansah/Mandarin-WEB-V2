@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -7,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { listThemes, createTheme, deleteTheme, type PersonalTheme } from "@/lib/personal-decks"
 import { Plus, Trash2, FolderHeart, ChevronRight } from "lucide-react"
-
 export default function PersonalCardsPage() {
   const [themes, setThemes] = React.useState<PersonalTheme[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -41,7 +41,7 @@ export default function PersonalCardsPage() {
       setSelectedIcon("📚")
       loadThemes()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 
@@ -51,7 +51,7 @@ export default function PersonalCardsPage() {
     if (!result.error) {
       loadThemes()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
   }
 

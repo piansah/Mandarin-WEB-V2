@@ -1,11 +1,11 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X, Plus } from "lucide-react"
 import { submitUserSentence } from "@/lib/user-sentences"
-
 interface AddSentenceModalProps {
   isOpen: boolean
   onClose: () => void
@@ -29,7 +29,7 @@ export function AddSentenceModal({
 
   async function handleSubmit() {
     if (!hanzi.trim() || !pinyin.trim() || !arti.trim()) {
-      alert("Hanzi, pinyin, dan arti wajib diisi")
+      toast.error("Hanzi, pinyin, dan arti wajib diisi")
       return
     }
 
@@ -43,7 +43,7 @@ export function AddSentenceModal({
     setSubmitting(false)
 
     if (result.error) {
-      alert(result.error)
+      toast.error(result.error)
     } else {
       setSubmitted(true)
       setTimeout(() => {

@@ -10,72 +10,38 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare, HelpCircle, Tag } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
+import { Database, Table, FileText, Settings, BookOpen, List, Layers, Book, Flag, ClipboardCheck, ChevronDown, ChevronUp, MessageSquare, HelpCircle, Tag, Loader2 } from "lucide-react"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery } from "@tanstack/react-query"
 
 export default function AdminDatabasePage() {
   const router = useRouter()
+  const supa = useSupabase()
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["modul", "daftar-kata"]))
-  const [loading, setLoading] = React.useState(true)
-  const [recordCounts, setRecordCounts] = React.useState<Record<string, number>>({})
-
-  React.useEffect(() => {
-    async function fetchRecordCounts() {
-      try {
-        const supa = createClient()
         
-        const tables = [
-          "modul_levels",
-          "modul_modules",
-          "modul_module_parts",
-          "modul_quizzes",
-          "modul_quiz_questions",
-          "modul_vocab_cards",
-          "modul_tags",
-          "flashcard_sets",
-          "flashcard_cards", 
-          "word_compounds",
-          "word_examples",
-          "grammar_patterns",
-          "grammar_questions",
-          "hanzi_sets",
-          "hanzi_items"
-        ]
-
-        // Fetch all counts in parallel using Promise.all
-        const countPromises = tables.map(async (table) => {
-          try {
-            const { count, error } = await supa
-              .from(table as any)
-              .select("*", { count: "exact", head: true })
-            
-            if (!error && count !== null) {
-              return { table, count }
-            } else {
-              return { table, count: 0 }
-            }
-          } catch (err) {
-            console.error(`Error fetching count for ${table}:`, err)
-            return { table, count: 0 }
-          }
-        })
-
-        const results = await Promise.all(countPromises)
-        const counts: Record<string, number> = {}
-        results.forEach(({ table, count }) => {
-          counts[table] = count
-        })
-
-        setRecordCounts(counts)
-      } catch (error) {
-        console.error("Error fetching record counts:", error)
-      } finally {
-        setLoading(false)
-      }
+  const { data: recordCounts = {}, isLoading: loading } = useQuery({
+    queryKey: ["database-record-counts"],
+    queryFn: async () => {
+      const tables = [
+        "modul_levels", "modul_modules", "modul_module_parts", "modul_quizzes", "modul_quiz_questions",
+        "modul_vocab_cards", "modul_tags", "flashcard_sets", "flashcard_cards", "word_compounds",
+        "word_examples", "grammar_patterns", "grammar_questions", "hanzi_sets", "hanzi_items"
+      ]
+      const countPromises = tables.map(async (table) => {
+        try {
+          const { count, error } = await supa.from(table as any).select("*", { count: "exact", head: true })
+          return { table, count: !error && count !== null ? count : 0 }
+        } catch (err) {
+          console.error(`Error fetching count for ${table}:`, err)
+          return { table, count: 0 }
+        }
+      })
+      const results = await Promise.all(countPromises)
+      const counts: Record<string, number> = {}
+      results.forEach(({ table, count }) => { counts[table] = count })
+      return counts
     }
-
-    fetchRecordCounts()
-  }, [])
+  })
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => {

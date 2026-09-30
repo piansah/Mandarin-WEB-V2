@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, MoreVertical, Search, Tag } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, Tag, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -30,164 +30,122 @@ interface ModulTag {
 }
 
 export default function ModulTagsPage() {
-  const [tags, setTags] = React.useState<ModulTag[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingTag, setEditingTag] = React.useState<ModulTag | null>(null)
   const [deletingTag, setDeletingTag] = React.useState<ModulTag | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    name: ""
-  })
+  const [formData, setFormData] = React.useState({ name: "" })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
-
-  const fetchModulTags = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      let countQuery = supa
-        .from("modul_tags")
-        .select("*", { count: "exact", head: true })
-
-      if (searchQuery) {
-        countQuery = countQuery.ilike("name", `%${searchQuery}%`)
-      }
-
-      const { count: totalCount, error: countError } = await countQuery
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      let query = supa
-        .from("modul_tags")
-        .select("*")
-        .order("name", { ascending: true })
-        .range(from, to)
-
-      if (searchQuery) {
-        query = query.ilike("name", `%${searchQuery}%`)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      
-      setTags(data || [])
-    } catch (error) {
-      console.error("Error fetching modul tags:", error)
-    } finally {
-      setLoading(false)
-    }
-  }, [currentPage, rowsPerPage, searchQuery])
 
   React.useEffect(() => {
-    fetchModulTags()
-  }, [fetchModulTags])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const handleAdd = async () => {
-    try {
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
-      const { error } = await supa
-        .from("modul_tags")
-        .insert({
-          name: formData.name
-        })
-
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["modul-tags", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("modul_tags").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) query = query.ilike("name", `%${debouncedSearch}%`)
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query.order("name", { ascending: true }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      setShowAddModal(false)
-      setFormData({ name: "" })
-      fetchModulTags()
-    } catch (error) {
-      console.error("Error adding modul tag:", error)
-      alert("Gagal menambahkan modul tag")
-    }
-  }
+  const tags = data?.rows || []
+  const totalRows = data?.total || 0
 
-  const handleEdit = async () => {
-    if (!editingTag) return
-
-    try {
-
-      const { error } = await supa
-        .from("modul_tags")
-        .update({
-          name: formData.name
-        })
-        .eq("id", editingTag.id)
-
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("modul_tags").insert({ name: formData.name })
       if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), name: formData.name }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData({ name: "" }) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan modul tag")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
+  })
 
-      setEditingTag(null)
-      setShowAddModal(false)
-      setFormData({ name: "" })
-      fetchModulTags()
-    } catch (error) {
-      console.error("Error updating modul tag:", error)
-      alert("Gagal mengupdate modul tag")
-    }
-  }
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingTag) return
+      const { error } = await supa.from("modul_tags").update({ name: formData.name }).eq("id", editingTag.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingTag?.id ? { ...row, name: formData.name } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingTag(null); setShowAddModal(false); setFormData({ name: "" }) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate modul tag")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
+  })
 
-  const handleDeleteClick = (tag: ModulTag) => {
-    setDeletingTag(tag)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingTag) return
-
-    try {
-
-      
-      // Cek apakah ada modules yang terkait dengan tag ini
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingTag) return
       const { count: moduleCount, error: countError } = await supa
         .from("modul_module_tags")
         .select("*", { count: "exact", head: true })
         .eq("tag_id", deletingTag.id)
-
-      if (countError) {
-        console.error("Error checking module count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek modul terkait" })
-        setDeletingTag(null)
-        return
-      }
-
+      if (countError) throw new Error("Gagal mengecek modul terkait")
       if (moduleCount && moduleCount > 0) {
-
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus tag ini karena masih ada ${moduleCount} modul yang terkait. Pindahkan atau hapus modul terlebih dahulu.` 
-        })
-        setDeletingTag(null)
-        return
+        throw new Error(`Tidak dapat menghapus tag ini karena masih ada ${moduleCount} modul yang terkait.`)
       }
-
-      const { error } = await supa
-        .from("modul_tags")
-        .delete()
-        .eq("id", deletingTag.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingTag(null)
-      fetchModulTags()
-    } catch (error) {
-      console.error("Error deleting modul tag:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus modul tag: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      const { error } = await supa.from("modul_tags").delete().eq("id", deletingTag.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingTag?.id), total: Math.max(0, old.total - 1) }
       })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingTag(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      setBlockingAlert({ message: error.message })
       setDeletingTag(null)
-    }
-  }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
+  })
+
+  const handleAdd = () => addMutation.mutate()
+  const handleEdit = () => editMutation.mutate()
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (tag: ModulTag) => { setDeletingTag(tag) }
 
   const openEditModal = (tag: ModulTag) => {
     setEditingTag(tag)

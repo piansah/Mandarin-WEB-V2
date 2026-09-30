@@ -15,7 +15,7 @@ Platform belajar Bahasa Mandarin berbasis web — HSK 3.0 — dibangun dengan st
 | **Unit Testing** | Vitest |
 | **E2E Testing** | Playwright |
 | **CI/CD** | GitHub Actions |
-| **Error Monitoring** | Sentry |
+| **Error Monitoring** | Built-in Next.js Error Boundaries (`error.tsx`) |
 | **Type Safety** | TypeScript strict + Auto-generated Supabase types |
 
 ---
@@ -101,7 +101,6 @@ Buat file `.env.local` di root project:
 NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key  # Hanya untuk server-side
-SENTRY_DSN=your-sentry-dsn
 ```
 
 Untuk E2E tests, buat `.env.test.local`:
@@ -167,13 +166,12 @@ Konfigurasi: `.github/workflows/ci.yml`
 
 Rating engineering saat ini: **7.5 / 10** (Mid-Senior level).
 
-### 🔴 Prioritas Tinggi (Gap Terbesar)
+### 🔴 Prioritas Tinggi (Selesai ✅)
 
 | Item | Detail | Dampak |
 |---|---|---|
-| **Migrasi `useEffect` → React Query** | Masih ada 150+ `useEffect` data-fetching. Migrasi bertahap ke `useQuery`/`useMutation` | Caching, optimistic updates, dedup request |
-| **Hapus semua `alert()` native** | Masih ada 100+ `alert()` di codebase. Ganti dengan Toast (Sonner/shadcn) | UX premium, konsisten di semua platform |
-| **Error Boundary** | Tambahkan `error.tsx` di setiap route segment kritis | Graceful crash, bukan halaman putih |
+| **✅ Migrasi `useEffect` → React Query** | Telah dimigrasi 150+ `useEffect` data-fetching ke `useQuery`/`useMutation` | Caching, optimistic updates, dedup request |
+| **✅ Error Boundary** | Telah ditambahkan `error.tsx` di setiap route segment kritis | Graceful crash, bukan halaman putih |
 
 ### 🟡 Prioritas Menengah
 

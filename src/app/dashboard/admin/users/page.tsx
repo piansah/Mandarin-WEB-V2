@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -24,7 +25,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { getAllUsersWithRoles, updateUserRole, isSuperAdmin, type UserProfileWithRole } from "@/lib/auth-roles"
-
 export default function AdminUsersPage() {
   const router = useRouter()
   const [users, setUsers] = React.useState<UserProfileWithRole[]>([])
@@ -65,7 +65,7 @@ export default function AdminUsersPage() {
 
       
       if (result.error) {
-        alert(`Gagal mengubah role: ${result.error}`)
+        toast.error(`Gagal mengubah role: ${result.error}`)
         return
       }
       
@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
       }
     } catch (error) {
       console.error("Error changing role:", error)
-      alert("Terjadi kesalahan saat mengubah role")
+      toast.error("Terjadi kesalahan saat mengubah role")
     } finally {
       setUpdatingRole(null)
     }
@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
     if (!userToDelete) return
     
     // TODO: Implement actual delete user logic when endpoint is ready
-    alert(`Fitur delete user ${userToDelete.display_name} belum diimplementasikan di backend.`)
+    toast.error(`Fitur delete user ${userToDelete.display_name} belum diimplementasikan di backend.`)
     setDeleteModalOpen(false)
     setUserToDelete(null)
   }

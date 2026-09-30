@@ -65,8 +65,21 @@ export default function FlashcardSetsPage() {
       const { error } = await supa.from("flashcard_sets").insert({ ...formData, is_default: true })
       if (error) throw error
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (e: Error) => alert(e.message),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-sets"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: Date.now(), ...formData, is_default: true }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (e: Error, _v: unknown, context: any) => {
+      alert(e.message)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }),
   })
 
   const editMutation = useMutation({
@@ -75,8 +88,21 @@ export default function FlashcardSetsPage() {
       const { error } = await supa.from("flashcard_sets").update(formData).eq("id", editingSet.id)
       if (error) throw error
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setEditingSet(null); setFormData(EMPTY_FORM) },
-    onError: (e: Error) => alert(e.message),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-sets"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingSet?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingSet(null); setFormData(EMPTY_FORM) },
+    onError: (e: Error, _v: unknown, context: any) => {
+      alert(e.message)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }),
   })
 
   const deleteMutation = useMutation({
@@ -92,8 +118,22 @@ export default function FlashcardSetsPage() {
       const { error } = await supa.from("flashcard_sets").delete().eq("id", deletingSet.id)
       if (error) throw error
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }); setDeletingSet(null) },
-    onError: (e: Error) => { setDeletingSet(null); setBlockingAlert({ message: e.message }) },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-sets"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-sets"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-sets"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingSet?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingSet(null) },
+    onError: (e: Error, _v: unknown, context: any) => {
+      setDeletingSet(null)
+      setBlockingAlert({ message: e.message })
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-sets"] }),
   })
 
   const openEditModal = (s: FlashcardSet) => {

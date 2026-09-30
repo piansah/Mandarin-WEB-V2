@@ -91,12 +91,24 @@ export default function FlashcardCardsPage() {
       })
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] })
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: (err: Error) => alert(err.message),
+    onError: (err: Error, _v: unknown, context: any) => {
+      alert(err.message)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
 
   const editMutation = useMutation({
@@ -112,12 +124,24 @@ export default function FlashcardCardsPage() {
       }).eq("id", editingCard.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingCard?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] })
       setEditingCard(null)
       setFormData(EMPTY_FORM)
     },
-    onError: (err: Error) => alert(err.message),
+    onError: (err: Error, _v: unknown, context: any) => {
+      alert(err.message)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
 
   const deleteMutation = useMutation({
@@ -126,11 +150,23 @@ export default function FlashcardCardsPage() {
       const { error } = await supa.from("flashcard_cards").delete().eq("id", deletingCard.id)
       if (error) throw error
     },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingCard?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] })
       setDeletingCard(null)
     },
-    onError: (err: Error) => alert(err.message),
+    onError: (err: Error, _v: unknown, context: any) => {
+      alert(err.message)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
 
   const openEditModal = (card: FlashcardCard) => {

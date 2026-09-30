@@ -10,10 +10,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, MoreVertical, Search, Layers } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, Layers, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -35,161 +35,128 @@ interface ModulLevel {
 }
 
 export default function ModulLevelsPage() {
-  const [levels, setLevels] = React.useState<ModulLevel[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingLevel, setEditingLevel] = React.useState<ModulLevel | null>(null)
   const [deletingLevel, setDeletingLevel] = React.useState<ModulLevel | null>(null)
   const [blockingAlert, setBlockingAlert] = React.useState<{ message: string } | null>(null)
-  const [formData, setFormData] = React.useState({
-    code: "",
-    label: "",
-    description: "",
-    order_index: 0
-  })
+  const [formData, setFormData] = React.useState({ code: "", label: "", description: "", order_index: 0 })
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
-
-  const fetchModulLevels = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      const { count: totalCount, error: countError } = await supa
-        .from("modul_levels")
-        .select("*", { count: "exact", head: true })
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      const { data, error } = await supa
-        .from("modul_levels")
-        .select("*")
-        .order("order_index", { ascending: true })
-        .range(from, to)
-
-      if (error) throw error
-
-      
-      setLevels(data || [])
-    } catch (error) {
-      console.error("Error fetching modul levels:", error)
-    } finally {
-      setLoading(false)
-    }
-    }, [currentPage, rowsPerPage])
 
   React.useEffect(() => {
-    fetchModulLevels()
-  }, [fetchModulLevels])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const handleAdd = async () => {
-    try {
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
-      const { error } = await supa
-        .from("modul_levels")
-        .insert({
-          code: formData.code,
-          label: formData.label,
-          description: formData.description || null,
-          order_index: formData.order_index
-        })
-
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["modul-levels", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("modul_levels").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) {
+        query = query.or(`code.ilike.%${debouncedSearch}%,label.ilike.%${debouncedSearch}%`)
+      }
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query.order("order_index", { ascending: true }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      setShowAddModal(false)
-      setFormData({ code: "", label: "", description: "", order_index: 0 })
-      fetchModulLevels()
-    } catch (error) {
-      console.error("Error adding modul level:", error)
-      alert("Gagal menambahkan modul level")
-    }
-  }
+  const levels = data?.rows || []
+  const totalRows = data?.total || 0
 
-  const handleEdit = async () => {
-    if (!editingLevel) return
-
-    try {
-
-      const { error } = await supa
-        .from("modul_levels")
-        .update({
-          code: formData.code,
-          label: formData.label,
-          description: formData.description || null,
-          order_index: formData.order_index
-        })
-        .eq("id", editingLevel.id)
-
-      if (error) throw error
-
-      setEditingLevel(null)
-      setShowAddModal(false)
-      setFormData({ code: "", label: "", description: "", order_index: 0 })
-      fetchModulLevels()
-    } catch (error) {
-      console.error("Error updating modul level:", error)
-      alert("Gagal mengupdate modul level")
-    }
-  }
-
-  const handleDeleteClick = (level: ModulLevel) => {
-    setDeletingLevel(level)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingLevel) return
-
-    try {
-
-      
-      // Cek apakah ada modules yang terkait dengan level ini
-      const { count: moduleCount, error: countError } = await supa
-        .from("modul_modules")
-        .select("*", { count: "exact", head: true })
-        .eq("level_id", deletingLevel.id)
-
-      if (countError) {
-        console.error("Error checking module count:", countError)
-        setBlockingAlert({ message: "Gagal mengecek modul terkait" })
-        setDeletingLevel(null)
-        return
-      }
-
-      if (moduleCount && moduleCount > 0) {
-
-        setBlockingAlert({ 
-          message: `Tidak dapat menghapus level ini karena masih ada ${moduleCount} modul yang terkait. Pindahkan atau hapus modul terlebih dahulu.` 
-        })
-        setDeletingLevel(null)
-        return
-      }
-
-      const { error } = await supa
-        .from("modul_levels")
-        .delete()
-        .eq("id", deletingLevel.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingLevel(null)
-      fetchModulLevels()
-    } catch (error) {
-      console.error("Error deleting modul level:", error)
-      setBlockingAlert({ 
-        message: `Gagal menghapus modul level: ${error instanceof Error ? error.message : 'Unknown error'}` 
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("modul_levels").insert({
+        code: formData.code, label: formData.label,
+        description: formData.description || null, order_index: formData.order_index
       })
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData({ code: "", label: "", description: "", order_index: 0 }) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan modul level")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingLevel) return
+      const { error } = await supa.from("modul_levels").update({
+        code: formData.code, label: formData.label,
+        description: formData.description || null, order_index: formData.order_index
+      }).eq("id", editingLevel.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingLevel?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingLevel(null); setShowAddModal(false); setFormData({ code: "", label: "", description: "", order_index: 0 }) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate modul level")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingLevel) return
+      const { count: moduleCount, error: countError } = await supa
+        .from("modul_modules").select("*", { count: "exact", head: true }).eq("level_id", deletingLevel.id)
+      if (countError) throw new Error("Gagal mengecek modul terkait")
+      if (moduleCount && moduleCount > 0) {
+        throw new Error(`Tidak dapat menghapus level ini karena masih ada ${moduleCount} modul yang terkait.`)
+      }
+      const { error } = await supa.from("modul_levels").delete().eq("id", deletingLevel.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingLevel?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingLevel(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      setBlockingAlert({ message: error.message })
       setDeletingLevel(null)
-    }
-  }
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
+  })
+
+  const handleAdd = () => addMutation.mutate()
+  const handleEdit = () => editMutation.mutate()
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (level: ModulLevel) => { setDeletingLevel(level) }
 
   const openEditModal = (level: ModulLevel) => {
     setEditingLevel(level)
@@ -201,12 +168,6 @@ export default function ModulLevelsPage() {
     })
     setShowAddModal(true)
   }
-
-  const filteredLevels = levels.filter(level => 
-    level.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    level.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (level.description && level.description.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
 
   if (loading) {
     return (
@@ -261,14 +222,14 @@ export default function ModulLevelsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLevels.length === 0 ? (
+              {levels.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                     Tidak ada data modul level
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredLevels.map((level) => (
+                levels.map((level: any) => (
                   <TableRow key={level.id}>
                     <TableCell className="font-medium">{level.code}</TableCell>
                     <TableCell>{level.label}</TableCell>

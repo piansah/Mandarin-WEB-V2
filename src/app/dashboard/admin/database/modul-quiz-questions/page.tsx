@@ -13,10 +13,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, MoreVertical, Search, HelpCircle } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, HelpCircle, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -52,219 +52,146 @@ interface ModulModule {
 }
 
 export default function ModulQuizQuestionsPage() {
-  const [questions, setQuestions] = React.useState<ModulQuizQuestion[]>([])
-  const [modules, setModules] = React.useState<ModulModule[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  const EMPTY_FORM = {
+    module_id: "", question_text: "", question_type: "mcq",
+    options: "", correct_option_id: "", order_index: 0
+  }
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [selectedModuleId, setSelectedModuleId] = React.useState<string | null>(null)
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingQuestion, setEditingQuestion] = React.useState<ModulQuizQuestion | null>(null)
   const [deletingQuestion, setDeletingQuestion] = React.useState<ModulQuizQuestion | null>(null)
-  const [formData, setFormData] = React.useState({
-    module_id: "",
-    question_text: "",
-    question_type: "mcq",
-    options: "",
-    correct_option_id: "",
-    order_index: 0
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
 
   React.useEffect(() => {
-    fetchModulModules()
-    fetchModulQuizQuestions()
-  }, [selectedModuleId, currentPage, rowsPerPage, searchQuery])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const fetchModulModules = async () => {
-    try {
-      const { data, error } = await supa
-        .from("modul_modules")
-        .select("id, title, slug")
-        .order("order_index", { ascending: true })
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage, selectedModuleId])
 
+  const { data: modulesData } = useQuery({
+    queryKey: ["modul-modules-list"],
+    queryFn: async () => {
+      const { data, error } = await supa.from("modul_modules").select("id, title, slug").order("order_index", { ascending: true })
       if (error) throw error
-      setModules(data || [])
-    } catch (error) {
-      console.error("Error fetching modul modules:", error)
-    }
-  }
+      return data || []
+    },
+  })
+  const modules = modulesData || []
 
-  const fetchModulQuizQuestions = async () => {
-    try {
-      // Dapatkan total count dulu
-      let countQuery = supa
-        .from("modul_quiz_questions")
-        .select("*", { count: "exact", head: true })
-
-      if (selectedModuleId) {
-        countQuery = countQuery.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        countQuery = countQuery.ilike("question_text", `%${searchQuery}%`)
-      }
-
-      const { count: totalCount, error: countError } = await countQuery
-
-      if (countError) throw countError
-
-      setTotalRows(totalCount || 0)
-
-      // Fetch data dengan pagination di level Supabase
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["modul-quiz-questions", currentPage, rowsPerPage, debouncedSearch, selectedModuleId],
+    queryFn: async () => {
+      let query = supa.from("modul_quiz_questions").select("*", { count: "exact" })
+      if (selectedModuleId) query = query.eq("module_id", selectedModuleId)
+      if (debouncedSearch.trim()) query = query.ilike("question_text", `%${debouncedSearch}%`)
       const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      let query = supa
-        .from("modul_quiz_questions")
-        .select("*")
-        .order("order_index", { ascending: true })
-        .range(from, to)
-
-      if (selectedModuleId) {
-        query = query.eq("module_id", selectedModuleId)
-      }
-
-      if (searchQuery) {
-        query = query.ilike("question_text", `%${searchQuery}%`)
-      }
-
-      const { data, error } = await query
-
+      const { data, count, error } = await query.order("order_index", { ascending: true }).range(from, from + rowsPerPage - 1)
       if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      setQuestions(data || [])
-    } catch (error) {
-      console.error("Error fetching modul quiz questions:", error)
-    } finally {
-      setLoading(false)
+  const questions = data?.rows || []
+  const totalRows = data?.total || 0
+
+  const parsePayload = () => {
+    let parsedOptions = null
+    try {
+      parsedOptions = formData.options ? JSON.parse(formData.options) : null
+    } catch { alert("Invalid JSON format for options"); return null }
+    return {
+      module_id: formData.module_id, question_text: formData.question_text, question_type: formData.question_type,
+      options: parsedOptions, correct_option_id: formData.correct_option_id, order_index: formData.order_index
     }
   }
 
-  const handleAdd = async () => {
-    try {
-
-      // Parse JSON options
-      let parsedOptions = null
-      try {
-        parsedOptions = formData.options ? JSON.parse(formData.options) : null
-      } catch (e) {
-        alert("Invalid JSON format for options")
-        return
-      }
-
-      const { error } = await supa
-        .from("modul_quiz_questions")
-        .insert({
-          module_id: formData.module_id,
-          question_text: formData.question_text,
-          question_type: formData.question_type,
-          options: parsedOptions,
-          correct_option_id: formData.correct_option_id,
-          order_index: formData.order_index
-        })
-
+  const addMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const { error } = await supa.from("modul_quiz_questions").insert(payload)
       if (error) throw error
-
-      setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        question_text: "",
-        question_type: "mcq",
-        options: "",
-        correct_option_id: "",
-        order_index: 0
+    },
+    onMutate: async (payload: any) => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: crypto.randomUUID(), ...payload }, ...old.rows], total: old.total + 1 }
       })
-      fetchModulQuizQuestions()
-    } catch (error) {
-      console.error("Error adding modul quiz question:", error)
-      alert("Gagal menambahkan modul quiz question")
-    }
-  }
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan modul quiz question")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
+  })
 
-  const handleEdit = async () => {
-    if (!editingQuestion) return
-
-    try {
-
-      // Parse JSON options
-      let parsedOptions = null
-      try {
-        parsedOptions = formData.options ? JSON.parse(formData.options) : null
-      } catch (e) {
-        alert("Invalid JSON format for options")
-        return
-      }
-
-      const { error } = await supa
-        .from("modul_quiz_questions")
-        .update({
-          module_id: formData.module_id,
-          question_text: formData.question_text,
-          question_type: formData.question_type,
-          options: parsedOptions,
-          correct_option_id: formData.correct_option_id,
-          order_index: formData.order_index
-        })
-        .eq("id", editingQuestion.id)
-
+  const editMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (!editingQuestion) return
+      const { error } = await supa.from("modul_quiz_questions").update(payload).eq("id", editingQuestion.id)
       if (error) throw error
-
-      setEditingQuestion(null)
-      setShowAddModal(false)
-      setFormData({
-        module_id: "",
-        question_text: "",
-        question_type: "mcq",
-        options: "",
-        correct_option_id: "",
-        order_index: 0
+    },
+    onMutate: async (payload: any) => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuestion?.id ? { ...row, ...payload } : row) }
       })
-      fetchModulQuizQuestions()
-    } catch (error) {
-      console.error("Error updating modul quiz question:", error)
-      alert("Gagal mengupdate modul quiz question")
-    }
-  }
+      return { previousData }
+    },
+    onSuccess: () => { setEditingQuestion(null); setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate modul quiz question")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
+  })
 
-  const handleDeleteClick = (question: ModulQuizQuestion) => {
-    setDeletingQuestion(question)
-  }
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingQuestion) return
+      const { error } = await supa.from("modul_quiz_questions").delete().eq("id", deletingQuestion.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingQuestion(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      toast.error(`Gagal menghapus modul quiz question: ${error.message}`)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
+  })
 
-  const handleDelete = async () => {
-    if (!deletingQuestion) return
-
-    try {
-
-      const { error } = await supa
-        .from("modul_quiz_questions")
-        .delete()
-        .eq("id", deletingQuestion.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
-      }
-
-      setDeletingQuestion(null)
-      fetchModulQuizQuestions()
-    } catch (error) {
-      console.error("Error deleting modul quiz question:", error)
-      alert(`Gagal menghapus modul quiz question: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      setDeletingQuestion(null)
-    }
-  }
+  const handleAdd = () => { const p = parsePayload(); if (p) addMutation.mutate(p) }
+  const handleEdit = () => { const p = parsePayload(); if (p) editMutation.mutate(p) }
+  const handleDelete = () => deleteMutation.mutate()
+  const handleDeleteClick = (question: ModulQuizQuestion) => { setDeletingQuestion(question) }
 
   const openEditModal = (question: ModulQuizQuestion) => {
     setEditingQuestion(question)
     setFormData({
-      module_id: question.module_id,
-      question_text: question.question_text,
-      question_type: question.question_type,
+      module_id: question.module_id, question_text: question.question_text, question_type: question.question_type,
       options: question.options ? JSON.stringify(question.options, null, 2) : "",
-      correct_option_id: question.correct_option_id,
-      order_index: question.order_index
+      correct_option_id: question.correct_option_id, order_index: question.order_index
     })
     setShowAddModal(true)
   }
@@ -272,7 +199,7 @@ export default function ModulQuizQuestionsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )
   }

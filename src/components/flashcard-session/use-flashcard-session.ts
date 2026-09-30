@@ -1,10 +1,10 @@
+import { toast } from "sonner";
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
-
 type SpeechRecognitionLike = {
   lang: string
   interimResults: boolean
@@ -462,7 +462,7 @@ export function useFlashcardSession({
     } catch (error) {
       console.error("Error resetting SRS:", error)
       // eslint-disable-next-line
-      alert("Gagal reset SRS: " + (error as any).message)
+      toast.error("Gagal reset SRS: " + (error as any).message)
     } finally {
       setResetting(false)
     }

@@ -1,11 +1,11 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { X, Flag } from "lucide-react"
 import { submitContentReport } from "@/lib/bug-reports"
-
 interface ReportModalProps {
   isOpen: boolean
   onClose: () => void
@@ -38,7 +38,7 @@ export function ReportModal({
 
   async function handleSubmit() {
     if (!selectedReason) {
-      alert("Pilih alasan report terlebih dahulu")
+      toast.error("Pilih alasan report terlebih dahulu")
       return
     }
 
@@ -53,7 +53,7 @@ export function ReportModal({
     setSubmitting(false)
 
     if (result.error) {
-      alert(result.error)
+      toast.error(result.error)
     } else {
       setSubmitted(true)
       setTimeout(() => {

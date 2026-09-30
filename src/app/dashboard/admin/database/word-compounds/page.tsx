@@ -11,10 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, MoreVertical, Search, Layers } from "lucide-react"
-import { createClient } from "@/lib/supabase/browser"
-
-const supa = createClient()
+import { Plus, Edit, Trash2, MoreVertical, Search, Layers, Loader2 } from "lucide-react"
+import { toast } from "sonner"
+import { useSupabase } from "@/hooks/use-supabase"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Table,
   TableBody,
@@ -35,165 +35,132 @@ interface WordCompound {
 }
 
 export default function WordCompoundsPage() {
-  const [compounds, setCompounds] = React.useState<WordCompound[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const supa = useSupabase()
+  const queryClient = useQueryClient()
+
+  const EMPTY_FORM = { hanzi: "", pinyin: "", arti: "", badge: "native", frequency: 1 }
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [showAddModal, setShowAddModal] = React.useState(false)
   const [editingCompound, setEditingCompound] = React.useState<WordCompound | null>(null)
   const [deletingCompound, setDeletingCompound] = React.useState<WordCompound | null>(null)
-  const [formData, setFormData] = React.useState({
-    hanzi: "",
-    pinyin: "",
-    arti: "",
-    badge: "native",
-    frequency: 1
-  })
+  const [formData, setFormData] = React.useState(EMPTY_FORM)
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
-  const [totalRows, setTotalRows] = React.useState(0)
-
-  const fetchWordCompounds = React.useCallback(async () => {
-    try {
-      // Dapatkan total count dulu
-      const { count: totalCount, error: countError } = await supa
-        .from("word_compounds")
-        .select("*", { count: "exact", head: true })
-
-      if (countError) throw countError
-
-      // Fetch data dengan pagination di level Supabase
-      const from = (currentPage - 1) * rowsPerPage
-      const to = from + rowsPerPage - 1
-
-      const { data, error } = await supa
-        .from("word_compounds")
-        .select("*")
-        .order("frequency", { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
-
-      
-      setCompounds(data || [])
-      setTotalRows(totalCount || 0)
-    } catch (error) {
-      console.error("Error fetching word compounds:", error)
-    } finally {
-      setLoading(false)
-    }
-    }, [currentPage, rowsPerPage])
 
   React.useEffect(() => {
-    fetchWordCompounds()
-  }, [fetchWordCompounds])
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCurrentPage(1) }, 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
 
-  const handleAdd = async () => {
-    try {
-      const { error } = await supa
-        .from("word_compounds")
-        .insert({
-          hanzi: formData.hanzi,
-          pinyin: formData.pinyin,
-          arti: formData.arti || null,
-          badge: formData.badge,
-          frequency: formData.frequency
-        })
+  React.useEffect(() => { setCurrentPage(1) }, [rowsPerPage])
 
-      if (error) throw error
-
-      setShowAddModal(false)
-      setFormData({ hanzi: "", pinyin: "", arti: "", badge: "native", frequency: 1 })
-      fetchWordCompounds()
-    } catch (error) {
-      console.error("Error adding word compound:", error)
-      alert("Gagal menambahkan word compound")
-    }
-  }
-
-  const handleEdit = async () => {
-    if (!editingCompound) return
-
-    try {
-      const { error } = await supa
-        .from("word_compounds")
-        .update({
-          hanzi: formData.hanzi,
-          pinyin: formData.pinyin,
-          arti: formData.arti || null,
-          badge: formData.badge,
-          frequency: formData.frequency
-        })
-        .eq("id", editingCompound.id)
-
-      if (error) throw error
-
-      setEditingCompound(null)
-      setFormData({ hanzi: "", pinyin: "", arti: "", badge: "native", frequency: 1 })
-      fetchWordCompounds()
-    } catch (error) {
-      console.error("Error updating word compound:", error)
-      alert("Gagal mengupdate word compound")
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deletingCompound) return
-
-    try {
-
-      const { error } = await supa
-        .from("word_compounds")
-        .delete()
-        .eq("id", deletingCompound.id)
-
-      if (error) {
-        console.error("Supabase error:", error)
-        throw error
+  const { data, isLoading: loading } = useQuery({
+    queryKey: ["word-compounds", currentPage, rowsPerPage, debouncedSearch],
+    queryFn: async () => {
+      let query = supa.from("word_compounds").select("*", { count: "exact" })
+      if (debouncedSearch.trim()) {
+        query = query.or(`hanzi.ilike.%${debouncedSearch}%,pinyin.ilike.%${debouncedSearch}%,arti.ilike.%${debouncedSearch}%`)
       }
+      const from = (currentPage - 1) * rowsPerPage
+      const { data, count, error } = await query.order("frequency", { ascending: false }).range(from, from + rowsPerPage - 1)
+      if (error) throw error
+      return { rows: data || [], total: count || 0 }
+    },
+  })
 
-      setDeletingCompound(null)
-      fetchWordCompounds()
-    } catch (error) {
-      console.error("Error deleting word compound:", error)
-      alert(`Gagal menghapus word compound: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
+  const compounds = data?.rows || []
+  const totalRows = data?.total || 0
+  const totalPages = Math.ceil(totalRows / rowsPerPage)
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supa.from("word_compounds").insert({
+        hanzi: formData.hanzi, pinyin: formData.pinyin, arti: formData.arti || null,
+        badge: formData.badge, frequency: formData.frequency
+      })
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: [{ id: Date.now(), ...formData }, ...old.rows], total: old.total + 1 }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal menambahkan word compound")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
+  })
+
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingCompound) return
+      const { error } = await supa.from("word_compounds").update({
+        hanzi: formData.hanzi, pinyin: formData.pinyin, arti: formData.arti || null,
+        badge: formData.badge, frequency: formData.frequency
+      }).eq("id", editingCompound.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.map((row: any) => row.id === editingCompound?.id ? { ...row, ...formData } : row) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setEditingCompound(null); setFormData(EMPTY_FORM) },
+    onError: (_e: unknown, _v: unknown, context: any) => {
+      toast.error("Gagal mengupdate word compound")
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingCompound) return
+      const { error } = await supa.from("word_compounds").delete().eq("id", deletingCompound.id)
+      if (error) throw error
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
+      const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+        if (!old) return old
+        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingCompound?.id), total: Math.max(0, old.total - 1) }
+      })
+      return { previousData }
+    },
+    onSuccess: () => { setDeletingCompound(null) },
+    onError: (error: Error, _v: unknown, context: any) => {
+      toast.error(`Gagal menghapus word compound: ${error.message}`)
+      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
+  })
+
+  const handleAdd = () => addMutation.mutate()
+  const handleEdit = () => editMutation.mutate()
+  const handleDelete = () => deleteMutation.mutate()
 
   const openEditModal = (compound: WordCompound) => {
     setEditingCompound(compound)
-    setFormData({
-      hanzi: compound.hanzi,
-      pinyin: compound.pinyin,
-      arti: compound.arti || "",
-      badge: compound.badge,
-      frequency: compound.frequency
-    })
+    setFormData({ hanzi: compound.hanzi, pinyin: compound.pinyin, arti: compound.arti || "", badge: compound.badge, frequency: compound.frequency })
   }
 
   const openAddModal = () => {
     setEditingCompound(null)
-    setFormData({ hanzi: "", pinyin: "", arti: "", badge: "native", frequency: 1 })
+    setFormData(EMPTY_FORM)
     setShowAddModal(true)
   }
-
-  const filteredCompounds = compounds.filter(compound => 
-    compound.hanzi.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    compound.pinyin.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (compound.arti && compound.arti.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  // Pagination logic (server-side)
-  const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
-  // Reset to page 1 when search or rowsPerPage changes
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, rowsPerPage])
-  
-  // Re-fetch data when page changes
-  React.useEffect(() => {
-    fetchWordCompounds()
-  }, [currentPage, rowsPerPage])
 
   return (
     <div className="flex flex-col p-6 gap-6">
@@ -230,7 +197,7 @@ export default function WordCompoundsPage() {
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
         </div>
-      ) : filteredCompounds.length === 0 ? (
+      ) : compounds.length === 0 ? (
         <Card className="border-muted/50">
           <CardContent className="py-12 text-center">
             <Layers className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -253,7 +220,7 @@ export default function WordCompoundsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCompounds.map((compound) => (
+                {compounds.map((compound: any) => (
                   <TableRow key={compound.id}>
                     <TableCell className="font-medium">{compound.id}</TableCell>
                     <TableCell className="font-medium">{compound.hanzi}</TableCell>

@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -12,7 +13,6 @@ import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 import { speakMandarin } from "@/lib/tts"
 import { getWordDetailPath } from "@/lib/hanzi-segmentation"
-
 export default function FavoritesPage() {
   const router = useRouter()
   const [favorites, setFavorites] = React.useState<FavoriteCard[]>([])
@@ -45,7 +45,7 @@ export default function FavoritesPage() {
     if (!result.error) {
       loadFavorites()
     } else {
-      alert(result.error)
+      toast.error(result.error)
     }
     setDeleteDialogOpen(false)
     setCardToDelete(null)
@@ -95,7 +95,7 @@ export default function FavoritesPage() {
         return
       }
 
-      alert("Kata ini tidak ditemukan di database utama")
+      toast.error("Kata ini tidak ditemukan di database utama")
       return
     }
 
