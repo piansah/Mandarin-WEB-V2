@@ -81,7 +81,7 @@ export function PracticeHeader({
             return (
               <div
                 key={i}
-                className="flex flex-col gap-1 transition-all duration-300 hover:-translate-y-px hover:shadow-md"
+                className="flex flex-col items-center text-center gap-1 transition-all duration-300 hover:-translate-y-px hover:shadow-md"
               >
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   {Icon && <Icon className="h-3 w-3" />}

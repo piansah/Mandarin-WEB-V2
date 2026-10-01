@@ -57,30 +57,40 @@ export function useFlashcardSession({
 
   const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
-  const [idx, setIdx] = React.useState(() => {
-    if (typeof window === "undefined") return 0
+  const initialSession = React.useMemo(() => {
+    if (typeof window === "undefined") return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
     try {
       const saved = localStorage.getItem(sessionStorageKey)
-      if (!saved) return 0
-      const { savedIdx, timestamp } = JSON.parse(saved)
-      const hoursDiff = (Date.now() - timestamp) / (1000 * 60 * 60)
+      if (!saved) return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
+      const parsed = JSON.parse(saved)
+      const hoursDiff = (Date.now() - parsed.timestamp) / (1000 * 60 * 60)
       if (hoursDiff >= 24) {
         localStorage.removeItem(sessionStorageKey)
-        return 0
+        return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
       }
-      return savedIdx
+      return {
+        idx: parsed.savedIdx ?? 0,
+        hafal: parsed.hafal ?? 0,
+        lupa: parsed.lupa ?? 0,
+        ragu: parsed.ragu ?? 0,
+        sulit: parsed.sulit ?? 0,
+        sessionMastered: parsed.sessionMastered ?? 0,
+        sessionReviews: parsed.sessionReviews ?? [],
+      }
     } catch {
-      return 0
+      return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
     }
-  })
+  }, [sessionStorageKey])
+
+  const [idx, setIdx] = React.useState(initialSession.idx)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
-  const [hafal, setHafal] = React.useState(0)
-  const [lupa, setLupa] = React.useState(0)
-  const [ragu, setRagu] = React.useState(0)
-  const [sulit, setSulit] = React.useState(0)
+  const [hafal, setHafal] = React.useState(initialSession.hafal)
+  const [lupa, setLupa] = React.useState(initialSession.lupa)
+  const [ragu, setRagu] = React.useState(initialSession.ragu)
+  const [sulit, setSulit] = React.useState(initialSession.sulit)
   const [done, setDone] = React.useState(false)
-  const [sessionMastered, setSessionMastered] = React.useState(0)
-  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>([])
+  const [sessionMastered, setSessionMastered] = React.useState(initialSession.sessionMastered)
+  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>(initialSession.sessionReviews)
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -186,11 +196,17 @@ export function useFlashcardSession({
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.setItem(key, JSON.stringify({
         savedIdx: idx,
+        hafal,
+        lupa,
+        ragu,
+        sulit,
+        sessionMastered,
+        sessionReviews,
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, done, userId, deckCardIds])
+  }, [idx, hafal, lupa, ragu, sulit, sessionMastered, sessionReviews, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
