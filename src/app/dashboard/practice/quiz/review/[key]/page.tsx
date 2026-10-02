@@ -162,7 +162,7 @@ export default function CumulativeQuizPracticePage() {
         // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
         const hoursDiff = state?.timestamp
           ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
-          : Infinity
+          : 0 // Fallback ke 0 untuk legacy data agar tidak langsung ter-reset
         if (Array.isArray(savedQ) && savedQ.length > 0 && !state?.submitted && hoursDiff < 24) {
           const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {

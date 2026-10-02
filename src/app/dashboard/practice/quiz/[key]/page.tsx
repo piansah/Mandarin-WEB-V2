@@ -250,7 +250,7 @@ export default function QuizPage() {
       // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
       const hoursDiff = existingQuiz?.timestamp
         ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
-        : Infinity
+        : 0 // Fallback ke 0 untuk legacy data agar tidak langsung ter-reset
 
       if (existingQuiz && !existingQuiz.submitted && hoursDiff < 24) {
         // Restore from localStorage — sesi belum selesai dan masih dalam 24 jam

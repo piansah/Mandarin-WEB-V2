@@ -57,6 +57,8 @@ export function useFlashcardSession({
 
   const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
+  const totalDeckCards = cards.length || deckCardIds?.length || 0
+
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
   const [mudah, setMudah] = React.useState(0)
@@ -64,8 +66,23 @@ export function useFlashcardSession({
   const [sulit, setSulit] = React.useState(0)
   const [ingat, setIngat] = React.useState(0)
   const [done, setDone] = React.useState(false)
-  const [sessionMastered, setSessionMastered] = React.useState(0)
+  const [masteredCardIds, setMasteredCardIds] = React.useState<Set<string>>(new Set())
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>([])
+
+  const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
+    dueToday: 0,
+    totalCards: totalDeckCards,
+    accuracy: 0,
+    mastered: 0,
+    rated: 0,
+  })
+
+  React.useEffect(() => {
+    setHeaderStats(prev => ({
+      ...prev,
+      totalCards: totalDeckCards || prev.totalCards,
+    }))
+  }, [totalDeckCards])
 
   React.useEffect(() => {
     if (!sessionStorageKey || typeof window === "undefined") return
@@ -73,24 +90,26 @@ export function useFlashcardSession({
       const saved = localStorage.getItem(sessionStorageKey)
       if (saved) {
         const parsed = JSON.parse(saved)
-        const hoursDiff = (Date.now() - parsed.timestamp) / (1000 * 60 * 60)
+        const hoursDiff = (Date.now() - (parsed.timestamp || Date.now())) / (1000 * 60 * 60)
         if (hoursDiff < 24) {
           setIdx(parsed.savedIdx ?? 0)
           setMudah(parsed.mudah ?? 0)
           setLupa(parsed.lupa ?? 0)
           setSulit(parsed.sulit ?? 0)
           setIngat(parsed.ingat ?? 0)
-          setSessionMastered(parsed.sessionMastered ?? 0)
+          if (Array.isArray(parsed.masteredCardIds)) {
+            setMasteredCardIds(new Set(parsed.masteredCardIds))
+          }
           setSessionReviews(parsed.sessionReviews ?? [])
           // Restore header stats immediately so PracticeHeader tidak balik ke 0
-          // dueToday tidak di-restore karena harus selalu fetch ulang dari DB
           if (parsed.savedHeaderStats) {
             setHeaderStats(prev => ({
               ...prev,
               accuracy: parsed.savedHeaderStats.accuracy ?? 0,
               rated: parsed.savedHeaderStats.rated ?? 0,
-              mastered: parsed.savedHeaderStats.mastered ?? 0,
-              totalCards: parsed.savedHeaderStats.totalCards ?? 0,
+              mastered: parsed.savedHeaderStats.mastered ?? (parsed.masteredCardIds?.length ?? 0),
+              totalCards: totalDeckCards || parsed.savedHeaderStats.totalCards || 0,
+              dueToday: parsed.savedHeaderStats.dueToday ?? prev.dueToday,
             }))
           }
         } else {
@@ -98,7 +117,7 @@ export function useFlashcardSession({
         }
       }
     } catch {}
-  }, [sessionStorageKey])
+  }, [sessionStorageKey, totalDeckCards])
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -114,11 +133,7 @@ export function useFlashcardSession({
   const [feedback, setFeedback] = React.useState<{ type: "ok" | "warn" | "err" | "interim"; msg: string; hanzi?: string } | null>(null)
   const recogRef = React.useRef<SpeechRecognitionLike | null>(null)
   const [flyOut, setFlyOut] = React.useState<{ x: number; y: number } | null>(null)
-  const [sessionKey, setSessionKey] = React.useState(0)
   const scoreSavedRef = React.useRef(false)
-  const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
-    dueToday: 0, totalCards: 0, accuracy: 0, mastered: 0, rated: 0,
-  })
   const [selectedRating, setSelectedRating] = React.useState<0 | 3 | 4 | 5 | null>(null)
   const [resultRingValue, setResultRingValue] = React.useState(0)
   const prefersReducedMotionRef = React.useRef(false)
@@ -126,8 +141,6 @@ export function useFlashcardSession({
   React.useEffect(() => {
     prefersReducedMotionRef.current = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   }, [])
-
-  // sessionKey useEffect removed to prevent local storage reset on mount
 
   const totalOriginal = orderedCards.length
   const currentTotal = totalOriginal + repeatQueue.length
@@ -191,21 +204,20 @@ export function useFlashcardSession({
         lupa,
         sulit,
         ingat,
-        sessionMastered,
+        masteredCardIds: Array.from(masteredCardIds),
         sessionReviews,
-        // Simpan header stats agar tidak kembali ke 0 saat sesi dibuka kembali
-        // dueToday sengaja tidak disimpan — selalu di-fetch ulang dari DB
         savedHeaderStats: {
           accuracy: headerStats.accuracy,
           rated: headerStats.rated,
           mastered: headerStats.mastered,
-          totalCards: headerStats.totalCards,
+          totalCards: totalDeckCards,
+          dueToday: headerStats.dueToday,
         },
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, mudah, lupa, sulit, ingat, sessionMastered, sessionReviews, headerStats, done, userId, deckCardIds])
+  }, [idx, mudah, lupa, sulit, ingat, masteredCardIds, sessionReviews, headerStats, done, userId, deckCardIds, totalDeckCards])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -259,28 +271,62 @@ export function useFlashcardSession({
 
   React.useEffect(() => {
     async function fetchHeaderStats() {
-      if (!userId) return
+      const deckTotal = cards.length || deckCardIds?.length || 0
+      if (!userId) {
+        setHeaderStats(prev => ({
+          ...prev,
+          totalCards: deckTotal,
+          dueToday: deckTotal,
+        }))
+        return
+      }
       const today = new Date().toISOString().slice(0, 10)
+      const allIds = deckCardIds || cards.map(c => String(c.id))
 
-      const { data: dueData } = await supa.from("user_card_progress").select("card_id").eq("user_id", userId).lte("next_review", today)
-      const filteredDueData = deckCardIds ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? [] : dueData ?? []
+      const { data: progressRows } = await supa
+        .from("user_card_progress")
+        .select("card_id, next_review, srs_level")
+        .eq("user_id", userId)
+        .in("card_id", allIds)
+
+      const progressMap = new Map<string, { next_review: string | null; srs_level: number }>()
+      for (const row of progressRows ?? []) {
+        if (row.card_id) {
+          progressMap.set(String(row.card_id), {
+            next_review: row.next_review,
+            srs_level: row.srs_level ?? 0,
+          })
+        }
+      }
+
+      let dueCount = 0
+      const dbMasteredIds = new Set<string>()
+
+      for (const id of allIds) {
+        const p = progressMap.get(String(id))
+        if (!p || (p.next_review && p.next_review <= today)) {
+          dueCount++
+        }
+        if (p && p.srs_level >= 5) {
+          dbMasteredIds.add(String(id))
+        }
+      }
+
+      setMasteredCardIds(prev => new Set([...dbMasteredIds, ...prev]))
 
       const totalRatings = mudah + ingat + sulit + lupa
       const accuracy = totalRatings > 0 ? Math.round(((mudah + ingat) / totalRatings) * 100) : 0
 
-      const { data: masteredData } = await supa.from("user_card_progress").select("id, card_id").eq("user_id", userId).gte("srs_level", 5)
-      const filteredMasteredData = deckCardIds ? masteredData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? [] : masteredData ?? []
-
-      setHeaderStats({
-        dueToday: filteredDueData.length,
-        totalCards: mudah + ingat + sulit + lupa,
+      setHeaderStats(prev => ({
+        dueToday: dueCount,
+        totalCards: deckTotal,
         accuracy: accuracy,
-        mastered: sessionMastered + filteredMasteredData.length,
-        rated: mudah + ingat + sulit + lupa,
-      })
+        mastered: Math.min(deckTotal, new Set([...dbMasteredIds, ...masteredCardIds]).size),
+        rated: totalRatings,
+      }))
     }
     fetchHeaderStats()
-  }, [userId, cards.length, mudah, ingat, sulit, lupa, supa, deckCardIds])
+  }, [userId, cards.length, supa, deckCardIds])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -299,31 +345,68 @@ export function useFlashcardSession({
 
   function advance(quality: 0 | 3 | 4 | 5) {
     if (!card) return
-    
-    setSessionReviews(prev => [...prev, { cardId: String(card.id), quality, currentLevel: card.srsLevel ?? 0 }])
+    const cardIdStr = String(card.id)
 
-    if (quality === 5) setMudah(h => h + 1)
-    else if (quality === 4) setIngat(s => s + 1)
-    else if (quality === 3) setSulit(r => r + 1)
-    else {
-      setLupa(l => l + 1)
+    setSessionReviews(prev => {
+      const filtered = prev.filter(r => r.cardId !== cardIdStr)
+      return [...filtered, { cardId: cardIdStr, quality, currentLevel: card.srsLevel ?? 0 }]
+    })
+
+    let nextMudah = mudah
+    let nextIngat = ingat
+    let nextSulit = sulit
+    let nextLupa = lupa
+
+    if (quality === 5) {
+      nextMudah = mudah + 1
+      setMudah(nextMudah)
+    } else if (quality === 4) {
+      nextIngat = ingat + 1
+      setIngat(nextIngat)
+    } else if (quality === 3) {
+      nextSulit = sulit + 1
+      setSulit(nextSulit)
+    } else {
+      nextLupa = lupa + 1
+      setLupa(nextLupa)
       setRepeatQueue(prev => [...prev, card])
     }
 
+    const deckTotal = cards.length || deckCardIds?.length || 0
+    const nextMasteredSet = new Set(masteredCardIds)
+    if (quality === 5) {
+      nextMasteredSet.add(cardIdStr)
+      setMasteredCardIds(nextMasteredSet)
+    } else if (quality === 0) {
+      nextMasteredSet.delete(cardIdStr)
+      setMasteredCardIds(nextMasteredSet)
+    }
+
+    const newRated = nextMudah + nextIngat + nextSulit + nextLupa
+    const newAccuracy = newRated > 0 ? Math.round(((nextMudah + nextIngat) / newRated) * 100) : 0
+
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
-    setHeaderStats(prev => ({ ...prev, rated: prev.rated + 1, mastered: quality === 5 ? prev.mastered + 1 : prev.mastered }))
-    setSessionMastered(prev => quality === 5 ? prev + 1 : prev)
+    setHeaderStats(prev => ({
+      ...prev,
+      rated: newRated,
+      accuracy: newAccuracy,
+      mastered: Math.min(deckTotal, nextMasteredSet.size),
+      totalCards: deckTotal,
+    }))
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
       const stats = {
-        mudah: quality === 5 ? mudah + 1 : mudah,
-        ingat: quality === 4 ? ingat + 1 : ingat,
-        sulit: quality === 3 ? sulit + 1 : sulit,
-        lupa: quality === 0 ? lupa + 1 : lupa,
+        mudah: nextMudah,
+        ingat: nextIngat,
+        sulit: nextSulit,
+        lupa: nextLupa,
       }
-      const newReviews = [...sessionReviews, { cardId: String(card.id), quality, currentLevel: card.srsLevel ?? 0 }]
-      setTimeout(() => onComplete?.(stats, newReviews), 0)
+      const latestReviews = [
+        ...sessionReviews.filter(r => r.cardId !== cardIdStr),
+        { cardId: cardIdStr, quality, currentLevel: card.srsLevel ?? 0 }
+      ]
+      setTimeout(() => onComplete?.(stats, latestReviews), 0)
     } else {
       setIdx((i: number) => i + 1)
     }
