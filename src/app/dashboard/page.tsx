@@ -354,15 +354,76 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Grid Atas: Review SRS */}
-      <div className="grid gap-6 relative">
+      {/* Grid Atas: Streak & Review SRS (30/70) */}
+      <div className="grid gap-6 lg:grid-cols-[4fr_6fr] relative">
         {/* Ambient Glow background for the grid */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden -mx-6">
           <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full" />
           <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full" />
         </div>
 
-        {/* Review Kosakata (SRS) */}
+        {/* Streak Widget */}
+        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative lg:col-span-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(23,166,115,0.15)] group">
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
+            <Flame className="w-32 h-32 text-primary" />
+          </div>
+
+          <CardContent className="p-6 relative z-10 flex flex-col items-center justify-center h-full">
+            <div className="flex justify-between items-center mb-6 w-full">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl font-bold text-primary">{stats.streak}</span>
+                <span className="text-sm font-medium text-muted-foreground">Hari Beruntun!</span>
+              </div>
+              <Flame className="h-6 w-6 text-primary drop-shadow-md" />
+            </div>
+
+            <div className="relative mb-6 w-full px-2">
+              {/* Connecting line behind dots */}
+              <div className="absolute top-[22px] left-6 right-6 h-[2px] bg-border/40 -z-10" />
+
+              <div className="grid grid-cols-7 gap-1 w-full relative z-10">
+                {stats.weekDots.map((dot, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${dot.isToday
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : dot.active
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "bg-muted/30 text-muted-foreground border border-border/30"
+                      }`}
+                  >
+                    <div className="text-sm font-bold mb-1.5 flex items-center justify-center min-h-[20px]">
+                      {dot.active ? (
+                        <Flame
+                          className="w-4 h-4 fill-current animate-flame-pop"
+                          style={{ animationDelay: `${i * 75}ms` }}
+                        />
+                      ) : dot.isToday ? (
+                        "•"
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                    <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 w-full">
+              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 p-4">
+                <span className="text-xl font-bold text-primary">{stats.bestStreak}</span>
+                <span className="text-xs text-muted-foreground mt-1">Streak terbaik</span>
+              </div>
+              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 p-4">
+                <span className="text-xl font-bold text-primary">{stats.consistency}%</span>
+                <span className="text-xs text-muted-foreground mt-1">Konsistensi</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Review Kosakata (SRS) - 60% */}
         <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(59,130,246,0.1)]">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
