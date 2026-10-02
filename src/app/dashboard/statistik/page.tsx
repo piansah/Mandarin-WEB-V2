@@ -30,7 +30,7 @@ function StatCard({
         <div className={`p-2.5 rounded-xl ${color}`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
-        <div className="flex flex-col min-w-0 text-left">
+        <div className="flex flex-col w-full text-left">
           <span className="text-xs text-muted-foreground font-medium">{label}</span>
           <span className="text-2xl font-bold tracking-tight">{value}</span>
           {sub && <span className="text-xs text-muted-foreground mt-0.5">{sub}</span>}

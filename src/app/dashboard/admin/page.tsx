@@ -118,7 +118,7 @@ export default function AdminDashboardPage() {
                 <div className={`p-2.5 rounded-xl bg-muted`}>
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                <div className="flex flex-col min-w-0 text-left">
+                <div className="flex flex-col w-full text-left">
                   <span className="text-xs text-muted-foreground font-medium">{stat.label}</span>
                   <span className="text-2xl font-bold tracking-tight">{stat.value}</span>
                 </div>
