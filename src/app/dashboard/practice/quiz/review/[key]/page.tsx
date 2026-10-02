@@ -159,7 +159,11 @@ export default function CumulativeQuizPracticePage() {
         const state = saved[key]
         const savedQ = state?.allQ ?? state?.kalQ
         const savedAnswered = state?.answered ?? state?.kalAnswered ?? {}
-        if (Array.isArray(savedQ) && savedQ.length > 0) {
+        // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
+        const hoursDiff = state?.timestamp
+          ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
+          : Infinity
+        if (Array.isArray(savedQ) && savedQ.length > 0 && !state?.submitted && hoursDiff < 24) {
           const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {
             if (meta.data) {
@@ -172,6 +176,11 @@ export default function CumulativeQuizPracticePage() {
             setLoading(false)
           }
           return
+        }
+        // Data expired atau submitted — hapus entry lama
+        if (state) {
+          delete saved[key]
+          localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
         }
       } catch {}
 
@@ -193,7 +202,8 @@ export default function CumulativeQuizPracticePage() {
 
       const built = buildKalimatQuiz((questRes.data ?? []) as RawKalimatQuestion[])
       const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-      saved[key] = { allQ: built, kalQ: built, answered: {}, kalAnswered: {}, submitted: false }
+      // Simpan dengan timestamp agar bisa di-expire setelah 24 jam
+      saved[key] = { allQ: built, kalQ: built, answered: {}, kalAnswered: {}, submitted: false, timestamp: Date.now() }
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
 
       setQuizTitle(metaRes.data.title)
@@ -222,6 +232,7 @@ export default function CumulativeQuizPracticePage() {
       saved[key].kalQ = updatedQ
       saved[key].answered = updatedAns
       saved[key].kalAnswered = updatedAns
+      saved[key].timestamp = Date.now() // perbarui timestamp agar expiry dihitung dari jawaban terakhir
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
 

@@ -247,18 +247,24 @@ export default function QuizPage() {
       let initialAnswered: Answered = {}
       let initialSubmitted = false
 
-      if (existingQuiz && !existingQuiz.submitted) {
-        // Restore from localStorage
+      // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
+      const hoursDiff = existingQuiz?.timestamp
+        ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
+        : Infinity
+
+      if (existingQuiz && !existingQuiz.submitted && hoursDiff < 24) {
+        // Restore from localStorage — sesi belum selesai dan masih dalam 24 jam
         internalQuiz = existingQuiz.allQ
         initialAnswered = existingQuiz.answered ?? {}
         initialSubmitted = existingQuiz.submitted ?? false
       } else {
-        // Generate new quiz
+        // Generate new quiz (sesi baru atau sudah expired/submitted)
+        if (existingQuiz) delete savedState[storageKey]
         const generatedQuiz = generateQuizFromCards(cards, hanziKey, hanziItems)
         internalQuiz = convertToInternalQuiz(generatedQuiz)
 
-        // Save to localStorage
-        savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false }
+        // Save to localStorage dengan timestamp
+        savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false, timestamp: Date.now() }
         localStorage.setItem("hsk_quiz_state", JSON.stringify(savedState))
       }
 
@@ -284,12 +290,13 @@ export default function QuizPage() {
     setAllQ(updatedQ)
     setAnswered(updatedAns)
 
-    // Persist
+    // Persist — perbarui juga timestamp agar expiry 24 jam dihitung dari jawaban terakhir
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
     if (saved[storageKey]) {
       saved[storageKey].allQ = updatedQ
       saved[storageKey].answered = updatedAns
+      saved[storageKey].timestamp = Date.now()
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     }
 
