@@ -114,7 +114,7 @@ export default function AdminDashboardPage() {
           const Icon = stat.icon
           return (
             <Card key={stat.label} className="border-muted/50">
-              <CardContent className="p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
+              <CardContent className="p-4 sm:p-5 flex flex-col items-start gap-3">
                 <div className={`p-2.5 rounded-xl bg-muted`}>
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>

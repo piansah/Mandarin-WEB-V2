@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
       if (decks && decks.length > 0) {
         let firstIncompleteDeck = null
-        
+
         // Find first incomplete deck
         for (const deck of decks) {
           // Get all card IDs for this deck
@@ -316,7 +316,8 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <style dangerouslySetInnerHTML={{__html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes flame-pop {
           0% { transform: scale(0.3) translateY(5px); opacity: 0; }
           60% { transform: scale(1.25) translateY(-2px); }
@@ -379,33 +380,33 @@ export default function DashboardPage() {
             <div className="relative mb-6 w-full px-2">
               {/* Connecting line behind dots */}
               <div className="absolute top-[22px] left-6 right-6 h-[2px] bg-border/40 -z-10" />
-              
+
               <div className="grid grid-cols-7 gap-1 w-full relative z-10">
-              {stats.weekDots.map((dot, i) => (
-                <div
-                  key={i}
-                  className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${dot.isToday
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                    : dot.active
-                      ? "bg-primary/20 text-primary border border-primary/30"
-                      : "bg-muted/30 text-muted-foreground border border-border/30"
-                    }`}
-                >
-                  <div className="text-sm font-bold mb-1.5 flex items-center justify-center min-h-[20px]">
-                    {dot.active ? (
-                      <Flame 
-                        className="w-4 h-4 fill-current animate-flame-pop" 
-                        style={{ animationDelay: `${i * 75}ms` }} 
-                      />
-                    ) : dot.isToday ? (
-                      "•"
-                    ) : (
-                      "-"
-                    )}
+                {stats.weekDots.map((dot, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center justify-center rounded-lg p-3 transition-colors ${dot.isToday
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                      : dot.active
+                        ? "bg-primary/20 text-primary border border-primary/30"
+                        : "bg-muted/30 text-muted-foreground border border-border/30"
+                      }`}
+                  >
+                    <div className="text-sm font-bold mb-1.5 flex items-center justify-center min-h-[20px]">
+                      {dot.active ? (
+                        <Flame
+                          className="w-4 h-4 fill-current animate-flame-pop"
+                          style={{ animationDelay: `${i * 75}ms` }}
+                        />
+                      ) : dot.isToday ? (
+                        "•"
+                      ) : (
+                        "-"
+                      )}
+                    </div>
+                    <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
                   </div>
-                  <div className="text-[10px] font-medium uppercase tracking-wider">{dot.day}</div>
-                </div>
-              ))}
+                ))}
               </div>
             </div>
 
@@ -491,7 +492,7 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-center gap-3 p-3.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-center">
                     <RotateCcw className="h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">
-                      {srsStats.due} kartu siap direview<br/>
+                      {srsStats.due} kartu siap direview<br />
                       <span className="text-muted-foreground text-xs mt-0.5 font-normal inline-block">klik tombol di atas untuk mulai</span>
                     </p>
                   </div>
