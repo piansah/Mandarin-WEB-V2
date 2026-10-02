@@ -82,6 +82,17 @@ export function useFlashcardSession({
           setIngat(parsed.ingat ?? 0)
           setSessionMastered(parsed.sessionMastered ?? 0)
           setSessionReviews(parsed.sessionReviews ?? [])
+          // Restore header stats immediately so PracticeHeader tidak balik ke 0
+          // dueToday tidak di-restore karena harus selalu fetch ulang dari DB
+          if (parsed.savedHeaderStats) {
+            setHeaderStats(prev => ({
+              ...prev,
+              accuracy: parsed.savedHeaderStats.accuracy ?? 0,
+              rated: parsed.savedHeaderStats.rated ?? 0,
+              mastered: parsed.savedHeaderStats.mastered ?? 0,
+              totalCards: parsed.savedHeaderStats.totalCards ?? 0,
+            }))
+          }
         } else {
           localStorage.removeItem(sessionStorageKey)
         }
@@ -182,11 +193,19 @@ export function useFlashcardSession({
         ingat,
         sessionMastered,
         sessionReviews,
+        // Simpan header stats agar tidak kembali ke 0 saat sesi dibuka kembali
+        // dueToday sengaja tidak disimpan — selalu di-fetch ulang dari DB
+        savedHeaderStats: {
+          accuracy: headerStats.accuracy,
+          rated: headerStats.rated,
+          mastered: headerStats.mastered,
+          totalCards: headerStats.totalCards,
+        },
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, mudah, lupa, sulit, ingat, sessionMastered, sessionReviews, done, userId, deckCardIds])
+  }, [idx, mudah, lupa, sulit, ingat, sessionMastered, sessionReviews, headerStats, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
