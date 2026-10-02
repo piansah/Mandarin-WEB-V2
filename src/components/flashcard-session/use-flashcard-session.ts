@@ -57,42 +57,37 @@ export function useFlashcardSession({
 
   const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
-  const initialSession = React.useMemo<{
-    idx: number; hafal: number; lupa: number; ragu: number; sulit: number; sessionMastered: number; sessionReviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[];
-  }>(() => {
-    if (typeof window === "undefined") return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
+  const [idx, setIdx] = React.useState(0)
+  const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
+  const [mudah, setMudah] = React.useState(0)
+  const [lupa, setLupa] = React.useState(0)
+  const [sulit, setSulit] = React.useState(0)
+  const [ingat, setIngat] = React.useState(0)
+  const [done, setDone] = React.useState(false)
+  const [sessionMastered, setSessionMastered] = React.useState(0)
+  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>([])
+
+  React.useEffect(() => {
+    if (!sessionStorageKey || typeof window === "undefined") return
     try {
       const saved = localStorage.getItem(sessionStorageKey)
-      if (!saved) return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
-      const parsed = JSON.parse(saved)
-      const hoursDiff = (Date.now() - parsed.timestamp) / (1000 * 60 * 60)
-      if (hoursDiff >= 24) {
-        localStorage.removeItem(sessionStorageKey)
-        return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        const hoursDiff = (Date.now() - parsed.timestamp) / (1000 * 60 * 60)
+        if (hoursDiff < 24) {
+          setIdx(parsed.savedIdx ?? 0)
+          setMudah(parsed.mudah ?? 0)
+          setLupa(parsed.lupa ?? 0)
+          setSulit(parsed.sulit ?? 0)
+          setIngat(parsed.ingat ?? 0)
+          setSessionMastered(parsed.sessionMastered ?? 0)
+          setSessionReviews(parsed.sessionReviews ?? [])
+        } else {
+          localStorage.removeItem(sessionStorageKey)
+        }
       }
-      return {
-        idx: parsed.savedIdx ?? 0,
-        hafal: parsed.hafal ?? 0,
-        lupa: parsed.lupa ?? 0,
-        ragu: parsed.ragu ?? 0,
-        sulit: parsed.sulit ?? 0,
-        sessionMastered: parsed.sessionMastered ?? 0,
-        sessionReviews: parsed.sessionReviews ?? [],
-      }
-    } catch {
-      return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
-    }
+    } catch {}
   }, [sessionStorageKey])
-
-  const [idx, setIdx] = React.useState(initialSession.idx)
-  const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
-  const [hafal, setHafal] = React.useState(initialSession.hafal)
-  const [lupa, setLupa] = React.useState(initialSession.lupa)
-  const [ragu, setRagu] = React.useState(initialSession.ragu)
-  const [sulit, setSulit] = React.useState(initialSession.sulit)
-  const [done, setDone] = React.useState(false)
-  const [sessionMastered, setSessionMastered] = React.useState(initialSession.sessionMastered)
-  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>(initialSession.sessionReviews)
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -145,16 +140,16 @@ export function useFlashcardSession({
     scoreSavedRef.current = true
     const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
     localStorage.removeItem(key)
-    onComplete?.({ hafal, lupa, ragu, sulit }, sessionReviews)
-  }, [done, cards.length, hafal, lupa, ragu, sulit, onComplete, sessionReviews, userId, deckCardIds])
+    onComplete?.({ mudah, lupa, sulit, ingat }, sessionReviews)
+  }, [done, cards.length, mudah, lupa, sulit, ingat, onComplete, sessionReviews, userId, deckCardIds])
 
   React.useEffect(() => {
     if (!done || cards.length === 0) {
       setResultRingValue(0)
       return
     }
-    const total = hafal + sulit + ragu + lupa
-    const target = total > 0 ? Math.round(((hafal + sulit) / total) * 100) : 0
+    const total = mudah + ingat + sulit + lupa
+    const target = total > 0 ? Math.round(((mudah + ingat) / total) * 100) : 0
 
     if (prefersReducedMotionRef.current) {
       setResultRingValue(target)
@@ -173,7 +168,7 @@ export function useFlashcardSession({
     }
     const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
     return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
-  }, [done, cards.length, hafal, sulit, ragu, lupa])
+  }, [done, cards.length, mudah, ingat, sulit, lupa])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || done) return
@@ -181,17 +176,17 @@ export function useFlashcardSession({
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.setItem(key, JSON.stringify({
         savedIdx: idx,
-        hafal,
+        mudah,
         lupa,
-        ragu,
         sulit,
+        ingat,
         sessionMastered,
         sessionReviews,
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, hafal, lupa, ragu, sulit, sessionMastered, sessionReviews, done, userId, deckCardIds])
+  }, [idx, mudah, lupa, sulit, ingat, sessionMastered, sessionReviews, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -251,22 +246,22 @@ export function useFlashcardSession({
       const { data: dueData } = await supa.from("user_card_progress").select("card_id").eq("user_id", userId).lte("next_review", today)
       const filteredDueData = deckCardIds ? dueData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? [] : dueData ?? []
 
-      const totalRatings = hafal + sulit + ragu + lupa
-      const accuracy = totalRatings > 0 ? Math.round(((hafal + sulit) / totalRatings) * 100) : 0
+      const totalRatings = mudah + ingat + sulit + lupa
+      const accuracy = totalRatings > 0 ? Math.round(((mudah + ingat) / totalRatings) * 100) : 0
 
       const { data: masteredData } = await supa.from("user_card_progress").select("id, card_id").eq("user_id", userId).gte("srs_level", 5)
       const filteredMasteredData = deckCardIds ? masteredData?.filter(d => deckCardIds.includes(String(d.card_id))) ?? [] : masteredData ?? []
 
       setHeaderStats({
         dueToday: filteredDueData.length,
-        totalCards: hafal + sulit + ragu + lupa,
+        totalCards: mudah + ingat + sulit + lupa,
         accuracy: accuracy,
         mastered: sessionMastered + filteredMasteredData.length,
-        rated: hafal + sulit + ragu + lupa,
+        rated: mudah + ingat + sulit + lupa,
       })
     }
     fetchHeaderStats()
-  }, [userId, cards.length, hafal, sulit, ragu, lupa, supa, deckCardIds])
+  }, [userId, cards.length, mudah, ingat, sulit, lupa, supa, deckCardIds])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -288,9 +283,9 @@ export function useFlashcardSession({
     
     setSessionReviews(prev => [...prev, { cardId: String(card.id), quality, currentLevel: card.srsLevel ?? 0 }])
 
-    if (quality === 5) setHafal(h => h + 1)
-    else if (quality === 4) setSulit(s => s + 1)
-    else if (quality === 3) setRagu(r => r + 1)
+    if (quality === 5) setMudah(h => h + 1)
+    else if (quality === 4) setIngat(s => s + 1)
+    else if (quality === 3) setSulit(r => r + 1)
     else {
       setLupa(l => l + 1)
       setRepeatQueue(prev => [...prev, card])
@@ -303,9 +298,9 @@ export function useFlashcardSession({
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
       const stats = {
-        hafal: quality === 5 ? hafal + 1 : hafal,
-        sulit: quality === 4 ? sulit + 1 : sulit,
-        ragu: quality === 3 ? ragu + 1 : ragu,
+        mudah: quality === 5 ? mudah + 1 : mudah,
+        ingat: quality === 4 ? ingat + 1 : ingat,
+        sulit: quality === 3 ? sulit + 1 : sulit,
         lupa: quality === 0 ? lupa + 1 : lupa,
       }
       const newReviews = [...sessionReviews, { cardId: String(card.id), quality, currentLevel: card.srsLevel ?? 0 }]
@@ -475,7 +470,7 @@ export function useFlashcardSession({
     showResetModal, setShowResetModal,
     resetting, resetSuccess, resetDeckProgress,
     idx, flip, done, 
-    hafal, lupa, ragu, sulit,
+    mudah, lupa, sulit, ingat,
     dragX, dragY, isDragging, flyOut,
     cardRef, handleCardClick, onPointerDown, onPointerMove, onPointerCancel, onPointerUp,
     card, progress, currentTotal,

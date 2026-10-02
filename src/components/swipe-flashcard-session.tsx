@@ -53,9 +53,9 @@ export function SwipeFlashcardSession({
           isEmpty={cards.length === 0}
           emptyEmoji={emptyEmoji}
           emptyTitle={emptyTitle}
-          hafal={session.hafal}
+          mudah={session.mudah}
           sulit={session.sulit}
-          ragu={session.ragu}
+          ingat={session.ingat}
           lupa={session.lupa}
           resultRingValue={session.resultRingValue}
           onRetry={() => window.location.reload()}

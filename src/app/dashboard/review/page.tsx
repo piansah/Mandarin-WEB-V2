@@ -41,7 +41,7 @@ export default function ReviewPage() {
   }, [supa])
 
   const handleComplete = React.useCallback(async (
-    stats: { hafal: number; lupa: number; ragu: number; sulit: number },
+    stats: { mudah: number; lupa: number; sulit: number; ingat: number },
     reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]
   ) => {
     const { data: { user } } = await supa.auth.getUser()

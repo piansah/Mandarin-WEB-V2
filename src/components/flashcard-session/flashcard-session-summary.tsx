@@ -8,9 +8,9 @@ type Props = {
   isEmpty: boolean
   emptyEmoji?: string
   emptyTitle?: string
-  hafal: number
+  mudah: number
+  ingat: number
   sulit: number
-  ragu: number
   lupa: number
   resultRingValue: number
   onRetry: () => void
@@ -20,16 +20,16 @@ export function FlashcardSessionSummary({
   isEmpty,
   emptyEmoji = "📭",
   emptyTitle = "Belum Ada Kartu",
-  hafal,
+  mudah,
+  ingat,
   sulit,
-  ragu,
   lupa,
   resultRingValue,
   onRetry
 }: Props) {
   const router = useRouter()
-  const totalRated = hafal + sulit + ragu + lupa
-  const finalAccuracy = totalRated > 0 ? Math.round(((hafal + sulit) / totalRated) * 100) : 0
+  const totalRated = mudah + ingat + sulit + lupa
+  const finalAccuracy = totalRated > 0 ? Math.round(((mudah + ingat) / totalRated) * 100) : 0
   const ringColor = finalAccuracy >= 80 ? "#34d399" : finalAccuracy >= 50 ? "#f59e0b" : "#f87171"
   const circumference = 2 * Math.PI * 54
   const ringOffset = circumference - (resultRingValue / 100) * circumference
@@ -87,17 +87,17 @@ export function FlashcardSessionSummary({
       <div className="flashcard-result-stats flex flex-wrap justify-center gap-2 relative z-10">
         <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
           <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><Zap className="h-3.5 w-3.5" /></span>
-          <span className="text-sm font-semibold text-emerald-500 tabular-nums">{hafal}</span>
+          <span className="text-sm font-semibold text-emerald-500 tabular-nums">{mudah}</span>
           <span className="text-xs text-muted-foreground">Mudah</span>
         </div>
         <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
           <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Brain className="h-3.5 w-3.5" /></span>
-          <span className="text-sm font-semibold text-blue-500 tabular-nums">{sulit}</span>
+          <span className="text-sm font-semibold text-blue-500 tabular-nums">{ingat}</span>
           <span className="text-xs text-muted-foreground">Ingat</span>
         </div>
         <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
           <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><HelpCircle className="h-3.5 w-3.5" /></span>
-          <span className="text-sm font-semibold text-amber-500 tabular-nums">{ragu}</span>
+          <span className="text-sm font-semibold text-amber-500 tabular-nums">{sulit}</span>
           <span className="text-xs text-muted-foreground">Sulit</span>
         </div>
         <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">

@@ -16,10 +16,10 @@ export type SwipeFlashcard = {
 }
 
 export type SessionStats = {
-  hafal: number
+  mudah: number
   lupa: number
-  ragu: number
   sulit: number
+  ingat: number
 }
 
 export type FlashcardPrefs = {
