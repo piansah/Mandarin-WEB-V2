@@ -57,7 +57,9 @@ export function useFlashcardSession({
 
   const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
-  const initialSession = React.useMemo(() => {
+  const initialSession = React.useMemo<{
+    idx: number; hafal: number; lupa: number; ragu: number; sulit: number; sessionMastered: number; sessionReviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[];
+  }>(() => {
     if (typeof window === "undefined") return { idx: 0, hafal: 0, lupa: 0, ragu: 0, sulit: 0, sessionMastered: 0, sessionReviews: [] }
     try {
       const saved = localStorage.getItem(sessionStorageKey)
@@ -119,24 +121,7 @@ export function useFlashcardSession({
     prefersReducedMotionRef.current = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
   }, [])
 
-  React.useEffect(() => {
-    setIdx(0)
-    setFlip(0)
-    setHafal(0)
-    setLupa(0)
-    setRagu(0)
-    setSulit(0)
-    setDone(false)
-    setRepeatQueue([])
-    setDragX(0)
-    setDragY(0)
-    setIsDragging(false)
-    setFlyOut(null)
-    setFeedback(null)
-    scoreSavedRef.current = false
-    setSelectedRating(null)
-    localStorage.removeItem(sessionStorageKey)
-  }, [sessionKey])
+  // sessionKey useEffect removed to prevent local storage reset on mount
 
   const totalOriginal = orderedCards.length
   const currentTotal = totalOriginal + repeatQueue.length
