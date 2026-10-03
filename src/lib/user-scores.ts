@@ -95,3 +95,48 @@ export async function getUserScoresByType(type: ScoreType): Promise<Record<strin
   })
   return map
 }
+
+export type DeckPracticeScores = {
+  fcDone: boolean
+  quizScore: number | null
+  nadaDone: boolean
+  tulisDone: boolean
+}
+
+/**
+ * Ambil status selesai & skor untuk 4 tipe latihan pada satu deck (fc_session, quiz, nada_session, tulis_session).
+ */
+export async function getDeckPracticeScores(deckKey: string | number): Promise<DeckPracticeScores> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) {
+    return { fcDone: false, quizScore: null, nadaDone: false, tulisDone: false }
+  }
+
+  const { data, error } = await supa
+    .from("user_scores")
+    .select("type, score")
+    .eq("user_id", user.id)
+    .eq("key", String(deckKey))
+    .in("type", ["fc_session", "quiz", "nada_session", "tulis_session"])
+
+  if (error || !data) {
+    return { fcDone: false, quizScore: null, nadaDone: false, tulisDone: false }
+  }
+
+  let fcDone = false
+  let quizScore: number | null = null
+  let nadaDone = false
+  let tulisDone = false
+
+  for (const row of data) {
+    if (row.type === "fc_session") fcDone = true
+    if (row.type === "quiz") quizScore = row.score
+    if (row.type === "nada_session") nadaDone = true
+    if (row.type === "tulis_session") tulisDone = true
+  }
+
+  return { fcDone, quizScore, nadaDone, tulisDone }
+}

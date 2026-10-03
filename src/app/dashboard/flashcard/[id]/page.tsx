@@ -13,7 +13,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { Music, Layers, Edit2, ListChecks } from "lucide-react"
+import { Music, Layers, Edit2, ListChecks, CheckCircle2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
 import { getTone, isHanzi, IDS_LABELS, decompParts } from "@/lib/hanzi-utils"
@@ -21,7 +21,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
-import { getUserScoresByType } from "@/lib/user-scores"
+import { getDeckPracticeScores } from "@/lib/user-scores"
 
 const idsLabels = IDS_LABELS
 
@@ -50,9 +50,24 @@ export default function FlashcardDeckPage() {
   const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
 
-  // ── Gating "Pilih Latihan": Flashcard -> Quiz -> (Nada & Menulis bareng) ──
+  // ── Gating & Status "Pilih Latihan": Flashcard -> Quiz -> (Nada & Menulis bareng) ──
   const [flashcardDone, setFlashcardDone] = React.useState(false)
-  const [quizDone, setQuizDone] = React.useState(false)
+  const [quizScore, setQuizScore] = React.useState<number | null>(null)
+  const [nadaDone, setNadaDone] = React.useState(false)
+  const [tulisDone, setTulisDone] = React.useState(false)
+
+  const quizDone = quizScore !== null
+  const quizUnlocked = flashcardDone
+  const postQuizUnlocked = quizDone
+
+  const refreshScores = React.useCallback(async () => {
+    if (!deckId) return
+    const res = await getDeckPracticeScores(deckId)
+    setFlashcardDone(res.fcDone)
+    setQuizScore(res.quizScore)
+    setNadaDone(res.nadaDone)
+    setTulisDone(res.tulisDone)
+  }, [deckId])
 
   React.useEffect(() => {
     async function load() {
@@ -95,25 +110,8 @@ export default function FlashcardDeckPage() {
   // Status gating untuk modal "Pilih Latihan" — terpisah dari load() di atas
   // supaya tidak ikut nge-block render kartu kalau lambat.
   React.useEffect(() => {
-    let cancelled = false
-    getUserScoresByType("fc_session").then(scores => {
-      if (!cancelled) setFlashcardDone(scores[String(deckId)] !== undefined)
-    })
-
-    return () => { cancelled = true }
-  }, [deckId, supa])
-
-  // Skor quiz baru bisa dicek setelah tahu deckId
-  React.useEffect(() => {
-    let cancelled = false
-    getUserScoresByType("quiz").then(scores => {
-      if (!cancelled) setQuizDone(scores[String(deckId)] !== undefined)
-    })
-    return () => { cancelled = true }
-  }, [deckId])
-
-  const quizUnlocked = flashcardDone
-  const postQuizUnlocked = quizDone
+    refreshScores()
+  }, [refreshScores])
 
   function navigateToPractice(type: string) {
     router.push(`/dashboard/practice/${type}/${deckId}`)
@@ -260,7 +258,7 @@ export default function FlashcardDeckPage() {
         className="fixed bottom-0 right-0 z-30 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
         style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        <Drawer>
+        <Drawer onOpenChange={(open) => { if (open) refreshScores() }}>
           <DrawerTrigger
             render={
               <Button className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />
@@ -276,12 +274,25 @@ export default function FlashcardDeckPage() {
                 </DrawerTitle>
               </DrawerHeader>
               <div className="p-4 grid grid-cols-4 gap-2.5">
+                {/* Flashcard */}
                 <div
                   onClick={() => navigateToPractice("flashcard")}
-                  className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${
+                    flashcardDone
+                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
+                      : "border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10"
+                  }`}
                 >
-                  <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                  {flashcardDone ? (
+                    <div className="absolute top-2 right-2 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  ) : (
+                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  )}
+                  <div className={`h-11 w-11 rounded-full flex items-center justify-center ${
+                    flashcardDone ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+                  }`}>
                     <Layers className="h-5 w-5" />
                   </div>
                   <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
@@ -292,11 +303,20 @@ export default function FlashcardDeckPage() {
                   onClick={() => { if (quizUnlocked) navigateToQuiz() }}
                   aria-disabled={!quizUnlocked}
                   className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
-                    quizUnlocked
-                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                    !quizUnlocked
+                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                      : quizDone
+                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
                   }`}
                 >
+                  {quizDone && typeof quizScore === "number" && (
+                    <div className="absolute top-2 right-2">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                        {quizScore}
+                      </span>
+                    </div>
+                  )}
                   <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                     <ListChecks className="h-5 w-5" />
                   </div>
@@ -312,12 +332,19 @@ export default function FlashcardDeckPage() {
                 <div
                   onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
                   aria-disabled={!postQuizUnlocked}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors ${
-                    postQuizUnlocked
-                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
+                    !postQuizUnlocked
+                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                      : nadaDone
+                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
                   }`}
                 >
+                  {nadaDone && (
+                    <div className="absolute top-2 right-2 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  )}
                   <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
                     <Music className="h-5 w-5" />
                   </div>
@@ -330,12 +357,19 @@ export default function FlashcardDeckPage() {
                 <div
                   onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
                   aria-disabled={!postQuizUnlocked}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors ${
-                    postQuizUnlocked
-                      ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                      : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
+                    !postQuizUnlocked
+                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                      : tulisDone
+                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
                   }`}
                 >
+                  {tulisDone && (
+                    <div className="absolute top-2 right-2 flex items-center justify-center">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    </div>
+                  )}
                   <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
                     <Edit2 className="h-5 w-5" />
                   </div>
