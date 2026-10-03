@@ -36,6 +36,7 @@ export type SessionHeaderStats = {
   accuracy: number
   mastered: number
   rated: number
+  saved?: number
 }
 
 import { SrsState } from "@/lib/srs"

@@ -39,7 +39,7 @@ export function countMastered(
   reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
 ): number {
   if (!deckIds || deckIds.length === 0) return 0
-  
+
   const latestReviews = new Map<string, { quality: 0 | 3 | 4 | 5; state: SrsState }>()
   for (const r of reviews) {
     latestReviews.set(r.cardId, r)
@@ -47,7 +47,7 @@ export function countMastered(
 
   let count = 0
   const uniqueDeckIds = new Set(deckIds)
-  
+
   for (const id of uniqueDeckIds) {
     let effectiveInterval = 0
     const review = latestReviews.get(id)
@@ -56,8 +56,28 @@ export function countMastered(
     } else {
       effectiveInterval = dbIntervals.get(id) ?? 0
     }
-    
+
     if (isMastered(effectiveInterval)) {
+      count++
+    }
+  }
+
+  return Math.min(count, uniqueDeckIds.size)
+}
+
+export function countSaved(
+  fullDeckIds: string[],
+  dbSavedIds: Set<string>,
+  reviews: { cardId: string }[]
+): number {
+  if (!fullDeckIds || fullDeckIds.length === 0) return 0
+
+  const uniqueDeckIds = new Set(fullDeckIds)
+  const reviewIds = new Set(reviews.map(r => r.cardId))
+
+  let count = 0
+  for (const id of uniqueDeckIds) {
+    if (dbSavedIds.has(id) || reviewIds.has(id)) {
       count++
     }
   }

@@ -35,7 +35,7 @@ export function SwipeFlashcardSession({
   deckId,
 }: SwipeFlashcardSessionProps) {
   const session = useFlashcardSession({
-    cards, userId, deckCardIds, wordDetailPath, onComplete, disableSwipeProp
+    cards, userId, deckCardIds, wordDetailPath, onComplete, disableSwipeProp, deckId
   })
 
   if (loading) {
@@ -77,7 +77,9 @@ export function SwipeFlashcardSession({
             {
               icon: TrendingUp,
               label: "Jatuh Tempo Hari Ini",
-              value: `${session.headerStats.dueToday} dari ${session.headerStats.totalCards} tersimpan`,
+              value: session.headerStats.saved !== undefined
+                ? `${session.headerStats.dueToday} dari ${session.headerStats.saved} tersimpan`
+                : `${session.headerStats.dueToday} dari ${session.headerStats.totalCards} tersimpan`,
             },
             {
               icon: CheckCircle2,

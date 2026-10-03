@@ -5,7 +5,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
-import { SrsState, getCardSrsState, countMastered, todayStr } from "@/lib/srs"
+import { SrsState, getCardSrsState, countMastered, countSaved, todayStr } from "@/lib/srs"
 
 type SpeechRecognitionLike = {
   lang: string
@@ -27,7 +27,8 @@ export function useFlashcardSession({
   deckCardIds,
   wordDetailPath,
   onComplete,
-  disableSwipeProp = false
+  disableSwipeProp = false,
+  deckId
 }: {
   cards: SwipeFlashcard[]
   userId?: string | null
@@ -36,6 +37,7 @@ export function useFlashcardSession({
   // eslint-disable-next-line
   onComplete?: (stats: any, reviews: any[]) => void
   disableSwipeProp?: boolean
+  deckId?: number
 }) {
   const router = useRouter()
   const supa = useSupabase()
@@ -75,6 +77,9 @@ export function useFlashcardSession({
   const [dbIntervals, setDbIntervals] = React.useState<Map<string, number>>(new Map())
   const [dueToday, setDueToday] = React.useState(0)
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
+
+  const [fullDeckIds, setFullDeckIds] = React.useState<string[]>([])
+  const [dbSavedIds, setDbSavedIds] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
     if (!sessionStorageKey || typeof window === "undefined") return
@@ -245,31 +250,81 @@ export function useFlashcardSession({
   }
 
   const deckIdsStr = deckIds.join(",")
-  
+  const fullDeckIdsStr = fullDeckIds.join(",")
+
+  React.useEffect(() => {
+    async function fetchFullDeckIds() {
+      if (!deckId) {
+        setFullDeckIds(deckIds)
+        return
+      }
+
+      try {
+        const allIds: string[] = []
+        let from = 0
+        const chunkSize = 1000
+
+        while (true) {
+          const { data, error } = await supa
+            .from("flashcard_cards")
+            .select("id")
+            .eq("set_id", deckId)
+            .range(from, from + chunkSize - 1)
+
+          if (error) {
+            console.error("fetchFullDeckIds error:", error)
+            break
+          }
+
+          if (!data || data.length === 0) break
+
+          for (const row of data) {
+            if (row.id != null) {
+              allIds.push(String(row.id))
+            }
+          }
+
+          if (data.length < chunkSize) break
+          from += chunkSize
+        }
+
+        setFullDeckIds(allIds)
+      } catch (e) {
+        console.error("fetchFullDeckIds exception:", e)
+        setFullDeckIds(deckIds)
+      }
+    }
+
+    fetchFullDeckIds()
+  }, [deckId, supa, deckIds])
+
   React.useEffect(() => {
     async function fetchHeaderStats() {
       if (!userId) {
         setDueToday(deckIds.length)
         return
       }
-      
+
       const today = todayStr()
       let dueCount = 0
       const intervals = new Map<string, number>()
-      
-      for (let i = 0; i < deckIds.length; i += 100) {
-        const chunk = deckIds.slice(i, i + 100)
+      const savedIds = new Set<string>()
+
+      const targetIds = fullDeckIds.length > 0 ? fullDeckIds : deckIds
+
+      for (let i = 0; i < targetIds.length; i += 100) {
+        const chunk = targetIds.slice(i, i + 100)
         const { data, error } = await supa
           .from("user_card_progress")
           .select("card_id, next_review, interval_days")
           .eq("user_id", userId)
           .in("card_id", chunk)
-          
+
         if (error) {
           console.error("fetchHeaderStats error:", error)
           continue
         }
-        
+
         const progressMap = new Map<string, { next_review: string | null; interval_days: number }>()
         for (const row of data ?? []) {
           if (row.card_id) {
@@ -279,7 +334,7 @@ export function useFlashcardSession({
             })
           }
         }
-        
+
         for (const id of chunk) {
           const p = progressMap.get(id)
           if (!p || (p.next_review && p.next_review <= today)) {
@@ -288,29 +343,35 @@ export function useFlashcardSession({
           if (p && p.interval_days != null) {
             intervals.set(id, p.interval_days)
           }
+          if (p) {
+            savedIds.add(id)
+          }
         }
       }
 
       setDueToday(dueCount)
       setDbIntervals(intervals)
+      setDbSavedIds(savedIds)
     }
     fetchHeaderStats()
-  }, [userId, supa, deckIdsStr, deckIds])
+  }, [userId, supa, deckIdsStr, fullDeckIdsStr, deckIds, fullDeckIds])
 
   const headerStats = React.useMemo<SessionHeaderStats>(() => {
-    const totalCards = deckIds.length
+    const totalCards = fullDeckIds.length > 0 ? fullDeckIds.length : deckIds.length
+    const saved = countSaved(fullDeckIds.length > 0 ? fullDeckIds : deckIds, dbSavedIds, sessionReviews)
     const rated = mudah + ingat + sulit + lupa
     const accuracy = rated > 0 ? Math.round(((mudah + ingat) / rated) * 100) : 0
     const mastered = countMastered(deckIds, dbIntervals, sessionReviews)
-    
+
     return {
       dueToday,
       totalCards,
       accuracy,
       mastered,
-      rated
+      rated,
+      saved
     }
-  }, [deckIds, dueToday, mudah, ingat, sulit, lupa, dbIntervals, sessionReviews])
+  }, [deckIds, fullDeckIds, dueToday, mudah, ingat, sulit, lupa, dbIntervals, dbSavedIds, sessionReviews])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -519,6 +580,9 @@ export function useFlashcardSession({
         const { error } = await supa.from("user_card_progress").delete().in("card_id", cardIds).eq("user_id", user.id)
         if (error) throw error
       }
+
+      const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+      localStorage.removeItem(key)
 
       setShowResetModal(false)
       setResetSuccess(true)
