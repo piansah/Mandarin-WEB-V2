@@ -1,22 +1,20 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
-import { 
-  computeNextSrsState, 
-  previewIntervalDays, 
-  computeSrsUpdate, 
-  DEFAULT_EASE_FACTOR, 
+import {
+  computeNextSrsState,
+  previewIntervalDays,
+  computeSrsUpdate,
+  DEFAULT_EASE_FACTOR,
   MIN_EASE_FACTOR,
-  toLocalDateStr,
   todayStr,
   isMastered,
   countMastered,
-  SrsState
+  countSaved,
+  type SrsState
 } from "@/lib/srs"
 
 describe("SM-2 SRS Algorithm", () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    // Midnight WIB
-    vi.setSystemTime(new Date("2026-10-03T00:00:00+07:00"))
   })
 
   afterEach(() => {
@@ -106,13 +104,17 @@ describe("SM-2 SRS Algorithm", () => {
   })
 
   it("computeSrsUpdate().next_review equals local today + interval (checking timezone fix)", () => {
+    vi.setSystemTime(new Date("2026-10-03T00:00:00+07:00"))
     const state = { repetitions: 2, intervalDays: 6, easeFactor: 2.5 }
-    
-    // Test for a passing grade, should add intervalDays (15 days for q=4)
+
     const update = computeSrsUpdate(state, 4)
-    
-    // In local time (+07:00), 2026-10-03 + 15 days is 2026-10-18
+
     expect(update.next_review).toBe("2026-10-18")
+  })
+
+  it("todayStr respects timezone at 23:30", () => {
+    vi.setSystemTime(new Date("2026-10-03T23:30:00+07:00"))
+    expect(todayStr()).toBe("2026-10-03")
   })
 })
 
@@ -146,26 +148,51 @@ describe("Mastered Counting", () => {
     expect(countMastered(["a", "a", "c"], dbIntervals, [])).toBe(2)
 
     // Review with quality: 5 makes a non-mastered DB card count as mastered
-    const reviews1: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 2, intervalDays: 6, easeFactor: 2.5 } } // computeSrsUpdate will give interval 15 (not mastered yet)
-    ]
-    // Wait, interval 6 * 2.5 = 15. That is < 21. Let's make it bigger.
     const reviews2: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } } // computeSrsUpdate gives 15 * 2.5 = 38 >= 21
+      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
     ]
     expect(countMastered(["a", "b", "c"], dbIntervals, reviews2)).toBe(3)
 
     // Review with quality: 0 makes a DB-mastered card count as NOT mastered
     const reviews3: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "a", quality: 0, state: { repetitions: 5, intervalDays: 30, easeFactor: 2.5 } } // Lupa -> 1
+      { cardId: "a", quality: 0, state: { repetitions: 5, intervalDays: 30, easeFactor: 2.5 } }
     ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews3)).toBe(1) // only 'c' remains mastered
+    expect(countMastered(["a", "b", "c"], dbIntervals, reviews3)).toBe(1)
 
     // Two reviews for the same cardId: only the last one counts
     const reviews4: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }, // would be mastered
-      { cardId: "b", quality: 0, state: { repetitions: 4, intervalDays: 38, easeFactor: 2.6 } }  // then failed
+      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
+      { cardId: "b", quality: 0, state: { repetitions: 4, intervalDays: 38, easeFactor: 2.6 } }
     ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews4)).toBe(2) // 'a' and 'c' are mastered from DB, 'b' failed
+    expect(countMastered(["a", "b", "c"], dbIntervals, reviews4)).toBe(2)
+
+    // countMastered returns the same number regardless of review order
+    const reviews5a: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
+      { cardId: "a", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
+      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
+    ]
+    const reviews5b: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
+      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
+      { cardId: "a", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
+    ]
+    expect(countMastered(["a", "b", "c"], dbIntervals, reviews5a)).toBe(countMastered(["a", "b", "c"], dbIntervals, reviews5b))
+  })
+})
+
+describe("countSaved + countMastered", () => {
+  it("countSaved and countMastered individually never exceed unique deck ids", () => {
+    const fullDeckIds = ["a", "b", "c", "d", "e"]
+    const dbSavedIds = new Set<string>(["a", "b", "c"])
+    const dbIntervals = new Map<string, number>([["a", 30], ["b", 21], ["c", 5]])
+    const reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
+      { cardId: "d", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
+    ]
+
+    const saved = countSaved(fullDeckIds, dbSavedIds, reviews)
+    const mastered = countMastered(fullDeckIds, dbIntervals, reviews)
+    const uniqueDeckIds = new Set(fullDeckIds).size
+
+    expect(saved).toBeLessThanOrEqual(uniqueDeckIds)
+    expect(mastered).toBeLessThanOrEqual(uniqueDeckIds)
   })
 })

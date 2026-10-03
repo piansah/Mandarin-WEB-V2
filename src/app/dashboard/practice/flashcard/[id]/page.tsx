@@ -6,6 +6,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { recordSrsReviewBatch, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
+import { toast } from "sonner"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -33,9 +34,9 @@ export default function FlashcardPracticePage() {
 
       // eslint-disable-next-line
       let rawCards: any[] = []
-      const srsLevelByCard = new Map<string, number>()
+      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number }>()
       const reviewedCardIds = new Set<string>()
-      const deckHskLevel: number | undefined = undefined
+      let deckHskLevel: number | undefined = undefined
 
       if (isPersonal) {
         // For personal decks, fetch from personal_cards table
@@ -56,7 +57,7 @@ export default function FlashcardPracticePage() {
           .eq("id", deckId)
           .maybeSingle()
 
-        const deckHskLevel: number | undefined = setData?.hsk_level ?? undefined
+        deckHskLevel = setData?.hsk_level ?? undefined
 
         if (setData) {
           setDeckTitle(setData.title ?? "Kartu Hafalan")
@@ -80,16 +81,24 @@ export default function FlashcardPracticePage() {
         // "belum pernah dibuka" (isNew) — kartu tanpa baris progress sama
         // sekali dianggap baru, terlepas dari nilai srs_level-nya.
         if (user?.id && rawCards.length > 0) {
-          const { data: progressRows } = await supa
-            .from("user_card_progress")
-            .select("card_id, srs_level")
-            .eq("user_id", user.id)
-            .in("card_id", rawCards.map(c => String(c.id)))
+          const cardIds = rawCards.map(c => String(c.id))
+          for (let i = 0; i < cardIds.length; i += 100) {
+            const chunk = cardIds.slice(i, i + 100)
+            const { data: progressRows } = await supa
+              .from("user_card_progress")
+              .select("card_id, srs_level, interval_days, ease_factor")
+              .eq("user_id", user.id)
+              .in("card_id", chunk)
 
-          for (const row of progressRows ?? []) {
-            if (row.card_id) {
-              srsLevelByCard.set(String(row.card_id), row.srs_level ?? 0)
-              reviewedCardIds.add(String(row.card_id))
+            for (const row of progressRows ?? []) {
+              if (row.card_id) {
+                progressByCard.set(String(row.card_id), {
+                  srs_level: row.srs_level ?? 0,
+                  interval_days: row.interval_days ?? 1,
+                  ease_factor: row.ease_factor ?? 2.5
+                })
+                reviewedCardIds.add(String(row.card_id))
+              }
             }
           }
         }
@@ -115,9 +124,12 @@ export default function FlashcardPracticePage() {
 
       const cardsWithExamples: SwipeFlashcard[] = rawCards.map(card => {
         const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
+        const progress = progressByCard.get(String(card.id))
         return {
           ...card,
-          srsLevel: srsLevelByCard.get(String(card.id)) ?? 0,
+          srsLevel: progress?.srs_level ?? 0,
+          intervalDays: progress?.interval_days,
+          easeFactor: progress?.ease_factor,
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,
@@ -151,9 +163,14 @@ export default function FlashcardPracticePage() {
     const total = stats.mudah + stats.lupa + stats.sulit + stats.ingat
     const pct = total > 0 ? Math.round((stats.mudah / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
-    
+
     if (userId && reviews.length > 0) {
-      await recordSrsReviewBatch(supa, userId, reviews, sessionId ?? undefined)
+      try {
+        await recordSrsReviewBatch(supa, userId, reviews, sessionId ?? undefined)
+      } catch (error) {
+        console.error("Gagal menyimpan progress SRS:", error)
+        toast.error("Gagal menyimpan progress SRS")
+      }
     }
   }, [deckId, isPersonal, userId, sessionId, supa])
 

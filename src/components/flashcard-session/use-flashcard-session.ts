@@ -66,6 +66,9 @@ export function useFlashcardSession({
     return Array.from(new Set(rawIds))
   }, [deckCardIds, cards])
 
+  const deckIdsRef = React.useRef(deckIds)
+  deckIdsRef.current = deckIds
+
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
   const [mudah, setMudah] = React.useState(0)
@@ -79,6 +82,8 @@ export function useFlashcardSession({
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
 
   const [fullDeckIds, setFullDeckIds] = React.useState<string[]>([])
+  const fullDeckIdsRef = React.useRef(fullDeckIds)
+  React.useEffect(() => { fullDeckIdsRef.current = fullDeckIds }, [fullDeckIds])
   const [dbSavedIds, setDbSavedIds] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
@@ -106,6 +111,12 @@ export function useFlashcardSession({
   }, [sessionStorageKey])
 
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
+
+  React.useEffect(() => {
+    if (repeatQueue.length === 0 && idx >= orderedCards.length && orderedCards.length > 0) {
+      setIdx(Math.max(0, orderedCards.length - 1))
+    }
+  }, [orderedCards.length, repeatQueue.length, idx])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -121,6 +132,7 @@ export function useFlashcardSession({
   const recogRef = React.useRef<SpeechRecognitionLike | null>(null)
   const [flyOut, setFlyOut] = React.useState<{ x: number; y: number } | null>(null)
   const scoreSavedRef = React.useRef(false)
+  const skipPersistRef = React.useRef(false)
   const [selectedRating, setSelectedRating] = React.useState<0 | 3 | 4 | 5 | null>(null)
   const [resultRingValue, setResultRingValue] = React.useState(0)
   const prefersReducedMotionRef = React.useRef(false)
@@ -182,7 +194,7 @@ export function useFlashcardSession({
   }, [done, cards.length, mudah, ingat, sulit, lupa])
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || done) return
+    if (typeof window === "undefined" || done || skipPersistRef.current) return
     try {
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.setItem(key, JSON.stringify({
@@ -253,9 +265,11 @@ export function useFlashcardSession({
   const fullDeckIdsStr = fullDeckIds.join(",")
 
   React.useEffect(() => {
+    let cancelled = false
+
     async function fetchFullDeckIds() {
       if (!deckId) {
-        setFullDeckIds(deckIds)
+        if (!cancelled) setFullDeckIds(deckIdsRef.current)
         return
       }
 
@@ -269,11 +283,13 @@ export function useFlashcardSession({
             .from("flashcard_cards")
             .select("id")
             .eq("set_id", deckId)
+            .order("id")
             .range(from, from + chunkSize - 1)
 
           if (error) {
             console.error("fetchFullDeckIds error:", error)
-            break
+            if (!cancelled) setFullDeckIds(deckIdsRef.current)
+            return
           }
 
           if (!data || data.length === 0) break
@@ -288,20 +304,23 @@ export function useFlashcardSession({
           from += chunkSize
         }
 
-        setFullDeckIds(allIds)
+        if (!cancelled) setFullDeckIds(allIds)
       } catch (e) {
         console.error("fetchFullDeckIds exception:", e)
-        setFullDeckIds(deckIds)
+        if (!cancelled) setFullDeckIds(deckIdsRef.current)
       }
     }
 
     fetchFullDeckIds()
-  }, [deckId, supa, deckIds])
+    return () => { cancelled = true }
+  }, [deckId, supa, deckIdsStr])
 
   React.useEffect(() => {
+    let cancelled = false
+
     async function fetchHeaderStats() {
       if (!userId) {
-        setDueToday(deckIds.length)
+        if (!cancelled) setDueToday(0)
         return
       }
 
@@ -310,7 +329,7 @@ export function useFlashcardSession({
       const intervals = new Map<string, number>()
       const savedIds = new Set<string>()
 
-      const targetIds = fullDeckIds.length > 0 ? fullDeckIds : deckIds
+      const targetIds = fullDeckIdsRef.current.length > 0 ? fullDeckIdsRef.current : deckIdsRef.current
 
       for (let i = 0; i < targetIds.length; i += 100) {
         const chunk = targetIds.slice(i, i + 100)
@@ -322,7 +341,7 @@ export function useFlashcardSession({
 
         if (error) {
           console.error("fetchHeaderStats error:", error)
-          continue
+          return
         }
 
         const progressMap = new Map<string, { next_review: string | null; interval_days: number }>()
@@ -337,24 +356,26 @@ export function useFlashcardSession({
 
         for (const id of chunk) {
           const p = progressMap.get(id)
-          if (!p || (p.next_review && p.next_review <= today)) {
-            dueCount++
-          }
-          if (p && p.interval_days != null) {
-            intervals.set(id, p.interval_days)
-          }
           if (p) {
             savedIds.add(id)
+            intervals.set(id, p.interval_days)
+            if (!p.next_review || p.next_review <= today) {
+              dueCount++
+            }
           }
         }
       }
 
-      setDueToday(dueCount)
-      setDbIntervals(intervals)
-      setDbSavedIds(savedIds)
+      if (!cancelled) {
+        setDueToday(dueCount)
+        setDbIntervals(intervals)
+        setDbSavedIds(savedIds)
+      }
     }
+
     fetchHeaderStats()
-  }, [userId, supa, deckIdsStr, fullDeckIdsStr, deckIds, fullDeckIds])
+    return () => { cancelled = true }
+  }, [userId, supa, deckIdsStr, fullDeckIdsStr])
 
   const headerStats = React.useMemo<SessionHeaderStats>(() => {
     const totalCards = fullDeckIds.length > 0 ? fullDeckIds.length : deckIds.length
@@ -362,9 +383,10 @@ export function useFlashcardSession({
     const rated = mudah + ingat + sulit + lupa
     const accuracy = rated > 0 ? Math.round(((mudah + ingat) / rated) * 100) : 0
     const mastered = countMastered(deckIds, dbIntervals, sessionReviews)
+    const clampedDueToday = Math.min(dueToday, saved)
 
     return {
-      dueToday,
+      dueToday: clampedDueToday,
       totalCards,
       accuracy,
       mastered,
@@ -425,17 +447,6 @@ export function useFlashcardSession({
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
-      const stats = {
-        mudah: nextMudah,
-        ingat: nextIngat,
-        sulit: nextSulit,
-        lupa: nextLupa,
-      }
-      const latestReviews = isFromRepeatQueue ? sessionReviews : [
-        ...sessionReviews.filter(r => r.cardId !== cardIdStr),
-        { cardId: cardIdStr, quality, state: getCardSrsState(card) }
-      ]
-      setTimeout(() => onComplete?.(stats, latestReviews), 0)
     } else {
       setIdx((i: number) => i + 1)
     }
@@ -581,17 +592,28 @@ export function useFlashcardSession({
         if (error) throw error
       }
 
+      skipPersistRef.current = true
+
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.removeItem(key)
 
+      setSessionReviews([])
+      setDbSavedIds(new Set())
+      setDbIntervals(new Map())
+      setDueToday(0)
+
       setShowResetModal(false)
       setResetSuccess(true)
-      setTimeout(() => window.location.reload(), 1500)
+      setTimeout(() => {
+        localStorage.removeItem(key)
+        window.location.reload()
+      }, 1500)
       setTimeout(() => setResetSuccess(false), 3000)
     } catch (error) {
+      skipPersistRef.current = false
       console.error("Error resetting SRS:", error)
-      // eslint-disable-next-line
-      toast.error("Gagal reset SRS: " + (error as any).message)
+      const message = error instanceof Error ? error.message : String(error)
+      toast.error("Gagal reset SRS: " + message)
     } finally {
       setResetting(false)
     }
