@@ -26,7 +26,7 @@ export type SrsState = {
 export const DEFAULT_EASE_FACTOR = 2.5
 export const MIN_EASE_FACTOR = 1.3
 export const MAX_INTERVAL_DAYS = 365
-export const MASTERED_INTERVAL_DAYS = 21
+export const MASTERED_INTERVAL_DAYS = 14
 
 export function isMastered(intervalDays: number | null | undefined): boolean {
   if (intervalDays == null) return false
