@@ -26,6 +26,44 @@ export type SrsState = {
 export const DEFAULT_EASE_FACTOR = 2.5
 export const MIN_EASE_FACTOR = 1.3
 export const MAX_INTERVAL_DAYS = 365
+export const MASTERED_INTERVAL_DAYS = 21
+
+export function isMastered(intervalDays: number | null | undefined): boolean {
+  if (intervalDays == null) return false
+  return intervalDays >= MASTERED_INTERVAL_DAYS
+}
+
+export function countMastered(
+  deckIds: string[],
+  dbIntervals: Map<string, number>,
+  reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
+): number {
+  if (!deckIds || deckIds.length === 0) return 0
+  
+  const latestReviews = new Map<string, { quality: 0 | 3 | 4 | 5; state: SrsState }>()
+  for (const r of reviews) {
+    latestReviews.set(r.cardId, r)
+  }
+
+  let count = 0
+  const uniqueDeckIds = new Set(deckIds)
+  
+  for (const id of uniqueDeckIds) {
+    let effectiveInterval = 0
+    const review = latestReviews.get(id)
+    if (review) {
+      effectiveInterval = computeSrsUpdate(review.state, review.quality).interval_days
+    } else {
+      effectiveInterval = dbIntervals.get(id) ?? 0
+    }
+    
+    if (isMastered(effectiveInterval)) {
+      count++
+    }
+  }
+
+  return Math.min(count, uniqueDeckIds.size)
+}
 
 export function getCardSrsState(card: { srsLevel?: number; intervalDays?: number; easeFactor?: number }): SrsState {
   return {

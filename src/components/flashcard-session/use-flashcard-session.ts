@@ -5,7 +5,8 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
-import { SrsState, getCardSrsState } from "@/lib/srs"
+import { SrsState, getCardSrsState, countMastered, todayStr } from "@/lib/srs"
+
 type SpeechRecognitionLike = {
   lang: string
   interimResults: boolean
@@ -58,7 +59,10 @@ export function useFlashcardSession({
 
   const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
-  const totalDeckCards = cards.length || deckCardIds?.length || 0
+  const deckIds = React.useMemo(() => {
+    const rawIds = deckCardIds && deckCardIds.length > 0 ? deckCardIds.map(String) : cards.map(c => String(c.id))
+    return Array.from(new Set(rawIds))
+  }, [deckCardIds, cards])
 
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
@@ -67,23 +71,10 @@ export function useFlashcardSession({
   const [sulit, setSulit] = React.useState(0)
   const [ingat, setIngat] = React.useState(0)
   const [done, setDone] = React.useState(false)
-  const [masteredCardIds, setMasteredCardIds] = React.useState<Set<string>>(new Set())
+  
+  const [dbIntervals, setDbIntervals] = React.useState<Map<string, number>>(new Map())
+  const [dueToday, setDueToday] = React.useState(0)
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
-
-  const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
-    dueToday: 0,
-    totalCards: totalDeckCards,
-    accuracy: 0,
-    mastered: 0,
-    rated: 0,
-  })
-
-  React.useEffect(() => {
-    setHeaderStats(prev => ({
-      ...prev,
-      totalCards: totalDeckCards || prev.totalCards,
-    }))
-  }, [totalDeckCards])
 
   React.useEffect(() => {
     if (!sessionStorageKey || typeof window === "undefined") return
@@ -98,30 +89,17 @@ export function useFlashcardSession({
           setLupa(parsed.lupa ?? 0)
           setSulit(parsed.sulit ?? 0)
           setIngat(parsed.ingat ?? 0)
-          if (Array.isArray(parsed.masteredCardIds)) {
-            setMasteredCardIds(new Set(parsed.masteredCardIds))
-          }
-          // Restore sessionReviews only if it has the new `state` format
+          
           const loadedReviews = parsed.sessionReviews ?? []
           const validReviews = loadedReviews.filter((r: { state?: SrsState }) => r.state != null)
           setSessionReviews(validReviews)
-          // Restore header stats immediately so PracticeHeader tidak balik ke 0
-          if (parsed.savedHeaderStats) {
-            setHeaderStats(prev => ({
-              ...prev,
-              accuracy: parsed.savedHeaderStats.accuracy ?? 0,
-              rated: parsed.savedHeaderStats.rated ?? 0,
-              mastered: parsed.savedHeaderStats.mastered ?? (parsed.masteredCardIds?.length ?? 0),
-              totalCards: totalDeckCards || parsed.savedHeaderStats.totalCards || 0,
-              dueToday: parsed.savedHeaderStats.dueToday ?? prev.dueToday,
-            }))
-          }
         } else {
           localStorage.removeItem(sessionStorageKey)
         }
       }
     } catch {}
-  }, [sessionStorageKey, totalDeckCards])
+  }, [sessionStorageKey])
+
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
@@ -208,20 +186,12 @@ export function useFlashcardSession({
         lupa,
         sulit,
         ingat,
-        masteredCardIds: Array.from(masteredCardIds),
         sessionReviews,
-        savedHeaderStats: {
-          accuracy: headerStats.accuracy,
-          rated: headerStats.rated,
-          mastered: headerStats.mastered,
-          totalCards: totalDeckCards,
-          dueToday: headerStats.dueToday,
-        },
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, mudah, lupa, sulit, ingat, masteredCardIds, sessionReviews, headerStats, done, userId, deckCardIds, totalDeckCards])
+  }, [idx, mudah, lupa, sulit, ingat, sessionReviews, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -260,6 +230,7 @@ export function useFlashcardSession({
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
+    // eslint-disable-next-line
   }, [card, flyOut, done, idx])
 
   function handleCardClick() {
@@ -273,64 +244,73 @@ export function useFlashcardSession({
     else if (flip === 1) setFlip(2)
   }
 
+  const deckIdsStr = deckIds.join(",")
+  
   React.useEffect(() => {
     async function fetchHeaderStats() {
-      const deckTotal = cards.length || deckCardIds?.length || 0
       if (!userId) {
-        setHeaderStats(prev => ({
-          ...prev,
-          totalCards: deckTotal,
-          dueToday: deckTotal,
-        }))
+        setDueToday(deckIds.length)
         return
       }
-      const today = new Date().toISOString().slice(0, 10)
-      const allIds = deckCardIds || cards.map(c => String(c.id))
-
-      const { data: progressRows } = await supa
-        .from("user_card_progress")
-        .select("card_id, next_review, srs_level")
-        .eq("user_id", userId)
-        .in("card_id", allIds)
-
-      const progressMap = new Map<string, { next_review: string | null; srs_level: number }>()
-      for (const row of progressRows ?? []) {
-        if (row.card_id) {
-          progressMap.set(String(row.card_id), {
-            next_review: row.next_review,
-            srs_level: row.srs_level ?? 0,
-          })
-        }
-      }
-
+      
+      const today = todayStr()
       let dueCount = 0
-      const dbMasteredIds = new Set<string>()
-
-      for (const id of allIds) {
-        const p = progressMap.get(String(id))
-        if (!p || (p.next_review && p.next_review <= today)) {
-          dueCount++
+      const intervals = new Map<string, number>()
+      
+      for (let i = 0; i < deckIds.length; i += 100) {
+        const chunk = deckIds.slice(i, i + 100)
+        const { data, error } = await supa
+          .from("user_card_progress")
+          .select("card_id, next_review, interval_days")
+          .eq("user_id", userId)
+          .in("card_id", chunk)
+          
+        if (error) {
+          console.error("fetchHeaderStats error:", error)
+          continue
         }
-        if (p && p.srs_level >= 5) {
-          dbMasteredIds.add(String(id))
+        
+        const progressMap = new Map<string, { next_review: string | null; interval_days: number }>()
+        for (const row of data ?? []) {
+          if (row.card_id) {
+            progressMap.set(String(row.card_id), {
+              next_review: row.next_review,
+              interval_days: row.interval_days ?? 0
+            })
+          }
+        }
+        
+        for (const id of chunk) {
+          const p = progressMap.get(id)
+          if (!p || (p.next_review && p.next_review <= today)) {
+            dueCount++
+          }
+          if (p && p.interval_days != null) {
+            intervals.set(id, p.interval_days)
+          }
         }
       }
 
-      setMasteredCardIds(prev => new Set([...dbMasteredIds, ...prev]))
-
-      const totalRatings = mudah + ingat + sulit + lupa
-      const accuracy = totalRatings > 0 ? Math.round(((mudah + ingat) / totalRatings) * 100) : 0
-
-      setHeaderStats(prev => ({
-        dueToday: dueCount,
-        totalCards: deckTotal,
-        accuracy: accuracy,
-        mastered: Math.min(deckTotal, new Set([...dbMasteredIds, ...masteredCardIds]).size),
-        rated: totalRatings,
-      }))
+      setDueToday(dueCount)
+      setDbIntervals(intervals)
     }
     fetchHeaderStats()
-  }, [userId, cards.length, supa, deckCardIds])
+  }, [userId, supa, deckIdsStr, deckIds])
+
+  const headerStats = React.useMemo<SessionHeaderStats>(() => {
+    const totalCards = deckIds.length
+    const rated = mudah + ingat + sulit + lupa
+    const accuracy = rated > 0 ? Math.round(((mudah + ingat) / rated) * 100) : 0
+    const mastered = countMastered(deckIds, dbIntervals, sessionReviews)
+    
+    return {
+      dueToday,
+      totalCards,
+      accuracy,
+      mastered,
+      rated
+    }
+  }, [deckIds, dueToday, mudah, ingat, sulit, lupa, dbIntervals, sessionReviews])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -351,9 +331,6 @@ export function useFlashcardSession({
     if (!card) return
     const cardIdStr = String(card.id)
 
-    // Repeat queue semantics: only persist the FIRST review for this card in this session.
-    // If it comes from the repeat queue (idx >= totalOriginal), it's a re-review of a lapsed card.
-    // We update stats (mudah/lupa etc) but do NOT overwrite its sessionReviews entry (which stays as Lupa).
     const isFromRepeatQueue = idx >= totalOriginal
 
     if (!isFromRepeatQueue) {
@@ -383,27 +360,7 @@ export function useFlashcardSession({
       setRepeatQueue(prev => [...prev, card])
     }
 
-    const deckTotal = cards.length || deckCardIds?.length || 0
-    const nextMasteredSet = new Set(masteredCardIds)
-    if (quality === 5) {
-      nextMasteredSet.add(cardIdStr)
-      setMasteredCardIds(nextMasteredSet)
-    } else if (quality === 0) {
-      nextMasteredSet.delete(cardIdStr)
-      setMasteredCardIds(nextMasteredSet)
-    }
-
-    const newRated = nextMudah + nextIngat + nextSulit + nextLupa
-    const newAccuracy = newRated > 0 ? Math.round(((nextMudah + nextIngat) / newRated) * 100) : 0
-
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
-    setHeaderStats(prev => ({
-      ...prev,
-      rated: newRated,
-      accuracy: newAccuracy,
-      mastered: Math.min(deckTotal, nextMasteredSet.size),
-      totalCards: deckTotal,
-    }))
 
     if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
       setDone(true)
@@ -475,7 +432,6 @@ export function useFlashcardSession({
     cancelLongPress()
     if (!isDragging || flyOut || disableSwipe) return
     const absX = Math.abs(dragX)
-    const absY = Math.abs(dragY)
 
     if (dragY > absX && dragY > 80) animateFlyOutAndAdvance(3, 0, 500)
     else if (dragY < -absX && dragY < -80) animateFlyOutAndAdvance(4, 0, -500)
