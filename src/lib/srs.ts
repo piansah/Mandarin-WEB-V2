@@ -7,6 +7,8 @@ export type DueFlashcard = {
   arti: string
   setId: string | number | null
   srsLevel: number
+  intervalDays?: number
+  easeFactor?: number
   deckTitle?: string
   deckHskLevel?: number
   exampleSentence?: string
@@ -15,47 +17,80 @@ export type DueFlashcard = {
   wordClass?: string
 }
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+export type SrsState = {
+  repetitions: number   // consecutive successful reviews (n). Stored in the existing `srs_level` column.
+  intervalDays: number  // stored in `interval_days`
+  easeFactor: number    // stored in `ease_factor`
 }
 
-function addDays(n: number) {
+export const DEFAULT_EASE_FACTOR = 2.5
+export const MIN_EASE_FACTOR = 1.3
+export const MAX_INTERVAL_DAYS = 365
+
+export function getCardSrsState(card: { srsLevel?: number; intervalDays?: number; easeFactor?: number }): SrsState {
+  return {
+    repetitions: card.srsLevel ?? 0,
+    intervalDays: card.intervalDays ?? 0,
+    easeFactor: card.easeFactor ?? DEFAULT_EASE_FACTOR,
+  }
+}
+
+export function toLocalDateStr(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+export function todayStr() {
+  return toLocalDateStr(new Date())
+}
+
+export function addDays(n: number) {
   const d = new Date()
   d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateStr(d)
 }
 
-const INTERVALS = [1, 1, 2, 4, 7, 15, 30, 60, 90, 180]
+export function computeNextSrsState(state: SrsState, quality: 0 | 3 | 4 | 5): SrsState {
+  let { repetitions, intervalDays, easeFactor } = state
 
-// Menghitung berapa hari sampai review berikutnya untuk setiap pilihan
-// penilaian (quality), berdasarkan srs_level kartu saat ini. Dipakai untuk
-// menampilkan preview interval di tombol rating (mis. "4 hari") sebelum
-// user benar-benar memilih.
-export function previewIntervalDays(currentLevel: number, quality: 0 | 3 | 4 | 5): number {
-  if (quality === 0) return 1
-  if (quality === 3) return 1
-  if (quality === 4) {
-    const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel))
-    return INTERVALS[level] ?? 90
+  if (quality < 3) {
+    // Lupa
+    repetitions = 0
+    intervalDays = 1
+    // easeFactor remains unchanged in classic SM-2 on failure
+  } else {
+    // Passes
+    if (repetitions === 0) {
+      intervalDays = 1
+    } else if (repetitions === 1) {
+      intervalDays = 6
+    } else {
+      intervalDays = Math.round(intervalDays * easeFactor)
+    }
+
+    intervalDays = Math.min(Math.max(1, intervalDays), MAX_INTERVAL_DAYS)
+    repetitions += 1
+    
+    easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor)
+    easeFactor = Math.round(easeFactor * 100) / 100 // rounding to 2 decimals
   }
-  const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel) + 1)
-  return INTERVALS[level] ?? 180
+
+  return { repetitions, intervalDays, easeFactor }
 }
 
-export function computeSrsUpdate(currentLevel: number, quality: 0 | 3 | 4 | 5) {
-  if (quality === 0) {
-    return { srs_level: 0, next_review: addDays(1) }
+export function previewIntervalDays(state: SrsState, quality: 0 | 3 | 4 | 5): number {
+  return computeNextSrsState(state, quality).intervalDays
+}
+
+export function computeSrsUpdate(state: SrsState, quality: 0 | 3 | 4 | 5) {
+  const nextState = computeNextSrsState(state, quality)
+  return {
+    srs_level: nextState.repetitions,
+    interval_days: nextState.intervalDays,
+    ease_factor: nextState.easeFactor,
+    next_review: addDays(nextState.intervalDays),
   }
-  if (quality === 3) {
-    const level = Math.max(0, currentLevel)
-    return { srs_level: level, next_review: addDays(1) }
-  }
-  if (quality === 4) {
-    const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel))
-    return { srs_level: level, next_review: addDays(INTERVALS[level] ?? 90) }
-  }
-  const level = Math.min(INTERVALS.length - 1, Math.max(0, currentLevel) + 1)
-  return { srs_level: level, next_review: addDays(INTERVALS[level] ?? 180) }
 }
 
 export async function fetchDueFlashcards(
@@ -65,20 +100,21 @@ export async function fetchDueFlashcards(
   const today = todayStr()
   const { data: progressRows } = await supa
     .from("user_card_progress")
-    .select("card_id, next_review, last_reviewed, srs_level")
+    .select("card_id, next_review, last_reviewed, srs_level, interval_days, ease_factor")
     .eq("user_id", userId)
     .lte("next_review", today)
     .order("next_review", { ascending: true })
 
   if (!progressRows?.length) return []
 
-  const progressByCard = new Map<string, { srs_level: number }>()
+  const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number }>()
   for (const row of progressRows) {
     if (!row.card_id) continue
-    // NOTE: key is always normalized to string here, and read back with
-    // String(card.id) below. Previously this stored the raw card_id type,
-    // which could silently fail to match if card_id came back as a number.
-    progressByCard.set(String(row.card_id), { srs_level: row.srs_level ?? 0 })
+    progressByCard.set(String(row.card_id), { 
+      srs_level: row.srs_level ?? 0,
+      interval_days: row.interval_days ?? 1,
+      ease_factor: row.ease_factor ?? DEFAULT_EASE_FACTOR,
+    })
   }
 
   const cardIds = [...progressByCard.keys()]
@@ -91,7 +127,6 @@ export async function fetchDueFlashcards(
       .select("id, hanzi, pinyin, arti, set_id, word_class")
       .in("id", chunk)
 
-    // Fetch deck info for all unique set_ids
     const uniqueSetIds = [...new Set((data ?? []).map(c => c.set_id).filter(Boolean))]
     const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
 
@@ -106,19 +141,16 @@ export async function fetchDueFlashcards(
       }
     }
 
-    // Fetch example sentences from word_examples (exact match logic like detail kosakata)
     const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
     const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
     if (hanziList.length > 0) {
       for (const hanzi of hanziList) {
-        // Use same logic as detail kosakata: fetch both exact and partial match in parallel
         const [directRes, partialRes] = await Promise.all([
           supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
           supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
         ])
 
-        // Combine results like detail kosakata, but only keep 1 example
         const seen = new Set<string>()
         const allExamples = [...(directRes.data ?? []), ...(partialRes.data ?? [])].filter(item => {
           const key = `${item.id}-${item.hanzi}`
@@ -140,13 +172,17 @@ export async function fetchDueFlashcards(
     for (const card of data ?? []) {
       const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
       const example = card.hanzi ? exampleMap.get(card.hanzi) : null
+      const progress = progressByCard.get(String(card.id))
+      
       cards.push({
         id: String(card.id),
         hanzi: card.hanzi ?? "",
         pinyin: card.pinyin ?? "",
         arti: card.arti ?? "",
         setId: card.set_id ?? null,
-        srsLevel: progressByCard.get(String(card.id))?.srs_level ?? 0,
+        srsLevel: progress?.srs_level ?? 0,
+        intervalDays: progress?.interval_days ?? 1,
+        easeFactor: progress?.ease_factor ?? DEFAULT_EASE_FACTOR,
         deckTitle: deckInfo?.title,
         deckHskLevel: deckInfo?.hsk_level,
         wordClass: card.word_class ?? undefined,
@@ -163,23 +199,13 @@ export async function fetchDueFlashcards(
 export async function recordSrsReviewBatch(
   supa: SupabaseClient,
   userId: string,
-  reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[],
+  reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[],
   sessionId?: string
 ) {
   if (reviews.length === 0) return
 
-  // 1. Dapatkan progress yang ada untuk batch ini
-  const cardIds = reviews.map(r => r.cardId)
-  const { data: existingProgress } = await supa
-    .from("user_card_progress")
-    .select("card_id")
-    .eq("user_id", userId)
-    .in("card_id", cardIds)
-
-  const existingCardIds = new Set(existingProgress?.map(p => String(p.card_id)) || [])
-
   const upserts = reviews.map(review => {
-    const update = computeSrsUpdate(review.currentLevel, review.quality)
+    const update = computeSrsUpdate(review.state, review.quality)
     return {
       user_id: userId,
       card_id: review.cardId,
@@ -189,45 +215,20 @@ export async function recordSrsReviewBatch(
     }
   })
 
-  // 2. Pisahkan mana yang insert baru dan mana yang update
-  const inserts = upserts.filter(u => !existingCardIds.has(String(u.card_id)))
-  const updates = upserts.filter(u => existingCardIds.has(String(u.card_id)))
-
-  if (inserts.length > 0) {
-    await supa.from("user_card_progress").insert(inserts)
+  const { error } = await supa
+    .from("user_card_progress")
+    .upsert(upserts, { onConflict: "user_id,card_id" })
+    
+  if (error) {
+    console.error("Gagal menyimpan progress SRS:", error)
+    throw error
   }
-
-  // Supabase update array tidak semudah insert, jadi upsert per baris atau gunakan upsert()
-  // Tapi karena user_id & card_id mungkin jadi primary key, kita bisa pakai upsert() jika ada constraint.
-  // Jika tidak, karena kita tidak punya id progressnya, upsert mungkin akan insert baru jika
-  // tidak ada conflict. Cara aman:
-  if (updates.length > 0) {
-    for (const update of updates) {
-      await supa
-        .from("user_card_progress")
-        .update({
-          srs_level: update.srs_level,
-          next_review: update.next_review,
-          last_reviewed: update.last_reviewed,
-          session_id: update.session_id,
-        })
-        .eq("user_id", userId)
-        .eq("card_id", update.card_id)
-    }
-  }
-
-  // Rekam streak (user menyelesaikan task/review card)
-  const { data: existingStreak } = await supa
-    .from("daily_streaks")
-    .select("date")
-    .eq("user_id", userId)
-    .eq("date", todayStr())
-    .maybeSingle()
 
   const { error: streakErr } = await supa.from("daily_streaks").upsert(
     { user_id: userId, date: todayStr() },
     { onConflict: "user_id,date", ignoreDuplicates: true }
   )
+  
   if (streakErr) {
     console.error("Gagal merekam daily streak di srs:", streakErr)
   }

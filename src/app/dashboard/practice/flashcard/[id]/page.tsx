@@ -4,7 +4,7 @@ import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
-import { recordSrsReviewBatch } from "@/lib/srs"
+import { recordSrsReviewBatch, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function FlashcardPracticePage() {
@@ -143,7 +143,7 @@ export default function FlashcardPracticePage() {
 
   const handleComplete = React.useCallback(async (
     stats: { mudah: number; lupa: number; sulit: number; ingat: number },
-    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]
+    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
   ) => {
     // For personal decks, don't save scores or SRS progress
     if (isPersonal) return

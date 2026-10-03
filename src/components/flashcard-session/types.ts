@@ -5,6 +5,8 @@ export type SwipeFlashcard = {
   arti: string
   hskLevel?: number
   srsLevel?: number
+  intervalDays?: number
+  easeFactor?: number
   nextReview?: string
   exampleSentence?: string
   examplePinyin?: string
@@ -36,13 +38,15 @@ export type SessionHeaderStats = {
   rated: number
 }
 
+import { SrsState } from "@/lib/srs"
+
 export type SwipeFlashcardSessionProps = {
   cards: SwipeFlashcard[]
   loading?: boolean
   emptyTitle?: string
   emptyEmoji?: string
   wordDetailPath?: (card: SwipeFlashcard) => string | null
-  onComplete?: (stats: SessionStats, reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]) => void
+  onComplete?: (stats: SessionStats, reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]) => void
   deckTitle?: string
   deckLevel?: string
   userId?: string | null

@@ -67,7 +67,7 @@ export default function FlashcardDeckPage() {
     setQuizScore(res.quizScore)
     setNadaDone(res.nadaDone)
     setTulisDone(res.tulisDone)
-  }, [deckId])
+  }, [deckId, supa])
 
   React.useEffect(() => {
     async function load() {
@@ -109,8 +109,19 @@ export default function FlashcardDeckPage() {
 
   // Status gating untuk modal "Pilih Latihan" — terpisah dari load() di atas
   // supaya tidak ikut nge-block render kartu kalau lambat.
+  // Di-refresh juga saat user kembali ke halaman ini setelah latihan selesai.
   React.useEffect(() => {
     refreshScores()
+
+    function handleVisibility() {
+      if (document.visibilityState === "visible") refreshScores()
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+    window.addEventListener("focus", refreshScores)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility)
+      window.removeEventListener("focus", refreshScores)
+    }
   }, [refreshScores])
 
   function navigateToPractice(type: string) {
@@ -258,7 +269,7 @@ export default function FlashcardDeckPage() {
         className="fixed bottom-0 right-0 z-30 px-4 pt-4 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
         style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
-        <Drawer onOpenChange={(open) => { if (open) refreshScores() }}>
+        <Drawer onOpenChange={(open) => { if (open) refreshScores() }} onOpenChangeComplete={(open) => { if (open) refreshScores() }}>
           <DrawerTrigger
             render={
               <Button className="flex w-full h-[52px] items-center justify-center whitespace-nowrap rounded-2xl shadow-lg shadow-primary/20 text-base font-bold" />

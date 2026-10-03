@@ -5,6 +5,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
+import { SrsState, getCardSrsState } from "@/lib/srs"
 type SpeechRecognitionLike = {
   lang: string
   interimResults: boolean
@@ -67,7 +68,7 @@ export function useFlashcardSession({
   const [ingat, setIngat] = React.useState(0)
   const [done, setDone] = React.useState(false)
   const [masteredCardIds, setMasteredCardIds] = React.useState<Set<string>>(new Set())
-  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]>([])
+  const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
 
   const [headerStats, setHeaderStats] = React.useState<SessionHeaderStats>({
     dueToday: 0,
@@ -100,7 +101,10 @@ export function useFlashcardSession({
           if (Array.isArray(parsed.masteredCardIds)) {
             setMasteredCardIds(new Set(parsed.masteredCardIds))
           }
-          setSessionReviews(parsed.sessionReviews ?? [])
+          // Restore sessionReviews only if it has the new `state` format
+          const loadedReviews = parsed.sessionReviews ?? []
+          const validReviews = loadedReviews.filter((r: { state?: SrsState }) => r.state != null)
+          setSessionReviews(validReviews)
           // Restore header stats immediately so PracticeHeader tidak balik ke 0
           if (parsed.savedHeaderStats) {
             setHeaderStats(prev => ({
@@ -347,10 +351,17 @@ export function useFlashcardSession({
     if (!card) return
     const cardIdStr = String(card.id)
 
-    setSessionReviews(prev => {
-      const filtered = prev.filter(r => r.cardId !== cardIdStr)
-      return [...filtered, { cardId: cardIdStr, quality, currentLevel: card.srsLevel ?? 0 }]
-    })
+    // Repeat queue semantics: only persist the FIRST review for this card in this session.
+    // If it comes from the repeat queue (idx >= totalOriginal), it's a re-review of a lapsed card.
+    // We update stats (mudah/lupa etc) but do NOT overwrite its sessionReviews entry (which stays as Lupa).
+    const isFromRepeatQueue = idx >= totalOriginal
+
+    if (!isFromRepeatQueue) {
+      setSessionReviews(prev => {
+        const filtered = prev.filter(r => r.cardId !== cardIdStr)
+        return [...filtered, { cardId: cardIdStr, quality, state: getCardSrsState(card) }]
+      })
+    }
 
     let nextMudah = mudah
     let nextIngat = ingat
@@ -402,9 +413,9 @@ export function useFlashcardSession({
         sulit: nextSulit,
         lupa: nextLupa,
       }
-      const latestReviews = [
+      const latestReviews = isFromRepeatQueue ? sessionReviews : [
         ...sessionReviews.filter(r => r.cardId !== cardIdStr),
-        { cardId: cardIdStr, quality, currentLevel: card.srsLevel ?? 0 }
+        { cardId: cardIdStr, quality, state: getCardSrsState(card) }
       ]
       setTimeout(() => onComplete?.(stats, latestReviews), 0)
     } else {

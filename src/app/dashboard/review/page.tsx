@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchDueFlashcards, recordSrsReviewBatch, type DueFlashcard } from "@/lib/srs"
+import { fetchDueFlashcards, recordSrsReviewBatch, type DueFlashcard, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function ReviewPage() {
@@ -28,6 +28,8 @@ export default function ReviewPage() {
         arti: card.arti,
         setId: card.setId,
         srsLevel: card.srsLevel,
+        intervalDays: card.intervalDays,
+        easeFactor: card.easeFactor,
         exampleSentence: card.exampleSentence,
         examplePinyin: card.examplePinyin,
         exampleTranslation: card.exampleTranslation,
@@ -42,7 +44,7 @@ export default function ReviewPage() {
 
   const handleComplete = React.useCallback(async (
     stats: { mudah: number; lupa: number; sulit: number; ingat: number },
-    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; currentLevel: number }[]
+    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
   ) => {
     const { data: { user } } = await supa.auth.getUser()
     if (!user) return
