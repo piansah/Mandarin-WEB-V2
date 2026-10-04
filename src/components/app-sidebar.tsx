@@ -23,6 +23,7 @@ import {
   Gamepad2,
   MoreHorizontal,
   Network,
+  PenLine,
 } from "lucide-react"
 import {
   Sidebar,
@@ -113,6 +114,11 @@ const learningPathItems = [
     title: "Baca",
     url: "/dashboard/cerita",
     icon: BookMarked,
+  },
+  {
+    title: "Tulis Hanzi",
+    url: "/dashboard/tulis-hanzi",
+    icon: PenLine,
   },
 ]
 

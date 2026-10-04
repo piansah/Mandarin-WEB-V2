@@ -2,17 +2,16 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, PanelLeft, BookOpen, Languages, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2 } from "lucide-react"
+import { Search, PanelLeft, BookOpen, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2, PenLine, Network, Gamepad2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { useSidebar } from "@/components/ui/sidebar"
-import { cn } from "@/lib/utils"
 import { useSupabase } from "@/hooks/use-supabase"
 
 type SearchResult = {
-  type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar'
+  type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar' | 'games'
   title: string
   description?: string
   url: string
@@ -23,8 +22,11 @@ type SearchResult = {
 const menuItems: SearchResult[] = [
   { type: 'page', title: 'Dashboard', description: 'Halaman utama dashboard', url: '/dashboard', icon: <Home className="h-4 w-4" /> },
   { type: 'page', title: 'Modul', description: 'Daftar modul pembelajaran', url: '/dashboard/modul', icon: <BookOpen className="h-4 w-4" /> },
-  { type: 'page', title: 'Grammar', description: 'Materi tata bahasa Mandarin', url: '/dashboard/grammar', icon: <FileText className="h-4 w-4" /> },
   { type: 'page', title: 'Daftar Kata', description: 'Flashcard kosakata, quiz, nada & tulis per deck', url: '/dashboard/flashcard', icon: <Layers className="h-4 w-4" /> },
+  { type: 'page', title: 'Peta Hanzi', description: 'Eksplorasi koneksi antar karakter Hanzi', url: '/dashboard/peta-hanzi', icon: <Network className="h-4 w-4" /> },
+  { type: 'page', title: 'Tulis Hanzi', description: 'Buat lembar latihan menulis Hanzi kustom', url: '/dashboard/tulis-hanzi', icon: <PenLine className="h-4 w-4" /> },
+  { type: 'page', title: 'Mini Games', description: 'Permainan untuk belajar Mandarin', url: '/dashboard/games', icon: <Gamepad2 className="h-4 w-4" /> },
+  { type: 'page', title: 'Grammar', description: 'Materi tata bahasa Mandarin', url: '/dashboard/grammar', icon: <FileText className="h-4 w-4" /> },
   { type: 'page', title: 'Estafet', description: 'Baca kalimat kumulatif, quiz kalimat & speaking per level', url: '/dashboard/flashcard/cumulative', icon: <BookText className="h-4 w-4" /> },
   { type: 'page', title: 'Baca', description: 'Baca cerita Mandarin', url: '/dashboard/cerita', icon: <BookOpen className="h-4 w-4" /> },
   { type: 'page', title: 'Favorit', description: 'Kata favorit Anda', url: '/dashboard/favorit', icon: <Star className="h-4 w-4" /> },
@@ -83,8 +85,8 @@ export function DashboardHeader() {
 
     const lowerQuery = query.toLowerCase()
     const filteredMenu = menuItems.filter(item =>
-      (item as any).title.toLowerCase().includes(lowerQuery) ||
-      ((item as any).description && (item as any).description.toLowerCase().includes(lowerQuery))
+      item.title.toLowerCase().includes(lowerQuery) ||
+      (item.description && item.description.toLowerCase().includes(lowerQuery))
     )
 
     setSearchResults(filteredMenu)
@@ -123,7 +125,7 @@ export function DashboardHeader() {
           .limit(5)
 
         if (stories && Array.isArray(stories)) {
-          stories.forEach((story: any) => {
+          stories.forEach((story: { key: string; title: string; title_zh: string | null }) => {
             results.push({
               type: 'story',
               title: story.title,
@@ -138,16 +140,16 @@ export function DashboardHeader() {
         // Search grammar
         const { data: grammarRules } = await supa
           .from("grammar_patterns")
-          .select("slug, title, description")
+          .select("slug, title")
           .ilike("title", `%${query}%`)
           .limit(5)
 
         if (grammarRules && Array.isArray(grammarRules)) {
-          grammarRules.forEach((rule: any) => {
+          grammarRules.forEach((rule: { slug: string; title: string }) => {
             results.push({
               type: 'grammar',
               title: rule.title,
-              description: rule.description || '',
+              description: '',
               url: `/dashboard/practice/grammar/${rule.slug}`,
               icon: <FileText className="h-4 w-4" />,
               category: 'Grammar'
@@ -162,7 +164,7 @@ export function DashboardHeader() {
         setIsSearching(false)
       }
     }, 300)
-  }, [])
+  }, [supabase])
 
   const handleResultClick = (result: SearchResult) => {
     setSearchOpen(false)

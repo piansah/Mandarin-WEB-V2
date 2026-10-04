@@ -476,7 +476,7 @@ export default function PetaHanziPage() {
       )}
 
       {rootChar && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]">
           <HanziMapGraph
             nodes={nodes}
             edges={edges}
