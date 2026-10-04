@@ -59,11 +59,6 @@ const todayItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Modul",
-    url: "/dashboard/modul",
-    icon: FolderOpen,
-  },
-  {
     title: "Path",
     url: "/dashboard/path",
     icon: Target,
@@ -73,24 +68,32 @@ const todayItems = [
     url: "/dashboard/statistik",
     icon: BarChart3,
   },
+]
+
+const belajarItems = [
   {
-    title: "Minigames",
-    url: "/dashboard/games",
-    icon: Gamepad2,
+    title: "Modul",
+    url: "/dashboard/modul",
+    icon: FolderOpen,
+  },
+  {
+    title: "Daftar Kata",
+    url: "/dashboard/flashcard",
+    icon: Languages,
   },
   {
     title: "Peta Hanzi",
     url: "/dashboard/peta-hanzi",
     icon: Network,
   },
+  {
+    title: "Mini Games",
+    url: "/dashboard/games",
+    icon: Gamepad2,
+  },
 ]
 
 const learningPathItems = [
-  {
-    title: "Daftar Kata",
-    url: "/dashboard/flashcard",
-    icon: Languages,
-  },
   {
     title: "Tata Bahasa",
     url: "/dashboard/grammar",
@@ -133,6 +136,7 @@ const adminItems = [
     icon: Shield,
   },
 ]
+
 
 export function AppSidebar({
   user,
@@ -246,6 +250,30 @@ export function AppSidebar({
           </div>
           <SidebarMenu className="gap-1.5">
             {todayItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={pathname === item.url}
+                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
+                  className="p-3"
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
+                  </div>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </div>
+
+        {/* BELAJAR */}
+        <div className="px-3 mt-4">
+          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+            BELAJAR
+          </div>
+          <SidebarMenu className="gap-1.5">
+            {belajarItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
                   tooltip={item.title}

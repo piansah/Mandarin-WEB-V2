@@ -25,8 +25,8 @@ import {
   type GraphEdge,
 } from "@/lib/hanzi-map"
 
-const WORDS_PER_EXPANSION = 8
-const MAX_NODES = 60
+const WORDS_PER_EXPANSION = 12
+const MAX_NODES = 80
 
 type Snapshot = {
   nodes: Map<string, GraphNode>
