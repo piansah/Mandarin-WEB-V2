@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest"
+import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   computeNextSrsState,
   previewIntervalDays,
@@ -6,10 +7,10 @@ import {
   DEFAULT_EASE_FACTOR,
   MIN_EASE_FACTOR,
   todayStr,
-  isMastered,
-  countMastered,
-  countSaved,
-  type SrsState
+  isCardDue,
+  countSwipeMastered,
+  computeSessionAccuracy,
+  recordSrsReview
 } from "@/lib/srs"
 
 describe("SM-2 SRS Algorithm", () => {
@@ -118,81 +119,257 @@ describe("SM-2 SRS Algorithm", () => {
   })
 })
 
-describe("Mastered Counting", () => {
-  it("isMastered returns true for >= 21, false otherwise", () => {
-    expect(isMastered(20)).toBe(false)
-    expect(isMastered(21)).toBe(true)
-    expect(isMastered(30)).toBe(true)
-    expect(isMastered(0)).toBe(false)
-    expect(isMastered(null)).toBe(false)
-    expect(isMastered(undefined)).toBe(false)
+describe("countSwipeMastered", () => {
+  it("20 cards with 14 Mudah -> 14", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>()
+    const deckIds: string[] = []
+    for (let i = 0; i < 20; i++) {
+      const id = `card-${i}`
+      deckIds.push(id)
+      if (i < 14) {
+        ratings.set(id, 5)
+      } else {
+        ratings.set(id, 4)
+      }
+    }
+    expect(countSwipeMastered(ratings, deckIds)).toBe(14)
   })
 
-  it("countMastered correctly evaluates based on reviews and DB", () => {
-    const dbIntervals = new Map<string, number>([
-      ["a", 30],
-      ["b", 5],
-      ["c", 21]
+  it("Lupa then Mudah counts once", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>()
+    ratings.set("card-1", 0)
+    ratings.set("card-1", 5)
+    expect(countSwipeMastered(ratings, ["card-1"])).toBe(1)
+  })
+
+  it("Mudah then Sulit/Lupa not counted", () => {
+    const ratings1 = new Map<string, 0 | 3 | 4 | 5>()
+    ratings1.set("card-1", 5)
+    ratings1.set("card-1", 3)
+    expect(countSwipeMastered(ratings1, ["card-1"])).toBe(0)
+
+    const ratings2 = new Map<string, 0 | 3 | 4 | 5>()
+    ratings2.set("card-1", 5)
+    ratings2.set("card-1", 0)
+    expect(countSwipeMastered(ratings2, ["card-1"])).toBe(0)
+  })
+
+  it("Ingat/Sulit never count", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 4],
+      ["card-2", 3]
     ])
-    
-    // DB intervals {a:30, b:5, c:21}, no reviews, deckIds = [a,b,c] -> 2
-    expect(countMastered(["a", "b", "c"], dbIntervals, [])).toBe(2)
-    
-    // Empty deckIds -> 0
-    expect(countMastered([], dbIntervals, [])).toBe(0)
+    expect(countSwipeMastered(ratings, ["card-1", "card-2"])).toBe(0)
+  })
 
-    // DB intervals present but not in deckIds are not counted
-    expect(countMastered(["b"], dbIntervals, [])).toBe(0)
-    
-    // Duplicated ids in deckIds are counted once
-    expect(countMastered(["a", "a", "c"], dbIntervals, [])).toBe(2)
+  it("unknown ids ignored", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    expect(countSwipeMastered(ratings, ["card-1", "card-2"])).toBe(2)
+  })
 
-    // Review with quality: 5 makes a non-mastered DB card count as mastered
-    const reviews2: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
-    ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews2)).toBe(3)
+  it("duplicate deck ids counted once", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([["card-1", 5]])
+    expect(countSwipeMastered(ratings, ["card-1", "card-1", "card-1"])).toBe(1)
+  })
 
-    // Review with quality: 0 makes a DB-mastered card count as NOT mastered
-    const reviews3: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "a", quality: 0, state: { repetitions: 5, intervalDays: 30, easeFactor: 2.5 } }
-    ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews3)).toBe(1)
+  it("result never exceeds unique deck ids", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>()
+    const deckIds = ["a", "b", "c", "d", "e"]
+    for (const id of deckIds) {
+      ratings.set(id, 5)
+    }
+    const uniqueDeckIds = new Set(deckIds).size
+    expect(countSwipeMastered(ratings, deckIds)).toBeLessThanOrEqual(uniqueDeckIds)
+  })
 
-    // Two reviews for the same cardId: only the last one counts
-    const reviews4: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
-      { cardId: "b", quality: 0, state: { repetitions: 4, intervalDays: 38, easeFactor: 2.6 } }
-    ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews4)).toBe(2)
+  it("empty ratings returns 0", () => {
+    expect(countSwipeMastered(new Map(), ["a", "b", "c"])).toBe(0)
+  })
 
-    // countMastered returns the same number regardless of review order
-    const reviews5a: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "a", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
-    ]
-    const reviews5b: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "b", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } },
-      { cardId: "a", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
-    ]
-    expect(countMastered(["a", "b", "c"], dbIntervals, reviews5a)).toBe(countMastered(["a", "b", "c"], dbIntervals, reviews5b))
+  it("empty deckIds returns 0", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([["card-1", 5]])
+    expect(countSwipeMastered(ratings, [])).toBe(0)
   })
 })
 
-describe("countSaved + countMastered", () => {
-  it("countSaved and countMastered individually never exceed unique deck ids", () => {
-    const fullDeckIds = ["a", "b", "c", "d", "e"]
-    const dbSavedIds = new Set<string>(["a", "b", "c"])
-    const dbIntervals = new Map<string, number>([["a", 30], ["b", 21], ["c", 5]])
-    const reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[] = [
-      { cardId: "d", quality: 5, state: { repetitions: 3, intervalDays: 15, easeFactor: 2.5 } }
-    ]
+describe("computeSessionAccuracy", () => {
+  it("empty map -> 0", () => {
+    expect(computeSessionAccuracy(new Map())).toBe(0)
+  })
 
-    const saved = countSaved(fullDeckIds, dbSavedIds, reviews)
-    const mastered = countMastered(fullDeckIds, dbIntervals, reviews)
-    const uniqueDeckIds = new Set(fullDeckIds).size
+  it("3 of 4 passing -> 75", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 4],
+      ["card-3", 4],
+      ["card-4", 0]
+    ])
+    expect(computeSessionAccuracy(ratings)).toBe(75)
+  })
 
-    expect(saved).toBeLessThanOrEqual(uniqueDeckIds)
-    expect(mastered).toBeLessThanOrEqual(uniqueDeckIds)
+  it("all Lupa -> 0", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 0],
+      ["card-2", 0],
+      ["card-3", 0]
+    ])
+    expect(computeSessionAccuracy(ratings)).toBe(0)
+  })
+
+  it("all Mudah -> 100", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    expect(computeSessionAccuracy(ratings)).toBe(100)
+  })
+
+  it("all Ingat -> 100", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 4],
+      ["card-2", 4],
+      ["card-3", 4]
+    ])
+    expect(computeSessionAccuracy(ratings)).toBe(100)
+  })
+
+  it("mixed ratings -> correct percentage", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 4],
+      ["card-3", 3],
+      ["card-4", 0],
+      ["card-5", 5]
+    ])
+    expect(computeSessionAccuracy(ratings)).toBe(60)
+  })
+})
+
+describe("isCardDue", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("new card (no next_review) is due", () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    expect(isCardDue(null)).toBe(true)
+    expect(isCardDue(undefined)).toBe(true)
+  })
+
+  it("card due today is due", () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    expect(isCardDue("2026-10-03")).toBe(true)
+  })
+
+  it("overdue card is due", () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    expect(isCardDue("2026-10-01")).toBe(true)
+    expect(isCardDue("2026-09-30")).toBe(true)
+  })
+
+  it("card due tomorrow is not due", () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    expect(isCardDue("2026-10-04")).toBe(false)
+    expect(isCardDue("2026-10-10")).toBe(false)
+  })
+
+  it("timezone edge case at 23:30 +07:00", () => {
+    vi.setSystemTime(new Date("2026-10-03T23:30:00+07:00"))
+    expect(isCardDue("2026-10-03")).toBe(true)
+    expect(isCardDue("2026-10-04")).toBe(false)
+  })
+
+  it("custom today parameter", () => {
+    expect(isCardDue("2026-10-03", "2026-10-03")).toBe(true)
+    expect(isCardDue("2026-10-03", "2026-10-04")).toBe(true)
+    expect(isCardDue("2026-10-04", "2026-10-03")).toBe(false)
+  })
+})
+
+describe("recordSrsReview", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("upserts correct payload with session_id", async () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn(() => ({ upsert: upsertMock }))
+    const supa = { from: fromMock } as unknown as SupabaseClient
+
+    const review = {
+      cardId: "test-card",
+      quality: 5 as const,
+      state: { repetitions: 0, intervalDays: 0, easeFactor: 2.5 }
+    }
+    const userId = "user-123"
+    const sessionId = "session-456"
+
+    await recordSrsReview(supa, userId, review, sessionId)
+
+    expect(fromMock).toHaveBeenCalledWith("user_card_progress")
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: userId,
+        card_id: review.cardId,
+        srs_level: 1,
+        interval_days: 1,
+        ease_factor: 2.6,
+        next_review: "2026-10-04",
+        last_reviewed: "2026-10-03",
+        session_id: sessionId
+      }),
+      { onConflict: "user_id,card_id" }
+    )
+  })
+
+  it("upserts without session_id when not provided", async () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    const upsertMock = vi.fn().mockResolvedValue({ error: null })
+    const fromMock = vi.fn(() => ({ upsert: upsertMock }))
+    const supa = { from: fromMock } as unknown as SupabaseClient
+
+    const review = {
+      cardId: "test-card",
+      quality: 5 as const,
+      state: { repetitions: 0, intervalDays: 0, easeFactor: 2.5 }
+    }
+    const userId = "user-123"
+
+    await recordSrsReview(supa, userId, review)
+
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ session_id: expect.anything() }),
+      { onConflict: "user_id,card_id" }
+    )
+  })
+
+  it("throws when upsert returns error", async () => {
+    vi.setSystemTime(new Date("2026-10-03T12:00:00+07:00"))
+    const upsertMock = vi.fn().mockResolvedValue({ error: { message: "DB error" } })
+    const fromMock = vi.fn(() => ({ upsert: upsertMock }))
+    const supa = { from: fromMock } as unknown as SupabaseClient
+
+    const review = {
+      cardId: "test-card",
+      quality: 5 as const,
+      state: { repetitions: 0, intervalDays: 0, easeFactor: 2.5 }
+    }
+    const userId = "user-123"
+
+    await expect(recordSrsReview(supa, userId, review)).rejects.toThrow()
   })
 })
