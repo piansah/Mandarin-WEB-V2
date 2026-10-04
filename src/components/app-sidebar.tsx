@@ -68,6 +68,11 @@ const todayItems = [
     url: "/dashboard/statistik",
     icon: BarChart3,
   },
+  {
+    title: "Mini Games",
+    url: "/dashboard/games",
+    icon: Gamepad2,
+  },
 ]
 
 const belajarItems = [
@@ -85,11 +90,6 @@ const belajarItems = [
     title: "Peta Hanzi",
     url: "/dashboard/peta-hanzi",
     icon: Network,
-  },
-  {
-    title: "Mini Games",
-    url: "/dashboard/games",
-    icon: Gamepad2,
   },
 ]
 
@@ -416,4 +416,4 @@ export function AppSidebar({
       <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </Sidebar>
   )
-}  
+}

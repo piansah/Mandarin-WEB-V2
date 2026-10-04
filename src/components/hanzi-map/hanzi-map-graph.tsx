@@ -122,8 +122,9 @@ export function HanziMapGraph({
   const svgRef = React.useRef<SVGSVGElement>(null)
   const [viewBox, setViewBox] = React.useState<ViewBox>(DEFAULT_VIEWBOX)
   const [isDragging, setIsDragging] = React.useState(false)
-  const [hoveredEdgeId, setHoveredEdgeId] = React.useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null)
+  // Popup kosakata hanya muncul lewat klik/tap, bukan hover.
+  const [pinnedEdgeId, setPinnedEdgeId] = React.useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false)
   const [showZoomHint, setShowZoomHint] = React.useState(false)
 
@@ -267,6 +268,7 @@ export function HanziMapGraph({
   const handleReset = () => {
     setViewBox(DEFAULT_VIEWBOX)
     fitKeyRef.current = ""
+    setPinnedEdgeId(null)
     onReset()
   }
 
@@ -277,6 +279,9 @@ export function HanziMapGraph({
       movedRef.current = false
       return
     }
+
+    // Pin popup kosakata untuk node ini (node akar tidak punya edge → null)
+    setPinnedEdgeId(edges.find((e) => e.toId === nodeId)?.id ?? null)
 
     const node = nodes.get(nodeId)
     if (!node) return
@@ -315,11 +320,10 @@ export function HanziMapGraph({
   const nodeCount = nodes.size
   const limitReached = nodeCount >= maxNodes
 
-  // Edge yang sedang di-hover (dari label ataupun dari node tujuan)
-  const activeEdge =
-    edges.find((e) => e.id === hoveredEdgeId) ??
-    edges.find((e) => e.toId === hoveredNodeId) ??
-    null
+  // Edge aktif untuk popup: hanya yang di-pin lewat klik/tap. Dicari dari
+  // `edges`, jadi popup otomatis hilang jika edge-nya sudah tidak ada
+  // (mis. setelah undo).
+  const activeEdge = edges.find((e) => e.id === pinnedEdgeId) ?? null
 
   const labelWidth = (text: string) => [...text].length * 15 + 18
 
@@ -372,6 +376,12 @@ export function HanziMapGraph({
           onPointerMove={handlePointerMove}
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
+          onClick={() => {
+            // Abaikan klik yang merupakan akhir dari drag
+            if (movedRef.current) return
+            // Klik/tap area kosong menutup popup yang di-pin
+            setPinnedEdgeId(null)
+          }}
         >
           {/* Garis */}
           {edges.map((edge) => {
@@ -407,14 +417,13 @@ export function HanziMapGraph({
                 key={`label-${edge.id}`}
                 transform={`translate(${mx}, ${my})`}
                 style={{ cursor: "pointer" }}
-                onPointerEnter={() => setHoveredEdgeId(edge.id)}
-                onPointerLeave={() => setHoveredEdgeId(null)}
                 onClick={(e) => {
                   e.stopPropagation()
                   if (movedRef.current) {
                     movedRef.current = false
                     return
                   }
+                  setPinnedEdgeId(edge.id)
                   onNodeClick(edge.toId)
                   speakMandarin(edge.word.hanzi)
                 }}
@@ -600,7 +609,7 @@ export function HanziMapGraph({
             role="status"
             className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur"
           >
-            Tahan Ctrl (Cmd di Mac) sambil scroll untuk zoom
+            Tahan CTRL/CMD sambil scroll untuk zoom
           </div>
         )}
 
@@ -621,7 +630,7 @@ export function HanziMapGraph({
           Kata panjang
         </div>
         <span className="hidden md:inline">Seret untuk menggeser, Ctrl + scroll untuk zoom</span>
-        <span className="hidden md:inline">Arahkan kursor ke kata di garis untuk melihat pinyin dan arti</span>
+        <span className="hidden md:inline">Klik kata di garis atau karakter untuk melihat pinyin dan arti</span>
       </div>
     </Card>
   )
