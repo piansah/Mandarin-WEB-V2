@@ -1,14 +1,19 @@
 "use client"
 
 import * as React from "react"
-import { ZoomIn, ZoomOut, RotateCcw, Undo2, Network } from "lucide-react"
+import { ZoomIn, ZoomOut, RotateCcw, Undo2, Network, Maximize2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import type { GraphNode, GraphEdge } from "@/lib/hanzi-map"
 import { speakMandarin } from "@/lib/tts"
 
-const MAX_NODES = 60
+const DEFAULT_MAX_NODES = 80
 const DEFAULT_VIEWBOX = { x: -450, y: -450, width: 900, height: 900 }
+const MIN_VIEW_SIZE = 200
+const MAX_VIEW_SIZE = 8000
+const FIT_PADDING = 90
+/** Jarak geser (px layar) sebelum gerakan dianggap drag, bukan klik */
+const DRAG_THRESHOLD = 5
 
 // Semua warna diambil langsung dari variabel base CSS (oklch).
 // Jangan dibungkus hsl(...) karena variabelmu bukan format HSL.
@@ -29,9 +34,9 @@ const C = {
 
 // Peta aksara bertanda nada → nomor nada
 const TONE_CHARS: Record<string, number> = {
-  ā:1,á:2,ǎ:3,à:4, ē:1,é:2,ě:3,è:4,
-  ī:1,í:2,ǐ:3,ì:4, ō:1,ó:2,ǒ:3,ò:4,
-  ū:1,ú:2,ǔ:3,ù:4, ǖ:1,ǘ:2,ǚ:3,ǜ:4,
+  ā: 1, á: 2, ǎ: 3, à: 4, ē: 1, é: 2, ě: 3, è: 4,
+  ī: 1, í: 2, ǐ: 3, ì: 4, ō: 1, ó: 2, ǒ: 3, ò: 4,
+  ū: 1, ú: 2, ǔ: 3, ù: 4, ǖ: 1, ǘ: 2, ǚ: 3, ǜ: 4,
 }
 
 function detectTone(syllable: string): number {
@@ -39,6 +44,28 @@ function detectTone(syllable: string): number {
     if (TONE_CHARS[ch]) return TONE_CHARS[ch]
   }
   return 0
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+type ViewBox = { x: number; y: number; width: number; height: number }
+
+/** Hitung viewBox persegi yang memuat semua node */
+function computeFitViewBox(nodes: Map<string, GraphNode>): ViewBox | null {
+  if (nodes.size === 0) return null
+  const values = Array.from(nodes.values())
+  const xs = values.map((n) => n.x)
+  const ys = values.map((n) => n.y)
+  const minX = Math.min(...xs) - FIT_PADDING
+  const maxX = Math.max(...xs) + FIT_PADDING
+  const minY = Math.min(...ys) - FIT_PADDING
+  const maxY = Math.max(...ys) + FIT_PADDING
+  const size = Math.max(maxX - minX, maxY - minY)
+  const cx = (minX + maxX) / 2
+  const cy = (minY + maxY) / 2
+  return { x: cx - size / 2, y: cy - size / 2, width: size, height: size }
 }
 
 /** Render pinyin sebagai array <tspan> berwarna per suku kata dalam SVG */
@@ -75,6 +102,8 @@ type HanziMapGraphProps = {
   canUndo: boolean
   loading?: boolean
   notFound?: boolean
+  /** Batas jumlah simpul. Kirim konstanta yang sama dengan halaman agar konsisten. */
+  maxNodes?: number
 }
 
 export function HanziMapGraph({
@@ -88,77 +117,167 @@ export function HanziMapGraph({
   canUndo,
   loading,
   notFound,
+  maxNodes = DEFAULT_MAX_NODES,
 }: HanziMapGraphProps) {
   const svgRef = React.useRef<SVGSVGElement>(null)
-  const [viewBox, setViewBox] = React.useState(DEFAULT_VIEWBOX)
+  const [viewBox, setViewBox] = React.useState<ViewBox>(DEFAULT_VIEWBOX)
   const [isDragging, setIsDragging] = React.useState(false)
-  const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 })
   const [hoveredEdgeId, setHoveredEdgeId] = React.useState<string | null>(null)
   const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null)
   const [prefersReducedMotion, setPrefersReducedMotion] = React.useState(false)
+  const [showZoomHint, setShowZoomHint] = React.useState(false)
+
+  // Drag bookkeeping (ref agar tidak memicu render tiap gerakan)
+  const pointerStartRef = React.useRef<{ x: number; y: number; id: number } | null>(null)
+  const lastPointerRef = React.useRef({ x: 0, y: 0 })
+  const movedRef = React.useRef(false)
+  const hintTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Auto-fit hanya saat jumlah node atau node akar berubah
+  const fitKeyRef = React.useRef<string>("")
+
+  const showCanvas = !notFound && !(loading && nodes.size === 0)
 
   React.useEffect(() => {
     setPrefersReducedMotion(window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+    }
   }, [])
 
-  // Auto-fit saat node berubah (dibuat persegi supaya tidak gepeng)
-  React.useEffect(() => {
-    if (nodes.size === 0) return
-    const values = Array.from(nodes.values())
-    const xs = values.map((n) => n.x)
-    const ys = values.map((n) => n.y)
-    const pad = 90
-    const minX = Math.min(...xs) - pad
-    const maxX = Math.max(...xs) + pad
-    const minY = Math.min(...ys) - pad
-    const maxY = Math.max(...ys) + pad
-    const size = Math.max(maxX - minX, maxY - minY)
-    const cx = (minX + maxX) / 2
-    const cy = (minY + maxY) / 2
-    setViewBox({ x: cx - size / 2, y: cy - size / 2, width: size, height: size })
+  const fitToScreen = React.useCallback(() => {
+    const fit = computeFitViewBox(nodes)
+    if (fit) setViewBox(fit)
   }, [nodes])
 
-  const zoomBy = (scaleFactor: number) => {
+  React.useEffect(() => {
+    if (nodes.size === 0) {
+      fitKeyRef.current = ""
+      return
+    }
+    const rootId = Array.from(nodes.values()).find((n) => n.parentId === null)?.id ?? ""
+    const key = `${rootId}:${nodes.size}`
+    if (key === fitKeyRef.current) return
+    fitKeyRef.current = key
+    const fit = computeFitViewBox(nodes)
+    if (fit) setViewBox(fit)
+  }, [nodes])
+
+  /**
+   * Zoom dengan faktor tertentu. (ox, oy) = posisi pointer relatif terhadap
+   * pusat elemen SVG dalam piksel layar; titik di bawah pointer tetap diam.
+   * Tombol zoom memakai (0, 0) sehingga zoom ke tengah.
+   */
+  const zoomAt = React.useCallback((factor: number, ox = 0, oy = 0) => {
+    const el = svgRef.current
+    const cw = el?.clientWidth || 1
+    const ch = el?.clientHeight || 1
     setViewBox((prev) => {
-      const w = prev.width * scaleFactor
-      const h = prev.height * scaleFactor
-      return {
-        x: prev.x + (prev.width - w) / 2,
-        y: prev.y + (prev.height - h) / 2,
-        width: w,
-        height: h,
+      const width = clamp(prev.width * factor, MIN_VIEW_SIZE, MAX_VIEW_SIZE)
+      const f = width / prev.width
+      const height = prev.height * f
+      const scale = Math.max(prev.width / cw, prev.height / ch)
+      const cx = prev.x + prev.width / 2
+      const cy = prev.y + prev.height / 2
+      const px = cx + ox * scale
+      const py = cy + oy * scale
+      const ncx = px - ox * scale * f
+      const ncy = py - oy * scale * f
+      return { x: ncx - width / 2, y: ncy - height / 2, width, height }
+    })
+  }, [])
+
+  // Wheel: listener non-passive supaya preventDefault benar-benar bekerja.
+  // Zoom hanya dengan Ctrl/Cmd + scroll (juga pinch trackpad); scroll biasa
+  // tetap menggulir halaman.
+  React.useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) {
+        setShowZoomHint(true)
+        if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+        hintTimerRef.current = setTimeout(() => setShowZoomHint(false), 1200)
+        return
       }
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const ox = e.clientX - rect.left - rect.width / 2
+      const oy = e.clientY - rect.top - rect.height / 2
+      const delta = clamp(e.deltaY, -120, 120)
+      zoomAt(Math.exp(delta * 0.0025), ox, oy)
+    }
+
+    el.addEventListener("wheel", onWheel, { passive: false })
+    return () => el.removeEventListener("wheel", onWheel)
+  }, [showCanvas, zoomAt])
+
+  const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.button !== 0) return
+    pointerStartRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId }
+    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+    movedRef.current = false
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const start = pointerStartRef.current
+    if (!start || start.id !== e.pointerId) return
+
+    if (!movedRef.current) {
+      const dist = Math.hypot(e.clientX - start.x, e.clientY - start.y)
+      if (dist < DRAG_THRESHOLD) return
+      // Baru dianggap drag: tangkap pointer supaya drag tetap jalan di luar SVG.
+      // Dilakukan setelah melewati ambang agar klik pada node tidak terganggu.
+      movedRef.current = true
+      setIsDragging(true)
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        // pointer mungkin sudah dilepas; abaikan
+      }
+    }
+
+    const el = svgRef.current
+    const cw = el?.clientWidth || 1
+    const ch = el?.clientHeight || 1
+    const dxPx = e.clientX - lastPointerRef.current.x
+    const dyPx = e.clientY - lastPointerRef.current.y
+    lastPointerRef.current = { x: e.clientX, y: e.clientY }
+
+    setViewBox((prev) => {
+      const scale = Math.max(prev.width / cw, prev.height / ch)
+      return { ...prev, x: prev.x - dxPx * scale, y: prev.y - dyPx * scale }
     })
   }
 
-  const handleWheel = (e: React.WheelEvent) => zoomBy(e.deltaY > 0 ? 1.1 : 0.9)
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return
-    setIsDragging(true)
-    setDragStart({ x: e.clientX, y: e.clientY })
+  const endDrag = (e: React.PointerEvent<SVGSVGElement>) => {
+    const start = pointerStartRef.current
+    if (start && start.id === e.pointerId) {
+      pointerStartRef.current = null
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      }
+    }
+    setIsDragging(false)
+    // movedRef sengaja tidak direset di sini: event click yang menyusul
+    // drag harus bisa membacanya. Direset di pointerdown berikutnya.
   }
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return
-    const cw = svgRef.current?.clientWidth || 1
-    const ch = svgRef.current?.clientHeight || 1
-    const scale = Math.max(viewBox.width / cw, viewBox.height / ch)
-    const dx = (e.clientX - dragStart.x) * scale
-    const dy = (e.clientY - dragStart.y) * scale
-    setViewBox((prev) => ({ ...prev, x: prev.x - dx, y: prev.y - dy }))
-    setDragStart({ x: e.clientX, y: e.clientY })
-  }
-
-  const handlePointerUp = () => setIsDragging(false)
 
   const handleReset = () => {
     setViewBox(DEFAULT_VIEWBOX)
+    fitKeyRef.current = ""
     onReset()
   }
 
   const handleNodeClick = (nodeId: string, event: React.SyntheticEvent) => {
     event.stopPropagation()
+    // Abaikan klik yang sebenarnya akhir dari drag
+    if (movedRef.current) {
+      movedRef.current = false
+      return
+    }
+
     const node = nodes.get(nodeId)
     if (!node) return
 
@@ -194,7 +313,7 @@ export function HanziMapGraph({
   }
 
   const nodeCount = nodes.size
-  const limitReached = nodeCount >= MAX_NODES
+  const limitReached = nodeCount >= maxNodes
 
   // Edge yang sedang di-hover (dari label ataupun dari node tujuan)
   const activeEdge =
@@ -221,11 +340,14 @@ export function HanziMapGraph({
           >
             <Undo2 className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => zoomBy(0.9)} title="Perbesar">
+          <Button variant="ghost" size="icon" onClick={() => zoomAt(0.8)} title="Perbesar">
             <ZoomIn className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => zoomBy(1.1)} title="Perkecil">
+          <Button variant="ghost" size="icon" onClick={() => zoomAt(1.25)} title="Perkecil">
             <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={fitToScreen} title="Pas layar">
+            <Maximize2 className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={handleReset} title="Reset">
             <RotateCcw className="h-4 w-4" />
@@ -234,7 +356,7 @@ export function HanziMapGraph({
       </div>
 
       <div
-        className="relative flex-1 min-h-[560px] overflow-hidden"
+        className="relative flex-1 min-h-[560px] overflow-hidden overscroll-contain"
         style={{
           backgroundColor: "var(--background)",
           backgroundImage:
@@ -245,12 +367,11 @@ export function HanziMapGraph({
         <svg
           ref={svgRef}
           viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-          className="absolute inset-0 h-full w-full cursor-grab touch-none active:cursor-grabbing"
-          onWheel={handleWheel}
+          className={`absolute inset-0 h-full w-full touch-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
         >
           {/* Garis */}
           {edges.map((edge) => {
@@ -290,6 +411,10 @@ export function HanziMapGraph({
                 onPointerLeave={() => setHoveredEdgeId(null)}
                 onClick={(e) => {
                   e.stopPropagation()
+                  if (movedRef.current) {
+                    movedRef.current = false
+                    return
+                  }
                   onNodeClick(edge.toId)
                   speakMandarin(edge.word.hanzi)
                 }}
@@ -330,12 +455,7 @@ export function HanziMapGraph({
 
             // Node expanded + hover = tampilkan hint collapse
             const showCollapseHint = node.isExpanded && isHovered && canUndo
-            // Cursor: expanded=pointer collapse, exhausted=not-allowed, else pointer
-            const cursor = node.isExhausted
-              ? "not-allowed"
-              : node.isExpanded && canUndo
-              ? "pointer"
-              : "pointer"
+            const cursor = node.isExhausted ? "not-allowed" : "pointer"
 
             return (
               <g key={node.id} opacity={node.isLoading ? 0.55 : 1}>
@@ -345,7 +465,7 @@ export function HanziMapGraph({
                   cy={node.y}
                   r={r + 7}
                   fill="none"
-                  stroke={node.isExpanded ? C.primary : isRoot || isSelected ? C.primary : C.nodeStroke}
+                  stroke={node.isExpanded || isRoot || isSelected ? C.primary : C.nodeStroke}
                   strokeWidth={node.isExpanded ? 2 : 1.5}
                   strokeDasharray={node.isExpanded ? undefined : "3 5"}
                   opacity={node.isExpanded || isRoot || isSelected || isHovered ? 0.8 : 0.4}
@@ -371,6 +491,7 @@ export function HanziMapGraph({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault()
+                      movedRef.current = false
                       handleNodeClick(node.id, e)
                     }
                   }}
@@ -429,7 +550,7 @@ export function HanziMapGraph({
               const arti = activeEdge.word.arti ?? ""
               const hanzi = activeEdge.word.hanzi
               // Estimasi lebar tooltip berdasarkan teks terpanjang
-              const longestLine = Math.max(hanzi.length * 16, pinyin.length * 7.5, arti.length * 6.5)
+              const longestLine = Math.max([...hanzi].length * 16, pinyin.length * 7.5, arti.length * 6.5)
               const w = Math.min(440, longestLine + 32)
               const h = arti ? 62 : 44
               return (
@@ -474,6 +595,15 @@ export function HanziMapGraph({
             })()}
         </svg>
 
+        {showZoomHint && (
+          <div
+            role="status"
+            className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-full border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur"
+          >
+            Tahan Ctrl (Cmd di Mac) sambil scroll untuk zoom
+          </div>
+        )}
+
         {limitReached && (
           <div className="absolute bottom-4 left-4 right-4 rounded-lg border bg-card/90 px-3 py-2 text-xs text-muted-foreground backdrop-blur">
             Batas peta tercapai ({nodeCount} simpul)
@@ -490,7 +620,8 @@ export function HanziMapGraph({
           <span className="h-3 w-3 rounded-full border-2 border-dashed border-muted-foreground" />
           Kata panjang
         </div>
-        <span>Arahkan kursor ke kata di garis untuk melihat pinyin dan arti</span>
+        <span className="hidden md:inline">Seret untuk menggeser, Ctrl + scroll untuk zoom</span>
+        <span className="hidden md:inline">Arahkan kursor ke kata di garis untuk melihat pinyin dan arti</span>
       </div>
     </Card>
   )
