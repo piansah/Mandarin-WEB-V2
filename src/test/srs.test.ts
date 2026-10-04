@@ -10,6 +10,7 @@ import {
   isCardDue,
   countSwipeMastered,
   computeSessionAccuracy,
+  computeSessionStats,
   recordSrsReview
 } from "@/lib/srs"
 
@@ -135,11 +136,14 @@ describe("countSwipeMastered", () => {
     expect(countSwipeMastered(ratings, deckIds)).toBe(14)
   })
 
-  it("Lupa then Mudah counts once", () => {
+  it("Lupa then Mudah: latest rating alone counts, but lapsed excludes it", () => {
     const ratings = new Map<string, 0 | 3 | 4 | 5>()
     ratings.set("card-1", 0)
     ratings.set("card-1", 5)
+    // tanpa lapsed (perilaku dasar fungsi): dihitung
     expect(countSwipeMastered(ratings, ["card-1"])).toBe(1)
+    // dengan lapsed (seperti di hook): tidak dihitung
+    expect(countSwipeMastered(ratings, ["card-1"], new Set(["card-1"]))).toBe(0)
   })
 
   it("Mudah then Sulit/Lupa not counted", () => {
@@ -194,6 +198,136 @@ describe("countSwipeMastered", () => {
     const ratings = new Map<string, 0 | 3 | 4 | 5>([["card-1", 5]])
     expect(countSwipeMastered(ratings, [])).toBe(0)
   })
+
+  it("lapsed card whose latest rating is Mudah is NOT counted", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    const lapsed = new Set<string>(["card-2"])
+    expect(countSwipeMastered(ratings, ["card-1", "card-2", "card-3"], lapsed)).toBe(2)
+  })
+
+  it("without lapsed argument, behavior is unchanged", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([["card-1", 5]])
+    expect(countSwipeMastered(ratings, ["card-1"])).toBe(1)
+  })
+
+  it("lapsed card with latest 0 is excluded, other Mudah still counted", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 0],
+      ["card-2", 5]
+    ])
+    const lapsed = new Set<string>(["card-1"])
+    expect(countSwipeMastered(ratings, ["card-1", "card-2"], lapsed)).toBe(1)
+  })
+
+  it("result never exceeds unique deck ids, even with lapsed set", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>()
+    const deckIds = ["a", "b", "c", "d", "e"]
+    for (const id of deckIds) {
+      ratings.set(id, 5)
+    }
+    const lapsed = new Set<string>(["a", "b"])
+    const uniqueDeckIds = new Set(deckIds).size
+    expect(countSwipeMastered(ratings, deckIds, lapsed)).toBeLessThanOrEqual(uniqueDeckIds)
+  })
+
+  it("consistency: countSwipeMastered equals computeSessionStats.mudah when ids match ratings", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 4],
+      ["card-4", 3],
+      ["card-5", 0]
+    ])
+    const lapsed = new Set<string>(["card-2"])
+    const deckIds = Array.from(ratings.keys())
+    const mastered = countSwipeMastered(ratings, deckIds, lapsed)
+    const stats = computeSessionStats(ratings, lapsed)
+    expect(mastered).toBe(stats.mudah)
+  })
+})
+
+describe("computeSessionStats", () => {
+  it("empty inputs -> all zeros", () => {
+    expect(computeSessionStats(new Map(), new Set())).toEqual({ mudah: 0, ingat: 0, sulit: 0, lupa: 0 })
+  })
+
+  it("Lupa then Mudah (card in lapsed, latest 5) -> counted as lupa", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    const lapsed = new Set(["card-2"])
+    expect(computeSessionStats(ratings, lapsed)).toEqual({ mudah: 2, ingat: 0, sulit: 0, lupa: 1 })
+  })
+
+  it("Never-lapsed Mudah -> mudah", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionStats(ratings, lapsed)).toEqual({ mudah: 3, ingat: 0, sulit: 0, lupa: 0 })
+  })
+
+  it("Ingat/Sulit unaffected when not lapsed", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 4],
+      ["card-2", 3]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionStats(ratings, lapsed)).toEqual({ mudah: 0, ingat: 1, sulit: 1, lupa: 0 })
+  })
+
+  it("Latest rating 0 without being in lapsed -> lupa", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 0],
+      ["card-2", 5]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionStats(ratings, lapsed)).toEqual({ mudah: 1, ingat: 0, sulit: 0, lupa: 1 })
+  })
+
+  it("Totals always equal ratings.size", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 4],
+      ["card-3", 3],
+      ["card-4", 0],
+      ["card-5", 5]
+    ])
+    const lapsed = new Set<string>(["card-3"])
+    const stats = computeSessionStats(ratings, lapsed)
+    const total = stats.mudah + stats.ingat + stats.sulit + stats.lupa
+    expect(total).toBe(ratings.size)
+  })
+
+  it("Example: 13 Mudah + 2 Ingat + 2 Sulit + 3 lapsed (latest Mudah)", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>()
+    const lapsed = new Set<string>()
+    for (let i = 0; i < 13; i++) {
+      ratings.set(`mudah-${i}`, 5)
+    }
+    for (let i = 0; i < 2; i++) {
+      ratings.set(`ingat-${i}`, 4)
+    }
+    for (let i = 0; i < 2; i++) {
+      ratings.set(`sulit-${i}`, 3)
+    }
+    for (let i = 0; i < 3; i++) {
+      ratings.set(`lapsed-${i}`, 5)
+      lapsed.add(`lapsed-${i}`)
+    }
+    const stats = computeSessionStats(ratings, lapsed)
+    expect(stats).toEqual({ mudah: 13, ingat: 2, sulit: 2, lupa: 3 })
+    expect(stats.mudah + stats.ingat + stats.sulit + stats.lupa).toBe(20)
+    expect(computeSessionAccuracy(ratings, lapsed)).toBe(75)
+  })
 })
 
 describe("computeSessionAccuracy", () => {
@@ -217,7 +351,7 @@ describe("computeSessionAccuracy", () => {
       ["card-2", 0],
       ["card-3", 0]
     ])
-    expect(computeSessionAccuracy(ratings)).toBe(0)
+    expect(computeSessionAccuracy(ratings, new Set<string>())).toBe(0)
   })
 
   it("all Mudah -> 100", () => {
@@ -226,7 +360,7 @@ describe("computeSessionAccuracy", () => {
       ["card-2", 5],
       ["card-3", 5]
     ])
-    expect(computeSessionAccuracy(ratings)).toBe(100)
+    expect(computeSessionAccuracy(ratings, new Set<string>())).toBe(100)
   })
 
   it("all Ingat -> 100", () => {
@@ -235,7 +369,7 @@ describe("computeSessionAccuracy", () => {
       ["card-2", 4],
       ["card-3", 4]
     ])
-    expect(computeSessionAccuracy(ratings)).toBe(100)
+    expect(computeSessionAccuracy(ratings, new Set<string>())).toBe(100)
   })
 
   it("mixed ratings -> correct percentage", () => {
@@ -247,6 +381,44 @@ describe("computeSessionAccuracy", () => {
       ["card-5", 5]
     ])
     expect(computeSessionAccuracy(ratings)).toBe(60)
+  })
+
+  it("with lapsed: lapsed-then-Mudah counts as lupa, not mudah", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    const lapsed = new Set<string>(["card-2"])
+    expect(computeSessionAccuracy(ratings, lapsed)).toBe(67)
+  })
+
+  it("with lapsed: never-lapsed Mudah counts as mudah", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 5],
+      ["card-2", 5],
+      ["card-3", 5]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionAccuracy(ratings, lapsed)).toBe(100)
+  })
+
+  it("with lapsed: Ingat/Sulit unaffected when not lapsed", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 4],
+      ["card-2", 3]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionAccuracy(ratings, lapsed)).toBe(50)
+  })
+
+  it("with lapsed: latest rating 0 without being in lapsed -> lupa", () => {
+    const ratings = new Map<string, 0 | 3 | 4 | 5>([
+      ["card-1", 0],
+      ["card-2", 5]
+    ])
+    const lapsed = new Set<string>()
+    expect(computeSessionAccuracy(ratings, lapsed)).toBe(50)
   })
 })
 

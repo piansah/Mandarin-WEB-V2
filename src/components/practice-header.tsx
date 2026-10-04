@@ -59,8 +59,8 @@ export function PracticeHeader({
           : "grid-cols-2 md:grid-cols-4"
 
   return (
-    <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-3 shrink-0 sticky top-0 z-20">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+    <div className="border-b border-border/60 bg-card/50 backdrop-blur-sm px-4 py-2 shrink-0 sticky top-0 z-20">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           {title && (
             <h1 className="text-lg font-bold text-foreground truncate">{title}</h1>
@@ -75,7 +75,7 @@ export function PracticeHeader({
       </div>
 
       {showStats && stats && stats.length > 0 && (
-        <div className={`grid ${gridColsClass} gap-3 mt-3 p-3 rounded-xl bg-muted/30 border border-border/40`}>
+        <div className={`grid ${gridColsClass} gap-3 mt-2 p-3 rounded-xl bg-muted/30 border border-border/40`}>
           {stats.map((stat, i) => {
             const Icon = stat.icon
             return (
@@ -107,7 +107,7 @@ export function PracticeHeader({
       )}
 
       {progress !== undefined && !showStats && (
-        <div className="w-full h-1.5 bg-border/40 mt-3">
+        <div className="w-full h-1.5 bg-border/40 mt-2">
           <div
             className="h-full bg-emerald-500 transition-all duration-400 ease-out"
             style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
@@ -121,7 +121,7 @@ export function PracticeHeader({
         </div>
       )}
 
-      {children && <div className="mt-3">{children}</div>}
+      {children && <div className="mt-2">{children}</div>}
     </div>
   )
 }

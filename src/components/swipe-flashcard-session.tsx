@@ -5,8 +5,7 @@ import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Setti
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
-import { Badge } from "@/components/ui/badge"
-import { previewIntervalDays, getCardSrsState, isCardDue } from "@/lib/srs"
+import { previewIntervalDays, getCardSrsState } from "@/lib/srs"
 import styles from "./swipe-flashcard-session.module.css"
 
 import { SwipeFlashcard, SwipeFlashcardSessionProps } from "./flashcard-session/types"
@@ -131,14 +130,7 @@ export function SwipeFlashcardSession({
           </div>
         )}
 
-        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
-          {!isCardDue(session.card?.nextReview) && (
-            <div className="absolute top-0 left-0 right-0 flex justify-center pt-2">
-              <Badge variant="secondary" className="text-[10px] bg-muted/80 text-muted-foreground">
-                Latihan bebas – tidak mengubah jadwal
-              </Badge>
-            </div>
-          )}
+        <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
           <FlashcardCard 
             card={session.card}
             idx={session.idx}
@@ -186,7 +178,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
                 <span>Sulit</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3)) : "-"}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3))}</span>
               </Button>
               <Button
                 variant="outline"
@@ -195,7 +187,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
                 <span>Ingat</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4)) : "-"}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4))}</span>
               </Button>
               <Button
                 variant="outline"
@@ -204,7 +196,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>
                 <span>Mudah</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5)) : "-"}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5))}</span>
               </Button>
             </div>
 

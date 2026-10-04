@@ -29,7 +29,8 @@ export const MAX_INTERVAL_DAYS = 365
 
 export function countSwipeMastered(
   ratings: Map<string, 0 | 3 | 4 | 5>,
-  deckIds: string[]
+  deckIds: string[],
+  lapsed: Set<string> = new Set()
 ): number {
   if (!deckIds || deckIds.length === 0) return 0
 
@@ -38,7 +39,7 @@ export function countSwipeMastered(
 
   for (const id of uniqueDeckIds) {
     const rating = ratings.get(id)
-    if (rating === 5) {
+    if (rating === 5 && !lapsed.has(id)) {
       count++
     }
   }
@@ -46,16 +47,39 @@ export function countSwipeMastered(
   return Math.min(count, uniqueDeckIds.size)
 }
 
-export function computeSessionAccuracy(ratings: Map<string, 0 | 3 | 4 | 5>): number {
+export function computeSessionStats(
+  ratings: Map<string, 0 | 3 | 4 | 5>,
+  lapsed: Set<string>
+): { mudah: number; ingat: number; sulit: number; lupa: number } {
+  let mudah = 0
+  let ingat = 0
+  let sulit = 0
+  let lupa = 0
+
+  for (const [cardId, rating] of ratings.entries()) {
+    if (lapsed.has(cardId) || rating === 0) {
+      lupa++
+    } else if (rating === 5) {
+      mudah++
+    } else if (rating === 4) {
+      ingat++
+    } else if (rating === 3) {
+      sulit++
+    }
+  }
+
+  return { mudah, ingat, sulit, lupa }
+}
+
+export function computeSessionAccuracy(
+  ratings: Map<string, 0 | 3 | 4 | 5>,
+  lapsed: Set<string> = new Set()
+): number {
   const total = ratings.size
   if (total === 0) return 0
 
-  let passCount = 0
-  for (const rating of ratings.values()) {
-    if (rating === 5 || rating === 4) {
-      passCount++
-    }
-  }
+  const stats = computeSessionStats(ratings, lapsed)
+  const passCount = stats.mudah + stats.ingat
 
   return Math.round((passCount / total) * 100)
 }

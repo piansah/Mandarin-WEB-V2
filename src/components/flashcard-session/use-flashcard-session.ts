@@ -5,7 +5,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
-import { SrsState, getCardSrsState, countSaved, todayStr, isCardDue, recordSrsReview, recordSrsReviewBatch, countSwipeMastered, computeSessionAccuracy } from "@/lib/srs"
+import { SrsState, getCardSrsState, countSaved, todayStr, isCardDue, recordSrsReview, recordSrsReviewBatch, countSwipeMastered, computeSessionAccuracy, computeSessionStats } from "@/lib/srs"
 
 type SpeechRecognitionLike = {
   lang: string
@@ -80,8 +80,11 @@ export function useFlashcardSession({
   const saveErrorShownRef = React.useRef(false)
   const streakSavedRef = React.useRef(false)
   const [latestRatings, setLatestRatings] = React.useState<Map<string, 0 | 3 | 4 | 5>>(new Map())
+  const [lapsedCardIds, setLapsedCardIds] = React.useState<Set<string>>(new Set())
   const failedCardIdsRef = React.useRef<Set<string>>(new Set())
   const canSaveSrs = !!userId && !!deckId
+  const restoredKeyRef = React.useRef<string | null>(null)
+  const restoreDoneRef = React.useRef(false)
 
   const [fullDeckIds, setFullDeckIds] = React.useState<string[]>([])
   const fullDeckIdsRef = React.useRef(fullDeckIds)
@@ -90,14 +93,18 @@ export function useFlashcardSession({
 
   React.useEffect(() => {
     if (!sessionStorageKey || typeof window === "undefined") return
+    if (restoredKeyRef.current === sessionStorageKey) return
+    if (cards.length === 0) return
+
+    restoredKeyRef.current = sessionStorageKey
+    restoreDoneRef.current = true
+
     try {
       const saved = localStorage.getItem(sessionStorageKey)
       if (saved) {
         const parsed = JSON.parse(saved)
         const hoursDiff = (Date.now() - (parsed.timestamp || Date.now())) / (1000 * 60 * 60)
         if (hoursDiff < 24) {
-          setIdx(parsed.savedIdx ?? 0)
-
           const loadedReviews = parsed.sessionReviews ?? []
           const validReviews = loadedReviews.filter((r: { state?: SrsState }) => r.state != null)
           setSessionReviews(validReviews)
@@ -112,6 +119,15 @@ export function useFlashcardSession({
           setLatestRatings(validRatings)
           failedCardIdsRef.current.clear()
 
+          const loadedLapsedIds = parsed.lapsedCardIds ?? []
+          const validLapsedIds = new Set<string>()
+          for (const id of loadedLapsedIds) {
+            if (typeof id === 'string') {
+              validLapsedIds.add(id)
+            }
+          }
+          setLapsedCardIds(validLapsedIds)
+
           const loadedRepeatQueueIds = parsed.repeatQueueIds ?? []
           const validRepeatQueue: SwipeFlashcard[] = []
           const cardsById = new Map(cards.map(c => [String(c.id), c] as [string, SwipeFlashcard]))
@@ -123,28 +139,24 @@ export function useFlashcardSession({
           }
           setRepeatQueue(validRepeatQueue)
 
-          if (validRepeatQueue.length > 0 && idx >= orderedCards.length) {
-            setIdx(orderedCards.length)
-          }
+          const savedIdx = parsed.savedIdx ?? 0
+          const totalCards = cards.length + validRepeatQueue.length
+          const clampedIdx = totalCards > 0 ? Math.min(Math.max(0, savedIdx), totalCards - 1) : 0
+          setIdx(clampedIdx)
         } else {
           localStorage.removeItem(sessionStorageKey)
         }
       }
     } catch {}
-  }, [sessionStorageKey, cards, idx, orderedCards])
-
-  const orderedCardsRef = React.useRef(orderedCards)
-  const orderedCardsStr = orderedCards.map(c => c.id).join(",")
-  React.useEffect(() => { orderedCardsRef.current = orderedCards }, [orderedCardsStr]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionStorageKey, cards])
 
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
 
   React.useEffect(() => {
-    const newTotalOriginal = orderedCardsRef.current.length
-    if (repeatQueue.length === 0 && idx >= newTotalOriginal && newTotalOriginal > 0) {
-      setIdx(Math.max(0, newTotalOriginal - 1))
+    if (repeatQueue.length === 0 && idx >= orderedCards.length && orderedCards.length > 0) {
+      setIdx(Math.max(0, orderedCards.length - 1))
     }
-  }, [repeatQueue.length, idx])
+  }, [repeatQueue.length, idx, orderedCards.length])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -201,30 +213,16 @@ export function useFlashcardSession({
         })
     }
 
-    let mudahCount = 0
-    let ingatCount = 0
-    let sulitCount = 0
-    let lupaCount = 0
-    for (const rating of latestRatings.values()) {
-      if (rating === 5) mudahCount++
-      else if (rating === 4) ingatCount++
-      else if (rating === 3) sulitCount++
-      else if (rating === 0) lupaCount++
-    }
-    onComplete?.({ mudah: mudahCount, lupa: lupaCount, sulit: sulitCount, ingat: ingatCount }, sessionReviews)
-  }, [done, cards.length, latestRatings, onComplete, sessionReviews, userId, deckCardIds, supa, sessionId, canSaveSrs])
+    const sessionStats = computeSessionStats(latestRatings, lapsedCardIds)
+    onComplete?.({ mudah: sessionStats.mudah, lupa: sessionStats.lupa, sulit: sessionStats.sulit, ingat: sessionStats.ingat }, sessionReviews)
+  }, [done, cards.length, latestRatings, lapsedCardIds, onComplete, sessionReviews, userId, deckCardIds, supa, sessionId, canSaveSrs])
 
   React.useEffect(() => {
     if (!done || cards.length === 0) {
       setResultRingValue(0)
       return
     }
-    let passCount = 0
-    const total = latestRatings.size
-    for (const rating of latestRatings.values()) {
-      if (rating === 5 || rating === 4) passCount++
-    }
-    const target = total > 0 ? Math.round((passCount / total) * 100) : 0
+    const target = computeSessionAccuracy(latestRatings, lapsedCardIds)
 
     if (prefersReducedMotionRef.current) {
       setResultRingValue(target)
@@ -243,10 +241,11 @@ export function useFlashcardSession({
     }
     const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
     return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
-  }, [done, cards.length, latestRatings])
+  }, [done, cards.length, latestRatings, lapsedCardIds])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || done || skipPersistRef.current) return
+    if (!restoreDoneRef.current) return
     try {
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.setItem(key, JSON.stringify({
@@ -254,11 +253,12 @@ export function useFlashcardSession({
         sessionReviews,
         latestRatings: Array.from(latestRatings.entries()),
         repeatQueueIds: repeatQueue.map(c => String(c.id)),
+        lapsedCardIds: Array.from(lapsedCardIds),
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, sessionReviews, latestRatings, repeatQueue, done, userId, deckCardIds])
+  }, [idx, sessionReviews, latestRatings, repeatQueue, lapsedCardIds, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -426,9 +426,9 @@ export function useFlashcardSession({
   const headerStats = React.useMemo<SessionHeaderStats>(() => {
     const totalCards = fullDeckIds.length > 0 ? fullDeckIds.length : deckIds.length
     const saved = countSaved(fullDeckIds.length > 0 ? fullDeckIds : deckIds, dbSavedIds, sessionReviews)
-    const mastered = countSwipeMastered(latestRatings, fullDeckIds.length > 0 ? fullDeckIds : deckIds)
+    const mastered = countSwipeMastered(latestRatings, fullDeckIds.length > 0 ? fullDeckIds : deckIds, lapsedCardIds)
     const rated = latestRatings.size
-    const accuracy = computeSessionAccuracy(latestRatings)
+    const accuracy = computeSessionAccuracy(latestRatings, lapsedCardIds)
     const clampedDueToday = Math.min(dueToday, saved)
 
     return {
@@ -439,21 +439,11 @@ export function useFlashcardSession({
       rated,
       saved
     }
-  }, [fullDeckIds, deckIds, dbSavedIds, sessionReviews, latestRatings, dueToday])
+  }, [fullDeckIds, deckIds, dbSavedIds, sessionReviews, latestRatings, lapsedCardIds, dueToday])
 
   const sessionStats = React.useMemo(() => {
-    let mudahCount = 0
-    let ingatCount = 0
-    let sulitCount = 0
-    let lupaCount = 0
-    for (const rating of latestRatings.values()) {
-      if (rating === 5) mudahCount++
-      else if (rating === 4) ingatCount++
-      else if (rating === 3) sulitCount++
-      else if (rating === 0) lupaCount++
-    }
-    return { mudah: mudahCount, lupa: lupaCount, sulit: sulitCount, ingat: ingatCount }
-  }, [latestRatings])
+    return computeSessionStats(latestRatings, lapsedCardIds)
+  }, [latestRatings, lapsedCardIds])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -520,6 +510,7 @@ export function useFlashcardSession({
 
     if (quality === 0) {
       setRepeatQueue(prev => [...prev, card])
+      setLapsedCardIds(prev => new Set(prev).add(cardIdStr))
     }
 
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
@@ -679,8 +670,11 @@ export function useFlashcardSession({
       setSessionReviews([])
       setDbSavedIds(new Set())
       setLatestRatings(new Map())
+      setLapsedCardIds(new Set())
       setDueToday(0)
       failedCardIdsRef.current.clear()
+      restoredKeyRef.current = null
+      restoreDoneRef.current = false
 
       setShowResetModal(false)
       setResetSuccess(true)
