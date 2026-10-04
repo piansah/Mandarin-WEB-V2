@@ -463,25 +463,25 @@ export function HanziMapGraph({
               <MoreVertical className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuItem onClick={onUndo} disabled={!canUndo}>
+              <DropdownMenuItem closeOnClick={false} onClick={onUndo} disabled={!canUndo}>
                 <Undo2 className="h-4 w-4" />
                 Kembali satu langkah
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => zoomAt(0.8)}>
+              <DropdownMenuItem closeOnClick={false} onClick={() => zoomAt(0.8)}>
                 <ZoomIn className="h-4 w-4" />
                 Perbesar
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => zoomAt(1.25)}>
+              <DropdownMenuItem closeOnClick={false} onClick={() => zoomAt(1.25)}>
                 <ZoomOut className="h-4 w-4" />
                 Perkecil
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={fitToScreen}>
+              <DropdownMenuItem closeOnClick={false} onClick={fitToScreen}>
                 <Maximize2 className="h-4 w-4" />
                 Pas layar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleReset}>
+              <DropdownMenuItem closeOnClick={false} onClick={handleReset}>
                 <RotateCcw className="h-4 w-4" />
                 Reset
               </DropdownMenuItem>
