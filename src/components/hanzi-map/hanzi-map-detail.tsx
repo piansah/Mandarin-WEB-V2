@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, User } from "lucide-react"
+import { BookOpen, User, Volume2 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -13,6 +13,21 @@ type HanziMapDetailProps = {
   selectedWord: VocabularyWord | null
   examples: ExampleSentence[]
   loading: boolean
+}
+
+/** Tombol speaker bulat, diposisikan di kanan-tengah kartu induk (parent harus `relative`) */
+function SpeakerButton({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={`Dengarkan ${text}`}
+      title="Dengarkan"
+      onClick={() => speakMandarin(text)}
+      className={`absolute top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary active:bg-muted/70 cursor-pointer ${className}`}
+    >
+      <Volume2 className="h-4 w-4" />
+    </button>
+  )
 }
 
 /** Render badge level HSK atau badge sumber (compound) */
@@ -68,10 +83,10 @@ export function HanziMapDetail({
   return (
     <Card className="min-h-[400px] flex flex-col gap-0 py-0 overflow-hidden">
       {/* -- Vocabulary Card -- */}
-      <CardHeader className="p-0 border-b">
+      <CardHeader className="relative p-0 border-b">
         <button
           type="button"
-          className="flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer w-full"
+          className="flex items-center gap-4 pl-5 pr-16 py-4 text-left hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer w-full"
           onClick={() => speakMandarin(selectedWord.hanzi)}
           title="Ketuk untuk mendengar"
         >
@@ -91,6 +106,7 @@ export function HanziMapDetail({
             </div>
           </div>
         </button>
+        <SpeakerButton text={selectedWord.hanzi} className="right-4" />
       </CardHeader>
 
       {/* -- Contoh Kalimat -- */}
@@ -109,33 +125,35 @@ export function HanziMapDetail({
         ) : (
           <div className="space-y-2">
             {examples.map((example) => (
-              <button
-                key={String(example.id)}
-                type="button"
-                className="w-full text-left rounded-xl border border-border/50 bg-muted/20 px-4 py-3 transition-colors hover:bg-muted/40 active:bg-muted/60 cursor-pointer"
-                onClick={() => speakMandarin(example.hanzi)}
-                title="Ketuk untuk mendengar"
-              >
-                <div className="font-hanzi text-base leading-snug mb-1">
-                  {highlightSegments(example.hanzi, selectedWord.hanzi).map((seg, i) => (
-                    <span key={i} className={seg.isMatch ? "text-primary font-semibold" : ""}>
-                      {seg.text}
-                    </span>
-                  ))}
-                </div>
-                {example.pinyin && (
-                  <TonePinyin text={example.pinyin} className="text-xs mb-1 block" />
-                )}
-                {example.arti && (
-                  <div className="text-xs text-muted-foreground">{example.arti}</div>
-                )}
-                {example.user_contribution && (
-                  <Badge variant="secondary" className="mt-2 text-[10px] flex w-fit items-center gap-1">
-                    <User className="h-3 w-3" />
-                    Kontribusi
-                  </Badge>
-                )}
-              </button>
+              <div key={String(example.id)} className="relative">
+                <button
+                  type="button"
+                  className="w-full text-left rounded-xl border border-border/50 bg-muted/20 pl-4 pr-14 py-3 transition-colors hover:bg-muted/40 active:bg-muted/60 cursor-pointer"
+                  onClick={() => speakMandarin(example.hanzi)}
+                  title="Ketuk untuk mendengar"
+                >
+                  <div className="font-hanzi text-base leading-snug mb-1">
+                    {highlightSegments(example.hanzi, selectedWord.hanzi).map((seg, i) => (
+                      <span key={i} className={seg.isMatch ? "text-primary font-semibold" : ""}>
+                        {seg.text}
+                      </span>
+                    ))}
+                  </div>
+                  {example.pinyin && (
+                    <TonePinyin text={example.pinyin} className="text-xs mb-1 block" />
+                  )}
+                  {example.arti && (
+                    <div className="text-xs text-muted-foreground">{example.arti}</div>
+                  )}
+                  {example.user_contribution && (
+                    <Badge variant="secondary" className="mt-2 text-[10px] flex w-fit items-center gap-1">
+                      <User className="h-3 w-3" />
+                      Kontribusi
+                    </Badge>
+                  )}
+                </button>
+                <SpeakerButton text={example.hanzi} className="right-3" />
+              </div>
             ))}
           </div>
         )}
@@ -143,5 +161,3 @@ export function HanziMapDetail({
     </Card>
   )
 }
-
-

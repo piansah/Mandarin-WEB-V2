@@ -13,6 +13,8 @@ export type VocabularyWord = {
   hsk_level?: number | null
   /** Nilai badge mentah dari word_compounds: 'common' | 'native' */
   compound_badge?: "common" | "native" | null
+  /** ID bab/deck asal (flashcard_cards.set_id). Dipakai fitur Tulis Hanzi untuk tahu bab mana yang sudah ditambahkan */
+  set_id?: string | number | null
 }
 
 export type ExampleSentence = {

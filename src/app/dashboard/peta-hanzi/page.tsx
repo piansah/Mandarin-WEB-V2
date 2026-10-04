@@ -27,6 +27,7 @@ import {
 } from "@/lib/hanzi-map"
 
 const WORDS_PER_EXPANSION = 12
+const MAX_EXAMPLES = 5
 const MAX_NODES = 80
 
 type Snapshot = {
@@ -94,13 +95,13 @@ export default function PetaHanziPage() {
     setExamplesLoading(true)
     try {
       const cached = exampleCacheRef.current.get(word)
-      const raw = cached || (await fetchExamplesForWord(supa, word, 8))
+      const raw = cached || (await fetchExamplesForWord(supa, word, MAX_EXAMPLES))
       if (!cached) exampleCacheRef.current.set(word, raw)
 
       const hanziItems = raw.filter(e => e.source === "hanzi_items")
       const wordExamples = raw.filter(e => e.source === "word_examples")
       const ranked = rankExamples(hanziItems)
-      const merged = mergeExamples(ranked, wordExamples, 8, word)
+      const merged = mergeExamples(ranked, wordExamples, MAX_EXAMPLES, word)
 
       if (requestId !== detailRequestIdRef.current) return
       setExamples(merged)
@@ -456,7 +457,7 @@ export default function PetaHanziPage() {
           <h1 className="text-3xl font-bold">Peta Hanzi</h1>
         </div>
         <p className="text-muted-foreground">
-          Jelajahi kosakata dari satu karakter Hanzi
+          Jelajahi kosakata dari satu karakter hanzi
         </p>
       </div>
 
