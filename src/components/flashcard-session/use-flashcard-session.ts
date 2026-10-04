@@ -5,7 +5,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
 import { speakMandarin } from "@/lib/tts"
-import { SrsState, getCardSrsState, countMastered, countSaved, todayStr } from "@/lib/srs"
+import { SrsState, getCardSrsState, countSaved, todayStr, isCardDue, recordSrsReview, recordSrsReviewBatch, countSwipeMastered, computeSessionAccuracy } from "@/lib/srs"
 
 type SpeechRecognitionLike = {
   lang: string
@@ -28,7 +28,8 @@ export function useFlashcardSession({
   wordDetailPath,
   onComplete,
   disableSwipeProp = false,
-  deckId
+  deckId,
+  sessionId
 }: {
   cards: SwipeFlashcard[]
   userId?: string | null
@@ -38,6 +39,7 @@ export function useFlashcardSession({
   onComplete?: (stats: any, reviews: any[]) => void
   disableSwipeProp?: boolean
   deckId?: number
+  sessionId?: string | null
 }) {
   const router = useRouter()
   const supa = useSupabase()
@@ -71,15 +73,15 @@ export function useFlashcardSession({
 
   const [idx, setIdx] = React.useState(0)
   const [flip, setFlip] = React.useState<0 | 1 | 2>(0)
-  const [mudah, setMudah] = React.useState(0)
-  const [lupa, setLupa] = React.useState(0)
-  const [sulit, setSulit] = React.useState(0)
-  const [ingat, setIngat] = React.useState(0)
   const [done, setDone] = React.useState(false)
-  
-  const [dbIntervals, setDbIntervals] = React.useState<Map<string, number>>(new Map())
+
   const [dueToday, setDueToday] = React.useState(0)
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
+  const saveErrorShownRef = React.useRef(false)
+  const streakSavedRef = React.useRef(false)
+  const [latestRatings, setLatestRatings] = React.useState<Map<string, 0 | 3 | 4 | 5>>(new Map())
+  const failedCardIdsRef = React.useRef<Set<string>>(new Set())
+  const canSaveSrs = !!userId && !!deckId
 
   const [fullDeckIds, setFullDeckIds] = React.useState<string[]>([])
   const fullDeckIdsRef = React.useRef(fullDeckIds)
@@ -95,28 +97,54 @@ export function useFlashcardSession({
         const hoursDiff = (Date.now() - (parsed.timestamp || Date.now())) / (1000 * 60 * 60)
         if (hoursDiff < 24) {
           setIdx(parsed.savedIdx ?? 0)
-          setMudah(parsed.mudah ?? 0)
-          setLupa(parsed.lupa ?? 0)
-          setSulit(parsed.sulit ?? 0)
-          setIngat(parsed.ingat ?? 0)
-          
+
           const loadedReviews = parsed.sessionReviews ?? []
           const validReviews = loadedReviews.filter((r: { state?: SrsState }) => r.state != null)
           setSessionReviews(validReviews)
+
+          const loadedRatings = parsed.latestRatings ?? []
+          const validRatings = new Map<string, 0 | 3 | 4 | 5>()
+          for (const [cardId, rating] of loadedRatings) {
+            if (typeof cardId === 'string' && [0, 3, 4, 5].includes(rating)) {
+              validRatings.set(cardId, rating as 0 | 3 | 4 | 5)
+            }
+          }
+          setLatestRatings(validRatings)
+          failedCardIdsRef.current.clear()
+
+          const loadedRepeatQueueIds = parsed.repeatQueueIds ?? []
+          const validRepeatQueue: SwipeFlashcard[] = []
+          const cardsById = new Map(cards.map(c => [String(c.id), c] as [string, SwipeFlashcard]))
+          for (const id of loadedRepeatQueueIds) {
+            const card = cardsById.get(id)
+            if (card) {
+              validRepeatQueue.push(card)
+            }
+          }
+          setRepeatQueue(validRepeatQueue)
+
+          if (validRepeatQueue.length > 0 && idx >= orderedCards.length) {
+            setIdx(orderedCards.length)
+          }
         } else {
           localStorage.removeItem(sessionStorageKey)
         }
       }
     } catch {}
-  }, [sessionStorageKey])
+  }, [sessionStorageKey, cards, idx, orderedCards])
+
+  const orderedCardsRef = React.useRef(orderedCards)
+  const orderedCardsStr = orderedCards.map(c => c.id).join(",")
+  React.useEffect(() => { orderedCardsRef.current = orderedCards }, [orderedCardsStr]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
 
   React.useEffect(() => {
-    if (repeatQueue.length === 0 && idx >= orderedCards.length && orderedCards.length > 0) {
-      setIdx(Math.max(0, orderedCards.length - 1))
+    const newTotalOriginal = orderedCardsRef.current.length
+    if (repeatQueue.length === 0 && idx >= newTotalOriginal && newTotalOriginal > 0) {
+      setIdx(Math.max(0, newTotalOriginal - 1))
     }
-  }, [orderedCards.length, repeatQueue.length, idx])
+  }, [repeatQueue.length, idx])
   const [dragX, setDragX] = React.useState(0)
   const [dragY, setDragY] = React.useState(0)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -163,16 +191,40 @@ export function useFlashcardSession({
     scoreSavedRef.current = true
     const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
     localStorage.removeItem(key)
-    onComplete?.({ mudah, lupa, sulit, ingat }, sessionReviews)
-  }, [done, cards.length, mudah, lupa, sulit, ingat, onComplete, sessionReviews, userId, deckCardIds])
+
+    const failedReviews = sessionReviews.filter(r => failedCardIdsRef.current.has(r.cardId))
+    if (failedReviews.length > 0 && canSaveSrs) {
+      recordSrsReviewBatch(supa, userId, failedReviews, sessionId)
+        .catch((error: unknown) => {
+          console.error("Gagal menyimpan progress SRS yang gagal sebelumnya:", error)
+          toast.error("Gagal menyimpan progress SRS")
+        })
+    }
+
+    let mudahCount = 0
+    let ingatCount = 0
+    let sulitCount = 0
+    let lupaCount = 0
+    for (const rating of latestRatings.values()) {
+      if (rating === 5) mudahCount++
+      else if (rating === 4) ingatCount++
+      else if (rating === 3) sulitCount++
+      else if (rating === 0) lupaCount++
+    }
+    onComplete?.({ mudah: mudahCount, lupa: lupaCount, sulit: sulitCount, ingat: ingatCount }, sessionReviews)
+  }, [done, cards.length, latestRatings, onComplete, sessionReviews, userId, deckCardIds, supa, sessionId, canSaveSrs])
 
   React.useEffect(() => {
     if (!done || cards.length === 0) {
       setResultRingValue(0)
       return
     }
-    const total = mudah + ingat + sulit + lupa
-    const target = total > 0 ? Math.round(((mudah + ingat) / total) * 100) : 0
+    let passCount = 0
+    const total = latestRatings.size
+    for (const rating of latestRatings.values()) {
+      if (rating === 5 || rating === 4) passCount++
+    }
+    const target = total > 0 ? Math.round((passCount / total) * 100) : 0
 
     if (prefersReducedMotionRef.current) {
       setResultRingValue(target)
@@ -191,7 +243,7 @@ export function useFlashcardSession({
     }
     const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
     return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
-  }, [done, cards.length, mudah, ingat, sulit, lupa])
+  }, [done, cards.length, latestRatings])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || done || skipPersistRef.current) return
@@ -199,16 +251,14 @@ export function useFlashcardSession({
       const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
       localStorage.setItem(key, JSON.stringify({
         savedIdx: idx,
-        mudah,
-        lupa,
-        sulit,
-        ingat,
         sessionReviews,
+        latestRatings: Array.from(latestRatings.entries()),
+        repeatQueueIds: repeatQueue.map(c => String(c.id)),
         timestamp: Date.now()
       }))
     } catch {
     }
-  }, [idx, mudah, lupa, sulit, ingat, sessionReviews, done, userId, deckCardIds])
+  }, [idx, sessionReviews, latestRatings, repeatQueue, done, userId, deckCardIds])
 
   React.useEffect(() => {
     if (disableSwipe && cardRef.current) {
@@ -326,7 +376,6 @@ export function useFlashcardSession({
 
       const today = todayStr()
       let dueCount = 0
-      const intervals = new Map<string, number>()
       const savedIds = new Set<string>()
 
       const targetIds = fullDeckIdsRef.current.length > 0 ? fullDeckIdsRef.current : deckIdsRef.current
@@ -335,7 +384,7 @@ export function useFlashcardSession({
         const chunk = targetIds.slice(i, i + 100)
         const { data, error } = await supa
           .from("user_card_progress")
-          .select("card_id, next_review, interval_days")
+          .select("card_id, next_review")
           .eq("user_id", userId)
           .in("card_id", chunk)
 
@@ -344,12 +393,11 @@ export function useFlashcardSession({
           return
         }
 
-        const progressMap = new Map<string, { next_review: string | null; interval_days: number }>()
+        const progressMap = new Map<string, { next_review: string | null }>()
         for (const row of data ?? []) {
           if (row.card_id) {
             progressMap.set(String(row.card_id), {
-              next_review: row.next_review,
-              interval_days: row.interval_days ?? 0
+              next_review: row.next_review
             })
           }
         }
@@ -358,7 +406,6 @@ export function useFlashcardSession({
           const p = progressMap.get(id)
           if (p) {
             savedIds.add(id)
-            intervals.set(id, p.interval_days)
             if (!p.next_review || p.next_review <= today) {
               dueCount++
             }
@@ -368,7 +415,6 @@ export function useFlashcardSession({
 
       if (!cancelled) {
         setDueToday(dueCount)
-        setDbIntervals(intervals)
         setDbSavedIds(savedIds)
       }
     }
@@ -380,9 +426,9 @@ export function useFlashcardSession({
   const headerStats = React.useMemo<SessionHeaderStats>(() => {
     const totalCards = fullDeckIds.length > 0 ? fullDeckIds.length : deckIds.length
     const saved = countSaved(fullDeckIds.length > 0 ? fullDeckIds : deckIds, dbSavedIds, sessionReviews)
-    const rated = mudah + ingat + sulit + lupa
-    const accuracy = rated > 0 ? Math.round(((mudah + ingat) / rated) * 100) : 0
-    const mastered = countMastered(deckIds, dbIntervals, sessionReviews)
+    const mastered = countSwipeMastered(latestRatings, fullDeckIds.length > 0 ? fullDeckIds : deckIds)
+    const rated = latestRatings.size
+    const accuracy = computeSessionAccuracy(latestRatings)
     const clampedDueToday = Math.min(dueToday, saved)
 
     return {
@@ -393,7 +439,21 @@ export function useFlashcardSession({
       rated,
       saved
     }
-  }, [deckIds, fullDeckIds, dueToday, mudah, ingat, sulit, lupa, dbIntervals, dbSavedIds, sessionReviews])
+  }, [fullDeckIds, deckIds, dbSavedIds, sessionReviews, latestRatings, dueToday])
+
+  const sessionStats = React.useMemo(() => {
+    let mudahCount = 0
+    let ingatCount = 0
+    let sulitCount = 0
+    let lupaCount = 0
+    for (const rating of latestRatings.values()) {
+      if (rating === 5) mudahCount++
+      else if (rating === 4) ingatCount++
+      else if (rating === 3) sulitCount++
+      else if (rating === 0) lupaCount++
+    }
+    return { mudah: mudahCount, lupa: lupaCount, sulit: sulitCount, ingat: ingatCount }
+  }, [latestRatings])
 
   function cancelLongPress() {
     if (!longPressTimer.current) return
@@ -415,31 +475,50 @@ export function useFlashcardSession({
     const cardIdStr = String(card.id)
 
     const isFromRepeatQueue = idx >= totalOriginal
+    const isDue = isCardDue(card.nextReview)
+    const shouldRecordSrs = isDue || quality === 0
 
-    if (!isFromRepeatQueue) {
+    if (!isFromRepeatQueue && shouldRecordSrs) {
       setSessionReviews(prev => {
         const filtered = prev.filter(r => r.cardId !== cardIdStr)
         return [...filtered, { cardId: cardIdStr, quality, state: getCardSrsState(card) }]
       })
+
+      if (canSaveSrs) {
+        void recordSrsReview(supa, userId, { cardId: cardIdStr, quality, state: getCardSrsState(card) }, sessionId)
+          .then(() => {
+            failedCardIdsRef.current.delete(cardIdStr)
+          })
+          .catch((error: unknown) => {
+            console.error("Gagal menyimpan progress SRS untuk kartu:", cardIdStr, error)
+            failedCardIdsRef.current.add(cardIdStr)
+            if (!saveErrorShownRef.current) {
+              toast.error("Gagal menyimpan progress SRS")
+              saveErrorShownRef.current = true
+            }
+          })
+
+        if (!streakSavedRef.current) {
+          void (async () => {
+            try {
+              const { error } = await supa.from("daily_streaks").upsert(
+                { user_id: userId, date: todayStr() },
+                { onConflict: "user_id,date", ignoreDuplicates: true }
+              )
+              if (!error) {
+                streakSavedRef.current = true
+              }
+            } catch (err: unknown) {
+              console.error("Gagal merekam daily streak:", err)
+            }
+          })()
+        }
+      }
     }
 
-    let nextMudah = mudah
-    let nextIngat = ingat
-    let nextSulit = sulit
-    let nextLupa = lupa
+    setLatestRatings(prev => new Map(prev).set(cardIdStr, quality))
 
-    if (quality === 5) {
-      nextMudah = mudah + 1
-      setMudah(nextMudah)
-    } else if (quality === 4) {
-      nextIngat = ingat + 1
-      setIngat(nextIngat)
-    } else if (quality === 3) {
-      nextSulit = sulit + 1
-      setSulit(nextSulit)
-    } else {
-      nextLupa = lupa + 1
-      setLupa(nextLupa)
+    if (quality === 0) {
       setRepeatQueue(prev => [...prev, card])
     }
 
@@ -599,8 +678,9 @@ export function useFlashcardSession({
 
       setSessionReviews([])
       setDbSavedIds(new Set())
-      setDbIntervals(new Map())
+      setLatestRatings(new Map())
       setDueToday(0)
+      failedCardIdsRef.current.clear()
 
       setShowResetModal(false)
       setResetSuccess(true)
@@ -624,13 +704,13 @@ export function useFlashcardSession({
     showSettings, setShowSettings,
     showResetModal, setShowResetModal,
     resetting, resetSuccess, resetDeckProgress,
-    idx, flip, done, 
-    mudah, lupa, sulit, ingat,
+    idx, flip, done,
     dragX, dragY, isDragging, flyOut,
     cardRef, handleCardClick, onPointerDown, onPointerMove, onPointerCancel, onPointerUp,
     card, progress, currentTotal,
     headerStats, resultRingValue,
     selectedRating, advance, goToPrevious, hideAnswer, skipCard,
-    isRecording, toggleListen, feedback
+    isRecording, toggleListen, feedback,
+    sessionStats
   }
 }

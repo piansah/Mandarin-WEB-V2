@@ -7,7 +7,7 @@ export type SwipeFlashcard = {
   srsLevel?: number
   intervalDays?: number
   easeFactor?: number
-  nextReview?: string
+  nextReview?: string | null
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
@@ -54,4 +54,5 @@ export type SwipeFlashcardSessionProps = {
   disableSwipe?: boolean
   deckCardIds?: string[]
   deckId?: number
+  sessionId?: string | null
 }

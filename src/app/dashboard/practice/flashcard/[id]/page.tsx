@@ -4,9 +4,7 @@ import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
-import { recordSrsReviewBatch, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
-import { toast } from "sonner"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -34,7 +32,7 @@ export default function FlashcardPracticePage() {
 
       // eslint-disable-next-line
       let rawCards: any[] = []
-      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number }>()
+      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null }>()
       const reviewedCardIds = new Set<string>()
       let deckHskLevel: number | undefined = undefined
 
@@ -86,7 +84,7 @@ export default function FlashcardPracticePage() {
             const chunk = cardIds.slice(i, i + 100)
             const { data: progressRows } = await supa
               .from("user_card_progress")
-              .select("card_id, srs_level, interval_days, ease_factor")
+              .select("card_id, srs_level, interval_days, ease_factor, next_review")
               .eq("user_id", user.id)
               .in("card_id", chunk)
 
@@ -95,7 +93,8 @@ export default function FlashcardPracticePage() {
                 progressByCard.set(String(row.card_id), {
                   srs_level: row.srs_level ?? 0,
                   interval_days: row.interval_days ?? 1,
-                  ease_factor: row.ease_factor ?? 2.5
+                  ease_factor: row.ease_factor ?? 2.5,
+                  next_review: row.next_review ?? null
                 })
                 reviewedCardIds.add(String(row.card_id))
               }
@@ -130,6 +129,7 @@ export default function FlashcardPracticePage() {
           srsLevel: progress?.srs_level ?? 0,
           intervalDays: progress?.interval_days,
           easeFactor: progress?.ease_factor,
+          nextReview: progress?.next_review,
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,
@@ -154,8 +154,7 @@ export default function FlashcardPracticePage() {
   )
 
   const handleComplete = React.useCallback(async (
-    stats: { mudah: number; lupa: number; sulit: number; ingat: number },
-    reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
+    stats: { mudah: number; lupa: number; sulit: number; ingat: number }
   ) => {
     // For personal decks, don't save scores or SRS progress
     if (isPersonal) return
@@ -164,15 +163,10 @@ export default function FlashcardPracticePage() {
     const pct = total > 0 ? Math.round((stats.mudah / total) * 100) : 0
     saveUserScore("fc_session", String(deckId), pct).catch(() => { })
 
-    if (userId && reviews.length > 0) {
-      try {
-        await recordSrsReviewBatch(supa, userId, reviews, sessionId ?? undefined)
-      } catch (error) {
-        console.error("Gagal menyimpan progress SRS:", error)
-        toast.error("Gagal menyimpan progress SRS")
-      }
-    }
-  }, [deckId, isPersonal, userId, sessionId, supa])
+    // Reviews are saved immediately during the session, so at completion
+    // we only need to save the user score. The session hook handles
+    // retrying any failed reviews internally.
+  }, [deckId, isPersonal])
 
   return (
     <SwipeFlashcardSession
@@ -185,6 +179,7 @@ export default function FlashcardPracticePage() {
       userId={userId}
       deckCardIds={allCardIds}
       deckId={isPersonal ? undefined : deckId}
+      sessionId={sessionId}
     />
   )
 }

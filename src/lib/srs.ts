@@ -26,43 +26,38 @@ export type SrsState = {
 export const DEFAULT_EASE_FACTOR = 2.5
 export const MIN_EASE_FACTOR = 1.3
 export const MAX_INTERVAL_DAYS = 365
-export const MASTERED_INTERVAL_DAYS = 14
 
-export function isMastered(intervalDays: number | null | undefined): boolean {
-  if (intervalDays == null) return false
-  return intervalDays >= MASTERED_INTERVAL_DAYS
-}
-
-export function countMastered(
-  deckIds: string[],
-  dbIntervals: Map<string, number>,
-  reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
+export function countSwipeMastered(
+  ratings: Map<string, 0 | 3 | 4 | 5>,
+  deckIds: string[]
 ): number {
   if (!deckIds || deckIds.length === 0) return 0
 
-  const latestReviews = new Map<string, { quality: 0 | 3 | 4 | 5; state: SrsState }>()
-  for (const r of reviews) {
-    latestReviews.set(r.cardId, r)
-  }
-
-  let count = 0
   const uniqueDeckIds = new Set(deckIds)
+  let count = 0
 
   for (const id of uniqueDeckIds) {
-    let effectiveInterval = 0
-    const review = latestReviews.get(id)
-    if (review) {
-      effectiveInterval = computeSrsUpdate(review.state, review.quality).interval_days
-    } else {
-      effectiveInterval = dbIntervals.get(id) ?? 0
-    }
-
-    if (isMastered(effectiveInterval)) {
+    const rating = ratings.get(id)
+    if (rating === 5) {
       count++
     }
   }
 
   return Math.min(count, uniqueDeckIds.size)
+}
+
+export function computeSessionAccuracy(ratings: Map<string, 0 | 3 | 4 | 5>): number {
+  const total = ratings.size
+  if (total === 0) return 0
+
+  let passCount = 0
+  for (const rating of ratings.values()) {
+    if (rating === 5 || rating === 4) {
+      passCount++
+    }
+  }
+
+  return Math.round((passCount / total) * 100)
 }
 
 export function countSaved(
@@ -91,6 +86,11 @@ export function getCardSrsState(card: { srsLevel?: number; intervalDays?: number
     intervalDays: card.intervalDays ?? 0,
     easeFactor: card.easeFactor ?? DEFAULT_EASE_FACTOR,
   }
+}
+
+export function isCardDue(nextReview: string | null | undefined, today: string = todayStr()): boolean {
+  if (!nextReview) return true
+  return nextReview <= today
 }
 
 export function toLocalDateStr(date: Date) {
@@ -258,7 +258,7 @@ export async function recordSrsReviewBatch(
   supa: SupabaseClient,
   userId: string,
   reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[],
-  sessionId?: string
+  sessionId?: string | null
 ) {
   if (reviews.length === 0) return
 
@@ -276,7 +276,7 @@ export async function recordSrsReviewBatch(
   const { error } = await supa
     .from("user_card_progress")
     .upsert(upserts, { onConflict: "user_id,card_id" })
-    
+
   if (error) {
     console.error("Gagal menyimpan progress SRS:", error)
     throw error
@@ -286,8 +286,31 @@ export async function recordSrsReviewBatch(
     { user_id: userId, date: todayStr() },
     { onConflict: "user_id,date", ignoreDuplicates: true }
   )
-  
+
   if (streakErr) {
     console.error("Gagal merekam daily streak di srs:", streakErr)
+  }
+}
+
+export async function recordSrsReview(
+  supa: SupabaseClient,
+  userId: string,
+  review: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState },
+  sessionId?: string | null
+) {
+  const update = computeSrsUpdate(review.state, review.quality)
+  const { error } = await supa
+    .from("user_card_progress")
+    .upsert({
+      user_id: userId,
+      card_id: review.cardId,
+      ...update,
+      last_reviewed: todayStr(),
+      ...(sessionId && { session_id: sessionId }),
+    }, { onConflict: "user_id,card_id" })
+
+  if (error) {
+    console.error("Gagal menyimpan progress SRS untuk kartu:", review.cardId, error)
+    throw error
   }
 }
