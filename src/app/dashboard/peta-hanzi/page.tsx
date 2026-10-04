@@ -13,6 +13,7 @@ import {
 } from "@/lib/hanzi-map-data"
 import {
   isMultiChar,
+  startsWithChar,
   getPartner,
   rankWords,
   mergeWords,
@@ -237,7 +238,7 @@ export default function PetaHanziPage() {
     }
   }
 
-  // ── Pencarian & ekspansi (tidak berubah) ────────────────────────
+  // ── Pencarian & ekspansi ────────────────────────────────────────
 
   const handleSearch = async (char: string) => {
     if (!char) return
@@ -264,7 +265,7 @@ export default function PetaHanziPage() {
         return
       }
 
-      const filtered = words.filter(w => isMultiChar(w.hanzi) && w.hanzi !== char && [...w.hanzi].includes(char))
+      const filtered = words.filter(w => isMultiChar(w.hanzi) && w.hanzi !== char && startsWithChar(w.hanzi, char))
       const ranked = rankWords(filtered)
       const merged = mergeWords([], ranked, WORDS_PER_EXPANSION, char)
 
@@ -287,6 +288,8 @@ export default function PetaHanziPage() {
       merged.forEach((word) => {
         const partner = getPartner(word.hanzi, char)
         if (partner) {
+          // Penjaga: satu partner hanya boleh jadi satu node/edge (hindari key ganda)
+          if (newNodes.has(partner)) return
           const childNode: GraphNode = {
             id: partner,
             hanzi: partner,
@@ -303,6 +306,7 @@ export default function PetaHanziPage() {
           newEdges.push({ id: `${char}-${partner}`, fromId: char, toId: partner, word })
         } else {
           const leafId = `leaf-${word.id}`
+          if (newNodes.has(leafId)) return
           const leafNode: GraphNode = {
             id: leafId,
             hanzi: word.hanzi,
@@ -360,7 +364,7 @@ export default function PetaHanziPage() {
       const filtered = words.filter(w =>
         isMultiChar(w.hanzi) &&
         w.hanzi !== node.hanzi &&
-        [...w.hanzi].includes(node.hanzi)
+        startsWithChar(w.hanzi, node.hanzi)
       )
       const ranked = rankWords(filtered)
       const merged = mergeWords([], ranked, WORDS_PER_EXPANSION, node.hanzi)

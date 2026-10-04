@@ -61,16 +61,22 @@ export function extractFirstHan(str: string): string | null {
   return match ? match[0] : null
 }
 
+/** Kata harus diawali karakter pusat: node induk = suku kata pertama */
+export function startsWithChar(word: string, center: string): boolean {
+  return [...word][0] === center
+}
+
 /**
- * Get the partner character from a 2-character word
- * For example: 学生 with center 学 -> 生
- * Returns null if not a 2-character word or no single partner
+ * Get the partner character from a 2-character word.
+ * Karakter pusat harus di posisi pertama: 家人 dengan pusat 家 -> 人.
+ * 人家 dengan pusat 家 -> null (tidak lolos aturan awalan).
+ * Kata reduplikasi (mis. 家家) tidak punya partner -> jadi leaf.
  */
 export function getPartner(word: string, center: string): string | null {
   const chars = [...word]
   if (chars.length !== 2) return null
-  const partners = chars.filter((c) => c !== center)
-  return partners.length === 1 ? partners[0] : null
+  if (chars[0] !== center) return null
+  return chars[1] !== center ? chars[1] : null
 }
 
 /**
@@ -113,6 +119,7 @@ export function rankWords(words: VocabularyWord[]): VocabularyWord[] {
  * Merge flashcard words and compound words, deduping by hanzi
  * Flashcard records win when a word exists in both sources
  * Compounds only fill remaining slots up to the limit
+ * Hanya kata yang diawali karakter pusat yang diterima.
  */
 export function mergeWords(
   flashcardWords: VocabularyWord[],
@@ -128,7 +135,7 @@ export function mergeWords(
     if (seen.has(word.hanzi)) continue
     if (!isMultiChar(word.hanzi)) continue
     if (word.hanzi === centerChar) continue
-    if (![...word.hanzi].includes(centerChar)) continue
+    if (!startsWithChar(word.hanzi, centerChar)) continue
 
     seen.add(word.hanzi)
     result.push(word)
@@ -140,7 +147,7 @@ export function mergeWords(
     if (seen.has(word.hanzi)) continue
     if (!isMultiChar(word.hanzi)) continue
     if (word.hanzi === centerChar) continue
-    if (![...word.hanzi].includes(centerChar)) continue
+    if (!startsWithChar(word.hanzi, centerChar)) continue
 
     seen.add(word.hanzi)
     result.push(word)
@@ -176,7 +183,7 @@ function isCandidate(word: VocabularyWord, centerChar: string): boolean {
   if (!word.hanzi) return false
   if (word.hanzi === centerChar) return false
   if (!isMultiChar(word.hanzi)) return false
-  return [...word.hanzi].includes(centerChar)
+  return startsWithChar(word.hanzi, centerChar)
 }
 
 function hskSortKey(word: VocabularyWord): number {
@@ -187,7 +194,7 @@ function hskSortKey(word: VocabularyWord): number {
 /**
  * Pilih kata untuk satu ekspansi berdasarkan jatah HSK.
  *
- * 1. Kata difilter (mengandung karakter pusat, multi-karakter) dan didedupe per hanzi.
+ * 1. Kata difilter (diawali karakter pusat, multi-karakter) dan didedupe per hanzi.
  *    Jika satu hanzi punya beberapa entri, yang punya level HSK (lebih rendah) menang.
  * 2. Tiap level mengisi jatahnya sesuai urutan `words` (kirim hasil rankWords).
  * 3. Jatah yang tidak terpenuhi diisi dari sisa kata: level HSK terendah dulu,

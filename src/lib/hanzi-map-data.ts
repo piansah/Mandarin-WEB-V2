@@ -10,13 +10,16 @@ import {
 } from "./hanzi-map"
 
 /**
- * Fetch vocabulary words containing a character.
+ * Fetch vocabulary words yang DIAWALI oleh sebuah karakter.
  *
  * - flashcard_cards dicari dulu. Level HSK diambil dari deck-nya
  *   (flashcard_cards.set_id -> flashcard_sets.hsk_level).
  * - word_compounds hanya dicari jika kata flashcard BELUM memenuhi jatah HSK
  *   (HSK 1 = 3 kata, HSK 2-6 = 1 kata, total `limit`). Level compound dibaca
  *   dari kolom badge (mis. "HSK 3"); jika tidak ada, levelnya tidak diketahui.
+ *
+ * Pola pencarian `${char}%` (awalan) supaya batas limit tidak habis oleh kata
+ * yang nantinya dibuang. Karakter tunggalnya sendiri tetap ikut terambil.
  *
  * Pemilihan akhir 8 kata dilakukan di halaman lewat pickByHskQuota().
  */
@@ -32,7 +35,7 @@ export async function fetchWordsForChar(
     const { data: flashcardData, error: flashcardError } = await supabase
       .from("flashcard_cards")
       .select("id, hanzi, pinyin, arti, word_class, set_id")
-      .ilike("hanzi", `%${char}%`)
+      .ilike("hanzi", `${char}%`)
       .limit(200)
 
     if (flashcardError) {
@@ -82,7 +85,7 @@ export async function fetchWordsForChar(
       const { data: compoundData, error: compoundError } = await supabase
         .from("word_compounds")
         .select("id, hanzi, pinyin, arti, badge, frequency")
-        .ilike("hanzi", `%${char}%`)
+        .ilike("hanzi", `${char}%`)
         .order("frequency", { ascending: false })
         .limit(50)
 
