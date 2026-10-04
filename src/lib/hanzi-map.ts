@@ -9,6 +9,10 @@ export type VocabularyWord = {
   word_class?: string | null
   source: "flashcard" | "compound"
   frequency?: number | null
+  /** Level HSK 1-6 jika diketahui (flashcard: dari deck; compound: dari badge) */
+  hsk_level?: number | null
+  /** Nilai badge mentah dari word_compounds: 'common' | 'native' */
+  compound_badge?: "common" | "native" | null
 }
 
 export type ExampleSentence = {
@@ -145,6 +149,114 @@ export function mergeWords(
 
   return result
 }
+
+// ── HSK quota ─────────────────────────────────────────────────────
+
+/**
+ * Jatah kata per level HSK untuk satu kali ekspansi (total 8):
+ * HSK 1 = 3 kata, HSK 2 sampai HSK 6 = masing-masing 1 kata.
+ */
+export const HSK_QUOTA: Record<number, number> = {
+  1: 3,
+  2: 1,
+  3: 1,
+  4: 1,
+  5: 1,
+  6: 1,
+}
+
+/** Ambil angka level dari teks badge, mis. "HSK 3" atau "hsk3". null jika tidak ada. */
+export function parseHskLevel(text: string | null | undefined): number | null {
+  if (!text) return null
+  const match = text.match(/HSK\s*([1-6])/i)
+  return match ? Number(match[1]) : null
+}
+
+function isCandidate(word: VocabularyWord, centerChar: string): boolean {
+  if (!word.hanzi) return false
+  if (word.hanzi === centerChar) return false
+  if (!isMultiChar(word.hanzi)) return false
+  return [...word.hanzi].includes(centerChar)
+}
+
+function hskSortKey(word: VocabularyWord): number {
+  const level = word.hsk_level
+  return level != null && level >= 1 && level <= 6 ? level : 99
+}
+
+/**
+ * Pilih kata untuk satu ekspansi berdasarkan jatah HSK.
+ *
+ * 1. Kata difilter (mengandung karakter pusat, multi-karakter) dan didedupe per hanzi.
+ *    Jika satu hanzi punya beberapa entri, yang punya level HSK (lebih rendah) menang.
+ * 2. Tiap level mengisi jatahnya sesuai urutan `words` (kirim hasil rankWords).
+ * 3. Jatah yang tidak terpenuhi diisi dari sisa kata: level HSK terendah dulu,
+ *    kata tanpa level paling akhir.
+ */
+export function pickByHskQuota(
+  words: VocabularyWord[],
+  limit: number,
+  centerChar: string,
+  quota: Record<number, number> = HSK_QUOTA
+): VocabularyWord[] {
+  const byHanzi = new Map<string, VocabularyWord>()
+  for (const word of words) {
+    if (!isCandidate(word, centerChar)) continue
+    const prev = byHanzi.get(word.hanzi)
+    if (!prev || hskSortKey(word) < hskSortKey(prev)) {
+      byHanzi.set(word.hanzi, word)
+    }
+  }
+
+  const candidates = Array.from(byHanzi.values())
+  const picked = new Set<VocabularyWord>()
+  const result: VocabularyWord[] = []
+
+  const levels = Object.keys(quota)
+    .map(Number)
+    .sort((a, b) => a - b)
+
+  for (const level of levels) {
+    let need = quota[level]
+    for (const word of candidates) {
+      if (need <= 0 || result.length >= limit) break
+      if (word.hsk_level === level) {
+        result.push(word)
+        picked.add(word)
+        need--
+      }
+    }
+  }
+
+  if (result.length < limit) {
+    const rest = candidates
+      .filter((word) => !picked.has(word))
+      .sort((a, b) => hskSortKey(a) - hskSortKey(b)) // sort stabil: urutan rank terjaga
+    for (const word of rest) {
+      if (result.length >= limit) break
+      result.push(word)
+    }
+  }
+
+  return result
+}
+
+/** True jika semua jatah HSK terpenuhi dan jumlah kata mencapai `limit`. */
+export function isHskQuotaMet(
+  words: VocabularyWord[],
+  limit: number,
+  centerChar: string,
+  quota: Record<number, number> = HSK_QUOTA
+): boolean {
+  const picked = pickByHskQuota(words, limit, centerChar, quota)
+  if (picked.length < limit) return false
+  return Object.entries(quota).every(([level, need]) => {
+    const count = picked.filter((word) => word.hsk_level === Number(level)).length
+    return count >= need
+  })
+}
+
+// ── Contoh kalimat ────────────────────────────────────────────────
 
 /**
  * Rank example sentences: longer items first, then by source (hanzi_items first)

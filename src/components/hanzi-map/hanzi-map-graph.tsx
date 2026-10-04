@@ -159,9 +159,17 @@ export function HanziMapGraph({
 
   const handleNodeClick = (nodeId: string, event: React.SyntheticEvent) => {
     event.stopPropagation()
-    onNodeClick(nodeId)
     const node = nodes.get(nodeId)
-    if (node && !node.isLeaf && !node.isExpanded && !node.isLoading && !node.isExhausted) {
+    if (!node) return
+
+    // Node sudah di-expand → klik lagi = undo (collapse)
+    if (node.isExpanded && canUndo) {
+      onUndo()
+      return
+    }
+
+    onNodeClick(nodeId)
+    if (!node.isLeaf && !node.isExpanded && !node.isLoading && !node.isExhausted) {
       onNodeExpand(nodeId)
     }
   }
@@ -320,19 +328,29 @@ export function HanziMapGraph({
             const fill = isSelected ? C.primary : isRoot ? C.rootFill : C.nodeFill
             const stroke = isSelected || isRoot || isHovered ? C.primary : C.nodeStroke
 
+            // Node expanded + hover = tampilkan hint collapse
+            const showCollapseHint = node.isExpanded && isHovered && canUndo
+            // Cursor: expanded=pointer collapse, exhausted=not-allowed, else pointer
+            const cursor = node.isExhausted
+              ? "not-allowed"
+              : node.isExpanded && canUndo
+              ? "pointer"
+              : "pointer"
+
             return (
               <g key={node.id} opacity={node.isLoading ? 0.55 : 1}>
-                {/* cincin tipis di luar, seperti referensi */}
+                {/* Cincin luar: solid jika expanded (menandakan bisa collapse), dashed jika belum */}
                 <circle
                   cx={node.x}
                   cy={node.y}
                   r={r + 7}
                   fill="none"
-                  stroke={isRoot || isSelected ? C.primary : C.nodeStroke}
-                  strokeWidth={1.5}
-                  strokeDasharray="3 5"
-                  opacity={isRoot || isSelected || isHovered ? 0.8 : 0.5}
+                  stroke={node.isExpanded ? C.primary : isRoot || isSelected ? C.primary : C.nodeStroke}
+                  strokeWidth={node.isExpanded ? 2 : 1.5}
+                  strokeDasharray={node.isExpanded ? undefined : "3 5"}
+                  opacity={node.isExpanded || isRoot || isSelected || isHovered ? 0.8 : 0.4}
                   pointerEvents="none"
+                  className={prefersReducedMotion ? "" : "transition-all duration-200"}
                 />
                 <circle
                   cx={node.x}
@@ -343,13 +361,13 @@ export function HanziMapGraph({
                   strokeWidth={isRoot || isSelected ? 3 : 2}
                   strokeDasharray={node.isLeaf ? "5 4" : undefined}
                   className={prefersReducedMotion ? "" : "transition-[stroke] duration-200"}
-                  style={{ cursor: node.isExhausted ? "not-allowed" : "pointer" }}
+                  style={{ cursor }}
                   onClick={(e) => handleNodeClick(node.id, e)}
                   onPointerEnter={() => setHoveredNodeId(node.id)}
                   onPointerLeave={() => setHoveredNodeId(null)}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Perluas ${node.hanzi}`}
+                  aria-label={node.isExpanded ? `Ciutkan ${node.hanzi}` : `Perluas ${node.hanzi}`}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault()
@@ -381,16 +399,18 @@ export function HanziMapGraph({
                     style={{ animationDuration: "1s", transformOrigin: `${node.x}px ${node.y}px` }}
                   />
                 )}
-                {node.isExhausted && (
+                {/* Label status di bawah node */}
+                {(node.isExhausted || showCollapseHint) && (
                   <text
                     x={node.x}
                     y={node.y + r + 22}
                     textAnchor="middle"
                     fontSize={11}
-                    fill={C.muted}
+                    fill={showCollapseHint ? C.primary : C.muted}
                     pointerEvents="none"
+                    className={prefersReducedMotion ? "" : "transition-[fill] duration-150"}
                   >
-                    Kosong
+                    {showCollapseHint ? "↩ ciutkan" : "Kosong"}
                   </text>
                 )}
               </g>

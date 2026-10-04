@@ -71,7 +71,7 @@ export function HanziSearchBar({ value, onChange, onSubmit, loading }: HanziSear
           type="submit"
           size="sm"
           className="absolute right-1 top-1/2 -translate-y-1/2"
-          disabled={isLoading || !value.trim()}
+          disabled={isLoading}
         >
           {isLoading ? "..." : "Cari"}
         </Button>

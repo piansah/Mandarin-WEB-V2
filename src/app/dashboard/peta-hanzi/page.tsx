@@ -28,11 +28,13 @@ import {
 const WORDS_PER_EXPANSION = 8
 const MAX_NODES = 60
 
-// Kondisi peta sebelum satu kali ekspansi, dipakai untuk tombol "Kembali"
 type Snapshot = {
   nodes: Map<string, GraphNode>
   edges: GraphEdge[]
 }
+
+type DictionaryEntry = { pinyin?: string[]; definition?: string }
+type DictionaryMap = Record<string, DictionaryEntry>
 
 export default function PetaHanziPage() {
   const supa = useSupabase()
@@ -43,6 +45,7 @@ export default function PetaHanziPage() {
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null)
   const [selectedWord, setSelectedWord] = React.useState<VocabularyWord | null>(null)
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
+  const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [expandingNodeId, setExpandingNodeId] = React.useState<string | null>(null)
   const [history, setHistory] = React.useState<Snapshot[]>([])
@@ -50,15 +53,24 @@ export default function PetaHanziPage() {
   // Caches
   const wordCacheRef = React.useRef<Map<string, VocabularyWord[]>>(new Map())
   const exampleCacheRef = React.useRef<Map<string, ExampleSentence[]>>(new Map())
+  const rootWordCacheRef = React.useRef<Map<string, VocabularyWord>>(new Map())
+  const dictionaryRef = React.useRef<DictionaryMap | null>(null)
   const expansionRequestIdRef = React.useRef(0)
+  const detailRequestIdRef = React.useRef(0)
+
+  const clearDetail = () => {
+    detailRequestIdRef.current++
+    setSelectedWord(null)
+    setExamples([])
+    setExamplesLoading(false)
+  }
 
   const resetGraph = () => {
     setHistory([])
     setNodes(new Map())
     setEdges([])
     setSelectedNodeId(null)
-    setSelectedWord(null)
-    setExamples([])
+    clearDetail()
     setRootChar(null)
     setSearchValue("")
   }
@@ -66,14 +78,166 @@ export default function PetaHanziPage() {
   const handleUndo = () => {
     const prev = history[history.length - 1]
     if (!prev) return
-    expansionRequestIdRef.current++ // batalkan request ekspansi yang masih berjalan
+    expansionRequestIdRef.current++
     setHistory(history.slice(0, -1))
     setNodes(prev.nodes)
     setEdges(prev.edges)
     setSelectedNodeId(null)
-    setSelectedWord(null)
-    setExamples([])
+    clearDetail()
   }
+
+  // ── Detail panel ────────────────────────────────────────────────
+
+  /** Ambil contoh kalimat. requestId menjaga agar respons lama tidak menimpa yang baru. */
+  const loadExamples = async (word: string, requestId: number) => {
+    setExamplesLoading(true)
+    try {
+      const cached = exampleCacheRef.current.get(word)
+      const raw = cached || (await fetchExamplesForWord(supa, word, 8))
+      if (!cached) exampleCacheRef.current.set(word, raw)
+
+      const hanziItems = raw.filter(e => e.source === "hanzi_items")
+      const wordExamples = raw.filter(e => e.source === "word_examples")
+      const ranked = rankExamples(hanziItems)
+      const merged = mergeExamples(ranked, wordExamples, 8, word)
+
+      if (requestId !== detailRequestIdRef.current) return
+      setExamples(merged)
+    } catch (error) {
+      console.error("Error fetching examples:", error)
+      if (requestId === detailRequestIdRef.current) {
+        toast.error("Gagal memuat contoh kalimat")
+      }
+    } finally {
+      if (requestId === detailRequestIdRef.current) setExamplesLoading(false)
+    }
+  }
+
+  const loadDictionary = async (): Promise<DictionaryMap | null> => {
+    if (dictionaryRef.current) return dictionaryRef.current
+    try {
+      const res = await fetch("/data/dictionary.json")
+      if (!res.ok) return null
+      const data = (await res.json()) as DictionaryMap
+      dictionaryRef.current = data
+      return data
+    } catch {
+      return null
+    }
+  }
+
+  /** Cari data kosakata untuk karakter tunggal (node akar). */
+  const resolveRootWord = async (char: string): Promise<VocabularyWord> => {
+    const memo = rootWordCacheRef.current.get(char)
+    if (memo) return memo
+
+    let word: VocabularyWord | null = null
+
+    // 1) Dari cache hasil pencarian (flashcard_cards memuat karakter tunggal juga)
+    const cachedWords = wordCacheRef.current.get(char) ?? []
+    word = cachedWords.find(w => w.hanzi === char) ?? null
+
+    // 2) flashcard_cards
+    if (!word) {
+      const { data, error } = await supa
+        .from("flashcard_cards")
+        .select("id, hanzi, pinyin, arti, word_class")
+        .eq("hanzi", char)
+        .limit(1)
+      if (error) console.error("root flashcard_cards error:", error)
+      const row = data?.[0]
+      if (row) {
+        word = {
+          id: row.id,
+          hanzi: row.hanzi,
+          pinyin: row.pinyin,
+          arti: row.arti,
+          word_class: row.word_class,
+          source: "flashcard",
+          frequency: null,
+        }
+      }
+    }
+
+    // 3) word_compounds
+    if (!word) {
+      const { data, error } = await supa
+        .from("word_compounds")
+        .select("id, hanzi, pinyin, arti, frequency")
+        .eq("hanzi", char)
+        .limit(1)
+      if (error) console.error("root word_compounds error:", error)
+      const row = data?.[0]
+      if (row) {
+        word = {
+          id: row.id,
+          hanzi: row.hanzi,
+          pinyin: row.pinyin,
+          arti: row.arti,
+          source: "compound",
+          frequency: row.frequency,
+        }
+      }
+    }
+
+    // 4) dictionary.json (pinyin + definisi)
+    if (!word) {
+      const dict = await loadDictionary()
+      const entry = dict?.[char]
+      word = {
+        id: `root-${char}`,
+        hanzi: char,
+        pinyin: entry?.pinyin?.join(", ") ?? null,
+        arti: entry?.definition ?? null,
+        source: "flashcard",
+        frequency: null,
+      }
+    }
+
+    rootWordCacheRef.current.set(char, word)
+    return word
+  }
+
+  const showRootDetail = async (char: string) => {
+    const requestId = ++detailRequestIdRef.current
+    setExamples([])
+    setExamplesLoading(true)
+
+    try {
+      const word = await resolveRootWord(char)
+      if (requestId !== detailRequestIdRef.current) return
+      setSelectedWord(word)
+      await loadExamples(char, requestId)
+    } catch (error) {
+      console.error("Error loading root detail:", error)
+      if (requestId === detailRequestIdRef.current) {
+        setSelectedWord({ id: `root-${char}`, hanzi: char, pinyin: null, arti: null, source: "flashcard" })
+        setExamplesLoading(false)
+      }
+    }
+  }
+
+  const showWordDetail = (word: VocabularyWord) => {
+    const requestId = ++detailRequestIdRef.current
+    setSelectedWord(word)
+    setExamples([])
+    loadExamples(word.hanzi, requestId)
+  }
+
+  const handleNodeClick = (nodeId: string) => {
+    setSelectedNodeId(nodeId)
+    const node = nodes.get(nodeId)
+    if (!node) return
+
+    const edge = edges.find(e => e.toId === nodeId)
+    if (edge) {
+      showWordDetail(edge.word)
+    } else if (node.parentId === null) {
+      showRootDetail(node.hanzi)
+    }
+  }
+
+  // ── Pencarian & ekspansi (tidak berubah) ────────────────────────
 
   const handleSearch = async (char: string) => {
     if (!char) return
@@ -82,11 +246,9 @@ export default function PetaHanziPage() {
     setLoading(true)
     setRootChar(char)
     setSelectedNodeId(null)
-    setSelectedWord(null)
-    setExamples([])
+    clearDetail()
 
     try {
-      // Check cache first
       const cached = wordCacheRef.current.get(char)
       const words = cached || await fetchWordsForChar(supa, char, WORDS_PER_EXPANSION)
 
@@ -102,12 +264,10 @@ export default function PetaHanziPage() {
         return
       }
 
-      // Filter and rank words
       const filtered = words.filter(w => isMultiChar(w.hanzi) && w.hanzi !== char && [...w.hanzi].includes(char))
       const ranked = rankWords(filtered)
       const merged = mergeWords([], ranked, WORDS_PER_EXPANSION, char)
 
-      // Create root node
       const rootNode: GraphNode = {
         id: char,
         hanzi: char,
@@ -124,7 +284,6 @@ export default function PetaHanziPage() {
       const newNodes = new Map<string, GraphNode>([[char, rootNode]])
       const newEdges: GraphEdge[] = []
 
-      // Create child nodes
       merged.forEach((word) => {
         const partner = getPartner(word.hanzi, char)
         if (partner) {
@@ -141,14 +300,8 @@ export default function PetaHanziPage() {
             isLoading: false,
           }
           newNodes.set(partner, childNode)
-          newEdges.push({
-            id: `${char}-${partner}`,
-            fromId: char,
-            toId: partner,
-            word,
-          })
+          newEdges.push({ id: `${char}-${partner}`, fromId: char, toId: partner, word })
         } else {
-          // Leaf node for longer words
           const leafId = `leaf-${word.id}`
           const leafNode: GraphNode = {
             id: leafId,
@@ -163,16 +316,10 @@ export default function PetaHanziPage() {
             isLoading: false,
           }
           newNodes.set(leafId, leafNode)
-          newEdges.push({
-            id: `${char}-${leafId}`,
-            fromId: char,
-            toId: leafId,
-            word,
-          })
+          newEdges.push({ id: `${char}-${leafId}`, fromId: char, toId: leafId, word })
         }
       })
 
-      // Layout children
       const children = Array.from(newNodes.values())
         .filter(n => n.parentId === char)
         .map(n => n.id)
@@ -188,45 +335,6 @@ export default function PetaHanziPage() {
     }
   }
 
-  const handleNodeClick = (nodeId: string) => {
-    setSelectedNodeId(nodeId)
-    const node = nodes.get(nodeId)
-    if (!node) return
-
-    // Find the word associated with this node
-    const edge = edges.find(e => e.toId === nodeId)
-    if (edge) {
-      setSelectedWord(edge.word)
-      loadExamples(edge.word.hanzi)
-    } else if (node.parentId === null) {
-      // Root node selected - show no word selected state
-      setSelectedWord(null)
-      setExamples([])
-    }
-  }
-
-  const loadExamples = async (word: string) => {
-    try {
-      const cached = exampleCacheRef.current.get(word)
-      const examples = cached || await fetchExamplesForWord(supa, word, 8)
-
-      if (!cached) {
-        exampleCacheRef.current.set(word, examples)
-      }
-
-      // Client-side filter and merge
-      const hanziItems = examples.filter(e => e.source === "hanzi_items")
-      const wordExamples = examples.filter(e => e.source === "word_examples")
-      const ranked = rankExamples(hanziItems)
-      const merged = mergeExamples(ranked, wordExamples, 8, word)
-
-      setExamples(merged)
-    } catch (error) {
-      console.error("Error fetching examples:", error)
-      toast.error("Gagal memuat contoh kalimat")
-    }
-  }
-
   const handleNodeExpand = async (nodeId: string) => {
     if (nodes.size >= MAX_NODES) {
       toast.info("Batas peta tercapai")
@@ -239,20 +347,16 @@ export default function PetaHanziPage() {
     const requestId = ++expansionRequestIdRef.current
     setExpandingNodeId(nodeId)
 
-    // Mark as loading
     setNodes(prev => {
       const updated = new Map(prev)
       const n = updated.get(nodeId)
-      if (n) {
-        updated.set(nodeId, { ...n, isLoading: true })
-      }
+      if (n) updated.set(nodeId, { ...n, isLoading: true })
       return updated
     })
 
     try {
       const words = await fetchWordsForChar(supa, node.hanzi, WORDS_PER_EXPANSION)
 
-      // Filter and rank
       const filtered = words.filter(w =>
         isMultiChar(w.hanzi) &&
         w.hanzi !== node.hanzi &&
@@ -262,24 +366,17 @@ export default function PetaHanziPage() {
       const merged = mergeWords([], ranked, WORDS_PER_EXPANSION, node.hanzi)
 
       if (merged.length === 0) {
-        // Mark as exhausted
         setNodes(prev => {
           const updated = new Map(prev)
           const n = updated.get(nodeId)
-          if (n) {
-            updated.set(nodeId, { ...n, isLoading: false, isExhausted: true })
-          }
+          if (n) updated.set(nodeId, { ...n, isLoading: false, isExhausted: true })
           return updated
         })
         return
       }
 
-      // Check if this is still the current request
-      if (requestId !== expansionRequestIdRef.current) {
-        return
-      }
+      if (requestId !== expansionRequestIdRef.current) return
 
-      // Create new nodes and edges
       const newNodes = new Map(nodes)
       const newEdges = [...edges]
       const childIds: string[] = []
@@ -287,10 +384,7 @@ export default function PetaHanziPage() {
       merged.forEach((word) => {
         const partner = getPartner(word.hanzi, node.hanzi)
         if (partner) {
-          // Check if partner already exists (avoid duplicates)
-          if (newNodes.has(partner)) {
-            return
-          }
+          if (newNodes.has(partner)) return
           const childNode: GraphNode = {
             id: partner,
             hanzi: partner,
@@ -304,19 +398,11 @@ export default function PetaHanziPage() {
             isLoading: false,
           }
           newNodes.set(partner, childNode)
-          newEdges.push({
-            id: `${nodeId}-${partner}`,
-            fromId: nodeId,
-            toId: partner,
-            word,
-          })
+          newEdges.push({ id: `${nodeId}-${partner}`, fromId: nodeId, toId: partner, word })
           childIds.push(partner)
         } else {
-          // Leaf node for longer words
           const leafId = `leaf-${word.id}-${nodeId}`
-          if (newNodes.has(leafId)) {
-            return
-          }
+          if (newNodes.has(leafId)) return
           const leafNode: GraphNode = {
             id: leafId,
             hanzi: word.hanzi,
@@ -330,26 +416,16 @@ export default function PetaHanziPage() {
             isLoading: false,
           }
           newNodes.set(leafId, leafNode)
-          newEdges.push({
-            id: `${nodeId}-${leafId}`,
-            fromId: nodeId,
-            toId: leafId,
-            word,
-          })
+          newEdges.push({ id: `${nodeId}-${leafId}`, fromId: nodeId, toId: leafId, word })
           childIds.push(leafId)
         }
       })
 
-      // Layout new children
       const layouted = layoutChildren(node, childIds, node.depth, newNodes)
 
-      // Mark as expanded
       const n = layouted.get(nodeId)
-      if (n) {
-        layouted.set(nodeId, { ...n, isLoading: false, isExpanded: true })
-      }
+      if (n) layouted.set(nodeId, { ...n, isLoading: false, isExpanded: true })
 
-      // Simpan kondisi SEBELUM ekspansi (nodes & edges di sini masih versi lama)
       setHistory((h) => [...h, { nodes, edges }])
 
       setNodes(layouted)
@@ -360,9 +436,7 @@ export default function PetaHanziPage() {
       setNodes(prev => {
         const updated = new Map(prev)
         const n = updated.get(nodeId)
-        if (n) {
-          updated.set(nodeId, { ...n, isLoading: false })
-        }
+        if (n) updated.set(nodeId, { ...n, isLoading: false })
         return updated
       })
     } finally {
@@ -372,7 +446,6 @@ export default function PetaHanziPage() {
 
   return (
     <div className="w-full px-6 py-10 space-y-6 animate-in fade-in duration-500">
-      {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <Network className="h-6 w-6 text-primary" />
@@ -383,7 +456,6 @@ export default function PetaHanziPage() {
         </p>
       </div>
 
-      {/* Search Bar */}
       <HanziSearchBar
         value={searchValue}
         onChange={setSearchValue}
@@ -391,7 +463,6 @@ export default function PetaHanziPage() {
         loading={loading}
       />
 
-      {/* Empty State */}
       {!rootChar && !loading && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Network className="h-16 w-16 text-muted-foreground mb-4" />
@@ -399,9 +470,8 @@ export default function PetaHanziPage() {
         </div>
       )}
 
-      {/* Graph and Detail */}
       {rootChar && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]">
           <HanziMapGraph
             nodes={nodes}
             edges={edges}
@@ -417,7 +487,7 @@ export default function PetaHanziPage() {
           <HanziMapDetail
             selectedWord={selectedWord}
             examples={examples}
-            loading={expandingNodeId !== null}
+            loading={examplesLoading}
           />
         </div>
       )}

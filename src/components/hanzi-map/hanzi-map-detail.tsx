@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { BookOpen, User, Volume2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { BookOpen, User } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { TonePinyin } from "@/components/tone-pinyin"
@@ -14,6 +13,43 @@ type HanziMapDetailProps = {
   selectedWord: VocabularyWord | null
   examples: ExampleSentence[]
   loading: boolean
+}
+
+/** Render badge level HSK atau badge sumber (compound) */
+function WordBadge({ word }: { word: VocabularyWord }) {
+  if (word.source === "flashcard" && word.hsk_level != null) {
+    const colors: Record<number, string> = {
+      1: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+      2: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+      3: "bg-violet-500/15 text-violet-400 border-violet-500/30",
+      4: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+      5: "bg-rose-500/15 text-rose-400 border-rose-500/30",
+      6: "bg-red-600/15 text-red-400 border-red-600/30",
+    }
+    const cls = colors[word.hsk_level] ?? "bg-muted text-muted-foreground border-border"
+    return (
+      <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${cls}`}>
+        HSK {word.hsk_level}
+      </span>
+    )
+  }
+
+  if (word.source === "compound") {
+    if (word.compound_badge === "common") {
+      return (
+        <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none bg-cyan-500/15 text-cyan-400 border-cyan-500/30">
+          Umum
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none bg-slate-500/15 text-slate-400 border-slate-500/30">
+        Native
+      </span>
+    )
+  }
+
+  return null
 }
 
 export function HanziMapDetail({
@@ -33,36 +69,28 @@ export function HanziMapDetail({
     <Card className="min-h-[400px] flex flex-col gap-0 py-0 overflow-hidden">
       {/* -- Vocabulary Card -- */}
       <CardHeader className="p-0 border-b">
-        <div className="flex items-center gap-0">
-          <button
-            type="button"
-            className="flex-1 flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer"
-            onClick={() => speakMandarin(selectedWord.hanzi)}
-            title="Ketuk untuk mendengar"
-          >
-            <span className="font-hanzi text-5xl leading-none flex-shrink-0 select-none">
-              {selectedWord.hanzi}
-            </span>
-            <div className="flex flex-col min-w-0">
-              <TonePinyin text={selectedWord.pinyin ?? ""} className="text-base font-medium" />
-              <span className="text-sm text-muted-foreground mt-0.5 leading-snug">{selectedWord.arti}</span>
+        <button
+          type="button"
+          className="flex items-center gap-4 px-5 py-4 text-left hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer w-full"
+          onClick={() => speakMandarin(selectedWord.hanzi)}
+          title="Ketuk untuk mendengar"
+        >
+          <span className="font-hanzi text-5xl leading-none flex-shrink-0 select-none">
+            {selectedWord.hanzi}
+          </span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <TonePinyin text={selectedWord.pinyin ?? ""} className="text-base font-medium" />
+            <span className="text-sm text-muted-foreground mt-0.5 leading-snug">{selectedWord.arti}</span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              <WordBadge word={selectedWord} />
               {selectedWord.word_class && (
-                <Badge variant="outline" className="mt-1.5 w-fit text-[10px]">
+                <Badge variant="outline" className="text-[10px]">
                   {WORD_CLASS_LABELS[selectedWord.word_class] ?? selectedWord.word_class}
                 </Badge>
               )}
             </div>
-          </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mr-3 flex-shrink-0"
-            onClick={() => speakMandarin(selectedWord.hanzi)}
-            title="Dengar"
-          >
-            <Volume2 className="h-4 w-4" />
-          </Button>
-        </div>
+          </div>
+        </button>
       </CardHeader>
 
       {/* -- Contoh Kalimat -- */}
@@ -115,3 +143,5 @@ export function HanziMapDetail({
     </Card>
   )
 }
+
+
