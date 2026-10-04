@@ -5,7 +5,8 @@ import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Setti
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
-import { previewIntervalDays, getCardSrsState } from "@/lib/srs"
+import { Badge } from "@/components/ui/badge"
+import { previewIntervalDays, getCardSrsState, isCardDue } from "@/lib/srs"
 import styles from "./swipe-flashcard-session.module.css"
 
 import { SwipeFlashcard, SwipeFlashcardSessionProps } from "./flashcard-session/types"
@@ -33,9 +34,10 @@ export function SwipeFlashcardSession({
   disableSwipe: disableSwipeProp = false,
   deckCardIds,
   deckId,
+  sessionId,
 }: SwipeFlashcardSessionProps) {
   const session = useFlashcardSession({
-    cards, userId, deckCardIds, wordDetailPath, onComplete, disableSwipeProp, deckId
+    cards, userId, deckCardIds, wordDetailPath, onComplete, disableSwipeProp, deckId, sessionId
   })
 
   if (loading) {
@@ -49,14 +51,14 @@ export function SwipeFlashcardSession({
   if (session.done || cards.length === 0) {
     return (
       <div className={styles.page}>
-        <FlashcardSessionSummary 
+        <FlashcardSessionSummary
           isEmpty={cards.length === 0}
           emptyEmoji={emptyEmoji}
           emptyTitle={emptyTitle}
-          mudah={session.mudah}
-          sulit={session.sulit}
-          ingat={session.ingat}
-          lupa={session.lupa}
+          mudah={session.sessionStats.mudah}
+          sulit={session.sessionStats.sulit}
+          ingat={session.sessionStats.ingat}
+          lupa={session.sessionStats.lupa}
           resultRingValue={session.resultRingValue}
           onRetry={() => window.location.reload()}
         />
@@ -85,7 +87,7 @@ export function SwipeFlashcardSession({
               value: `${session.headerStats.accuracy}%`,
               progressPercent: session.headerStats.accuracy,
             },
-            { icon: Star, label: "Sudah Dikuasai", value: session.headerStats.mastered },
+            { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} dari ${session.headerStats.totalCards}` },
             { icon: CheckCircle2Icon, label: "Dinilai", value: session.headerStats.rated },
           ]}
         />
@@ -130,6 +132,13 @@ export function SwipeFlashcardSession({
         )}
 
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 relative">
+          {!isCardDue(session.card?.nextReview) && (
+            <div className="absolute top-0 left-0 right-0 flex justify-center pt-2">
+              <Badge variant="secondary" className="text-[10px] bg-muted/80 text-muted-foreground">
+                Latihan bebas – tidak mengubah jadwal
+              </Badge>
+            </div>
+          )}
           <FlashcardCard 
             card={session.card}
             idx={session.idx}
@@ -177,7 +186,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
                 <span>Sulit</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3))}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3)) : "-"}</span>
               </Button>
               <Button
                 variant="outline"
@@ -186,7 +195,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
                 <span>Ingat</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4))}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4)) : "-"}</span>
               </Button>
               <Button
                 variant="outline"
@@ -195,7 +204,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>
                 <span>Mudah</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5))}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">{isCardDue(session.card?.nextReview) ? formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5)) : "-"}</span>
               </Button>
             </div>
 
@@ -215,19 +224,19 @@ export function SwipeFlashcardSession({
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-red-400 shrink-0">Lupa ·</span>
-                  <span className="text-muted-foreground">belum ingat, muncul lagi besok</span>
+                  <span className="text-muted-foreground">belum ingat, ulang dari awal</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-amber-400 shrink-0">Sulit ·</span>
-                  <span className="text-muted-foreground">hampir lupa, muncul lagi besok</span>
+                  <span className="text-muted-foreground">ingat tapi berat, jeda bertambah pelan</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-blue-400 shrink-0">Ingat ·</span>
-                  <span className="text-muted-foreground">ingat dengan usaha, jeda beberapa hari</span>
+                  <span className="text-muted-foreground">ingat dengan usaha, jeda normal</span>
                 </div>
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-emerald-400 shrink-0">Mudah ·</span>
-                  <span className="text-muted-foreground">sangat mudah, jeda lebih lama</span>
+                  <span className="text-muted-foreground">sangat mudah, jeda lebih panjang</span>
                 </div>
               </div>
             </div>
