@@ -35,8 +35,10 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
   // Flashcard -> Quiz -> Nada/Menulis.
   const [fcScores, setFcScores] = React.useState<Record<string, number>>({})
   const [quizScores, setQuizScores] = React.useState<Record<string, number>>({})
+  const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
+    setMounted(true)
     getUserScoresByType("fc_session").then(setFcScores)
     getUserScoresByType("quiz").then(setQuizScores)
   }, [])
@@ -62,7 +64,8 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
             const isDone = score !== undefined
             const prevDeck = index > 0 ? decks[index - 1] : null
             const prevDone = !prevDeck ? true : quizScores[String(prevDeck.id)] !== undefined
-            const isLocked = !prevDone
+            // Before mount, treat as unlocked to match server-rendered HTML and avoid hydration mismatch
+            const isLocked = mounted && !prevDone
 
             const cardInner = (
               <Card

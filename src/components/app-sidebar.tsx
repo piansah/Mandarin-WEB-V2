@@ -14,9 +14,7 @@ import {
   User,
   LogOut,
   FolderHeart,
-  Flame,
   Bug,
-  ChevronUp,
   Target,
   BarChart3,
   ClipboardList,
@@ -24,6 +22,7 @@ import {
   Shield,
   Gamepad2,
   MoreHorizontal,
+  Network,
 } from "lucide-react"
 import {
   Sidebar,
@@ -78,6 +77,11 @@ const todayItems = [
     title: "Minigames",
     url: "/dashboard/games",
     icon: Gamepad2,
+  },
+  {
+    title: "Peta Hanzi",
+    url: "/dashboard/peta-hanzi",
+    icon: Network,
   },
 ]
 
@@ -138,7 +142,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { isMobile, setOpen, setOpenMobile, pinned, togglePinned } = useSidebar()
+  const { isMobile, setOpen, setOpenMobile, pinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
   const [isAdminUser, setIsAdminUser] = React.useState(false)
   const supabase = useSupabase()
