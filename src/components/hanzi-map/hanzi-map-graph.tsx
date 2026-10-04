@@ -1,9 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { ZoomIn, ZoomOut, RotateCcw, Undo2, Network, Maximize2 } from "lucide-react"
+import { ZoomIn, ZoomOut, RotateCcw, Undo2, Network, Maximize2, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { GraphNode, GraphEdge } from "@/lib/hanzi-map"
 import { speakMandarin } from "@/lib/tts"
 
@@ -51,6 +58,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 type ViewBox = { x: number; y: number; width: number; height: number }
+type Point = { x: number; y: number }
 
 /** Hitung viewBox persegi yang memuat semua node */
 function computeFitViewBox(nodes: Map<string, GraphNode>): ViewBox | null {
@@ -134,6 +142,10 @@ export function HanziMapGraph({
   const movedRef = React.useRef(false)
   const hintTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Pinch bookkeeping: semua pointer aktif + state gestur dua jari
+  const pointersRef = React.useRef<Map<number, Point>>(new Map())
+  const pinchRef = React.useRef<{ dist: number; mid: Point } | null>(null)
+
   // Auto-fit hanya saat jumlah node atau node akar berubah
   const fitKeyRef = React.useRef<string>("")
 
@@ -214,14 +226,84 @@ export function HanziMapGraph({
     return () => el.removeEventListener("wheel", onWheel)
   }, [showCanvas, zoomAt])
 
+  /** Ambil dua pointer pertama → jarak & titik tengah (koordinat layar) */
+  const readPinch = () => {
+    const pts = Array.from(pointersRef.current.values())
+    if (pts.length < 2) return null
+    const [a, b] = pts
+    return {
+      dist: Math.hypot(a.x - b.x, a.y - b.y),
+      mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    }
+  }
+
   const handlePointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (e.button !== 0) return
+    // Mouse: hanya tombol kiri. Sentuhan/pen: button selalu 0.
+    if (e.pointerType === "mouse" && e.button !== 0) return
+
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (pointersRef.current.size >= 2) {
+      // Mulai gestur cubit: batalkan drag satu jari
+      const pinch = readPinch()
+      if (pinch) pinchRef.current = pinch
+      pointerStartRef.current = null
+      movedRef.current = true // cegah klik node saat jari dilepas
+      setIsDragging(true)
+      return
+    }
+
     pointerStartRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId }
     lastPointerRef.current = { x: e.clientX, y: e.clientY }
     movedRef.current = false
   }
 
   const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+
+    // ===== Cubit dua jari: zoom + geser =====
+    if (pinchRef.current && pointersRef.current.size >= 2) {
+      const next = readPinch()
+      const el = svgRef.current
+      if (!next || !el) return
+      const prev = pinchRef.current
+      pinchRef.current = next
+
+      if (prev.dist < 1 || next.dist < 1) return
+
+      const cw = el.clientWidth || 1
+      const ch = el.clientHeight || 1
+      const rect = el.getBoundingClientRect()
+      const dxPx = next.mid.x - prev.mid.x
+      const dyPx = next.mid.y - prev.mid.y
+      // Jari merenggang → dist membesar → viewBox mengecil (zoom in)
+      const factor = prev.dist / next.dist
+      const ox = next.mid.x - rect.left - rect.width / 2
+      const oy = next.mid.y - rect.top - rect.height / 2
+
+      // Satu pembaruan state agar geser & zoom konsisten
+      setViewBox((vb) => {
+        const scale = Math.max(vb.width / cw, vb.height / ch)
+        // 1) geser mengikuti titik tengah jari
+        const panned = { ...vb, x: vb.x - dxPx * scale, y: vb.y - dyPx * scale }
+        // 2) zoom di sekitar titik tengah jari
+        const width = clamp(panned.width * factor, MIN_VIEW_SIZE, MAX_VIEW_SIZE)
+        const f = width / panned.width
+        const height = panned.height * f
+        const cx = panned.x + panned.width / 2
+        const cy = panned.y + panned.height / 2
+        const px = cx + ox * scale
+        const py = cy + oy * scale
+        const ncx = px - ox * scale * f
+        const ncy = py - oy * scale * f
+        return { x: ncx - width / 2, y: ncy - height / 2, width, height }
+      })
+      return
+    }
+
+    // ===== Drag satu jari / mouse =====
     const start = pointerStartRef.current
     if (!start || start.id !== e.pointerId) return
 
@@ -253,6 +335,15 @@ export function HanziMapGraph({
   }
 
   const endDrag = (e: React.PointerEvent<SVGSVGElement>) => {
+    pointersRef.current.delete(e.pointerId)
+
+    // Gestur cubit berakhir begitu jari tinggal satu/nol.
+    // Jari yang tersisa tidak melanjutkan drag (menghindari lompatan);
+    // pengguna perlu mengangkat & menyentuh lagi.
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null
+    }
+
     const start = pointerStartRef.current
     if (start && start.id === e.pointerId) {
       pointerStartRef.current = null
@@ -260,7 +351,10 @@ export function HanziMapGraph({
         e.currentTarget.releasePointerCapture(e.pointerId)
       }
     }
-    setIsDragging(false)
+
+    if (pointersRef.current.size === 0) {
+      setIsDragging(false)
+    }
     // movedRef sengaja tidak direset di sini: event click yang menyusul
     // drag harus bisa membacanya. Direset di pointerdown berikutnya.
   }
@@ -274,7 +368,7 @@ export function HanziMapGraph({
 
   const handleNodeClick = (nodeId: string, event: React.SyntheticEvent) => {
     event.stopPropagation()
-    // Abaikan klik yang sebenarnya akhir dari drag
+    // Abaikan klik yang sebenarnya akhir dari drag / cubit
     if (movedRef.current) {
       movedRef.current = false
       return
@@ -329,12 +423,14 @@ export function HanziMapGraph({
 
   return (
     <Card className="min-h-[400px] flex flex-col overflow-hidden py-0 gap-0">
-      <div className="flex items-center justify-between px-4 py-3 border-b">
-        <div className="flex items-center gap-2">
-          <Network className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Peta Kosakata</span>
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b">
+        <div className="flex items-center gap-2 min-w-0">
+          <Network className="h-4 w-4 shrink-0 text-primary" />
+          <span className="text-sm font-medium whitespace-nowrap">Peta Kosakata</span>
         </div>
-        <div className="flex items-center gap-1">
+
+        {/* Desktop / tablet: tombol langsung */}
+        <div className="hidden md:flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
@@ -357,6 +453,41 @@ export function HanziMapGraph({
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Mobile: menu popup titik tiga */}
+        <div className="md:hidden">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon" aria-label="Menu peta" />}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={onUndo} disabled={!canUndo}>
+                <Undo2 className="h-4 w-4" />
+                Kembali satu langkah
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => zoomAt(0.8)}>
+                <ZoomIn className="h-4 w-4" />
+                Perbesar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => zoomAt(1.25)}>
+                <ZoomOut className="h-4 w-4" />
+                Perkecil
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={fitToScreen}>
+                <Maximize2 className="h-4 w-4" />
+                Pas layar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleReset}>
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div
@@ -377,7 +508,7 @@ export function HanziMapGraph({
           onPointerUp={endDrag}
           onPointerCancel={endDrag}
           onClick={() => {
-            // Abaikan klik yang merupakan akhir dari drag
+            // Abaikan klik yang merupakan akhir dari drag / cubit
             if (movedRef.current) return
             // Klik/tap area kosong menutup popup yang di-pin
             setPinnedEdgeId(null)
@@ -629,6 +760,7 @@ export function HanziMapGraph({
           <span className="h-3 w-3 rounded-full border-2 border-dashed border-muted-foreground" />
           Kata panjang
         </div>
+        <span className="md:hidden">Seret untuk menggeser, cubit untuk zoom</span>
         <span className="hidden md:inline">Seret untuk menggeser, Ctrl + scroll untuk zoom</span>
         <span className="hidden md:inline">Klik kata di garis atau karakter untuk melihat pinyin dan arti</span>
       </div>
