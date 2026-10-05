@@ -488,7 +488,6 @@ export default function PetaHanziPage() {
           onNodeExpand={handleNodeExpand}
           onReset={resetGraph}
           onUndo={handleUndo}
-          onRandom={handleRandomChar}
           canUndo={history.length > 0}
           loading={loading}
           notFound={rootChar !== null && nodes.size === 0 && !loading}
