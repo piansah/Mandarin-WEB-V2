@@ -3,6 +3,8 @@
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
+import { shuffle } from "@/lib/array-utils"
+import { useSidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PracticeHeader } from "@/components/practice-header"
@@ -71,6 +73,9 @@ export default function SpeakingPracticePage() {
   const router = useRouter()
   const key = params.key
   const supa = useSupabase()
+  const { pinned, isMobile } = useSidebar()
+
+  const sidebarOffset = pinned && !isMobile ? '280px' : '0px'
 
   const [set, setSet] = React.useState<HanziSet | null>(null)
   const [items, setItems] = React.useState<HanziItem[]>([])
@@ -115,7 +120,10 @@ export default function SpeakingPracticePage() {
       }
 
       setSet(setResult.data)
-      setItems(itemsResult.data ?? [])
+      const allItems = itemsResult.data ?? []
+      const shuffledItems = shuffle(allItems)
+      const selectedItems = shuffledItems.slice(0, 20)
+      setItems(selectedItems)
       setLoading(false)
     }
 
@@ -226,7 +234,19 @@ export default function SpeakingPracticePage() {
   }
 
   function handleSkip() {
-    handleNext()
+    setResult(null)
+    setInterimTranscript(null)
+    setMicError(null)
+
+    if (currentIndex < items.length - 1) {
+      setCurrentIndex((prev) => prev + 1)
+    } else {
+      setPracticeComplete(true)
+      const average = scores.length
+        ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length)
+        : 0
+      saveUserScore("speaking_session", key, average || 0).catch(() => { })
+    }
   }
 
   function handleRestart() {
@@ -359,72 +379,85 @@ export default function SpeakingPracticePage() {
         />
 
         {/* Main Content */}
-        <main className="flex flex-1 flex-col items-center gap-4 p-6 overflow-x-hidden overflow-y-auto">
-          {/* Card 1: input — kalimat contoh + tombol mic */}
-          <Card className="w-full max-w-2xl">
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 p-6 overflow-x-hidden overflow-y-auto pb-24">
+          {/* Card: kalimat contoh - bisa di tap untuk TTS */}
+          <Card 
+            className="w-full max-w-2xl cursor-pointer hover:border-primary/40 transition-all duration-300 active:scale-95"
+            onClick={() => speakMandarin(currentItem?.hanzi || "")}
+          >
             <CardContent className="p-8 space-y-6">
-              {/* Sentence Display */}
-              <div className="text-center space-y-4">
-                <div className="font-hanzi text-4xl font-bold leading-relaxed">
-                  {currentItem?.hanzi}
+              {/* Sentence Display with Speaker Button */}
+              <div className="flex items-center justify-center gap-4">
+                <div className="text-center space-y-4 flex-1">
+                  <div className="font-hanzi text-4xl font-bold leading-relaxed">
+                    {currentItem?.hanzi}
+                  </div>
+                  <TonePinyin text={currentItem?.pinyin || ""} className="text-xl" />
+                  <div className="text-lg text-muted-foreground">
+                    {currentItem?.arti}
+                  </div>
                 </div>
-                <TonePinyin text={currentItem?.pinyin || ""} className="text-xl" />
-                <div className="text-lg text-muted-foreground">
-                  {currentItem?.arti}
-                </div>
-              </div>
 
-              {/* Audio Controls */}
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => speakMandarin(currentItem?.hanzi || "")}
+                {/* Speaker Button - icon only, centered beside text */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    speakMandarin(currentItem?.hanzi || "")
+                  }}
+                  className="p-3 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+                  title="Dengarkan contoh"
                 >
-                  <Volume2 className="h-5 w-5 mr-2" />
-                  Dengar Contoh
-                </Button>
+                  <Volume2 className="h-6 w-6" />
+                </button>
               </div>
-
-              {/* Recording Section */}
-              <div className="space-y-4">
-                <div className="text-center text-sm text-muted-foreground">
-                  {isRecording ? "Silakan bacakan kalimat di atas..." : "Tekan tombol mikrofon dan bacalah kalimat di atas"}
-                </div>
-                <div className="flex justify-center">
-                  <Button
-                    size="lg"
-                    onClick={isRecording ? stopRecording : startRecording}
-                    disabled={!!result}
-                    className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
-                  >
-                    <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
-                  </Button>
-                </div>
-                {isRecording && (
-                  <div className="text-center text-sm text-red-400">
-                    Merekam{interimTranscript ? `: "${interimTranscript}"` : "..."}
-                  </div>
-                )}
-                {micError && (
-                  <div className="flex items-center justify-center gap-2 text-center text-sm text-amber-500">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {micError}
-                  </div>
-                )}
-              </div>
-
-              {/* Skip Button */}
-              {!result && (
-                <div className="flex justify-center">
-                  <Button variant="ghost" onClick={handleSkip}>
-                    <SkipForward className="h-4 w-4 mr-2" />
-                    Lewati
-                  </Button>
-                </div>
-              )}
             </CardContent>
           </Card>
+
+          {/* Speaking Section - OUTSIDE card */}
+          <div className="w-full max-w-2xl space-y-4">
+            <div className="text-center text-sm text-muted-foreground">
+              {isRecording ? "Silakan bacakan kalimat di atas..." : "Tekan tombol mikrofon dan bacalah kalimat di atas"}
+            </div>
+            <div className="flex justify-center">
+              <Button
+                size="lg"
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={!!result}
+                className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
+              >
+                <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
+              </Button>
+            </div>
+            {isRecording && (
+              <div className="text-center text-sm text-red-400">
+                Merekam{interimTranscript ? `: "${interimTranscript}"` : "..."}
+              </div>
+            )}
+            {micError && (
+              <div className="flex items-center justify-center gap-2 text-center text-sm text-amber-500">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                {micError}
+              </div>
+            )}
+          </div>
+
+          {/* Fixed Button at Bottom - like Mulai Latihan */}
+          <div
+            className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur transition-[left] duration-200 ease-linear"
+            style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <div className="mx-auto w-full max-w-6xl px-4 py-4">
+              <Button 
+                onClick={result ? handleNext : handleSkip}
+                disabled={!!result && (result.score ?? 0) < 75}
+                className="w-full"
+                size="lg"
+              >
+                {result && (result.score ?? 0) < 75 ? `Akurasi ${result.score}% - butuh 75%` : "Lanjutkan"}
+              </Button>
+            </div>
+          </div>
 
           {/* Card 2: output — feedback penilaian + tombol lanjut, muncul setelah ada hasil rekaman */}
           {result && verdict && toneStyle && (
@@ -440,6 +473,11 @@ export default function SpeakingPracticePage() {
                   </div>
                 </div>
 
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center space-y-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Kata yang benar</p>
+                  <p className="font-hanzi text-2xl">{currentItem?.hanzi}</p>
+                </div>
+
                 <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-center">
                   <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Kamu mengucapkan</p>
                   <p className="font-hanzi text-lg">{result.transcript || "-"}</p>
@@ -449,14 +487,10 @@ export default function SpeakingPracticePage() {
                   {verdict.tip}
                 </p>
 
-                <div className="flex gap-2 justify-center">
+                <div className="flex justify-center">
                   <Button variant="outline" onClick={handleRecordAgain}>
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Rekam Ulang
-                  </Button>
-                  <Button onClick={handleNext}>
-                    <Check className="h-4 w-4 mr-2" />
-                    Lanjut
                   </Button>
                 </div>
               </CardContent>
