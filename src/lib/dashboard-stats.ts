@@ -193,7 +193,23 @@ export function timeAgo(iso: string): string {
   return `${days} hari lalu`
 }
 
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+const cacheKey = "dashboard_stats_cache"
+
 export async function fetchDashboardStats(): Promise<DashboardStats | null> {
+  // Check cache first
+  const cached = localStorage.getItem(cacheKey)
+  if (cached) {
+    try {
+      const { data, timestamp } = JSON.parse(cached)
+      if (Date.now() - timestamp < CACHE_DURATION) {
+        return data
+      }
+    } catch {
+      // Invalid cache, ignore
+    }
+  }
+
   const supa = createClient()
   const {
     data: { user },
@@ -224,43 +240,42 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
     const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
 
-  const progressByCard = new Map<string, { srs_level: number; next_review: string | null }>()
-  ;(progressRes.data ?? []).forEach((row) => {
-    if (!row.card_id) return
-    progressByCard.set(row.card_id, { srs_level: row.srs_level, next_review: row.next_review })
-  })
-  const cards = [...progressByCard.values()]
-  const wordsMastered = cards.filter((c) => c.srs_level >= 1).length
-  const today = todayStr()
-  const flashcardDue = cards.filter((c) => c.next_review && c.next_review <= today).length
+    const progressByCard = new Map<string, { srs_level: number; next_review: string | null }>()
+    ;(progressRes.data ?? []).forEach((row) => {
+      if (!row.card_id) return
+      progressByCard.set(row.card_id, { srs_level: row.srs_level, next_review: row.next_review })
+    })
+    const cards = [...progressByCard.values()]
+    const wordsMastered = cards.filter((c) => c.srs_level >= 1).length
+    const today = todayStr()
+    const flashcardDue = cards.filter((c) => c.next_review && c.next_review <= today).length
 
-  const currentTier = [...TIER_ORDER].reverse().find((t) => unlockedTiers.includes(t)) ?? TIER_ORDER[0]
+    const currentTier = [...TIER_ORDER].reverse().find((t) => unlockedTiers.includes(t)) ?? TIER_ORDER[0]
 
-  // Handle different response formats from Supabase RPC
-  const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as any
-  const totalScore = xpData.xp ?? xpData.totalScore ?? 0
+    // Handle different response formats from Supabase RPC
+    const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as { xp?: number; totalScore?: number }
+    const totalScore = xpData.xp ?? xpData.totalScore ?? 0
 
-  return {
-    displayName: profileRes.data?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
-    streak: calcCurrentStreak(dates),
-    bestStreak: calcBestStreak(dates),
-    consistency: calcConsistency(dates),
-    weekDots: buildWeekDots(dates),
-    totalScore,
-    tier: currentTier,
-    tierLabel: TIER_LABEL[currentTier],
-    tierHsk: `HSK ${TIER_HSK[currentTier].join("–")}`,
-    wordsMastered,
-    flashcardDue,
-    quizCompleted: quizCountRes.count ?? 0,
-    recentActivity: await (async () => {
+    const result = {
+      displayName: profileRes.data?.display_name ?? user.email?.split("@")[0] ?? "Pelajar",
+      streak: calcCurrentStreak(dates),
+      bestStreak: calcBestStreak(dates),
+      consistency: calcConsistency(dates),
+      weekDots: buildWeekDots(dates),
+      totalScore,
+      tier: currentTier,
+      tierLabel: TIER_LABEL[currentTier],
+      tierHsk: `HSK ${TIER_HSK[currentTier].join("–")}`,
+      wordsMastered,
+      flashcardDue,
+      quizCompleted: quizCountRes.count ?? 0,
+      recentActivity: await (async () => {
       const items = (recentRes.data ?? [])
       if (items.length === 0) return []
 
       // Kelompokkan key berdasarkan tipe untuk batch query
       const deckIds: number[] = []       // fc_session, nada_session, speaking_session, tulis_session
       const hanziKeys: string[] = []     // hanzi
-      const quizKeys: string[] = []      // quiz
       const kalKeys: string[] = []       // kal
       const grammarKeys: string[] = []   // grammar
       const ceritaKeys: string[] = []    // cerita, cerita_quiz
@@ -271,7 +286,6 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       for (const r of items) {
         if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) deckIds.push(Number(r.key))
         else if (r.type === "hanzi") hanziKeys.push(r.key)
-        else if (r.type === "quiz") quizKeys.push(r.key)
         else if (r.type === "kal") kalKeys.push(r.key)
         else if (r.type === "grammar") grammarKeys.push(r.key)
         else if (r.type === "cerita" || r.type === "cerita_quiz") ceritaKeys.push(r.key)
@@ -281,15 +295,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       }
 
       // Batch queries paralel
-      const [deckRows, hanziRows, quizRows, kalRows, grammarRows, ceritaRows, moduleRows] = await Promise.all([
+      const [deckRows, hanziRows, kalRows, grammarRows, ceritaRows, moduleRows] = await Promise.all([
         deckIds.length > 0
           ? supa.from("flashcard_sets").select("id, title").in("id", deckIds)
           : Promise.resolve({ data: [] }),
         hanziKeys.length > 0
           ? supa.from("hanzi_sets").select("key, title").in("key", hanziKeys)
-          : Promise.resolve({ data: [] }),
-        quizKeys.length > 0
-          ? supa.from("quiz_sets" as any).select("key, title").in("key", quizKeys)
           : Promise.resolve({ data: [] }),
         kalKeys.length > 0
           ? supa.from("kalimat_sets").select("key, title").in("key", kalKeys)
@@ -317,7 +328,6 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         ;(rows.data ?? []).forEach((r: { key: string; title: string }) => { keyTitleMap[r.key] = r.title })
       }
       mapRows(hanziRows as { data: { key: string; title: string }[] })
-      mapRows(quizRows as { data: { key: string; title: string }[] })
       mapRows(kalRows as { data: { key: string; title: string }[] })
       mapRows(grammarRows as { data: { key: string; title: string }[] })
       mapRows(ceritaRows as { data: { key: string; title: string }[] })
@@ -359,4 +369,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       })
     })(),
   }
+
+  // Cache the result
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ data: result, timestamp: Date.now() }))
+  } catch {
+    // Ignore cache errors (e.g., quota exceeded)
+  }
+
+  return result
 }

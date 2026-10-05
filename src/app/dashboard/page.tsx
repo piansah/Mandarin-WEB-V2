@@ -2,10 +2,8 @@
 
 import * as React from "react"
 import {
-  Layers,
   RotateCcw,
   CheckCircle2,
-  BookOpen,
   Languages,
   Flame,
   ClipboardList,
@@ -13,7 +11,6 @@ import {
   BookText,
   Brain,
   Zap,
-  Clock,
   Play,
   RefreshCw,
   Sun,
@@ -49,19 +46,61 @@ export default function DashboardPage() {
   const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
   const [nextModule, setNextModule] = React.useState<{ slug: string; title: string } | null>(null)
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
-  const [completedDeckCount, setCompletedDeckCount] = React.useState(0)
   const [deckQuotaMet, setDeckQuotaMet] = React.useState(false)
 
-  React.useEffect(() => {
-    fetchDashboardStats().then((s) => {
-      setStats(s)
-      setLoading(false)
-    })
-    loadSrsStats()
-    loadNextContent()
+  const loadSrsStats = React.useCallback(async () => {
+    try {
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+
+      const today = new Date().toISOString().slice(0, 10)
+
+      const { data: progress } = await supa
+        .from("user_card_progress")
+        .select("card_id, srs_level, next_review, last_reviewed")
+        .eq("user_id", user.id)
+
+      if (!progress) return
+
+      const progressByCard = new Map()
+      progress.forEach((row) => {
+        if (!row.card_id) return
+        const prev = progressByCard.get(row.card_id)
+        const prevKey = `${prev?.last_reviewed || ""}|${prev?.next_review || ""}`
+        const rowKey = `${row.last_reviewed || ""}|${row.next_review || ""}`
+        if (!prev || rowKey >= prevKey) progressByCard.set(row.card_id, row)
+      })
+
+      const reviewed = [...progressByCard.values()]
+      const total = reviewed.length
+
+      const todayCards = reviewed.filter((r) => r.last_reviewed === today)
+      const hafalToday = todayCards.filter((r) => r.srs_level >= 1).length
+      const lupaToday = todayCards.filter((r) => r.srs_level === 0).length
+      const totalToday = hafalToday + lupaToday
+      const totalHafal = reviewed.filter((r) => r.srs_level >= 1).length
+      
+      // OPTIMIZATION: Remove chunked validation queries - use progress data directly
+      // If card is in progress, it exists in flashcard_cards, so no need to validate
+      const dueCount = reviewed.filter((r) => r.next_review && r.next_review <= today).length
+
+      const pct = totalToday > 0 ? Math.round((hafalToday / totalToday) * 100) : 0
+
+      setSrsStats({
+        total,
+        mature: totalHafal,
+        due: dueCount,
+        hafalToday,
+        lupaToday,
+        pctToday: pct,
+        totalToday,
+      })
+    } catch (e) {
+      console.error(e)
+    }
   }, [supa])
 
-  async function loadNextContent() {
+  const loadNextContent = React.useCallback(async () => {
     try {
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
@@ -92,38 +131,62 @@ export default function DashboardPage() {
       }
 
       if (decks && decks.length > 0) {
+        // BATCH OPTIMIZATION: Get all card IDs and progress in single queries
+        const deckIds = decks.map(d => d.id)
+        
+        // Get all card IDs for all decks at once
+        const { data: allDeckCards } = await supa
+          .from("flashcard_cards")
+          .select("id, set_id")
+          .in("set_id", deckIds)
+
+        // Group cards by deck
+        const cardsByDeck = new Map<number, string[]>()
+        if (allDeckCards) {
+          allDeckCards.forEach(card => {
+            const existing = cardsByDeck.get(card.set_id) || []
+            existing.push(card.id)
+            cardsByDeck.set(card.set_id, existing)
+          })
+        }
+
+        // Get all progress for user at once
+        const { data: allProgress } = await supa
+          .from("user_card_progress")
+          .select("card_id, srs_level")
+          .eq("user_id", user.id)
+
+        // Group progress by card
+        const progressByCard = new Map<string, { srs_level: number }>()
+        if (allProgress) {
+          allProgress.forEach(p => {
+            if (p.card_id) {
+              progressByCard.set(p.card_id, { srs_level: p.srs_level })
+            }
+          })
+        }
+
         let firstIncompleteDeck = null
 
-        // Find first incomplete deck
+        // Find first incomplete deck (now using pre-fetched data)
         for (const deck of decks) {
-          // Get all card IDs for this deck
-          const { data: deckCards } = await supa
-            .from("flashcard_cards")
-            .select("id")
-            .eq("set_id", deck.id)
+          const cardIds = cardsByDeck.get(deck.id) || []
 
-          if (!deckCards || deckCards.length === 0) {
+          if (cardIds.length === 0) {
             firstIncompleteDeck = deck
             break
           }
 
-          const cardIds = deckCards.map(c => c.id)
-
-          // Get progress for these cards
-          const { data: progress } = await supa
-            .from("user_card_progress")
-            .select("card_id, srs_level")
-            .eq("user_id", user.id)
-            .in("card_id", cardIds)
-
-          if (!progress || progress.length === 0) {
-            firstIncompleteDeck = deck
-            break
+          // Check progress using pre-fetched data
+          let completedCards = 0
+          for (const cardId of cardIds) {
+            const progress = progressByCard.get(cardId)
+            if (progress && progress.srs_level >= 1) {
+              completedCards++
+            }
           }
 
-          // Check if deck is complete (all cards have srs_level >= 1)
-          const completedCards = progress.filter(p => p.srs_level >= 1).length
-          if (completedCards < deckCards.length) {
+          if (completedCards < cardIds.length) {
             firstIncompleteDeck = deck
             break
           }
@@ -143,7 +206,7 @@ export default function DashboardPage() {
         }
       }
 
-      setCompletedDeckCount(completedDeckCount)
+      // completedDeckCount is used locally for estafet unlock logic
 
       // Load next module dari skema `modul` (lihat src/lib/modul.ts)
       fetchModulOverview()
@@ -160,21 +223,26 @@ export default function DashboardPage() {
         .order("sort_order", { ascending: true })
 
       if (estafetSets && estafetSets.length > 0) {
+        // BATCH OPTIMIZATION: Get all item counts at once
+        const setKeys = estafetSets.map(s => s.key)
+        const { data: allItems } = await supa
+          .from("hanzi_items")
+          .select("hanzi_key")
+          .in("hanzi_key", setKeys)
+
+        const itemCounts: Record<string, number> = {}
+        if (allItems) {
+          allItems.forEach(item => {
+            itemCounts[item.hanzi_key] = (itemCounts[item.hanzi_key] || 0) + 1
+          })
+        }
+
         // Get read counts for all estafet sets
         const readCounts: Record<string, number> = {}
-        const itemCounts: Record<string, number> = {}
-
         for (const set of estafetSets) {
           const saved = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
           const completedIds = saved ? (JSON.parse(saved) as number[]) : []
           readCounts[set.key] = Array.isArray(completedIds) ? completedIds.length : 0
-
-          const { data: items } = await supa
-            .from("hanzi_items")
-            .select("id")
-            .eq("hanzi_key", set.key)
-
-          itemCounts[set.key] = items?.length || 0
         }
 
         // Find first unlocked and incomplete estafet
@@ -212,73 +280,16 @@ export default function DashboardPage() {
     } catch (e) {
       console.error(e)
     }
-  }
+  }, [supa])
 
-  async function loadSrsStats() {
-    try {
-      const { data: { user } } = await supa.auth.getUser()
-      if (!user) return
-
-      const today = new Date().toISOString().slice(0, 10)
-
-      const { data: progress } = await supa
-        .from("user_card_progress")
-        .select("card_id, srs_level, next_review, last_reviewed")
-        .eq("user_id", user.id)
-
-      if (!progress) return
-
-      const progressByCard = new Map()
-      progress.forEach((row) => {
-        if (!row.card_id) return
-        const prev = progressByCard.get(row.card_id)
-        const prevKey = `${prev?.last_reviewed || ""}|${prev?.next_review || ""}`
-        const rowKey = `${row.last_reviewed || ""}|${row.next_review || ""}`
-        if (!prev || rowKey >= prevKey) progressByCard.set(row.card_id, row)
-      })
-
-      const reviewed = [...progressByCard.values()]
-      const total = reviewed.length
-
-      const todayCards = reviewed.filter((r) => r.last_reviewed === today)
-      const hafalToday = todayCards.filter((r) => r.srs_level >= 1).length
-      const lupaToday = todayCards.filter((r) => r.srs_level === 0).length
-      const totalToday = hafalToday + lupaToday
-      const totalHafal = reviewed.filter((r) => r.srs_level >= 1).length
-      const dueRows = reviewed.filter((r) => r.next_review <= today && r.card_id)
-
-      let dueCount = dueRows.length
-      if (dueRows.length > 0) {
-        const validDueIds = new Set()
-        const dueIds = dueRows.map((r) => r.card_id)
-        for (let i = 0; i < dueIds.length; i += 100) {
-          const chunk = dueIds.slice(i, i + 100)
-          const result = await supa
-            .from("flashcard_cards")
-            .select("id")
-            .in("id", chunk)
-          if (result.data) {
-            result.data.forEach((card: { id: string }) => validDueIds.add(card.id))
-          }
-        }
-        dueCount = dueRows.filter((r) => validDueIds.has(r.card_id)).length
-      }
-
-      const pct = totalToday > 0 ? Math.round((hafalToday / totalToday) * 100) : 0
-
-      setSrsStats({
-        total,
-        mature: totalHafal,
-        due: dueCount,
-        hafalToday,
-        lupaToday,
-        pctToday: pct,
-        totalToday,
-      })
-    } catch (e) {
-      console.error(e)
-    }
-  }
+  React.useEffect(() => {
+    fetchDashboardStats().then((s) => {
+      setStats(s)
+      setLoading(false)
+    })
+    loadSrsStats()
+    loadNextContent()
+  }, [supa, loadSrsStats, loadNextContent])
 
   const hour = new Date().getHours()
   let GreetingIcon = Sun
@@ -440,7 +451,7 @@ export default function DashboardPage() {
                 <Button
                   size="sm"
                   className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg px-4"
-                  onClick={() => window.location.href = '/dashboard/review'}
+                  onClick={() => router.push('/dashboard/review')}
                 >
                   Review
                 </Button>
