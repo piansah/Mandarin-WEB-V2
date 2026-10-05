@@ -450,7 +450,7 @@ export default function SpeakingPracticePage() {
             <div className="mx-auto w-full max-w-6xl px-4 py-4">
               <Button 
                 onClick={result ? handleNext : handleSkip}
-                disabled={!!result && (result.score ?? 0) < 75}
+                disabled={result ? (result.score ?? 0) < 75 : true}
                 className="w-full"
                 size="lg"
               >
