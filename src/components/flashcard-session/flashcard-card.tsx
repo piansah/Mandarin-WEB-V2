@@ -76,7 +76,7 @@ export function FlashcardCard({
         </div>
         <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-muted-foreground">CONTOH · penggunaan</div>
+            <div className="text-xs text-muted-foreground">Contoh penggunaan:</div>
           </div>
           {card.exampleSentence ? (
             <>

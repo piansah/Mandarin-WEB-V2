@@ -480,20 +480,20 @@ export default function GrammarPracticePage() {
 
         <footer className={styles.footer}>
           {phase === "theory" && (
-            <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
-          )}
-          {phase === "soal" && (
-            <>
-              <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
-              {!checked ? (
-                <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
-              ) : (
-                <button type="button" className={styles.btnPrimary} onClick={goNext}>
-                  {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
-                </button>
-              )}
-            </>
-          )}
+              <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
+            )}
+            {phase === "soal" && (
+              <>
+                <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
+                {!checked ? (
+                  <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
+                ) : (
+                  <button type="button" className={styles.btnPrimary} onClick={goNext}>
+                    {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
+                  </button>
+                )}
+              </>
+            )}
         </footer>
       </div>
     </div>

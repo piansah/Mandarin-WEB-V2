@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { CheckCircle2, XCircle, Flame, ListChecks } from "lucide-react"
+import { CheckCircle2, XCircle, Flame, ListChecks, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -403,9 +403,9 @@ export default function NadaPracticePage() {
         const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
         return {
           ...card,
-          exampleSentence: ex?.hanzi,
-          examplePinyin: ex?.pinyin,
-          exampleTranslation: ex?.arti,
+          exampleSentence: ex?.hanzi ?? `${card.hanzi}。`,
+          examplePinyin: ex?.pinyin ?? card.pinyin,
+          exampleTranslation: ex?.arti ?? card.arti,
         }
       })
 
@@ -677,7 +677,7 @@ export default function NadaPracticePage() {
           progress bar, konsisten di semua tinggi layar, sisa ruang kosong
           di bawah dibiarkan (lihat catatan di respons chat soal ini).
         */}
-        <div className="flex-1 flex flex-col items-center justify-start gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
+        <div className="flex-1 flex flex-col items-center justify-center gap-6 md:gap-8 px-4 sm:px-6 pt-6 md:pt-10 pb-4">
           {/* <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">
             {isMulti ? "Pilih kombinasi nada yang benar" : "Pilih nada yang benar"}
           </p> */}
@@ -759,6 +759,17 @@ export default function NadaPracticePage() {
                   >
                     {q.hanzi}
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      speakMandarin(q.hanzi)
+                    }}
+                    className="absolute top-4 right-4 p-2 rounded-full bg-primary/10 hover:bg-primary/20 text-primary transition-colors cursor-pointer"
+                    title="Dengarkan pelafalan"
+                  >
+                    <Volume2 className="h-5 w-5" />
+                  </button>
                 </div>
               </div>
 
@@ -851,13 +862,26 @@ export default function NadaPracticePage() {
                   {q.exampleSentence && (
                     <div className="flex flex-col justify-center gap-1.5 p-4 bg-muted/10">
                       <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        Contoh · penggunaan
+                        Contoh penggunaan:
                       </div>
-                      <div
-                        className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => speakMandarin(q.exampleSentence!)}
-                      >
-                        {q.exampleSentence}
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="font-hanzi text-xl text-foreground cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => speakMandarin(q.exampleSentence!)}
+                        >
+                          {q.exampleSentence}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            speakMandarin(q.exampleSentence!)
+                          }}
+                          className="p-1.5 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                          title="Dengarkan pengucapan"
+                        >
+                          <Volume2 className="h-4 w-4" />
+                        </button>
                       </div>
                       {q.examplePinyin && (
                         <TonePinyin text={q.examplePinyin} className="text-sm text-primary font-medium" />

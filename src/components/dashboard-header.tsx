@@ -196,14 +196,14 @@ export function DashboardHeader() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search"
+            placeholder="Cari Modul, Daftar Kata, Peta Hanzi..."
             value={searchQuery}
             onChange={(e) => {
               handleSearch(e.target.value)
               setSearchOpen(true)
             }}
             onFocus={() => setSearchOpen(true)}
-            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-96'}`}
+            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-[450px]'}`}
           />
           {searchQuery && (
             <button
