@@ -273,11 +273,7 @@ export default function FlashcardDeckPage() {
       >
         <div className="mx-auto w-full max-w-6xl px-4 py-4">
           <Drawer onOpenChange={(open) => { if (open) refreshScores() }} onOpenChangeComplete={(open) => { if (open) refreshScores() }}>
-            <DrawerTrigger
-              render={
-                <Button className="w-full h-7 text-xs" size="sm" variant="secondary" />
-              }
-            >
+            <DrawerTrigger render={<Button className="w-full" size="lg" />}>
               Mulai Latihan
             </DrawerTrigger>
           <DrawerContent>

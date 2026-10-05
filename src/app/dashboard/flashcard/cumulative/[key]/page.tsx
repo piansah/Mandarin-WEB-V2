@@ -205,7 +205,7 @@ export default function CumulativeFlashcardSessionPage() {
           showStats={false}
         />
 
-        <main className="mx-auto w-full max-w-4xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
+        <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
           <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
           {groups.map((group) => (
             <section key={`${group.tag}-${group.label}`}>
@@ -318,10 +318,10 @@ export default function CumulativeFlashcardSessionPage() {
 
         {/* Fixed Footer with Practice Button */}
         <div
-          className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur p-4 transition-[left] duration-200 ease-linear"
+          className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur transition-[left] duration-200 ease-linear"
           style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
         >
-          <div className="mx-auto max-w-4xl">
+          <div className="mx-auto w-full max-w-6xl px-4 py-4">
             <Drawer>
               <DrawerTrigger render={<Button className="w-full" size="lg" />}>
                 Mulai Latihan
