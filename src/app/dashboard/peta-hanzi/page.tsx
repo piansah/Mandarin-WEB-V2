@@ -33,6 +33,7 @@ const MAX_NODES = 80
 type Snapshot = {
   nodes: Map<string, GraphNode>
   edges: GraphEdge[]
+  expandedNodeId: string | null
 }
 
 type DictionaryEntry = { pinyin?: string[]; definition?: string }
@@ -75,6 +76,7 @@ export default function PetaHanziPage() {
     clearDetail()
     setRootChar(null)
     setSearchValue("")
+    setExpandingNodeId(null)
   }
 
   const handleUndo = () => {
@@ -84,7 +86,7 @@ export default function PetaHanziPage() {
     setHistory(history.slice(0, -1))
     setNodes(prev.nodes)
     setEdges(prev.edges)
-    setSelectedNodeId(null)
+    setSelectedNodeId(prev.expandedNodeId)
     clearDetail()
   }
 
@@ -249,6 +251,7 @@ export default function PetaHanziPage() {
     setRootChar(char)
     setSelectedNodeId(null)
     clearDetail()
+    setExpandingNodeId(null)
 
     try {
       const cached = wordCacheRef.current.get(char)
@@ -431,7 +434,7 @@ export default function PetaHanziPage() {
       const n = layouted.get(nodeId)
       if (n) layouted.set(nodeId, { ...n, isLoading: false, isExpanded: true })
 
-      setHistory((h) => [...h, { nodes, edges }])
+      setHistory((h) => [...h, { nodes, edges, expandedNodeId: nodeId }])
 
       setNodes(layouted)
       setEdges(newEdges)

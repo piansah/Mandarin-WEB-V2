@@ -24,9 +24,15 @@ export function HanziPracticeSheet({
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [generatingPdf, setGeneratingPdf] = React.useState(false)
   const [strokeDataMap, setStrokeDataMap] = React.useState<Map<string, string[]>>(new Map())
+  const [charIndex, setCharIndex] = React.useState(0)
 
   const currentWord = words[selectedIndex]
+  const chars = currentWord ? [...currentWord.hanzi] : []
+  const currentChar = chars[charIndex]
   const totalPages = words.reduce((sum, word) => sum + [...word.hanzi].length, 0)
+
+  // Calculate global page index (current page across all words)
+  const globalPageIndex = words.slice(0, selectedIndex).reduce((sum, word) => sum + [...word.hanzi].length, 0) + charIndex + 1
 
   // Pre-fetch stroke data for all characters when words change
   React.useEffect(() => {
@@ -55,17 +61,32 @@ export function HanziPracticeSheet({
   }, [words])
 
   const handlePrev = () => {
-    if (selectedIndex > 0) onSelectedIndexChange(selectedIndex - 1)
+    if (charIndex > 0) {
+      setCharIndex(charIndex - 1)
+    } else if (selectedIndex > 0) {
+      onSelectedIndexChange(selectedIndex - 1)
+      setCharIndex(words[selectedIndex - 1].hanzi.length - 1)
+    }
   }
 
   const handleNext = () => {
-    if (selectedIndex < words.length - 1) onSelectedIndexChange(selectedIndex + 1)
+    if (charIndex < chars.length - 1) {
+      setCharIndex(charIndex + 1)
+    } else if (selectedIndex < words.length - 1) {
+      onSelectedIndexChange(selectedIndex + 1)
+      setCharIndex(0)
+    }
   }
+
+  // Reset char index when word changes
+  React.useEffect(() => {
+    setCharIndex(0)
+  }, [selectedIndex])
 
   // Helper function to render pinyin with tone colors
   const renderPinyinWithTones = (pinyin: string) => {
     if (!pinyin) return ""
-    
+
     // Tone colors
     const toneColors: Record<string, string> = {
       '1': '#e05555',
@@ -74,50 +95,53 @@ export function HanziPracticeSheet({
       '4': '#60a5fa',
       '0': '#7f8c8d',
     }
-    
-    // Map tone numbers to tone marks
-    const toneMarks: Record<string, Record<string, string>> = {
-      'a': { '1': 'ā', '2': 'á', '3': 'ǎ', '4': 'à', '0': 'a' },
-      'e': { '1': 'ē', '2': 'é', '3': 'ě', '4': 'è', '0': 'e' },
-      'i': { '1': 'ī', '2': 'í', '3': 'ǐ', '4': 'ì', '0': 'i' },
-      'o': { '1': 'ō', '2': 'ó', '3': 'ǒ', '4': 'ò', '0': 'o' },
-      'u': { '1': 'ū', '2': 'ú', '3': 'ǔ', '4': 'ù', '0': 'u' },
-      'ü': { '1': 'ǖ', '2': 'ǘ', '3': 'ǚ', '4': 'ǜ', '0': 'ü' },
-      'v': { '1': 'ǖ', '2': 'ǘ', '3': 'ǚ', '4': 'ǜ', '0': 'ü' },
+
+    // Map tone marks to tone numbers
+    const toneFromMark: Record<string, string> = {
+      'ā': '1', 'á': '2', 'ǎ': '3', 'à': '4',
+      'ē': '1', 'é': '2', 'ě': '3', 'è': '4',
+      'ī': '1', 'í': '2', 'ǐ': '3', 'ì': '4',
+      'ō': '1', 'ó': '2', 'ǒ': '3', 'ò': '4',
+      'ū': '1', 'ú': '2', 'ǔ': '3', 'ù': '4',
+      'ǖ': '1', 'ǘ': '2', 'ǚ': '3', 'ǜ': '4',
     }
-    
+
     // Split pinyin by space and process each syllable
     return pinyin.split(' ').map(syllable => {
       // Check if already has tone marks (hǎo, nǐ, etc.)
       if (/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/.test(syllable)) {
-        // Find the vowel with tone mark and color it
-        return syllable.replace(/[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜ]/g, (matched) => {
-          // Map tone mark back to tone number for color
-          const toneFromMark: Record<string, string> = {
-            'ā': '1', 'á': '2', 'ǎ': '3', 'à': '4',
-            'ē': '1', 'é': '2', 'ě': '3', 'è': '4',
-            'ī': '1', 'í': '2', 'ǐ': '3', 'ì': '4',
-            'ō': '1', 'ó': '2', 'ǒ': '3', 'ò': '4',
-            'ū': '1', 'ú': '2', 'ǔ': '3', 'ù': '4',
-            'ǖ': '1', 'ǘ': '2', 'ǚ': '3', 'ǜ': '4',
+        // Find the tone from the marked vowel
+        let tone = '0'
+        for (const [mark, t] of Object.entries(toneFromMark)) {
+          if (syllable.includes(mark)) {
+            tone = t
+            break
           }
-          const tone = toneFromMark[matched] || '0'
-          const color = toneColors[tone] || '#4b5563'
-          return `<span style="color: ${color};">${matched}</span>`
-        })
+        }
+        const color = toneColors[tone] || '#4b5563'
+        return `<span style="color: ${color};">${syllable}</span>`
       }
-      
+
       // Try numbered format (ha3, ni3, etc.)
       const match = syllable.match(/^(.*?)([0-4])$/)
       if (match) {
         const base = match[1]
         const tone = match[2]
         const color = toneColors[tone] || '#4b5563'
-        
+
         // Find the vowel to add tone mark
         const vowelMatch = base.match(/[aeiouüv]/i)
         if (vowelMatch) {
           const vowel = vowelMatch[0].toLowerCase()
+          const toneMarks: Record<string, Record<string, string>> = {
+            'a': { '1': 'ā', '2': 'á', '3': 'ǎ', '4': 'à', '0': 'a' },
+            'e': { '1': 'ē', '2': 'é', '3': 'ě', '4': 'è', '0': 'e' },
+            'i': { '1': 'ī', '2': 'í', '3': 'ǐ', '4': 'ì', '0': 'i' },
+            'o': { '1': 'ō', '2': 'ó', '3': 'ǒ', '4': 'ò', '0': 'o' },
+            'u': { '1': 'ū', '2': 'ú', '3': 'ǔ', '4': 'ù', '0': 'u' },
+            'ü': { '1': 'ǖ', '2': 'ǘ', '3': 'ǚ', '4': 'ǜ', '0': 'ü' },
+            'v': { '1': 'ǖ', '2': 'ǘ', '3': 'ǚ', '4': 'ǜ', '0': 'ü' },
+          }
           const marks = toneMarks[vowel]
           if (marks) {
             const markedVowel = marks[tone] || vowel
@@ -125,10 +149,10 @@ export function HanziPracticeSheet({
             return `<span style="color: ${color};">${marked}</span>`
           }
         }
-        
+
         return `<span style="color: ${color};">${base}</span>`
       }
-      
+
       // No tone info, return as-is
       return syllable
     }).join(' ')
@@ -176,7 +200,7 @@ export function HanziPracticeSheet({
             <div style="border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                  <h2 style="font-size: 14px; font-weight: 600; color: #111827; margin: 0;">LEMBAR LATIHAN MENULIS HANZI</h2>
+                  <h2 style="font-size: 14px; font-weight: 600; color: #111827; margin: 0;">Lembar 田字格</h2>
                   <p style="font-size: 10px; color: #6b7280; margin: 0;">Mandarin Journey</p>
                 </div>
                 <div style="text-align: right;">
@@ -196,10 +220,14 @@ export function HanziPracticeSheet({
           // Word header only on first character of multi-character word
           if (isFirstChar || chars.length === 1) {
             contentHtml += `
-              <div class="text-center mb-8 pb-4" style="border-bottom: 1px solid #e5e7eb;">
-                <h1 class="text-5xl font-hanzi mb-3" style="color: #111827;">${chars.length > 1 ? word.hanzi : char}</h1>
-                <div class="text-xl mb-2" style="color: #4b5563;">${renderPinyinWithTones(word.pinyin || "")}</div>
-                <p style="color: #4b5563;">${word.arti || ""}</p>
+              <div class="mb-8 pb-4" style="border-bottom: 1px solid #e5e7eb;">
+                <div style="display: flex; align-items: flex-start; gap: 16px;">
+                  <h1 class="text-5xl font-hanzi" style="color: #111827; margin: 0;">${chars.length > 1 ? word.hanzi : char}</h1>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="font-size: 18px; color: #4b5563;">${renderPinyinWithTones(word.pinyin || "")}</div>
+                    <p style="color: #4b5563; margin: 0;">${word.arti || ""}</p>
+                  </div>
+                </div>
               </div>
             `
           }
@@ -314,7 +342,7 @@ export function HanziPracticeSheet({
     }
   }
 
-  if (!currentWord) {
+  if (!currentWord || !currentChar) {
     return (
       <Card className="min-h-[600px] flex items-center justify-center">
         <p className="text-muted-foreground">
@@ -323,8 +351,6 @@ export function HanziPracticeSheet({
       </Card>
     )
   }
-
-  const chars = [...currentWord.hanzi]
 
   return (
     <Card className="min-h-[600px] flex flex-col">
@@ -354,19 +380,19 @@ export function HanziPracticeSheet({
             variant="ghost"
             size="sm"
             onClick={handlePrev}
-            disabled={selectedIndex === 0}
+            disabled={selectedIndex === 0 && charIndex === 0}
           >
             <ChevronLeft className="h-4 w-4 mr-1" />
             Sebelumnya
           </Button>
           <span className="text-sm text-muted-foreground">
-            Kata {selectedIndex + 1} dari {words.length}
+            Halaman {globalPageIndex} dari {totalPages} (Kata {selectedIndex + 1} dari {words.length})
           </span>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleNext}
-            disabled={selectedIndex === words.length - 1}
+            disabled={selectedIndex === words.length - 1 && charIndex === chars.length - 1}
           >
             Berikutnya
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -393,39 +419,43 @@ export function HanziPracticeSheet({
             `
           }} />
           {/* Word Header */}
-          <div className="text-center mb-8 pb-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
-            <h1 className="text-5xl font-hanzi mb-3" style={{ color: '#111827' }}>{chars.length > 1 ? currentWord.hanzi : chars[0]}</h1>
-            <div className="text-xl mb-2">
-              <TonePinyin text={currentWord.pinyin || ""} />
+          {charIndex === 0 && (
+            <div className="mb-8 pb-4" style={{ borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+                <h1 className="text-5xl font-hanzi" style={{ color: '#111827', margin: 0 }}>{chars.length > 1 ? currentWord.hanzi : currentChar}</h1>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div className="text-xl">
+                    <TonePinyin text={currentWord.pinyin || ""} />
+                  </div>
+                  <p style={{ color: '#4b5563', margin: 0 }}>{currentWord.arti || ""}</p>
+                </div>
+              </div>
             </div>
-            <p style={{ color: '#4b5563' }}>{currentWord.arti || ""}</p>
+          )}
+
+          {/* Stroke Order for current character */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: '#374151' }}>
+              Urutan goresan · <span className="font-hanzi text-lg">{currentChar}</span>
+            </h3>
+            <StrokeOrderDisplay char={currentChar} />
           </div>
 
-          {/* Stroke Order for each character */}
-          {chars.map((char, charIndex) => (
-            <div key={`${char}-${charIndex}`} className="mb-8">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: '#374151' }}>
-                Urutan goresan · <span className="font-hanzi text-lg">{char}</span>
-              </h3>
-              <StrokeOrderDisplay char={char} />
-            </div>
-          ))}
-
-          {/* Practice Grid for each character */}
-          {chars.map((char, charIndex) => (
-            <div key={`grid-${char}-${charIndex}`} className="mb-8">
-              <h3 className="text-sm font-semibold mb-3" style={{ color: '#374151' }}>
-                Latihan · <span className="font-hanzi text-lg">{char}</span>
-              </h3>
-              <PracticeGrid char={char} showGuide={true} />
-            </div>
-          ))}
+          {/* Practice Grid for current character */}
+          <div className="mb-8">
+            <h3 className="text-sm font-semibold mb-3" style={{ color: '#374151' }}>
+              Latihan · <span className="font-hanzi text-lg">{currentChar}</span>
+            </h3>
+            <PracticeGrid char={currentChar} showGuide={true} />
+          </div>
 
           {/* Footer */}
-          <div className="text-center pt-4" style={{ borderTop: '1px solid #e5e7eb' }}>
-            <div className="font-hanzi text-lg mb-1" style={{ color: '#111827' }}>{currentWord.hanzi}</div>
-            <TonePinyin text={currentWord.pinyin || ""} />
+          <div className="text-left pt-4" style={{ borderTop: '1px solid #e5e7eb' }}>
+            <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0 }}>© 2025 Mandarin Journey</p>
           </div>
+        </div>
+        <div className="mt-3 text-xs text-muted-foreground text-left no-print">
+          Pratinjau menampilkan <strong>satu kata</strong> — klik berikutnya di atas untuk melihat yang lain. Yang tercetak adalah seluruh <strong>{words.length} kata</strong> ({totalPages} halaman). Pilih <strong>Unduh PDF</strong> kalau mau mengerjakannya.
         </div>
       </div>
     </Card>
