@@ -274,14 +274,14 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       if (items.length === 0) return []
 
       // Kelompokkan key berdasarkan tipe untuk batch query
-      const deckIds: number[] = []       // fc_session, nada_session, speaking_session, tulis_session
+      const deckIds: number[] = []       // fc_session, nada_session, speaking_session, tulis_session, quiz
       const hanziKeys: string[] = []     // hanzi
       const kalKeys: string[] = []       // kal
       const grammarKeys: string[] = []   // grammar
       const ceritaKeys: string[] = []    // cerita, cerita_quiz
       const moduleIds: string[] = []     // lesson (key: "module:{id}")
 
-      const FLASHCARD_TYPES = new Set(["fc_session", "nada_session", "speaking_session", "tulis_session"])
+      const FLASHCARD_TYPES = new Set(["fc_session", "nada_session", "speaking_session", "tulis_session", "quiz"])
 
       for (const r of items) {
         if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) deckIds.push(Number(r.key))
