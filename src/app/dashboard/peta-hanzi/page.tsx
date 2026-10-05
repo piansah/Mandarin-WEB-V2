@@ -30,6 +30,9 @@ const WORDS_PER_EXPANSION = 12
 const MAX_EXAMPLES = 5
 const MAX_NODES = 80
 
+// Common Hanzi characters for random picker
+const COMMON_HANZI = ["学", "人", "大", "中", "天", "地", "日", "月", "水", "火", "木", "金", "上", "下", "左", "右", "前", "后", "好", "爱", "心", "手", "口", "目", "耳", "说", "听", "看", "走", "跑", "吃", "喝", "睡", "家", "国", "年", "月", "日", "时", "分", "早", "晚", "春", "夏", "秋", "冬", "花", "草", "树", "山", "河", "海", "风", "雨", "雪", "云"]
+
 type Snapshot = {
   nodes: Map<string, GraphNode>
   edges: GraphEdge[]
@@ -50,7 +53,6 @@ export default function PetaHanziPage() {
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
-  const [expandingNodeId, setExpandingNodeId] = React.useState<string | null>(null)
   const [history, setHistory] = React.useState<Snapshot[]>([])
 
   // Caches
@@ -76,7 +78,6 @@ export default function PetaHanziPage() {
     clearDetail()
     setRootChar(null)
     setSearchValue("")
-    setExpandingNodeId(null)
   }
 
   const handleUndo = () => {
@@ -251,7 +252,6 @@ export default function PetaHanziPage() {
     setRootChar(char)
     setSelectedNodeId(null)
     clearDetail()
-    setExpandingNodeId(null)
 
     try {
       const cached = wordCacheRef.current.get(char)
@@ -353,7 +353,6 @@ export default function PetaHanziPage() {
     if (!node || node.isLeaf || node.isExpanded || node.isLoading) return
 
     const requestId = ++expansionRequestIdRef.current
-    setExpandingNodeId(nodeId)
 
     setNodes(prev => {
       const updated = new Map(prev)
@@ -448,8 +447,15 @@ export default function PetaHanziPage() {
         return updated
       })
     } finally {
-      setExpandingNodeId(null)
+      // done
     }
+  }
+
+  const handleRandomChar = () => {
+    const randomIndex = Math.floor(Math.random() * COMMON_HANZI.length)
+    const randomChar = COMMON_HANZI[randomIndex]
+    setSearchValue(randomChar)
+    handleSearch(randomChar)
   }
 
   return (
@@ -468,37 +474,32 @@ export default function PetaHanziPage() {
         value={searchValue}
         onChange={setSearchValue}
         onSubmit={handleSearch}
+        onRandom={handleRandomChar}
         loading={loading}
       />
 
-      {!rootChar && !loading && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Network className="h-16 w-16 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Masukkan karakter Hanzi untuk memulai</p>
-        </div>
-      )}
-
-      {rootChar && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]">
-          <HanziMapGraph
-            nodes={nodes}
-            edges={edges}
-            selectedNodeId={selectedNodeId}
-            onNodeClick={handleNodeClick}
-            onNodeExpand={handleNodeExpand}
-            onReset={resetGraph}
-            onUndo={handleUndo}
-            canUndo={history.length > 0 && expandingNodeId === null}
-            loading={loading}
-            notFound={nodes.size === 0 && !loading}
-          />
-          <HanziMapDetail
-            selectedWord={selectedWord}
-            examples={examples}
-            loading={examplesLoading}
-          />
-        </div>
-      )}
+      {/* Peta & detail selalu tampil, termasuk sebelum ada karakter yang dicari */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,6fr)_minmax(0,4fr)]">
+        <HanziMapGraph
+          nodes={nodes}
+          edges={edges}
+          selectedNodeId={selectedNodeId}
+          onNodeClick={handleNodeClick}
+          onNodeExpand={handleNodeExpand}
+          onReset={resetGraph}
+          onUndo={handleUndo}
+          onRandom={handleRandomChar}
+          canUndo={history.length > 0}
+          loading={loading}
+          notFound={rootChar !== null && nodes.size === 0 && !loading}
+          maxNodes={MAX_NODES}
+        />
+        <HanziMapDetail
+          selectedWord={selectedWord}
+          examples={examples}
+          loading={examplesLoading}
+        />
+      </div>
     </div>
   )
 }

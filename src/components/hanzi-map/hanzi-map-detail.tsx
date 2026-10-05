@@ -67,17 +67,27 @@ function WordBadge({ word }: { word: VocabularyWord }) {
   return null
 }
 
+/** Tampilan placeholder saat belum ada simpul yang dipilih: satu teks di tengah */
+function DetailPlaceholder() {
+  return (
+    <Card className="min-h-[400px] flex flex-col items-center justify-center gap-3 py-0 overflow-hidden">
+      <span className="font-hanzi text-6xl leading-none select-none text-muted-foreground/30">
+        字
+      </span>
+      <p className="max-w-xs px-6 text-center text-muted-foreground">
+        Cari karakter Hanzi, lalu pilih simpul di peta untuk melihat detail dan contoh kalimat
+      </p>
+    </Card>
+  )
+}
+
 export function HanziMapDetail({
   selectedWord,
   examples,
   loading,
 }: HanziMapDetailProps) {
   if (!selectedWord) {
-    return (
-      <Card className="min-h-[400px] flex items-center justify-center">
-        <p className="text-muted-foreground">Pilih simpul di peta untuk melihat detail</p>
-      </Card>
-    )
+    return <DetailPlaceholder />
   }
 
   return (
