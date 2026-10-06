@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { X } from "lucide-react"
+import { CheckCircle2, RotateCcw, SkipForward } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
@@ -10,13 +10,15 @@ import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
 import styles from "../../[key]/page.module.css"
 
-type RawKalimatQuestion = {
-  section_index: number
+type HanziItem = {
+  id: number
+  section_label: string
+  section_tag: string
   sort_order: number
-  question: string
-  question_type: string | null
-  options: string[]
-  answer_index: number
+  hanzi: string
+  pinyin: string
+  arti: string
+  user_contribution: boolean | null
 }
 
 type QuizQuestion = {
@@ -63,7 +65,7 @@ function ColorPy({ text }: { text: string }) {
 
 function RumpangText({ text }: { text: string }) {
   const parts: Array<{ type: "text" | "blank" | "hz" | "lat"; content: string }> = []
-  let remaining = text.replace(/_{2,}/g, "\x00BLANK\x00")
+  let remaining = text.replace(/_{4,}/g, "\x00BLANK\x00")
 
   while (remaining.length > 0) {
     if (remaining.startsWith("\x00BLANK\x00")) {
@@ -93,31 +95,163 @@ function RumpangText({ text }: { text: string }) {
   })}</span>
 }
 
-function buildKalimatQuiz(rows: RawKalimatQuestion[]): QuizQuestion[] {
+function getRandomItems<T>(arr: T[], count: number): T[] {
+  const shuffled = shuffle([...arr])
+  return shuffled.slice(0, count)
+}
+
+function buildKalimatQuiz(items: HanziItem[]): QuizQuestion[] {
   const all: QuizQuestion[] = []
   let gi = 0
-  for (let section = 1; section <= 4; section++) {
-    const sectionRows = shuffle(rows.filter((row) => row.section_index === section))
-    for (const row of sectionRows) {
-      const indexes = shuffle([0, 1, 2, 3].slice(0, row.options.length))
-      all.push({
-        gi: gi++,
-        si: section - 1,
-        q: row.question,
-        opts: indexes.map((i) => row.options[i]),
-        ans: indexes.indexOf(row.answer_index),
-      })
+
+  // Filter kalimat yang cukup panjang untuk kalimat rumpang (>= 2 kata)
+  const longSentences = items.filter(item => {
+    const words = item.hanzi.match(/[\u4e00-\u9fff\u3400-\u4dbf]+/g) ?? []
+    return words.length >= 2
+  })
+
+  // Kalimat pendek (tidak cocok untuk kalimat rumpang)
+  const shortSentences = items.filter(item => {
+    const words = item.hanzi.match(/[\u4e00-\u9fff\u3400-\u4dbf]+/g) ?? []
+    return words.length < 2
+  })
+
+  // Shuffle masing-masing grup
+  const shuffledLong = shuffle([...longSentences])
+  const shuffledShort = shuffle([...shortSentences])
+
+  // Hitung target per section (1/4 dari total items)
+  const targetPerSection = Math.ceil(items.length / 4)
+
+  // Section 4: Kalimat Rumpang (utamakan kalimat panjang)
+  const section4Items = shuffledLong.slice(0, targetPerSection)
+  for (const item of section4Items) {
+    // Split kalimat menjadi tokens (kata + punctuation) untuk presisi
+    const tokens: { type: 'word' | 'punct', text: string }[] = []
+    let remaining = item.hanzi
+    while (remaining.length > 0) {
+      // Cek punctuation dulu
+      const punctMatch = remaining.match(/^[，。！？、；：,!?;:]+/)
+      if (punctMatch) {
+        tokens.push({ type: 'punct', text: punctMatch[0] })
+        remaining = remaining.slice(punctMatch[0].length)
+        continue
+      }
+      // Cek spasi
+      const spaceMatch = remaining.match(/^\s+/)
+      if (spaceMatch) {
+        tokens.push({ type: 'punct', text: spaceMatch[0] })
+        remaining = remaining.slice(spaceMatch[0].length)
+        continue
+      }
+      // Ambil kata (hanzi characters)
+      const wordMatch = remaining.match(/^[\u4e00-\u9fff\u3400-\u4dbf]+/)
+      if (wordMatch) {
+        tokens.push({ type: 'word', text: wordMatch[0] })
+        remaining = remaining.slice(wordMatch[0].length)
+        continue
+      }
+      // Fallback untuk karakter lain
+      tokens.push({ type: 'punct', text: remaining[0] })
+      remaining = remaining.slice(1)
     }
+
+    const wordTokens = tokens.filter(t => t.type === 'word')
+    if (wordTokens.length < 2) continue // Skip jika kurang dari 2 kata
+
+    // Pilih 1 kata random untuk di-blank
+    const blankIndex = Math.floor(Math.random() * wordTokens.length)
+    const blankToken = wordTokens[blankIndex]
+
+    // Blank kan kata tersebut di token array
+    const blankedTokens = tokens.map(t => 
+      t.type === 'word' && t.text === blankToken.text ? { ...t, text: '____' } : t
+    )
+
+    // Reconstruct kalimat dengan blank
+    const blankedSentence = blankedTokens.map(t => t.text).join('')
+
+    // Generate distractor dari kata-kata lain di set yang sama
+    const allWords = items.flatMap(i => {
+      const t: { type: 'word' | 'punct', text: string }[] = []
+      let r = i.hanzi
+      while (r.length > 0) {
+        const w = r.match(/^[\u4e00-\u9fff\u3400-\u4dbf]+/)
+        if (w) { t.push({ type: 'word', text: w[0] }); r = r.slice(w[0].length) }
+        else { r = r.slice(1) }
+      }
+      return t.filter(x => x.type === 'word').map(x => x.text)
+    })
+    const distractors = getRandomItems(allWords.filter(w => w !== blankToken.text), 3)
+    const options = shuffle([blankToken.text, ...distractors])
+
+    all.push({
+      gi: gi++,
+      si: 3,
+      q: blankedSentence,
+      opts: options,
+      ans: options.indexOf(blankToken.text),
+    })
   }
+
+  // Sisa kalimat panjang + kalimat pendek untuk section 1, 2, 3
+  const remainingLong = shuffledLong.slice(targetPerSection)
+  const remainingItems = shuffle([...remainingLong, ...shuffledShort])
+
+  // Bagi sisa items menjadi 3 chunk untuk section 1, 2, 3
+  const chunkSize13 = Math.ceil(remainingItems.length / 3)
+  const chunk1 = remainingItems.slice(0, chunkSize13)
+  const chunk2 = remainingItems.slice(chunkSize13, chunkSize13 * 2)
+  const chunk3 = remainingItems.slice(chunkSize13 * 2)
+
+  // Section 1: Hanzi → Arti
+  for (const item of chunk1) {
+    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.arti)
+    const options = shuffle([item.arti, ...distractors])
+    all.push({
+      gi: gi++,
+      si: 0,
+      q: item.hanzi,
+      opts: options,
+      ans: options.indexOf(item.arti),
+    })
+  }
+
+  // Section 2: Pinyin → Arti
+  for (const item of chunk2) {
+    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.arti)
+    const options = shuffle([item.arti, ...distractors])
+    all.push({
+      gi: gi++,
+      si: 1,
+      q: item.pinyin,
+      opts: options,
+      ans: options.indexOf(item.arti),
+    })
+  }
+
+  // Section 3: Hanzi → Pinyin
+  for (const item of chunk3) {
+    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.pinyin)
+    const options = shuffle([item.pinyin, ...distractors])
+    all.push({
+      gi: gi++,
+      si: 2,
+      q: item.hanzi,
+      opts: options,
+      ans: options.indexOf(item.pinyin),
+    })
+  }
+
   return all
 }
 
 function getGrade(pct: number, title: string) {
-  if (pct >= 90) return { emoji: "⭐", grade: `Luar Biasa! ${title.split("—")[0].trim()} dikuasai!`, msg: "Penguasaan kalimat sangat baik. Siap lanjut ke level berikutnya!" }
-  if (pct >= 80) return { emoji: "✅", grade: "Bagus! Pemahaman kalimat kuat.", msg: "Hampir sempurna! Review kalimat yang salah lalu lanjut." }
-  if (pct >= 70) return { emoji: "📘", grade: "Cukup Baik — Perlu Sedikit Review", msg: "Review Estafet untuk set ini dulu, lalu coba lagi." }
-  if (pct >= 60) return { emoji: "⚠️", grade: "Perlu Review Lebih Banyak", msg: "Kembali ke Estafet, baca ulang kalimatnya, lalu coba lagi." }
-  return { emoji: "🔄", grade: "Review Lebih Banyak Dulu", msg: "Kembali ke Estafet, lalu coba lagi. Pelan-pelan pasti bisa!" }
+  if (pct >= 90) return { grade: `Luar Biasa! ${title.split("—")[0].trim()} dikuasai!`, msg: "Penguasaan kalimat sangat baik. Siap lanjut ke level berikutnya!" }
+  if (pct >= 80) return { grade: "Bagus! Pemahaman kalimat kuat.", msg: "Hampir sempurna! Review kalimat yang salah lalu lanjut." }
+  if (pct >= 70) return { grade: "Cukup Baik — Perlu Sedikit Review", msg: "Review Estafet untuk set ini dulu, lalu coba lagi." }
+  if (pct >= 60) return { grade: "Perlu Review Lebih Banyak", msg: "Kembali ke Estafet, baca ulang kalimatnya, lalu coba lagi." }
+  return { grade: "Review Lebih Banyak Dulu", msg: "Kembali ke Estafet, lalu coba lagi. Pelan-pelan pasti bisa!" }
 }
 
 export default function CumulativeQuizPracticePage() {
@@ -157,14 +291,14 @@ export default function CumulativeQuizPracticePage() {
       try {
         const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
         const state = saved[key]
-        const savedQ = state?.allQ ?? state?.kalQ
-        const savedAnswered = state?.answered ?? state?.kalAnswered ?? {}
-        // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
+        const savedQ = state?.allQ
+        const savedAnswered = state?.answered ?? {}
+        // Cek apakah data masih valid (dalam 24 jam) atau sudah di-submit (history permanen)
         const hoursDiff = state?.timestamp
           ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
-          : 0 // Fallback ke 0 untuk legacy data agar tidak langsung ter-reset
-        if (Array.isArray(savedQ) && savedQ.length > 0 && !state?.submitted && hoursDiff < 24) {
-          const meta = await supa.from("kalimat_sets").select("title,sub").eq("key", key).single()
+          : 0
+        if (Array.isArray(savedQ) && savedQ.length > 0 && (state?.submitted || hoursDiff < 24)) {
+          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {
             if (meta.data) {
               setQuizTitle(meta.data.title)
@@ -177,33 +311,40 @@ export default function CumulativeQuizPracticePage() {
           }
           return
         }
-        // Data expired atau submitted — hapus entry lama
+        // Data expired dan belum di-submit — hapus entry lama
         if (state) {
           delete saved[key]
           localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
         }
       } catch {}
 
-      const [metaRes, questRes] = await Promise.all([
-        supa.from("kalimat_sets").select("title,sub").eq("key", key).single(),
+      const [metaRes, itemsRes] = await Promise.all([
+        supa.from("hanzi_sets").select("title,sub").eq("key", key).single(),
         supa
-          .from("kalimat_questions")
-          .select("section_index, sort_order, question, question_type, options, answer_index")
-          .eq("kal_key", key)
-          .order("section_index")
-          .order("sort_order"),
+          .from("hanzi_items")
+          .select("id, section_label, section_tag, sort_order, hanzi, pinyin, arti, user_contribution")
+          .eq("hanzi_key", key)
+          .order("sort_order", { ascending: true }),
       ])
 
       if (cancelled) return
-      if (metaRes.error || questRes.error) {
+      if (metaRes.error) {
+        console.error("Error loading hanzi_sets:", metaRes.error)
+        setLoading(false)
+        return
+      }
+      if (itemsRes.error) {
+        console.error("Error loading hanzi_items:", itemsRes.error)
         setLoading(false)
         return
       }
 
-      const built = buildKalimatQuiz((questRes.data ?? []) as RawKalimatQuestion[])
+      console.log("hanzi_items count:", itemsRes.data?.length ?? 0, "for key:", key)
+      const built = buildKalimatQuiz((itemsRes.data ?? []) as HanziItem[])
+      console.log("Quiz generated:", built.length, "questions")
       const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
       // Simpan dengan timestamp agar bisa di-expire setelah 24 jam
-      saved[key] = { allQ: built, kalQ: built, answered: {}, kalAnswered: {}, submitted: false, timestamp: Date.now() }
+      saved[key] = { allQ: built, answered: {}, submitted: false, timestamp: Date.now() }
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
 
       setQuizTitle(metaRes.data.title)
@@ -229,17 +370,15 @@ export default function CumulativeQuizPracticePage() {
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
     if (saved[key]) {
       saved[key].allQ = updatedQ
-      saved[key].kalQ = updatedQ
       saved[key].answered = updatedAns
-      saved[key].kalAnswered = updatedAns
-      saved[key].timestamp = Date.now() // perbarui timestamp agar expiry dihitung dari jawaban terakhir
+      saved[key].timestamp = Date.now()
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
 
     const q = allQ[gi]
     if (q.si !== 1) {
       let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-      if (q.si === 3) speech = speech.replace(/_{2,}/g, q.opts[cor])
+      if (q.si === 3) speech = speech.replace(/_{4,}/g, q.opts[cor])
       speakMandarin(speech)
     }
   }
@@ -248,7 +387,7 @@ export default function CumulativeQuizPracticePage() {
     const q = allQ[gi]
     if (!q || answered[gi] === undefined || q.si === 1) return
     let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-    if (q.si === 3) speech = speech.replace(/_{2,}/g, q.opts[q.ans])
+    if (q.si === 3) speech = speech.replace(/_{4,}/g, q.opts[q.ans])
     speakMandarin(speech)
   }
 
@@ -259,40 +398,138 @@ export default function CumulativeQuizPracticePage() {
       saved[key].submitted = true
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
-    // type "kal" pakai jumlah benar mentah (dari total 60), bukan persentase —
-    // harus sinkron dengan xpFromKalScore di get-user-stats (ambang 48/36 dari 60 soal)
-    saveUserScore("kal", key, totalCorrect).catch(() => {})
+    // Calculate percentage based on answered questions
+    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+    saveUserScore("kal", key, pct).catch(() => {})
   }
 
   function handleRetry() {
+    setAnswered({})
+    setSubmitted(false)
+    // Reset card selectedIdx in allQ
+    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    setAllQ(resetQ)
+    // Scroll to first question card
+    setTimeout(() => {
+      const firstCard = document.getElementById('card-0')
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 100)
+    // Update localStorage
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-    delete saved[key]
-    localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
-    window.location.reload()
+    if (saved[key]) {
+      saved[key].allQ = resetQ
+      saved[key].answered = {}
+      saved[key].submitted = false
+      saved[key].timestamp = Date.now()
+      localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
+    }
+  }
+
+  function handleReset() {
+    setAnswered({})
+    // Reset card selectedIdx in allQ
+    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    setAllQ(resetQ)
+    // Scroll to first question card
+    setTimeout(() => {
+      const firstCard = document.getElementById('card-0')
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 100)
+    // Update localStorage
+    const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
+    if (saved[key]) {
+      saved[key].allQ = resetQ
+      saved[key].answered = {}
+      saved[key].timestamp = Date.now()
+      localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
+    }
   }
 
   if (!loading && submitted) {
     const skip = total - totalAnswered
     const wrong = totalAnswered - totalCorrect
-    const pct = total > 0 ? Math.round((totalCorrect / total) * 100) : 0
-    const { emoji, grade, msg } = getGrade(pct, quizTitle)
+    // Calculate percentage based on answered questions, not total questions
+    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+    const { grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
+    const circumference = 2 * Math.PI * 54
+    const ringOffset = circumference - (pct / 100) * circumference
 
     return (
       <div className={styles.page}>
-        <div className={styles.result}>
-          <div className={styles.resultEmoji}>{emoji}</div>
-          <div style={{ color: pctColor, fontSize: 52, fontWeight: 900 }}>{pct}%</div>
-          <div className={styles.resultGrade}>{grade}</div>
-          <div className={styles.resultMsg}>{msg}</div>
-          <div className={styles.resultStats}>
-            <div className={styles.resultStat}><span className={`${styles.resultStatNum} ${styles.resultScore}`}>{totalCorrect}</span><span className={styles.resultStatLbl}>Benar</span></div>
-            <div className={styles.resultStat}><span className={`${styles.resultStatNum} ${styles.resultWrong}`}>{wrong}</span><span className={styles.resultStatLbl}>Salah</span></div>
-            <div className={styles.resultStat}><span className={`${styles.resultStatNum} ${styles.resultSkip}`}>{skip}</span><span className={styles.resultStatLbl}>Dilewati</span></div>
+        <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+          <div
+            aria-hidden="true"
+            className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
+            style={{
+              fontSize: "16rem",
+              lineHeight: 1,
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            完
           </div>
-          <div className={styles.resultBtns}>
-            <button className={styles.btnBack} onClick={() => router.back()}>Kembali</button>
-            <button className={styles.btnRetry} onClick={handleRetry}>Ulangi</button>
+
+          <div className="flex flex-col items-center gap-1 relative z-10">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
+            <p className="text-sm text-muted-foreground">{total} soal dijawab</p>
+          </div>
+
+          <div className="relative z-10 flex items-center justify-center">
+            <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+              <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+              <circle
+                cx="60" cy="60" r="54" fill="none"
+                stroke={pctColor}
+                strokeWidth="10"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={ringOffset}
+                style={{ transition: "stroke 400ms ease" }}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-2 relative z-10">
+            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+              <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
+              <span className="text-xs text-muted-foreground">Benar</span>
+            </div>
+            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+              <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
+              <span className="text-xs text-muted-foreground">Salah</span>
+            </div>
+            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
+              <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
+              <span className="text-xs text-muted-foreground">Dilewati</span>
+            </div>
+          </div>
+
+          <div className="relative z-10 w-full max-w-xs">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-muted/40 border border-border/40 text-xs text-muted-foreground text-center leading-relaxed">
+              {msg}
+            </div>
+            <div className="flex gap-3">
+              <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={handleRetry}>Ulangi</button>
+            </div>
           </div>
         </div>
       </div>
@@ -395,7 +632,10 @@ export default function CumulativeQuizPracticePage() {
             <div className={styles.liveTxt}>{totalAnswered} / {total} dijawab</div>
             <div className={styles.liveScore}>{totalCorrect} benar</div>
           </div>
-          <button className={styles.submitBtn} onClick={handleSubmit}>Selesai</button>
+          <div className="flex gap-2">
+            <button className={styles.resetBtn} onClick={handleReset}>Ulangi</button>
+            {!submitted && <button className={styles.submitBtn} onClick={handleSubmit}>Selesai</button>}
+          </div>
         </div>
       </div>
     </div>
@@ -435,7 +675,7 @@ function QuizCard({
             if (i === q.ans) optClass += isCorrect ? ` ${styles.optCorrect}` : ` ${styles.optShowCorrect}`
             else if (i === q.selectedIdx && !isCorrect) optClass += ` ${styles.optWrong}`
           }
-          const optText = q.si === 3 && (q.q.match(/_{2,}/g) || []).length >= 2 ? opt.split(" ").join("，") : opt
+          const optText = q.si === 3 && (q.q.match(/_{4,}/g) || []).length >= 2 ? opt.split(" ").join("，") : opt
           const optContent = q.si === 2 ? <ColorPy text={optText} /> : optText
 
           return (

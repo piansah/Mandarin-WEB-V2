@@ -197,18 +197,18 @@ export default function QuizPage() {
       let initialAnswered: Answered = {}
       let initialSubmitted = false
 
-      // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
+      // Cek apakah data masih valid (dalam 24 jam) atau sudah di-submit (history permanen)
       const hoursDiff = existingQuiz?.timestamp
         ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
         : 0
 
-      if (existingQuiz && !existingQuiz.submitted && hoursDiff < 24) {
-        // Restore from localStorage — sesi belum selesai dan masih dalam 24 jam
+      if (existingQuiz && (existingQuiz.submitted || hoursDiff < 24)) {
+        // Restore dari localStorage — sesi belum selesai dalam 24 jam, atau sudah selesai (history permanen)
         internalQuiz = existingQuiz.allQ
         initialAnswered = existingQuiz.answered ?? {}
         initialSubmitted = existingQuiz.submitted ?? false
       } else {
-        // Generate new quiz (sesi baru atau sudah expired/submitted)
+        // Generate new quiz (sesi baru dan belum ada data atau expired)
         if (existingQuiz) delete savedState[storageKey]
         const generatedQuiz = generateQuizFromCards(cards)
         internalQuiz = convertToInternalQuiz(generatedQuiz)
@@ -273,32 +273,72 @@ export default function QuizPage() {
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
     if (saved[storageKey]) { saved[storageKey].submitted = true; localStorage.setItem("hsk_quiz_state", JSON.stringify(saved)) }
-    // Calculate percentage
-    const pct = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+    // Calculate percentage based on answered questions
+    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     saveUserScore("quiz", key, pct).catch(() => {})
-    // Clear localStorage after successful submission
-    setTimeout(() => {
-      const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-      delete saved[storageKey]
-      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
-    }, 1000)
+    // Keep localStorage for permanent history (don't delete)
   }
 
   /* ── Retry quiz ── */
   function handleRetry() {
+    setAnswered({})
+    setSubmitted(false)
+    // Reset card selectedIdx in allQ
+    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    setAllQ(resetQ)
+    // Scroll to first question card
+    setTimeout(() => {
+      const firstCard = document.getElementById('card-0')
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 100)
+    // Update localStorage
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    delete saved[storageKey]
-    localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
-    // Reload page to regenerate quiz
-    window.location.reload()
+    if (saved[storageKey]) {
+      saved[storageKey].allQ = resetQ
+      saved[storageKey].answered = {}
+      saved[storageKey].submitted = false
+      saved[storageKey].timestamp = Date.now()
+      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
+    }
+  }
+
+  /* ── Reset quiz (clear answers, keep quiz data) ── */
+  function handleReset() {
+    setAnswered({})
+    // Reset card selectedIdx in allQ
+    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    setAllQ(resetQ)
+    // Scroll to first question card
+    setTimeout(() => {
+      const firstCard = document.getElementById('card-0')
+      if (firstCard) {
+        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    }, 100)
+    // Update localStorage
+    const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
+    const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
+    if (saved[storageKey]) {
+      saved[storageKey].allQ = resetQ
+      saved[storageKey].answered = {}
+      saved[storageKey].timestamp = Date.now()
+      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
+    }
   }
 
   /* ── Result screen ── */
   if (!loading && submitted) {
     const skip = totalQuestions - totalAnswered
     const wrong = totalAnswered - totalCorrect
-    const pct = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+    // Calculate percentage based on answered questions, not total questions
+    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     const { emoji, grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
@@ -478,6 +518,7 @@ export default function QuizPage() {
                     return (
                       <div
                         key={q.gi}
+                        id={`card-${q.gi}`}
                         className={`${styles.qCard} ${cardStateClass}`}
                       >
                         <div className={styles.qTop}>
@@ -540,13 +581,24 @@ export default function QuizPage() {
             <div className={styles.liveTxt}>{totalAnswered} / {totalQuestions} dijawab</div>
             <div className={styles.liveScore}>{totalCorrect} benar</div>
           </div>
-          <button
-            type="button"
-            className={styles.submitBtn}
-            onClick={handleSubmit}
-          >
-            Selesai
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={styles.resetBtn}
+              onClick={handleReset}
+            >
+              Ulangi
+            </button>
+            {!submitted && (
+              <button
+                type="button"
+                className={styles.submitBtn}
+                onClick={handleSubmit}
+              >
+                Selesai
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

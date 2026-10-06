@@ -232,8 +232,9 @@
 }
 .qRumpang {
   font-family: var(--font-hanzi);
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1.2;
   color: var(--c-rumpang);
 }
 
@@ -253,7 +254,7 @@
   margin: 0 4px 4px;
   background: rgba(66, 214, 164, .6);
   border-radius: 2px;
-  vertical-align: middle;
+  vertical-align: baseline;
 }
 
 /* ── Options ── */
@@ -364,6 +365,20 @@
 }
 .submitBtn:hover { opacity: 0.88; }
 .submitBtn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+.resetBtn {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  border: 1.5px solid var(--c-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--c-text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.resetBtn:hover { border-color: rgba(248,113,113,.5); background: rgba(248,113,113,.05); }
 
 /* ── Result screen ── */
 .result {
@@ -375,7 +390,10 @@
   padding: 40px 24px 60px;
   gap: 24px;
   text-align: center;
+  background: var(--c-bg);
   animation: resultEnter 520ms cubic-bezier(.22,1,.36,1) both;
+  position: relative;
+  overflow: hidden;
 }
 .resultEmoji {
   font-size: 72px;
@@ -395,7 +413,7 @@
   padding: 18px 12px;
   border: 1px solid var(--c-border);
   border-radius: 14px;
-  background: var(--c-card);
+  background: var(--c-card) !important;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -508,4 +526,10 @@
   --c-result-msg: #8ab3d0;
   --c-back-border: #17344a;
   --c-back-text: #9db1c4;
+}
+:global(.dark) .resultStat {
+  background: #091928;
+}
+:global(.dark) .result {
+  background: #061523;
 }

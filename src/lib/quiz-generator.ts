@@ -97,15 +97,8 @@ function generateHanziToPinyin(cards: Card[]): QuizQuestion[] {
 }
 
 /**
- * Generate soal Lengkapi Kalimat Rumpang (20 soal)
- * Hanya untuk deck kelipatan 3
- * Menggunakan sistem yang sama dengan estafet: kalimat_questions dari database
- */
-
-
-/**
  * Generate quiz dari kartu-kartu deck
- * 
+ *
  * @param cards - Kartu-kartu kosakata deck
  * @returns Array soal quiz (dinamis menyesuaikan jumlah deck)
  */

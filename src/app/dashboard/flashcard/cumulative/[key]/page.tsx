@@ -65,9 +65,7 @@ export default function CumulativeFlashcardSessionPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
   // Quiz Kalimat Kumulatif dulu punya menu & daftar sendiri (/dashboard/quiz/review),
-  // sekarang dipindah jadi salah satu opsi latihan di sini — dipasangkan dengan
-  // set kalimat (kalimat_sets) yang HSK level & urutannya sama dengan set hanzi ini.
-  // null = belum dicek / tidak ada quiz kalimat yang sepadan untuk set ini.
+  // sekarang dipindah jadi salah satu opsi latihan di sini — menggunakan hanzi_sets yang sama.
   const [quizKey, setQuizKey] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -95,12 +93,8 @@ export default function CumulativeFlashcardSessionPage() {
         return
       }
 
-      const kalimatResult = await supa
-        .from("kalimat_sets")
-        .select("key")
-        .eq("hsk_level", setResult.data.hsk_level)
-        .eq("sort_order", setResult.data.sort_order)
-        .maybeSingle()
+      // Quiz estafet sekarang menggunakan hanzi_sets yang sama (tidak perlu kalimat_sets)
+      const quizKey = key // Hanzi set key yang sama digunakan untuk quiz
 
       if (cancelled) return
 
@@ -110,7 +104,7 @@ export default function CumulativeFlashcardSessionPage() {
 
       setSet(setResult.data)
       setItems(itemsResult.data ?? [])
-      setQuizKey(kalimatResult.data?.key ?? null)
+      setQuizKey(quizKey)
       setStateById(restored)
       
       // Batch-check which items have been reported by user (single query)

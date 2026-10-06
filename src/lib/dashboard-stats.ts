@@ -275,8 +275,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
       // Kelompokkan key berdasarkan tipe untuk batch query
       const deckIds: number[] = []       // fc_session, nada_session, speaking_session, tulis_session, quiz
-      const hanziKeys: string[] = []     // hanzi
-      const kalKeys: string[] = []       // kal
+      const hanziKeys: string[] = []     // hanzi, kal (kalimat sekarang menggunakan hanzi_sets)
       const grammarKeys: string[] = []   // grammar
       const ceritaKeys: string[] = []    // cerita, cerita_quiz
       const moduleIds: string[] = []     // lesson (key: "module:{id}")
@@ -285,8 +284,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
       for (const r of items) {
         if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) deckIds.push(Number(r.key))
-        else if (r.type === "hanzi") hanziKeys.push(r.key)
-        else if (r.type === "kal") kalKeys.push(r.key)
+        else if (r.type === "hanzi" || r.type === "kal") hanziKeys.push(r.key)
         else if (r.type === "grammar") grammarKeys.push(r.key)
         else if (r.type === "cerita" || r.type === "cerita_quiz") ceritaKeys.push(r.key)
         else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
@@ -295,15 +293,12 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       }
 
       // Batch queries paralel
-      const [deckRows, hanziRows, kalRows, grammarRows, ceritaRows, moduleRows] = await Promise.all([
+      const [deckRows, hanziRows, grammarRows, ceritaRows, moduleRows] = await Promise.all([
         deckIds.length > 0
           ? supa.from("flashcard_sets").select("id, title").in("id", deckIds)
           : Promise.resolve({ data: [] }),
         hanziKeys.length > 0
           ? supa.from("hanzi_sets").select("key, title").in("key", hanziKeys)
-          : Promise.resolve({ data: [] }),
-        kalKeys.length > 0
-          ? supa.from("kalimat_sets").select("key, title").in("key", kalKeys)
           : Promise.resolve({ data: [] }),
         grammarKeys.length > 0
           ? supa.from("grammar_patterns").select("key, title").in("key", grammarKeys)
@@ -328,7 +323,6 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         ;(rows.data ?? []).forEach((r: { key: string; title: string }) => { keyTitleMap[r.key] = r.title })
       }
       mapRows(hanziRows as { data: { key: string; title: string }[] })
-      mapRows(kalRows as { data: { key: string; title: string }[] })
       mapRows(grammarRows as { data: { key: string; title: string }[] })
       mapRows(ceritaRows as { data: { key: string; title: string }[] })
 
