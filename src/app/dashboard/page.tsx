@@ -311,7 +311,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="mx-auto w-full max-w-6xl px-6 py-6">
         <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
       </div>
     )
@@ -319,14 +319,14 @@ export default function DashboardPage() {
 
   if (!stats) {
     return (
-      <div className="flex flex-col gap-6 p-6">
+      <div className="mx-auto w-full max-w-6xl px-6 py-6">
         <p className="text-sm text-muted-foreground">Kamu belum login.</p>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="mx-auto w-full max-w-6xl px-6 py-6 flex flex-col gap-6">
       <style dangerouslySetInnerHTML={{
         __html: `
         @keyframes flame-pop {
@@ -353,7 +353,7 @@ export default function DashboardPage() {
           <span className="font-extrabold text-foreground capitalize">{stats.displayName.toLowerCase()}</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground mt-0.5">
-          Siap lanjut belajar Mandarin hari ini?
+          Ayo lanjutkan perjalanan belajar Mandarinmu!
         </p>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-primary border-primary/30 bg-primary/5">
@@ -368,7 +368,7 @@ export default function DashboardPage() {
       {/* Grid Atas: Streak & Review SRS (30/70) */}
       <div className="grid gap-6 lg:grid-cols-[4fr_6fr] relative">
         {/* Ambient Glow background for the grid */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden -mx-6">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full" />
           <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full" />
         </div>
