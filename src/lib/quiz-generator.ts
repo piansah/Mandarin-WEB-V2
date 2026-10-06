@@ -2,9 +2,8 @@ import { shuffle } from "@/lib/array-utils"
 
 export type QuizQuestion = {
   id: string
-  type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin" | "kalimat-rumpang"
+  type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin"
   question: string
-  questionExtra?: string // Untuk kalimat rumpang: kalimat lengkap
   correct: string
   options: string[]
 }
@@ -16,28 +15,7 @@ export type Card = {
   arti: string
 }
 
-export type HanziItem = {
-  id: number
-  hanzi_key: string
-  section_label: string
-  section_tag: string
-  sort_order: number
-  hanzi: string
-  pinyin: string
-  arti: string
-}
 
-/**
- * Cek apakah hanzi_key adalah kelipatan 3
- * Contoh: h3, h6, h9, h12 → true
- * Contoh: h1, h2, h4, h5 → false
- */
-function isMultipleOfThreeKey(hanziKey: string): boolean {
-  const match = hanziKey.match(/^h(\d+)$/i)
-  if (!match) return false
-  const num = parseInt(match[1])
-  return num % 3 === 0
-}
 
 /**
  * Generate distractor (jawaban salah) dari kartu lain
@@ -65,25 +43,15 @@ function generatePinyinDistractors(
   return shuffled.slice(0, count).map(c => c.pinyin)
 }
 
-/**
- * Generate distractor untuk hanzi (kalimat rumpang)
- */
-function generateHanziDistractors(
-  correct: string,
-  allItems: HanziItem[],
-  count: number
-): string[] {
-  const others = allItems.filter(i => i.hanzi !== correct)
-  const shuffled = shuffle(others)
-  return shuffled.slice(0, count).map(i => i.hanzi)
-}
+
 
 /**
- * Generate soal Hanzi → Arti (20 soal)
+ * Generate soal Hanzi → Arti (dinamis menyesuaikan jumlah deck)
  */
 function generateHanziToArti(cards: Card[]): QuizQuestion[] {
   const shuffled = shuffle(cards)
-  const selected = shuffled.slice(0, 20)
+  // Ambil semua cards, bukan slice 20
+  const selected = shuffled
 
   return selected.map((card, idx) => ({
     id: `hanzi-arti-${idx}`,
@@ -95,11 +63,12 @@ function generateHanziToArti(cards: Card[]): QuizQuestion[] {
 }
 
 /**
- * Generate soal Pinyin → Arti (20 soal)
+ * Generate soal Pinyin → Arti (dinamis menyesuaikan jumlah deck)
  */
 function generatePinyinToArti(cards: Card[]): QuizQuestion[] {
   const shuffled = shuffle(cards)
-  const selected = shuffled.slice(0, 20)
+  // Ambil semua cards, bukan slice 20
+  const selected = shuffled
 
   return selected.map((card, idx) => ({
     id: `pinyin-arti-${idx}`,
@@ -111,11 +80,12 @@ function generatePinyinToArti(cards: Card[]): QuizQuestion[] {
 }
 
 /**
- * Generate soal Hanzi → Pinyin (20 soal)
+ * Generate soal Hanzi → Pinyin (dinamis menyesuaikan jumlah deck)
  */
 function generateHanziToPinyin(cards: Card[]): QuizQuestion[] {
   const shuffled = shuffle(cards)
-  const selected = shuffled.slice(0, 20)
+  // Ambil semua cards, bukan slice 20
+  const selected = shuffled
 
   return selected.map((card, idx) => ({
     id: `hanzi-pinyin-${idx}`,
@@ -129,50 +99,23 @@ function generateHanziToPinyin(cards: Card[]): QuizQuestion[] {
 /**
  * Generate soal Lengkapi Kalimat Rumpang (20 soal)
  * Hanya untuk deck kelipatan 3
+ * Menggunakan sistem yang sama dengan estafet: kalimat_questions dari database
  */
-function generateSentenceFill(hanziItems: HanziItem[]): QuizQuestion[] {
-  const shuffled = shuffle(hanziItems)
-  const selected = shuffled.slice(0, 20)
 
-  return selected.map((item, idx) => {
-    // Buat kalimat dengan blank (ganti hanzi dengan ___)
-    const blankedSentence = item.hanzi.replace(new RegExp(item.hanzi, 'g'), '___')
-
-    return {
-      id: `kalimat-rumpang-${idx}`,
-      type: "kalimat-rumpang" as const,
-      question: blankedSentence,
-      questionExtra: item.hanzi, // Kalimat lengkap untuk referensi
-      correct: item.hanzi,
-      options: shuffle([item.hanzi, ...generateHanziDistractors(item.hanzi, hanziItems, 3)]),
-    }
-  })
-}
 
 /**
  * Generate quiz dari kartu-kartu deck
  * 
  * @param cards - Kartu-kartu kosakata deck
- * @param hanziKey - Key hanzi (opsional, untuk cek kelipatan 3)
- * @param hanziItems - Item hanzi untuk kalimat rumpang (opsional)
- * @returns Array soal quiz
+ * @returns Array soal quiz (dinamis menyesuaikan jumlah deck)
  */
-export function generateQuizFromCards(
-  cards: Card[],
-  hanziKey?: string,
-  hanziItems?: HanziItem[]
-): QuizQuestion[] {
+export function generateQuizFromCards(cards: Card[]): QuizQuestion[] {
   const quiz: QuizQuestion[] = []
 
-  // 3 tipe soal dasar (selalu ada)
-  quiz.push(...generateHanziToArti(cards))      // 20 soal
-  quiz.push(...generatePinyinToArti(cards))    // 20 soal
-  quiz.push(...generateHanziToPinyin(cards))    // 20 soal
-
-  // Kalimat rumpang hanya jika kelipatan 3 dan ada hanziItems
-  if (hanziKey && isMultipleOfThreeKey(hanziKey) && hanziItems && hanziItems.length > 0) {
-    quiz.push(...generateSentenceFill(hanziItems)) // 20 soal
-  }
+  // 3 tipe soal dasar (selalu ada) - masing-masing menggunakan semua cards
+  quiz.push(...generateHanziToArti(cards))
+  quiz.push(...generatePinyinToArti(cards))
+  quiz.push(...generateHanziToPinyin(cards))
 
   return shuffle(quiz)
 }

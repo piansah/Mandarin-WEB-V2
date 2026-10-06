@@ -9,26 +9,26 @@ import { Button } from "@/components/ui/button"
 import { PracticeHeader } from "@/components/practice-header"
 import { PageLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
-import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card, type HanziItem } from "@/lib/quiz-generator"
+import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card } from "@/lib/quiz-generator"
 import { shuffle } from "@/lib/array-utils"
 import styles from "./page.module.css"
 
 /* ── Types ── */
-type QuizSection = 0 | 1 | 2 | 3
+type QuizSection = 0 | 1 | 2
 
 type QuizQuestion = {
   gi: number          // global index
-  si: number          // section index (0-3)
+  si: number          // section index (0-2)
   q: string           // question text
   opts: string[]      // shuffled options
   ans: number         // correct option index (after shuffle)
   selectedIdx?: number
-  type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin" | "kalimat-rumpang"
+  type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin"
 }
 
 type Answered = Record<number, boolean> // gi → correct?
 
-type TabId = "all" | 0 | 1 | 2 | 3
+type TabId = "all" | 0 | 1 | 2
 
 /* ── Tone-coloring (inline, no extra import needed) ── */
 const toneMapC: Record<string, string> = {
@@ -53,46 +53,13 @@ function ColorPy({ text }: { text: string }) {
 }
 
 /* ── Rumpang renderer ── */
-function RumpangText({ text }: { text: string }) {
-  const parts: Array<{ type: "text" | "blank" | "hz" | "lat"; content: string }> = []
-  let remaining = text.replace(/_{2,}/g, "\x00BLANK\x00")
 
-  while (remaining.length > 0) {
-    if (remaining.startsWith("\x00BLANK\x00")) {
-      parts.push({ type: "blank", content: "" })
-      remaining = remaining.slice("\x00BLANK\x00".length)
-    } else {
-      const hzMatch = remaining.match(/^[\u4e00-\u9fff\u3400-\u4dbf\uff01-\uff5e\u3001-\u303f\u300c-\u300f]+/)
-      const latMatch = remaining.match(/^\(([^)]+)\)/)
-      if (hzMatch) {
-        parts.push({ type: "hz", content: hzMatch[0] })
-        remaining = remaining.slice(hzMatch[0].length)
-      } else if (latMatch) {
-        parts.push({ type: "lat", content: latMatch[1] })
-        remaining = remaining.slice(latMatch[0].length)
-      } else {
-        parts.push({ type: "text", content: remaining[0] })
-        remaining = remaining.slice(1)
-      }
-    }
-  }
-
-  return <span className={styles.qRumpang}>
-    {parts.map((p, i) => {
-      if (p.type === "blank") return <span key={i} className={styles.blank} />
-      if (p.type === "hz") return <span key={i} className={styles.hz}>{p.content}</span>
-      if (p.type === "lat") return <span key={i} className={styles.lat}>({p.content})</span>
-      return <span key={i}>{p.content}</span>
-    })}
-  </span>
-}
 
 /* ── Section metadata ── */
 const SECTION_META = [
   { label: "1", title: "Hanzi → Arti Indonesia", sub: "Hanzi → pilih arti Indonesia" },
   { label: "2", title: "Pinyin → Arti Indonesia", sub: "Pinyin berwarna → pilih arti" },
   { label: "3", title: "Hanzi → Pilih Pinyin",   sub: "Hanzi → Pilih Pinyin yang tepat" },
-  { label: "4", title: "Kalimat Rumpang",         sub: "Pilih kata yang tepat untuk melengkapi" },
 ]
 
 /* ── Grade helper ── */
@@ -111,7 +78,6 @@ function convertToInternalQuiz(generated: GeneratedQuizQuestion[]): QuizQuestion
       "hanzi-arti": 0,
       "pinyin-arti": 1,
       "hanzi-pinyin": 2,
-      "kalimat-rumpang": 3,
     }
     const si = sectionMap[q.type] ?? 0
     const shuffledOptions = shuffle(q.options)
@@ -161,10 +127,10 @@ export default function QuizPage() {
   const totalQuestions = allQ.length
   const progress = totalQuestions > 0 ? (totalAnswered / totalQuestions) * 100 : 0
 
-  // Bagian soal yang benar-benar punya soal (bisa < 4 kalau deck bukan kelipatan 3)
+  // Bagian soal yang benar-benar punya soal
   const availableSections = React.useMemo<QuizSection[]>(() => {
     const present = new Set(allQ.map(q => q.si))
-    return ([0, 1, 2, 3] as QuizSection[]).filter(si => present.has(si))
+    return ([0, 1, 2] as QuizSection[]).filter(si => present.has(si))
   }, [allQ])
 
   /* ── Load quiz from generated data ── */
@@ -178,8 +144,6 @@ export default function QuizPage() {
       let cards: Card[] = []
       let deckTitle = ""
       let deckSub = ""
-      let hanziKey: string | undefined = undefined
-      let hanziItems: HanziItem[] = []
 
       if (isPersonal) {
         // Load from personal_cards — sama pola dengan deck reguler di bawah:
@@ -220,20 +184,6 @@ export default function QuizPage() {
           const parts = [setData.data.description, setData.data.hsk_level ? `HSK ${setData.data.hsk_level}` : null].filter(Boolean)
           deckSub = parts.join(" - ")
         }
-
-        // Try to get hanzi_key (for multiple of 3 check)
-        // Assuming deck ID maps to hanzi_key like: deck 3 -> h3, deck 6 -> h6, etc.
-        if (deckId % 3 === 0) {
-          hanziKey = `h${deckId}`
-          // Load hanzi_items for sentence fill
-          const { data: items } = await supa
-            .from("hanzi_items")
-            .select("id, hanzi_key, section_label, section_tag, sort_order, hanzi, pinyin, arti")
-            .eq("hanzi_key", hanziKey)
-            .order("sort_order")
-
-          hanziItems = items ?? []
-        }
       }
 
       if (cancelled) return
@@ -250,7 +200,7 @@ export default function QuizPage() {
       // Cek apakah data masih valid (dalam 24 jam) dan belum di-submit
       const hoursDiff = existingQuiz?.timestamp
         ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
-        : 0 // Fallback ke 0 untuk legacy data agar tidak langsung ter-reset
+        : 0
 
       if (existingQuiz && !existingQuiz.submitted && hoursDiff < 24) {
         // Restore from localStorage — sesi belum selesai dan masih dalam 24 jam
@@ -260,7 +210,7 @@ export default function QuizPage() {
       } else {
         // Generate new quiz (sesi baru atau sudah expired/submitted)
         if (existingQuiz) delete savedState[storageKey]
-        const generatedQuiz = generateQuizFromCards(cards, hanziKey, hanziItems)
+        const generatedQuiz = generateQuizFromCards(cards)
         internalQuiz = convertToInternalQuiz(generatedQuiz)
 
         // Save to localStorage dengan timestamp
@@ -509,7 +459,7 @@ export default function QuizPage() {
                   </div>
                 </div>
                 <div className={styles.sectionBody}>
-                  {sq.map((q) => {
+                  {sq.map((q, idx) => {
                     const isAnswered = answered[q.gi] !== undefined
                     const isCorrect = answered[q.gi]
                     const cardStateClass = isAnswered
@@ -531,6 +481,7 @@ export default function QuizPage() {
                         className={`${styles.qCard} ${cardStateClass}`}
                       >
                         <div className={styles.qTop}>
+                          <div className={styles.qNum}>{idx + 1}</div>
                           <div className={styles.qText}>
                             <div
                               className={`${qTextClass} ${canReplay ? styles.qCardReplay : ""}`}
@@ -538,7 +489,7 @@ export default function QuizPage() {
                               role={canReplay ? "button" : undefined}
                               aria-label={canReplay ? "Putar ulang lafal" : undefined}
                             >
-                              {q.si === 1 ? <ColorPy text={q.q} /> : q.si === 3 ? <RumpangText text={q.q} /> : q.q}
+                              {q.si === 1 ? <ColorPy text={q.q} /> : q.q}
                             </div>
                           </div>
                           {isAnswered && q.si !== 1 && (
