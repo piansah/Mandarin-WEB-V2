@@ -286,15 +286,6 @@ export default function QuizPage() {
     // Reset card selectedIdx in allQ
     const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
     setAllQ(resetQ)
-    // Scroll to first question card
-    setTimeout(() => {
-      const firstCard = document.getElementById('card-0')
-      if (firstCard) {
-        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    }, 100)
     // Update localStorage
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
@@ -306,6 +297,21 @@ export default function QuizPage() {
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     }
   }
+
+  // Scroll ke soal pertama setelah kembali dari result screen
+  React.useEffect(() => {
+    if (!submitted && allQ.length > 0) {
+      const timer = setTimeout(() => {
+        const firstCard = document.getElementById('card-0')
+        if (firstCard) {
+          firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [submitted, allQ.length])
 
   /* ── Reset quiz (clear answers, keep quiz data) ── */
   function handleReset() {

@@ -164,7 +164,7 @@ function buildKalimatQuiz(items: HanziItem[]): QuizQuestion[] {
     const blankToken = wordTokens[blankIndex]
 
     // Blank kan kata tersebut di token array
-    const blankedTokens = tokens.map(t => 
+    const blankedTokens = tokens.map(t =>
       t.type === 'word' && t.text === blankToken.text ? { ...t, text: '____' } : t
     )
 
@@ -339,9 +339,7 @@ export default function CumulativeQuizPracticePage() {
         return
       }
 
-      console.log("hanzi_items count:", itemsRes.data?.length ?? 0, "for key:", key)
       const built = buildKalimatQuiz((itemsRes.data ?? []) as HanziItem[])
-      console.log("Quiz generated:", built.length, "questions")
       const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
       // Simpan dengan timestamp agar bisa di-expire setelah 24 jam
       saved[key] = { allQ: built, answered: {}, submitted: false, timestamp: Date.now() }
@@ -409,15 +407,6 @@ export default function CumulativeQuizPracticePage() {
     // Reset card selectedIdx in allQ
     const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
     setAllQ(resetQ)
-    // Scroll to first question card
-    setTimeout(() => {
-      const firstCard = document.getElementById('card-0')
-      if (firstCard) {
-        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    }, 100)
     // Update localStorage
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
     if (saved[key]) {
@@ -429,20 +418,40 @@ export default function CumulativeQuizPracticePage() {
     }
   }
 
+  // Scroll ke kartu pertama yang benar-benar tampil di layar (bukan card-0),
+  // karena gi Bagian 4 dibuat lebih dulu sehingga card-0 ada di Bagian 4.
+  function scrollToFirstQuestion() {
+    // Scroll ke posisi 0 (bukan scrollIntoView) supaya kartu pertama tidak
+    // tertutup header sticky. Cari ancestor yang benar-benar bisa di-scroll.
+    const firstCard = document.querySelector<HTMLElement>('[id^="card-"]')
+    let el: HTMLElement | null = firstCard?.parentElement ?? null
+    while (el && el !== document.body) {
+      const { overflowY } = getComputedStyle(el)
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+        el.scrollTo({ top: 0, behavior: "smooth" })
+        break
+      }
+      el = el.parentElement
+    }
+    // Selalu scroll window juga (aman kalau window yang scroll)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  // Scroll ke soal pertama setelah dibuka / kembali dari result screen
+  React.useEffect(() => {
+    if (!submitted && allQ.length > 0) {
+      const timer = setTimeout(scrollToFirstQuestion, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [submitted, allQ.length])
+
   function handleReset() {
     setAnswered({})
     // Reset card selectedIdx in allQ
     const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
     setAllQ(resetQ)
-    // Scroll to first question card
-    setTimeout(() => {
-      const firstCard = document.getElementById('card-0')
-      if (firstCard) {
-        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    }, 100)
+    // Scroll to first question card (soal 1 Bagian 1)
+    setTimeout(scrollToFirstQuestion, 100)
     // Update localStorage
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
     if (saved[key]) {
@@ -453,12 +462,13 @@ export default function CumulativeQuizPracticePage() {
     }
   }
 
+  /* ── Result screen ── */
   if (!loading && submitted) {
     const skip = total - totalAnswered
     const wrong = totalAnswered - totalCorrect
     // Calculate percentage based on answered questions, not total questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
-    const { grade, msg } = getGrade(pct, quizTitle)
+    const { msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
     const ringOffset = circumference - (pct / 100) * circumference
@@ -536,6 +546,7 @@ export default function CumulativeQuizPracticePage() {
     )
   }
 
+  /* ── Loading ── */
   if (loading) {
     return (
       <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
@@ -547,6 +558,7 @@ export default function CumulativeQuizPracticePage() {
     )
   }
 
+  /* ── Error (empty) ── */
   if (allQ.length === 0) {
     return (
       <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", flexDirection: "column", gap: 16 }}>
@@ -557,84 +569,114 @@ export default function CumulativeQuizPracticePage() {
     )
   }
 
+  /* ── Main Quiz ── */
   const visibleSections = [0, 1, 2, 3].filter(si => activeTab === "all" || activeTab === si)
 
   return (
     <div className={styles.page}>
-      <PracticeHeader
-        title={quizTitle || "Quiz Kumulatif"}
-        subtitle={quizSub}
-        progress={progress}
-        rightContent={`${totalCorrect}/${totalAnswered}`}
-      />
+      {/* Wrapper flex sama seperti halaman quiz biasa */}
+      <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
+        <PracticeHeader
+          title={quizTitle || "Quiz Kumulatif"}
+          subtitle={quizSub}
+          progress={progress}
+          rightContent={`${totalCorrect}/${totalAnswered}`}
+          showStats={false}
+        />
 
-      <div ref={filterRef} className={styles.filterWrap}>
-        <button
-          type="button"
-          className={styles.filterBtn}
-          onClick={() => setFilterOpen(o => !o)}
-          aria-haspopup="listbox"
-          aria-expanded={filterOpen}
-        >
-          {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
-            <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-        {filterOpen && (
-          <div className={styles.filterMenu} role="listbox">
-            {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
-              <button
-                key={String(t)}
-                type="button"
-                role="option"
-                aria-selected={activeTab === t}
-                className={`${styles.filterItem} ${activeTab === t ? styles.filterItemActive : ""}`}
-                onClick={() => { setActiveTab(t); setFilterOpen(false) }}
-              >
-                {lbl}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className={styles.main}>
-        {visibleSections.map(si => {
-          const sq = allQ.filter(q => q.si === si)
-          if (!sq.length) return null
-          const previousCount = allQ.filter(q => q.si < si).length
-          const offset = activeTab === "all" ? previousCount : 0
-          const meta = SECTION_META[si]
-
-          return (
-            <React.Fragment key={si}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionNum}>{meta.label}</div>
-                <div>
-                  <div className={styles.sectionTitle}>{meta.title}</div>
-                  <div className={styles.sectionSub}>{meta.sub}</div>
-                </div>
-                <div className={styles.sectionRange}>
-                  {activeTab === "all" ? `${previousCount + 1}–${previousCount + sq.length}` : `1–${sq.length}`}
-                </div>
-              </div>
-
-              {sq.map((q, li) => (
-                <QuizCard key={q.gi} q={q} num={offset + li + 1} isAnswered={answered[q.gi] !== undefined} isCorrect={answered[q.gi]} onSelect={sel => selectAns(q.gi, sel, q.ans)} onReplay={() => replayQuestion(q.gi)} />
+        <div ref={filterRef} className={styles.filterWrap}>
+          <button
+            type="button"
+            className={styles.filterBtn}
+            onClick={() => setFilterOpen(o => !o)}
+            aria-haspopup="listbox"
+            aria-expanded={filterOpen}
+          >
+            {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {filterOpen && (
+            <div className={styles.filterMenu} role="listbox">
+              {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
+                <button
+                  key={String(t)}
+                  type="button"
+                  role="option"
+                  aria-selected={activeTab === t}
+                  className={`${styles.filterItem} ${activeTab === t ? styles.filterItemActive : ""}`}
+                  onClick={() => { setActiveTab(t); setFilterOpen(false) }}
+                >
+                  {lbl}
+                </button>
               ))}
-            </React.Fragment>
-          )
-        })}
+            </div>
+          )}
+        </div>
 
+        <div className={styles.main}>
+          {visibleSections.map(si => {
+            const sq = allQ.filter(q => q.si === si)
+            if (!sq.length) return null
+            const previousCount = allQ.filter(q => q.si < si).length
+            const offset = activeTab === "all" ? previousCount : 0
+            const meta = SECTION_META[si]
+
+            return (
+              <React.Fragment key={si}>
+                <div className={styles.sectionHeader}>
+                  <div className={styles.sectionNum}>{meta.label}</div>
+                  <div>
+                    <div className={styles.sectionTitle}>{meta.title}</div>
+                    <div className={styles.sectionSub}>{meta.sub}</div>
+                  </div>
+                  <div className={styles.sectionRange}>
+                    {activeTab === "all" ? `${previousCount + 1}–${previousCount + sq.length}` : `1–${sq.length}`}
+                  </div>
+                </div>
+
+                {sq.map((q, li) => (
+                  <QuizCard
+                    key={q.gi}
+                    q={q}
+                    num={offset + li + 1}
+                    isAnswered={answered[q.gi] !== undefined}
+                    isCorrect={answered[q.gi]}
+                    onSelect={sel => selectAns(q.gi, sel, q.ans)}
+                    onReplay={() => replayQuestion(q.gi)}
+                  />
+                ))}
+              </React.Fragment>
+            )
+          })}
+        </div>
+
+        {/* submitPanel dipindah keluar dari .main (sama seperti halaman quiz biasa) */}
         <div className={styles.submitPanel}>
           <div className={styles.liveInfo}>
             <div className={styles.liveTxt}>{totalAnswered} / {total} dijawab</div>
             <div className={styles.liveScore}>{totalCorrect} benar</div>
           </div>
-          <div className="flex gap-2">
-            <button className={styles.resetBtn} onClick={handleReset}>Ulangi</button>
-            {!submitted && <button className={styles.submitBtn} onClick={handleSubmit}>Selesai</button>}
+          <div className="flex gap-2 w-full">
+            <button
+              type="button"
+              className={styles.resetBtn}
+              style={{ flex: 1, minWidth: 0 }}
+              onClick={handleReset}
+            >
+              Ulangi
+            </button>
+            {!submitted && (
+              <button
+                type="button"
+                className={styles.submitBtn}
+                style={{ flex: 1, minWidth: 0 }}
+                onClick={handleSubmit}
+              >
+                Selesai
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -660,17 +702,22 @@ function QuizCard({
       <div className={styles.qTop}>
         <span className={styles.qNum}>{num}</span>
         <div className={styles.qText}>
-          {q.si === 0 && <div className={styles.qHanzi}>{q.q}</div>}
-          {q.si === 1 && <div className={styles.qPinyin}><ColorPy text={q.q} /></div>}
-          {q.si === 2 && <div className={styles.qHanzi}>{q.q}</div>}
-          {q.si === 3 && <RumpangText text={q.q} />}
+          {/* Semua bagian memakai gaya yang sama dengan Bagian 4 (RumpangText / qRumpang) */}
+          {(q.si === 0 || q.si === 2 || q.si === 3) && <RumpangText text={q.q} />}
+          {q.si === 1 && (
+            <span className={styles.qRumpang}>
+              {/* Bagian 2: sedikit lebih kecil (relatif ke ukuran qRumpang) dan italic */}
+              <span style={{ fontSize: "0.88em", fontStyle: "italic" }}>
+                <ColorPy text={q.q} />
+              </span>
+            </span>
+          )}
         </div>
       </div>
 
       <div className={styles.options}>
         {q.opts.map((opt, i) => {
-          let optClass = styles.opt
-          if (q.si === 3) optClass += ` ${styles.optHanzi}`
+          let optClass = `${styles.opt} ${styles.optHanzi}`
           if (isAnswered) {
             if (i === q.ans) optClass += isCorrect ? ` ${styles.optCorrect}` : ` ${styles.optShowCorrect}`
             else if (i === q.selectedIdx && !isCorrect) optClass += ` ${styles.optWrong}`

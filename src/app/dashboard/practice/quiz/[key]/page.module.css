@@ -220,7 +220,7 @@
 .qText { flex: 1; line-height: 1.5; }
 .qHanzi {
   font-family: var(--font-hanzi);
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 400;
   color: var(--c-hanzi);
   line-height: 1.2;
@@ -232,7 +232,7 @@
 }
 .qRumpang {
   font-family: var(--font-hanzi);
-  font-size: 36px;
+  font-size: 28px;
   font-weight: 400;
   line-height: 1.2;
   color: var(--c-rumpang);
@@ -492,10 +492,13 @@
   .submitPanel {
     align-items: stretch;
     flex-direction: column;
+    gap: 10px;
   }
   .submitBtn { width: 100%; }
+  .resetBtn { width: 100%; }
   .options { grid-template-columns: 1fr; }
-  .qHanzi { font-size: 30px; }
+  .qHanzi { font-size: 24px; }
+  .qRumpang { font-size: 24px; }
 }
 
 /* ── Dark mode overrides ── */
