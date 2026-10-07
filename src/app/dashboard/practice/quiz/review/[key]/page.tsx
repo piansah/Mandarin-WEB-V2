@@ -41,12 +41,12 @@ const SECTION_META = [
 ]
 
 const toneMapC: Record<string, string> = {
-  ā:"tone1",á:"tone2",ǎ:"tone3",à:"tone4",
-  ē:"tone1",é:"tone2",ě:"tone3",è:"tone4",
-  ī:"tone1",í:"tone2",ǐ:"tone3",ì:"tone4",
-  ō:"tone1",ó:"tone2",ǒ:"tone3",ò:"tone4",
-  ū:"tone1",ú:"tone2",ǔ:"tone3",ù:"tone4",
-  ǖ:"tone1",ǘ:"tone2",ǚ:"tone3",ǜ:"tone4",
+  ā: "tone1", á: "tone2", ǎ: "tone3", à: "tone4",
+  ē: "tone1", é: "tone2", ě: "tone3", è: "tone4",
+  ī: "tone1", í: "tone2", ǐ: "tone3", ì: "tone4",
+  ō: "tone1", ó: "tone2", ǒ: "tone3", ò: "tone4",
+  ū: "tone1", ú: "tone2", ǔ: "tone3", ù: "tone4",
+  ǖ: "tone1", ǘ: "tone2", ǚ: "tone3", ǜ: "tone4",
 }
 
 function splitPy(word: string) {
@@ -316,7 +316,7 @@ export default function CumulativeQuizPracticePage() {
           delete saved[key]
           localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
         }
-      } catch {}
+      } catch { }
 
       const [metaRes, itemsRes] = await Promise.all([
         supa.from("hanzi_sets").select("title,sub").eq("key", key).single(),
@@ -398,7 +398,7 @@ export default function CumulativeQuizPracticePage() {
     }
     // Calculate percentage based on answered questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
-    saveUserScore("kal", key, pct).catch(() => {})
+    saveUserScore("kal", key, pct).catch(() => { })
   }
 
   function handleRetry() {
@@ -490,9 +490,9 @@ export default function CumulativeQuizPracticePage() {
             完
           </div>
 
-          <div className="flex flex-col items-center gap-1 relative z-10">
-            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi Selesai!</h2>
-            <p className="text-sm text-muted-foreground">{total} soal dijawab</p>
+          <div className="flex flex-col items-center gap-1 relative z-10 text-center px-2">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center">Sesi Selesai!</h2>
+            <p className="text-sm text-muted-foreground text-center">{total} soal dijawab</p>
           </div>
 
           <div className="relative z-10 flex items-center justify-center">
@@ -594,7 +594,7 @@ export default function CumulativeQuizPracticePage() {
           >
             {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           {filterOpen && (

@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { RotateCcw, SkipForward, CheckCircle2, Volume2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
-import { Button } from "@/components/ui/button"
 import { PracticeHeader } from "@/components/practice-header"
 import { PageLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
@@ -32,12 +31,12 @@ type TabId = "all" | 0 | 1 | 2
 
 /* ── Tone-coloring (inline, no extra import needed) ── */
 const toneMapC: Record<string, string> = {
-  ā:"tone1",á:"tone2",ǎ:"tone3",à:"tone4",
-  ē:"tone1",é:"tone2",ě:"tone3",è:"tone4",
-  ī:"tone1",í:"tone2",ǐ:"tone3",ì:"tone4",
-  ō:"tone1",ó:"tone2",ǒ:"tone3",ò:"tone4",
-  ū:"tone1",ú:"tone2",ǔ:"tone3",ù:"tone4",
-  ǖ:"tone1",ǘ:"tone2",ǚ:"tone3",ǜ:"tone4",
+  ā: "tone1", á: "tone2", ǎ: "tone3", à: "tone4",
+  ē: "tone1", é: "tone2", ě: "tone3", è: "tone4",
+  ī: "tone1", í: "tone2", ǐ: "tone3", ì: "tone4",
+  ō: "tone1", ó: "tone2", ǒ: "tone3", ò: "tone4",
+  ū: "tone1", ú: "tone2", ǔ: "tone3", ù: "tone4",
+  ǖ: "tone1", ǘ: "tone2", ǚ: "tone3", ǜ: "tone4",
 }
 function splitPy(word: string) {
   return word.match(/[bpmfdtnlgkhjqxzcsryw]{0,2}[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜaeiouü]+(?:ng?|r)?/gi) ?? [word]
@@ -52,23 +51,53 @@ function ColorPy({ text }: { text: string }) {
   })}</>
 }
 
-/* ── Rumpang renderer ── */
+/* ── Teks soal bergaya sama dengan quiz kumulatif (qRumpang + hz) ── */
+function RumpangText({ text }: { text: string }) {
+  const parts: Array<{ type: "text" | "blank" | "hz" | "lat"; content: string }> = []
+  let remaining = text.replace(/_{4,}/g, "\x00BLANK\x00")
 
+  while (remaining.length > 0) {
+    if (remaining.startsWith("\x00BLANK\x00")) {
+      parts.push({ type: "blank", content: "" })
+      remaining = remaining.slice("\x00BLANK\x00".length)
+    } else {
+      const hzMatch = remaining.match(/^[\u4e00-\u9fff\u3400-\u4dbf\uff01-\uff5e\u3001-\u303f\u300c-\u300f]+/)
+      const latMatch = remaining.match(/^\(([^)]+)\)/)
+      if (hzMatch) {
+        parts.push({ type: "hz", content: hzMatch[0] })
+        remaining = remaining.slice(hzMatch[0].length)
+      } else if (latMatch) {
+        parts.push({ type: "lat", content: latMatch[1] })
+        remaining = remaining.slice(latMatch[0].length)
+      } else {
+        parts.push({ type: "text", content: remaining[0] })
+        remaining = remaining.slice(1)
+      }
+    }
+  }
+
+  return <span className={styles.qRumpang}>{parts.map((p, i) => {
+    if (p.type === "blank") return <span key={i} className={styles.blank} />
+    if (p.type === "hz") return <span key={i} className={styles.hz}>{p.content}</span>
+    if (p.type === "lat") return <span key={i} className={styles.lat}>({p.content})</span>
+    return <span key={i}>{p.content}</span>
+  })}</span>
+}
 
 /* ── Section metadata ── */
 const SECTION_META = [
   { label: "1", title: "Hanzi → Arti Indonesia", sub: "Hanzi → pilih arti Indonesia" },
   { label: "2", title: "Pinyin → Arti Indonesia", sub: "Pinyin berwarna → pilih arti" },
-  { label: "3", title: "Hanzi → Pilih Pinyin",   sub: "Hanzi → Pilih Pinyin yang tepat" },
+  { label: "3", title: "Hanzi → Pilih Pinyin", sub: "Hanzi → Pilih Pinyin yang tepat" },
 ]
 
 /* ── Grade helper ── */
 function getGrade(pct: number, title: string) {
   if (pct >= 90) return { emoji: "⭐", grade: `Luar Biasa! ${title.split("—")[0].trim()} dikuasai!`, msg: "Penguasaan hari ini sangat baik. Gas lanjut!" }
   if (pct >= 80) return { emoji: "✅", grade: "Bagus! Fondasi kuat.", msg: "Hampir sempurna! Review soal yang salah, lalu lanjut." }
-  if (pct >= 70) return { emoji: "📘", grade: "Cukup Baik — Perlu Sedikit Review", msg: "Sudah cukup! Review Pleco dulu lalu coba lagi. Target 80%+." }
-  if (pct >= 60) return { emoji: "⚠️", grade: "Perlu Review Lebih Banyak", msg: "Review modul dan Pleco 15 menit dulu. Coba lagi!" }
-  return { emoji: "🔄", grade: "Review Dulu Sebelum Lanjut", msg: "Kembali ke modul, review Pleco, lalu coba lagi. Pelan-pelan pasti bisa!" }
+  if (pct >= 70) return { emoji: "📘", grade: "Cukup Baik — Perlu Sedikit Review", msg: "Sudah cukup! Review flashcard deck ini dulu lalu coba lagi. Target 80%+." }
+  if (pct >= 60) return { emoji: "⚠️", grade: "Perlu Review Lebih Banyak", msg: "Review modul dan flashcard deck ini 15 menit dulu. Coba lagi!" }
+  return { emoji: "🔄", grade: "Review Dulu Sebelum Lanjut", msg: "Kembali ke modul, review flashcard deck ini, lalu coba lagi. Pelan-pelan pasti bisa!" }
 }
 
 /* ── Convert generated quiz to internal format ── */
@@ -275,7 +304,7 @@ export default function QuizPage() {
     if (saved[storageKey]) { saved[storageKey].submitted = true; localStorage.setItem("hsk_quiz_state", JSON.stringify(saved)) }
     // Calculate percentage based on answered questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
-    saveUserScore("quiz", key, pct).catch(() => {})
+    saveUserScore("quiz", key, pct).catch(() => { })
     // Keep localStorage for permanent history (don't delete)
   }
 
@@ -298,17 +327,27 @@ export default function QuizPage() {
     }
   }
 
-  // Scroll ke soal pertama setelah kembali dari result screen
+  // Scroll ke posisi paling atas (soal 1 Bagian 1). Tidak memakai card-0 /
+  // scrollIntoView supaya kartu pertama tidak tertutup header sticky.
+  // Cari ancestor yang benar-benar bisa di-scroll, lalu scroll window juga.
+  function scrollToFirstQuestion() {
+    const firstCard = document.querySelector<HTMLElement>('[id^="card-"]')
+    let el: HTMLElement | null = firstCard?.parentElement ?? null
+    while (el && el !== document.body) {
+      const { overflowY } = getComputedStyle(el)
+      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+        el.scrollTo({ top: 0, behavior: "smooth" })
+        break
+      }
+      el = el.parentElement
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  // Scroll ke soal pertama setelah dibuka / kembali dari result screen
   React.useEffect(() => {
     if (!submitted && allQ.length > 0) {
-      const timer = setTimeout(() => {
-        const firstCard = document.getElementById('card-0')
-        if (firstCard) {
-          firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        } else {
-          window.scrollTo({ top: 0, behavior: 'smooth' })
-        }
-      }, 300)
+      const timer = setTimeout(scrollToFirstQuestion, 300)
       return () => clearTimeout(timer)
     }
   }, [submitted, allQ.length])
@@ -320,14 +359,7 @@ export default function QuizPage() {
     const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
     setAllQ(resetQ)
     // Scroll to first question card
-    setTimeout(() => {
-      const firstCard = document.getElementById('card-0')
-      if (firstCard) {
-        firstCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' })
-      }
-    }, 100)
+    setTimeout(scrollToFirstQuestion, 100)
     // Update localStorage
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
@@ -345,7 +377,7 @@ export default function QuizPage() {
     const wrong = totalAnswered - totalCorrect
     // Calculate percentage based on answered questions, not total questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
-    const { emoji, grade, msg } = getGrade(pct, quizTitle)
+    const { grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
     const ringOffset = circumference - (pct / 100) * circumference
@@ -368,9 +400,9 @@ export default function QuizPage() {
               完
             </div>
 
-            <div className="flex flex-col items-center gap-1 relative z-10">
-              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{grade}</h2>
-              <p className="text-sm text-muted-foreground">{msg}</p>
+            <div className="flex flex-col items-center gap-1 relative z-10 text-center px-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center">{grade}</h2>
+              <p className="text-sm text-muted-foreground text-center">{msg}</p>
             </div>
 
             <div className="relative z-10 flex items-center justify-center">
@@ -423,7 +455,7 @@ export default function QuizPage() {
   /* ── Loading ── */
   if (loading) {
     return (
-      <div className={styles.page}>
+      <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
         <PageLoader />
       </div>
     )
@@ -464,7 +496,7 @@ export default function QuizPage() {
           >
             {activeTab === "all" ? "Semua Bagian" : `Bagian ${(activeTab as number) + 1}`}
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: filterOpen ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }}>
-              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
           {filterOpen && (
@@ -513,11 +545,7 @@ export default function QuizPage() {
                         ? styles.qCardCorrect
                         : styles.qCardWrong
                       : ""
-                    const qTextClass =
-                      q.si === 0 || q.si === 2 ? styles.qHanzi
-                      : q.si === 1 ? styles.qPinyin
-                      : styles.qRumpang
-                    // Soal berbasis hanzi (Hanzi→Arti, Hanzi→Pinyin, Kalimat Rumpang): tap teksnya buat putar ulang TTS, setelah terjawab
+                    // Soal berbasis hanzi (Hanzi→Arti, Hanzi→Pinyin): tap teksnya buat putar ulang TTS, setelah terjawab
                     const isHanziQuestion = q.si === 0 || q.si === 2 || q.si === 3
                     const canReplay = isAnswered && isHanziQuestion
 
@@ -531,12 +559,22 @@ export default function QuizPage() {
                           <div className={styles.qNum}>{idx + 1}</div>
                           <div className={styles.qText}>
                             <div
-                              className={`${qTextClass} ${canReplay ? styles.qCardReplay : ""}`}
+                              className={canReplay ? styles.qCardReplay : undefined}
                               onClick={canReplay ? () => replayQuestion(q.gi) : undefined}
                               role={canReplay ? "button" : undefined}
                               aria-label={canReplay ? "Putar ulang lafal" : undefined}
                             >
-                              {q.si === 1 ? <ColorPy text={q.q} /> : q.q}
+                              {/* Gaya sama dengan quiz kumulatif: semua bagian memakai qRumpang */}
+                              {q.si === 1 ? (
+                                <span className={styles.qRumpang}>
+                                  {/* Bagian 2: sedikit lebih kecil dan italic */}
+                                  <span style={{ fontSize: "0.88em", fontStyle: "italic" }}>
+                                    <ColorPy text={q.q} />
+                                  </span>
+                                </span>
+                              ) : (
+                                <RumpangText text={q.q} />
+                              )}
                             </div>
                           </div>
                           {isAnswered && q.si !== 1 && (
@@ -564,7 +602,7 @@ export default function QuizPage() {
                                 key={oi}
                                 type="button"
                                 disabled={isAnswered}
-                                className={`${styles.opt} ${optStateClass}`}
+                                className={`${styles.opt} ${styles.optHanzi} ${optStateClass}`}
                                 onClick={() => selectAns(q.gi, oi, q.ans)}
                               >
                                 <span className={styles.optLbl}>{String.fromCharCode(65 + oi)}</span>
@@ -587,10 +625,11 @@ export default function QuizPage() {
             <div className={styles.liveTxt}>{totalAnswered} / {totalQuestions} dijawab</div>
             <div className={styles.liveScore}>{totalCorrect} benar</div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full">
             <button
               type="button"
               className={styles.resetBtn}
+              style={{ flex: 1, minWidth: 0 }}
               onClick={handleReset}
             >
               Ulangi
@@ -599,6 +638,7 @@ export default function QuizPage() {
               <button
                 type="button"
                 className={styles.submitBtn}
+                style={{ flex: 1, minWidth: 0 }}
                 onClick={handleSubmit}
               >
                 Selesai
