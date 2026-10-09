@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Poppins, ZCOOL_XiaoWei } from "next/font/google";
+import { Noto_Sans_SC, Poppins, ZCOOL_XiaoWei, Ma_Shan_Zheng, Long_Cang } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -23,6 +23,22 @@ const notoSansSC = Noto_Sans_SC({
 
 const zcoolXiaoWei = ZCOOL_XiaoWei({
   variable: "--font-zcool-xiao-wei",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const maShanZheng = Ma_Shan_Zheng({
+  variable: "--font-ma-shan-zheng",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+  adjustFontFallback: false,
+});
+
+const longCang = Long_Cang({
+  variable: "--font-long-cang",
   subsets: ["latin"],
   weight: ["400"],
   display: "swap",
@@ -57,7 +73,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body
-        className={`${poppins.variable} ${notoSansSC.variable} ${zcoolXiaoWei.variable} antialiased min-h-screen bg-background font-sans overflow-x-hidden`}
+        className={`${poppins.variable} ${notoSansSC.variable} ${zcoolXiaoWei.variable} ${maShanZheng.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans overflow-x-hidden`}
         suppressHydrationWarning
       >
         <ThemeProvider

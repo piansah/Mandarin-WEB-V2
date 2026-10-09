@@ -23,7 +23,7 @@ function SpeakerButton({ text, className = "" }: { text: string; className?: str
       aria-label={`Dengarkan ${text}`}
       title="Dengarkan"
       onClick={() => speakMandarin(text)}
-      className={`absolute top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-primary active:bg-muted/70 cursor-pointer ${className}`}
+      className={`absolute top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-transparent text-muted-foreground transition-colors hover:text-primary cursor-pointer ${className}`}
     >
       <Volume2 className="h-4 w-4" />
     </button>

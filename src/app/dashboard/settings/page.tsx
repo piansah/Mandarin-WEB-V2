@@ -208,7 +208,7 @@ export default function SettingsPage() {
               >
                 <div className="flex items-center gap-4">
                   <div className="font-hanzi text-3xl" style={{
-                    fontFamily: selectedHanziFont === font.value ? FONT_FAMILY_VALUES[font.value as keyof typeof FONT_FAMILY_VALUES] : 'var(--font-hanzi)'
+                    fontFamily: FONT_FAMILY_VALUES[font.value as keyof typeof FONT_FAMILY_VALUES]
                   }}>
                     {font.sample}
                   </div>
