@@ -91,7 +91,7 @@ export default function GrammarPatternsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: { rows: GrammarPattern[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
       })
@@ -101,9 +101,9 @@ export default function GrammarPatternsPage() {
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert("Gagal menambahkan grammar pattern")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
@@ -126,9 +126,9 @@ export default function GrammarPatternsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: { rows: GrammarPattern[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingPattern?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: GrammarPattern) => row.id === editingPattern?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
@@ -136,9 +136,9 @@ export default function GrammarPatternsPage() {
       setEditingPattern(null)
       setFormData(EMPTY_FORM)
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert("Gagal mengupdate grammar pattern")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
@@ -163,19 +163,19 @@ export default function GrammarPatternsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-patterns"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-patterns"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-patterns"] }, (old: { rows: GrammarPattern[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingPattern?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: GrammarPattern) => row.id !== deletingPattern?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => {
       setDeletingPattern(null)
     },
-    onError: (err: Error, _v: unknown, context: any) => {
+    onError: (err: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setDeletingPattern(null)
       setBlockingAlert({ message: `Gagal menghapus: ${err.message}` })
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-patterns"] }),
   })
@@ -342,7 +342,7 @@ export default function GrammarPatternsPage() {
           <Card className="w-full max-w-md">
             <CardHeader><CardTitle className="text-destructive">Hapus Grammar Pattern</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus grammar pattern ini?</p>
+              <p className="text-sm text-muted-foreground">Apakah Kamu yakin ingin menghapus grammar pattern ini?</p>
               <div className="p-3 bg-muted rounded-md space-y-1">
                 <p className="text-sm font-medium">Title: {deletingPattern.title}</p>
                 <p className="text-sm">Slug: {deletingPattern.slug}</p>

@@ -113,14 +113,14 @@ export default function ModulModulePartsPage() {
   const totalRows = data?.total || 0
 
   const addMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: ModulModulePart) => {
       const { error } = await supa.from("modul_module_parts").insert(payload)
       if (error) throw error
     },
-    onMutate: async (payload: any) => {
+    onMutate: async (payload: ModulModulePart) => {
       await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
-      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: { rows: ModulModulePart[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...payload }, ...old.rows], total: old.total + 1 }
       })
@@ -133,25 +133,25 @@ export default function ModulModulePartsPage() {
       setVocabCards([]); setVocabMode("simple")
       setKalimatCards([]); setKalimatMode("simple")
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul modul part")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
   })
 
   const editMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: ModulModulePart) => {
       if (!editingPart) return
       const { error } = await supa.from("modul_module_parts").update(payload).eq("id", editingPart.id)
       if (error) throw error
     },
-    onMutate: async (payload: any) => {
+    onMutate: async (payload: ModulModulePart) => {
       await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
-      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: { rows: ModulModulePart[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingPart?.id ? { ...row, ...payload } : row) }
+        return { ...old, rows: old.rows.map((row: ModulModulePart) => row.id === editingPart?.id ? { ...row, ...payload } : row) }
       })
       return { previousData }
     },
@@ -163,9 +163,9 @@ export default function ModulModulePartsPage() {
       setVocabCards([]); setVocabMode("simple")
       setKalimatCards([]); setKalimatMode("simple")
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul modul part")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
   })
@@ -183,17 +183,17 @@ export default function ModulModulePartsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
-      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: { rows: ModulModulePart[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingPart?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulModulePart) => row.id !== deletingPart?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingPart(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingPart(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-module-parts"] }),
   })
@@ -719,7 +719,7 @@ export default function ModulModulePartsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus part ini?
+                  Apakah Kamu yakin ingin menghapus part ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Title: {deletingPart.title}</p>

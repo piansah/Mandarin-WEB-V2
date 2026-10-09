@@ -83,16 +83,16 @@ export default function HanziItemsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-items"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-items"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: { rows: HanziItem[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: Date.now(), ...formData }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (e: Error, _v: unknown, context: any) => {
+    onError: (e: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(e.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-items"] }),
   })
@@ -106,16 +106,16 @@ export default function HanziItemsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-items"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-items"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: { rows: HanziItem[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingItem?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: HanziItem) => row.id === editingItem?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingItem(null); setFormData(EMPTY_FORM) },
-    onError: (e: Error, _v: unknown, context: any) => {
+    onError: (e: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(e.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-items"] }),
   })
@@ -129,16 +129,16 @@ export default function HanziItemsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-items"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-items"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-items"] }, (old: { rows: HanziItem[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingItem?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: HanziItem) => row.id !== deletingItem?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingItem(null) },
-    onError: (e: Error, _v: unknown, context: any) => {
+    onError: (e: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(e.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-items"] }),
   })
@@ -284,7 +284,7 @@ export default function HanziItemsPage() {
           <Card className="w-full max-w-md">
             <CardHeader><CardTitle className="text-destructive">Hapus Hanzi Item</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus hanzi item ini?</p>
+              <p className="text-sm text-muted-foreground">Apakah Kamu yakin ingin menghapus hanzi item ini?</p>
               <div className="p-3 bg-muted rounded-md"><p className="text-sm font-medium">Hanzi: {deletingItem.hanzi}</p><p className="text-sm">Pinyin: {deletingItem.pinyin}</p></div>
               <p className="text-xs text-destructive">Tindakan ini tidak dapat dibatalkan.</p>
               <div className="flex gap-2 justify-end">

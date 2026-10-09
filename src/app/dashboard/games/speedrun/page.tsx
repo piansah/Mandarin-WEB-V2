@@ -251,7 +251,7 @@ export default function SpeedrunGamePage() {
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight">Flashcard Speedrun</h1>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Uji refleks dan seberapa cepat Anda mengingat! Jawab sebanyak mungkin flashcard dengan benar dalam waktu 60 detik.
+              Uji refleks dan seberapa cepat kamu mengingat! Jawab sebanyak mungkin flashcard dengan benar dalam waktu 60 detik.
             </p>
             <div className="text-muted-foreground text-sm font-medium mb-2">Pilih level HSK untuk mulai bermain:</div>
 

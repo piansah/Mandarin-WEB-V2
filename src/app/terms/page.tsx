@@ -15,7 +15,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">1. Penerimaan Ketentuan</h2>
             <p className="leading-relaxed">
-              Dengan mengakses dan menggunakan aplikasi Journey Learning, Anda menyetujui untuk terikat oleh Ketentuan Layanan ini. Jika Anda tidak setuju dengan ketentuan apa pun, Anda dilarang menggunakan atau mengakses aplikasi ini.
+              Dengan mengakses dan menggunakan aplikasi Journey Learning, kamu menyetujui untuk terikat oleh Ketentuan Layanan ini. Jika kamu tidak setuju dengan ketentuan apa pun, kamu dilarang menggunakan atau mengakses aplikasi ini.
             </p>
           </section>
 
@@ -25,16 +25,16 @@ export default function TermsPage() {
               Journey Learning menyediakan platform pembelajaran bahasa Mandarin menggunakan sistem flashcard dan pengulangan berkala (spaced repetition).
             </p>
             <ul className="list-disc pl-5 space-y-2">
-              <li>Anda setuju untuk menggunakan layanan ini hanya untuk tujuan pembelajaran pribadi dan non-komersial.</li>
-              <li>Anda bertanggung jawab atas menjaga kerahasiaan akun login Google Anda yang tertaut dengan layanan ini.</li>
-              <li>Anda tidak diperbolehkan menggunakan layanan ini untuk tindakan yang melanggar hukum atau mengganggu server kami.</li>
+              <li>Kamu setuju untuk menggunakan layanan ini hanya untuk tujuan pembelajaran pribadi dan non-komersial.</li>
+              <li>Kamu bertanggung jawab atas menjaga kerahasiaan akun login Google kamu yang tertaut dengan layanan ini.</li>
+              <li>Kamu tidak diperbolehkan menggunakan layanan ini untuk tindakan yang melanggar hukum atau mengganggu server kami.</li>
             </ul>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">3. Konten Pengguna</h2>
             <p className="leading-relaxed">
-              Anda mungkin dapat menambahkan flashcard, catatan, atau konten pribadi lainnya. Anda bertanggung jawab penuh atas konten yang Anda buat. Journey Learning berhak menghapus konten yang dianggap melanggar norma atau ketentuan tanpa pemberitahuan sebelumnya.
+              Kamu mungkin dapat menambahkan flashcard, catatan, atau konten pribadi lainnya. Kamu bertanggung jawab penuh atas konten yang kamu buat. Journey Learning berhak menghapus konten yang dianggap melanggar norma atau ketentuan tanpa pemberitahuan sebelumnya.
             </p>
           </section>
 
@@ -48,14 +48,14 @@ export default function TermsPage() {
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">5. Perubahan Ketentuan</h2>
             <p className="leading-relaxed">
-              Journey Learning berhak memperbarui atau mengubah Ketentuan Layanan ini kapan saja. Perubahan akan berlaku segera setelah dipublikasikan di halaman ini. Penggunaan berkelanjutan Anda atas aplikasi ini setelah perubahan merupakan persetujuan Anda terhadap ketentuan yang baru.
+              Journey Learning berhak memperbarui atau mengubah Ketentuan Layanan ini kapan saja. Perubahan akan berlaku segera setelah dipublikasikan di halaman ini. Penggunaan berkelanjutan kamu atas aplikasi ini setelah perubahan merupakan persetujuan kamu terhadap ketentuan yang baru.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">6. Hubungi Kami</h2>
             <p className="leading-relaxed">
-              Jika Anda memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi tim dukungan kami melalui fitur pelaporan bug atau hubungi administrator Journey Learning.
+              Jika kamu memiliki pertanyaan tentang Ketentuan Layanan ini, silakan hubungi tim dukungan kami melalui fitur pelaporan bug atau hubungi administrator Journey Learning.
             </p>
           </section>
         </div>

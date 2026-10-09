@@ -91,16 +91,16 @@ export default function HanziSetsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: { rows: HanziSet[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: Date.now(), ...formData }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan hanzi set")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
   })
@@ -118,16 +118,16 @@ export default function HanziSetsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: { rows: HanziSet[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingSet?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: HanziSet) => row.id === editingSet?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingSet(null); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate hanzi set")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
   })
@@ -147,17 +147,17 @@ export default function HanziSetsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["hanzi-sets"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["hanzi-sets"] })
-      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["hanzi-sets"] }, (old: { rows: HanziSet[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingSet?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: HanziSet) => row.id !== deletingSet?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingSet(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingSet(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["hanzi-sets"] }),
   })
@@ -417,7 +417,7 @@ export default function HanziSetsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus hanzi set ini?
+                  Apakah Kamu yakin ingin menghapus hanzi set ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Title: {deletingSet.title}</p>

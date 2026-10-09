@@ -3,7 +3,7 @@ import { LoginClient } from "./login-client"
 
 export const metadata: Metadata = {
   title: "Login - Journey Learning",
-  description: "Masuk ke akun Anda",
+  description: "Masuk ke akun kamu",
 }
 
 export default function LoginPage() {

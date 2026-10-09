@@ -102,7 +102,7 @@ export default function GrammarQuestionsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: { rows: GrammarQuestion[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
       })
@@ -112,9 +112,9 @@ export default function GrammarQuestionsPage() {
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert("Gagal menambahkan grammar question")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
@@ -137,9 +137,9 @@ export default function GrammarQuestionsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: { rows: GrammarQuestion[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuestion?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: GrammarQuestion) => row.id === editingQuestion?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
@@ -147,9 +147,9 @@ export default function GrammarQuestionsPage() {
       setEditingQuestion(null)
       setFormData(EMPTY_FORM)
     },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert("Gagal mengupdate grammar question")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
@@ -163,18 +163,18 @@ export default function GrammarQuestionsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["grammar-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["grammar-questions"] })
-      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["grammar-questions"] }, (old: { rows: GrammarQuestion[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: GrammarQuestion) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => {
       setDeletingQuestion(null)
     },
-    onError: (err: Error, _v: unknown, context: any) => {
+    onError: (err: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(`Gagal menghapus: ${err.message}`)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["grammar-questions"] }),
   })
@@ -355,7 +355,7 @@ export default function GrammarQuestionsPage() {
           <Card className="w-full max-w-md">
             <CardHeader><CardTitle className="text-destructive">Hapus Grammar Question</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus grammar question ini?</p>
+              <p className="text-sm text-muted-foreground">Apakah Kamu yakin ingin menghapus grammar question ini?</p>
               <div className="p-3 bg-muted rounded-md space-y-1">
                 <p className="text-sm font-medium">Translation: {deletingQuestion.translation}</p>
                 <p className="text-sm">Pattern ID: {deletingQuestion.pattern_id}</p>

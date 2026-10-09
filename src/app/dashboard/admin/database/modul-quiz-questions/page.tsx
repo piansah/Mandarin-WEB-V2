@@ -114,46 +114,46 @@ export default function ModulQuizQuestionsPage() {
   }
 
   const addMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: ModulQuizQuestion) => {
       const { error } = await supa.from("modul_quiz_questions").insert(payload)
       if (error) throw error
     },
-    onMutate: async (payload: any) => {
+    onMutate: async (payload: ModulQuizQuestion) => {
       await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: { rows: ModulQuizQuestion[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...payload }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul quiz question")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
   })
 
   const editMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: ModulQuizQuestion) => {
       if (!editingQuestion) return
       const { error } = await supa.from("modul_quiz_questions").update(payload).eq("id", editingQuestion.id)
       if (error) throw error
     },
-    onMutate: async (payload: any) => {
+    onMutate: async (payload: ModulQuizQuestion) => {
       await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: { rows: ModulQuizQuestion[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuestion?.id ? { ...row, ...payload } : row) }
+        return { ...old, rows: old.rows.map((row: ModulQuizQuestion) => row.id === editingQuestion?.id ? { ...row, ...payload } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingQuestion(null); setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul quiz question")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
   })
@@ -167,16 +167,16 @@ export default function ModulQuizQuestionsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-quiz-questions"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quiz-questions"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quiz-questions"] }, (old: { rows: ModulQuizQuestion[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulQuizQuestion) => row.id !== deletingQuestion?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingQuestion(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error(`Gagal menghapus modul quiz question: ${error.message}`)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quiz-questions"] }),
   })
@@ -433,7 +433,7 @@ export default function ModulQuizQuestionsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus question ini?
+                  Apakah Kamu yakin ingin menghapus question ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Question: {deletingQuestion.question_text.substring(0, 50)}...</p>

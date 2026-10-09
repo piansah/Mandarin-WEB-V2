@@ -27,7 +27,7 @@ export default function Error({
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-foreground">Kesalahan Quiz</h1>
           <p className="text-muted-foreground">
-            Terjadi kesalahan saat memuat quiz. Sesi Anda mungkin terganggu, silakan coba lagi.
+            Terjadi kesalahan saat memuat quiz. Sesi kamu mungkin terganggu, silakan coba lagi.
           </p>
         </div>
 

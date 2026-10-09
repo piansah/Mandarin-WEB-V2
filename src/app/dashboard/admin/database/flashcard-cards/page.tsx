@@ -94,7 +94,7 @@ export default function FlashcardCardsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
-      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: { rows: FlashcardCard[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
       })
@@ -104,9 +104,9 @@ export default function FlashcardCardsPage() {
       setShowAddModal(false)
       setFormData(EMPTY_FORM)
     },
-    onError: (err: Error, _v: unknown, context: any) => {
+    onError: (err: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(err.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
@@ -127,9 +127,9 @@ export default function FlashcardCardsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
-      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: { rows: FlashcardCard[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingCard?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: FlashcardCard) => row.id === editingCard?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
@@ -137,9 +137,9 @@ export default function FlashcardCardsPage() {
       setEditingCard(null)
       setFormData(EMPTY_FORM)
     },
-    onError: (err: Error, _v: unknown, context: any) => {
+    onError: (err: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(err.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
@@ -153,18 +153,18 @@ export default function FlashcardCardsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["flashcard-cards"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["flashcard-cards"] })
-      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["flashcard-cards"] }, (old: { rows: FlashcardCard[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingCard?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: FlashcardCard) => row.id !== deletingCard?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => {
       setDeletingCard(null)
     },
-    onError: (err: Error, _v: unknown, context: any) => {
+    onError: (err: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       alert(err.message)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["flashcard-cards"] }),
   })
@@ -309,7 +309,7 @@ export default function FlashcardCardsPage() {
           <Card className="w-full max-w-md">
             <CardHeader><CardTitle className="text-destructive">Hapus Flashcard Card</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">Apakah Anda yakin ingin menghapus flashcard card ini?</p>
+              <p className="text-sm text-muted-foreground">Apakah Kamu yakin ingin menghapus flashcard card ini?</p>
               <div className="p-3 bg-muted rounded-md space-y-1">
                 <p className="text-sm font-medium">Hanzi: {deletingCard.hanzi}</p>
                 <p className="text-sm">Pinyin: {deletingCard.pinyin}</p>

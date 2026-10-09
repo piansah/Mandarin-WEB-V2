@@ -105,7 +105,7 @@ export default function AdminSettingsPage() {
         <CardContent>
           <p className="text-sm text-muted-foreground">
             Fitur system settings akan dikembangkan lebih lanjut. 
-            Untuk saat ini, Anda dapat mengelola pengaturan langsung melalui Supabase Dashboard.
+            Untuk saat ini, kamu dapat mengelola pengaturan langsung melalui Supabase Dashboard.
           </p>
         </CardContent>
       </Card>

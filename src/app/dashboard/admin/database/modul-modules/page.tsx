@@ -122,16 +122,16 @@ export default function ModulModulesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-modules"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-modules"] })
-      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: { rows: ModulModule[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul module")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-modules"] }),
   })
@@ -150,16 +150,16 @@ export default function ModulModulesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-modules"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-modules"] })
-      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: { rows: ModulModule[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingModule?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: ModulModule) => row.id === editingModule?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingModule(null); setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul module")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-modules"] }),
   })
@@ -179,17 +179,17 @@ export default function ModulModulesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-modules"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-modules"] })
-      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-modules"] }, (old: { rows: ModulModule[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingModule?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulModule) => row.id !== deletingModule?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingModule(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingModule(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-modules"] }),
   })
@@ -288,8 +288,8 @@ export default function ModulModulesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                modules.map((module: any) => {
-                  const level = levels.find((l: any) => l.id === module.level_id)
+                modules.map((module: ModulModule) => {
+                  const level = levels.find((l: ModulModule) => l.id === module.level_id)
                   return (
                     <TableRow key={module.id}>
                       <TableCell className="font-medium">{module.title}</TableCell>
@@ -507,7 +507,7 @@ export default function ModulModulesPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus modul ini?
+                  Apakah Kamu yakin ingin menghapus modul ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Title: {deletingModule.title}</p>

@@ -53,7 +53,7 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <AlertCircle className="h-16 w-16 text-destructive" />
         <h1 className="text-2xl font-bold">Akses Ditolak</h1>
-        <p className="text-muted-foreground">Anda tidak memiliki izin untuk mengakses halaman admin</p>
+        <p className="text-muted-foreground">Kamu tidak memiliki izin untuk mengakses halaman admin</p>
         <Button onClick={() => router.push("/dashboard")}>Kembali ke Dashboard</Button>
       </div>
     )

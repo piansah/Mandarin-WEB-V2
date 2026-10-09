@@ -312,9 +312,9 @@ export default function AdminUsersPage() {
 
   {!isSuperAdminUser && (
     <p className="text-sm text-blue-700 dark:text-blue-400">
-      <strong>Info:</strong> Sebagai admin biasa, Anda dapat melihat user biasa dan admin biasa,
+      <strong>Info:</strong> Sebagai admin biasa, kamu dapat melihat user biasa dan admin biasa,
       serta menjadikan user biasa menjadi admin. Untuk akses penuh (kelola superadmin),
-      Anda harus memiliki akses Superadmin.
+      kamu harus memiliki akses Superadmin.
     </p>
   )}
 
@@ -389,7 +389,7 @@ export default function AdminUsersPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-center text-muted-foreground">
-            Apakah Anda yakin ingin menghapus user <strong className="text-foreground">{userToDelete.display_name || "Unknown"}</strong>? Tindakan ini tidak dapat dibatalkan.
+            Apakah Kamu yakin ingin menghapus user <strong className="text-foreground">{userToDelete.display_name || "Unknown"}</strong>? Tindakan ini tidak dapat dibatalkan.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-3 pt-2">

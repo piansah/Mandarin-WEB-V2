@@ -84,16 +84,16 @@ export default function WordCompoundsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
-      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: { rows: WordCompound[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: Date.now(), ...formData }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan word compound")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
   })
@@ -110,16 +110,16 @@ export default function WordCompoundsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
-      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: { rows: WordCompound[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingCompound?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: WordCompound) => row.id === editingCompound?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingCompound(null); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate word compound")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
   })
@@ -133,16 +133,16 @@ export default function WordCompoundsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["word-compounds"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-compounds"] })
-      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-compounds"] }, (old: { rows: WordCompound[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingCompound?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: WordCompound) => row.id !== deletingCompound?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingCompound(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error(`Gagal menghapus word compound: ${error.message}`)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-compounds"] }),
   })
@@ -220,7 +220,7 @@ export default function WordCompoundsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {compounds.map((compound: any) => (
+                {compounds.map((compound: WordCompound) => (
                   <TableRow key={compound.id}>
                     <TableCell className="font-medium">{compound.id}</TableCell>
                     <TableCell className="font-medium">{compound.hanzi}</TableCell>
@@ -352,7 +352,7 @@ export default function WordCompoundsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus word compound ini?
+                  Apakah Kamu yakin ingin menghapus word compound ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Hanzi: {deletingCompound.hanzi}</p>

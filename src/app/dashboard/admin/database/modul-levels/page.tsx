@@ -83,16 +83,16 @@ export default function ModulLevelsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
-      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: { rows: ModulLevel[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData({ code: "", label: "", description: "", order_index: 0 }) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul level")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
   })
@@ -109,16 +109,16 @@ export default function ModulLevelsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
-      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: { rows: ModulLevel[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingLevel?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: ModulLevel) => row.id === editingLevel?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingLevel(null); setShowAddModal(false); setFormData({ code: "", label: "", description: "", order_index: 0 }) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul level")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
   })
@@ -138,17 +138,17 @@ export default function ModulLevelsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-levels"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-levels"] })
-      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-levels"] }, (old: { rows: ModulLevel[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingLevel?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulLevel) => row.id !== deletingLevel?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingLevel(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingLevel(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-levels"] }),
   })
@@ -229,7 +229,7 @@ export default function ModulLevelsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                levels.map((level: any) => (
+                levels.map((level: ModulLevel) => (
                   <TableRow key={level.id}>
                     <TableCell className="font-medium">{level.code}</TableCell>
                     <TableCell>{level.label}</TableCell>
@@ -339,7 +339,7 @@ export default function ModulLevelsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus modul level ini?
+                  Apakah Kamu yakin ingin menghapus modul level ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Code: {deletingLevel.code}</p>

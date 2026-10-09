@@ -104,16 +104,16 @@ export default function ModulQuizzesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: { rows: ModulQuiz[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), ...formData, created_at: new Date().toISOString() }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul quiz")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
   })
@@ -129,16 +129,16 @@ export default function ModulQuizzesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: { rows: ModulQuiz[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingQuiz?.id ? { ...row, ...formData } : row) }
+        return { ...old, rows: old.rows.map((row: ModulQuiz) => row.id === editingQuiz?.id ? { ...row, ...formData } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingQuiz(null); setShowAddModal(false); setFormData(EMPTY_FORM) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul quiz")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
   })
@@ -152,17 +152,17 @@ export default function ModulQuizzesPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-quizzes"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-quizzes"] })
-      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-quizzes"] }, (old: { rows: ModulQuiz[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingQuiz?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulQuiz) => row.id !== deletingQuiz?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingQuiz(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingQuiz(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-quizzes"] }),
   })
@@ -373,7 +373,7 @@ export default function ModulQuizzesPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus quiz ini?
+                  Apakah Kamu yakin ingin menghapus quiz ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Title: {deletingQuiz.title}</p>

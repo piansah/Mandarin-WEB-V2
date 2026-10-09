@@ -29,7 +29,7 @@ const menuItems: SearchResult[] = [
   { type: 'page', title: 'Grammar', description: 'Materi tata bahasa Mandarin', url: '/dashboard/grammar', icon: <FileText className="h-4 w-4" /> },
   { type: 'page', title: 'Estafet', description: 'Baca kalimat kumulatif, quiz kalimat & speaking per level', url: '/dashboard/flashcard/cumulative', icon: <BookText className="h-4 w-4" /> },
   { type: 'page', title: 'Baca', description: 'Baca cerita Mandarin', url: '/dashboard/cerita', icon: <BookOpen className="h-4 w-4" /> },
-  { type: 'page', title: 'Favorit', description: 'Kata favorit Anda', url: '/dashboard/favorit', icon: <Star className="h-4 w-4" /> },
+  { type: 'page', title: 'Favorit', description: 'Kata favorit kamu', url: '/dashboard/favorit', icon: <Star className="h-4 w-4" /> },
   { type: 'page', title: 'Profile', description: 'Profil pengguna', url: '/dashboard/profile', icon: <User className="h-4 w-4" /> },
   { type: 'page', title: 'Settings', description: 'Pengaturan aplikasi', url: '/dashboard/settings', icon: <Settings className="h-4 w-4" /> },
 ]

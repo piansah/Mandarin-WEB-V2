@@ -73,16 +73,16 @@ export default function ModulTagsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
-      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: { rows: ModulTag[], total: number } | undefined) => {
         if (!old) return old
         return { ...old, rows: [{ id: crypto.randomUUID(), name: formData.name }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
     onSuccess: () => { setShowAddModal(false); setFormData({ name: "" }) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul tag")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
   })
@@ -96,16 +96,16 @@ export default function ModulTagsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
-      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: { rows: ModulTag[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.map((row: any) => row.id === editingTag?.id ? { ...row, name: formData.name } : row) }
+        return { ...old, rows: old.rows.map((row: ModulTag) => row.id === editingTag?.id ? { ...row, name: formData.name } : row) }
       })
       return { previousData }
     },
     onSuccess: () => { setEditingTag(null); setShowAddModal(false); setFormData({ name: "" }) },
-    onError: (_e: unknown, _v: unknown, context: any) => {
+    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul tag")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
   })
@@ -127,17 +127,17 @@ export default function ModulTagsPage() {
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["modul-tags"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-tags"] })
-      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["modul-tags"] }, (old: { rows: ModulTag[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: old.rows.filter((row: any) => row.id !== deletingTag?.id), total: Math.max(0, old.total - 1) }
+        return { ...old, rows: old.rows.filter((row: ModulTag) => row.id !== deletingTag?.id), total: Math.max(0, old.total - 1) }
       })
       return { previousData }
     },
     onSuccess: () => { setDeletingTag(null) },
-    onError: (error: Error, _v: unknown, context: any) => {
+    onError: (error: Error, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       setBlockingAlert({ message: error.message })
       setDeletingTag(null)
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["modul-tags"] }),
   })
@@ -290,7 +290,7 @@ export default function ModulTagsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus tag ini?
+                  Apakah Kamu yakin ingin menghapus tag ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Name: {deletingTag.name}</p>

@@ -44,7 +44,7 @@ export default function WordExamplesPage() {
     pinyin: "",
     arti: ""
   })
-  
+
   // Pagination State
   const [currentPage, setCurrentPage] = React.useState(1)
   const [rowsPerPage, setRowsPerPage] = React.useState(10)
@@ -82,7 +82,7 @@ export default function WordExamplesPage() {
         .range(from, to)
 
       if (error) throw error
-      
+
       return {
         examples: data || [],
         totalCount: count || 0
@@ -103,7 +103,7 @@ export default function WordExamplesPage() {
     onMutate: async (newExample) => {
       await queryClient.cancelQueries({ queryKey: ["word-examples"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
-      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: { examples: WordExample[], totalCount: number } | undefined) => {
         if (!old) return old
         return { ...old, examples: [{ id: Date.now(), ...newExample }, ...old.examples], totalCount: old.totalCount + 1 }
       })
@@ -113,10 +113,10 @@ export default function WordExamplesPage() {
       setShowAddModal(false)
       setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
     },
-    onError: (error, _v, context: any) => {
+    onError: (error, _v, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       console.error("Error adding word example:", error)
       alert("Gagal menambahkan contoh kalimat")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
@@ -129,9 +129,9 @@ export default function WordExamplesPage() {
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["word-examples"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
-      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: { examples: WordExample[], totalCount: number } | undefined) => {
         if (!old) return old
-        return { ...old, examples: old.examples.map((row: any) => row.id === id ? { ...row, ...data } : row) }
+        return { ...old, examples: old.examples.map((row: WordExample) => row.id === id ? { ...row, ...data } : row) }
       })
       return { previousData }
     },
@@ -139,10 +139,10 @@ export default function WordExamplesPage() {
       setEditingExample(null)
       setFormData({ word_hanzi: "", hanzi: "", pinyin: "", arti: "" })
     },
-    onError: (error, _v, context: any) => {
+    onError: (error, _v, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       console.error("Error updating word example:", error)
       alert("Gagal mengupdate contoh kalimat")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
@@ -155,19 +155,19 @@ export default function WordExamplesPage() {
     onMutate: async (deletedId) => {
       await queryClient.cancelQueries({ queryKey: ["word-examples"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["word-examples"] })
-      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: any) => {
+      queryClient.setQueriesData({ queryKey: ["word-examples"] }, (old: { examples: WordExample[], totalCount: number } | undefined) => {
         if (!old) return old
-        return { ...old, examples: old.examples.filter((row: any) => row.id !== deletedId), totalCount: Math.max(0, old.totalCount - 1) }
+        return { ...old, examples: old.examples.filter((row: WordExample) => row.id !== deletedId), totalCount: Math.max(0, old.totalCount - 1) }
       })
       return { previousData }
     },
     onSuccess: () => {
       setDeletingExample(null)
     },
-    onError: (error, _v, context: any) => {
+    onError: (error, _v, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       console.error("Error deleting word example:", error)
       alert("Gagal menghapus contoh kalimat")
-      if (context?.previousData) context.previousData.forEach(([qk, d]: any) => queryClient.setQueryData(qk, d))
+      if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["word-examples"] }),
   })
@@ -251,7 +251,7 @@ export default function WordExamplesPage() {
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
           )}
-          
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -277,22 +277,22 @@ export default function WordExamplesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
-                            <MoreVertical className="h-4 w-4" />
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditModal(example)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeletingExample(example)} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Hapus
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <DropdownMenuTrigger>
+                        <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                          <MoreVertical className="h-4 w-4" />
+                        </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEditModal(example)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setDeletingExample(example)} className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Hapus
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -434,7 +434,7 @@ export default function WordExamplesPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Apakah Anda yakin ingin menghapus contoh kalimat ini?
+                  Apakah kamu yakin ingin menghapus contoh kalimat ini?
                 </p>
                 <div className="p-3 bg-muted rounded-md space-y-1">
                   <p className="text-sm font-medium">Word Hanzi: {deletingExample.word_hanzi}</p>
