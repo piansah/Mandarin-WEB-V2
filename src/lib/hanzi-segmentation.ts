@@ -123,7 +123,7 @@ export async function initGlobalSearchCache(forceRefresh = false) {
       
       while (hasMore) {
         const { data, error } = await supabase
-          .from(table as any)
+          .from(table as any) // eslint-disable-line @typescript-eslint/no-explicit-any
           .select(select)
           .order("id", { ascending: true })
           .range(from, from + limit - 1)

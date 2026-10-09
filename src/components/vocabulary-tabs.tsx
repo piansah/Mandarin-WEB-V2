@@ -14,8 +14,6 @@ import { GlobalWord, SegmentedWord, performSmartSearch, segmentText, initGlobalS
 import { TonePinyin } from "@/components/tone-pinyin"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { speakMandarin } from "@/lib/tts"
 import { HskBadge } from "@/components/hsk-badge"

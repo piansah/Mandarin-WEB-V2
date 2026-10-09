@@ -252,21 +252,6 @@ export default function WordDetailPage() {
     setAddSentenceModal(false)
   }
 
-  function handleAddSentenceSuccess() {
-    // Reload the vocabulary data to refresh examples
-    const controller = new AbortController()
-    const signal = controller.signal
-
-    const loadVocabulary = async () => {
-      if (!cardId) return
-      const { data: cardData } = await supa.from("flashcard_cards").select("*").eq("id", cardId).single()
-      if (cardData) setCard(cardData)
-    }
-
-    loadVocabulary()
-    closeAddSentenceModal()
-  }
-
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
@@ -314,7 +299,14 @@ export default function WordDetailPage() {
       isOpen={addSentenceModal}
       onClose={closeAddSentenceModal}
       hanziKey={card?.hanzi || ""}
-      onSuccess={handleAddSentenceSuccess}
+      onSuccess={() => {
+        // Reload the vocabulary data to refresh examples
+        if (!cardId) return
+        supa.from("flashcard_cards").select("*").eq("id", cardId).single().then(({ data }) => {
+          if (data) setCard(data)
+        })
+        closeAddSentenceModal()
+      }}
     />
   </div>
 }

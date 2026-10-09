@@ -1,6 +1,4 @@
 import { Metadata } from "next"
-import Link from "next/link"
-import { ChevronLeft } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Kebijakan Privasi - Journey Learning",

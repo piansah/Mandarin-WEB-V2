@@ -4,9 +4,7 @@ import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  Flame, BookOpen, Target, Clock, TrendingUp, Star,
-  CheckCircle2, Brain, Award, BarChart3, Calendar,
-  Trophy, Zap, AlertCircle
+  Flame, Target, Clock, TrendingUp, CheckCircle2, Brain, Award, BarChart3, Calendar, Zap, AlertCircle
 } from "lucide-react"
 import { fetchStatsData, type StatsData } from "@/lib/stats-library"
 

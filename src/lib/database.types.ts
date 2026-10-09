@@ -451,83 +451,6 @@ export type Database = {
         }
         Relationships: []
       }
-      kalimat_questions: {
-        Row: {
-          answer_index: number
-          id: number
-          kal_key: string
-          options: Json
-          question: string
-          question_type: string
-          section_index: number
-          sort_order: number
-        }
-        Insert: {
-          answer_index: number
-          id?: number
-          kal_key: string
-          options: Json
-          question: string
-          question_type: string
-          section_index: number
-          sort_order: number
-        }
-        Update: {
-          answer_index?: number
-          id?: number
-          kal_key?: string
-          options?: Json
-          question?: string
-          question_type?: string
-          section_index?: number
-          sort_order?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_kalimat_questions_set"
-            columns: ["kal_key"]
-            isOneToOne: false
-            referencedRelation: "kalimat_sets"
-            referencedColumns: ["key"]
-          },
-        ]
-      }
-      kalimat_sets: {
-        Row: {
-          created_at: string
-          hsk_level: number
-          id: number
-          key: string
-          sort_order: number
-          sub: string
-          title: string
-          unlock_after: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          hsk_level: number
-          id?: number
-          key: string
-          sort_order?: number
-          sub: string
-          title: string
-          unlock_after?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          hsk_level?: number
-          id?: number
-          key?: string
-          sort_order?: number
-          sub?: string
-          title?: string
-          unlock_after?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       modul_bookmarks: {
         Row: {
           created_at: string
@@ -890,48 +813,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      notification_settings: {
-        Row: {
-          created_at: string | null
-          daily_enabled: boolean | null
-          daily_hour: number | null
-          srs_enabled: boolean | null
-          srs_hour: number | null
-          streak_enabled: boolean | null
-          streak_hour: number | null
-          updated_at: string | null
-          user_id: string
-          weekly_enabled: boolean | null
-          weekly_hour: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          daily_enabled?: boolean | null
-          daily_hour?: number | null
-          srs_enabled?: boolean | null
-          srs_hour?: number | null
-          streak_enabled?: boolean | null
-          streak_hour?: number | null
-          updated_at?: string | null
-          user_id: string
-          weekly_enabled?: boolean | null
-          weekly_hour?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          daily_enabled?: boolean | null
-          daily_hour?: number | null
-          srs_enabled?: boolean | null
-          srs_hour?: number | null
-          streak_enabled?: boolean | null
-          streak_hour?: number | null
-          updated_at?: string | null
-          user_id?: string
-          weekly_enabled?: boolean | null
-          weekly_hour?: number | null
-        }
-        Relationships: []
       }
       personal_cards: {
         Row: {
@@ -1343,6 +1224,8 @@ export type Database = {
           created_at: string
           display_name: string
           role: string
+          title_id: string
+          unlocked_tiers: string[]
           updated_at: string
           user_id: string
         }[]
@@ -1354,6 +1237,8 @@ export type Database = {
           created_at: string
           display_name: string
           role: string
+          title_id: string
+          unlocked_tiers: string[]
           updated_at: string
           user_id: string
         }[]

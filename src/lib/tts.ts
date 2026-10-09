@@ -10,7 +10,6 @@ const speeds: TtsSpeed[] = [
 ]
 
 let voices: SpeechSynthesisVoice[] = []
-let currentText: string | null = null
 let tapText: string | null = null
 let tapCount = 0
 let tapTimer: ReturnType<typeof setTimeout> | null = null
@@ -18,6 +17,7 @@ let badgeTimer: ReturnType<typeof setTimeout> | null = null
 let lastSpeakAt = 0
 let voicesListenerReady = false
 let voicesLoadAttempted = false
+let currentText: string | null = null
 
 function isSupported() {
   return typeof window !== "undefined" && "speechSynthesis" in window

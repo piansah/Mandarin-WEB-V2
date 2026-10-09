@@ -21,7 +21,6 @@ export type FlashcardSet = {
 }
 
 export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: FlashcardSet[]; vocabCountByLevel?: Record<number, number> }) {
-  const supa = useSupabase()
   const unlockedHSK = useUnlockedHSK()
   const levels = [...new Set(sets.map(set => set.hsk_level ?? 1))].sort((a, b) => a - b)
   const [selectedLevel, setSelectedLevel] = React.useState(1)

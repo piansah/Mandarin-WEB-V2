@@ -20,18 +20,18 @@ export type PersonalTheme = {
   icon: string | null
   created_at: string
   deck_count?: number
-  personal_decks?: [{ count: number }]
+  personal_decks?: { count: number }[]
 }
 
 export type PersonalDeck = {
   id: number
   theme_id: number
-  created_by: string
+  created_by: string | null
   title: string
   description: string | null
   created_at: string
   card_count?: number
-  personal_cards?: [{ count: number }]
+  personal_cards?: { count: number }[]
 }
 
 export type PersonalCard = {
@@ -79,7 +79,7 @@ export async function listThemes(): Promise<PersonalTheme[]> {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
   if (error || !data) return []
-  return data.map((t: any) => ({ ...t, deck_count: t.personal_decks?.[0]?.count ?? 0 }))
+  return data.map((t) => ({ ...t, deck_count: (t as { personal_decks?: { count: number }[] }).personal_decks?.[0]?.count ?? 0 }))
 }
 
 export async function createTheme(name: string, icon = "📚"): Promise<{ error: string | null }> {
@@ -114,7 +114,7 @@ export async function listDecks(themeId: number): Promise<PersonalDeck[]> {
     .eq("theme_id", themeId)
     .order("created_at", { ascending: true })
   if (error || !data) return []
-  return data.map((d: any) => ({ ...d, card_count: d.personal_cards?.[0]?.count ?? 0 }))
+  return data.map((d) => ({ ...d, card_count: (d as { personal_cards?: { count: number }[] }).personal_cards?.[0]?.count ?? 0 }))
 }
 
 export async function createDeck(

@@ -52,6 +52,7 @@ export function AddSentenceModal({
         setHanzi("")
         setPinyin("")
         setArti("")
+        onSuccess?.()
       }, 2000)
     }
   }

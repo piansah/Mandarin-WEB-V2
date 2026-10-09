@@ -13,7 +13,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
-import { TIER_ORDER, TIER_LABEL, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
+import { TIER_ORDER, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
 
 export const TITLES = {
   pemula: [
@@ -177,7 +177,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     ])
 
   // Handle different response formats from Supabase RPC
-  const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as any
+  const xpData = (statsRpcRes.data ?? statsRpcRes ?? {}) as { xp?: number; totalScore?: number }
   const totalScore = xpData.xp ?? xpData.totalScore ?? 0
   const level = calculateLevel(totalScore)
   const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))

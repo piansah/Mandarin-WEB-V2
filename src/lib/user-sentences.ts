@@ -38,13 +38,6 @@ export async function submitUserSentence(
   const { supa, user } = await requireUser()
   if (!user) return { error: "Belum login" }
 
-  // Find the hanzi_item_id based on hanzi_key
-  const { data: hanziItem } = await supa
-    .from("hanzi_items")
-    .select("id")
-    .eq("hanzi", sentence.hanzi_key)
-    .maybeSingle()
-
   const { data, error } = await supa
     .from("word_examples")
     .insert({
@@ -63,13 +56,13 @@ export async function submitUserSentence(
   return { error: null, id: data?.id }
 }
 
-export async function listUserSentences(): Promise<any[]> {
+export async function listUserSentences(): Promise<Array<{ id: number; hanzi: string; pinyin: string | null; arti: string | null; created_at: string | null }>> {
   const { supa, user } = await requireUser()
   if (!user) return []
 
   const { data, error } = await supa
     .from("word_examples")
-    .select("*")
+    .select("id, hanzi, pinyin, arti, created_at")
     .order("created_at", { ascending: false })
 
   if (error || !data) return []

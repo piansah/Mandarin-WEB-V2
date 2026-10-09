@@ -20,7 +20,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { UserIcon, SettingsIcon, Flame } from "lucide-react"
+import { UserIcon, SettingsIcon } from "lucide-react"
 import { fetchUserProfile, type UserProfile } from "@/lib/user-profile"
 
 export function NavUser({
@@ -35,12 +35,9 @@ export function NavUser({
   const { isMobile } = useSidebar()
   const router = useRouter()
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
-  const [streak, setStreak] = React.useState<number>(0)
 
   React.useEffect(() => {
     fetchUserProfile().then(setProfile)
-    // Fetch streak data (implement later)
-    setStreak(1) // Placeholder
   }, [])
 
   const initials = user.name

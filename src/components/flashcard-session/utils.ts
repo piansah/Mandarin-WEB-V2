@@ -1,4 +1,4 @@
-import { SwipeFlashcard, FlashcardPrefs } from "./types"
+import { FlashcardPrefs } from "./types"
 
 export function shuffleArray<T>(array: T[]): T[] {
   const newArr = [...array]

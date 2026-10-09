@@ -23,7 +23,7 @@ export type PathStep = {
 
 import { SupabaseClient } from "@supabase/supabase-js"
 
-export async function fetchLearningPath(client?: SupabaseClient<any, "public", any>): Promise<PathStep[]> {
+export async function fetchLearningPath(client?: SupabaseClient): Promise<PathStep[]> {
   const supa = client ?? createClient()
   
   // 1. Dapatkan overview modul untuk status level dan daftar modul

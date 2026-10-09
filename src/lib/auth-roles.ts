@@ -163,7 +163,7 @@ export async function updateUserRole(
   const supa = createClient()
   
   // Coba gunakan RPC untuk bypass RLS
-  const { data: _data, error } = await supa.rpc('update_user_role_admin', {
+  const { error } = await supa.rpc('update_user_role_admin', {
     target_user_id: targetUserId,
     new_role: newRole
   })

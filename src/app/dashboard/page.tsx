@@ -367,14 +367,8 @@ export default function DashboardPage() {
 
       {/* Grid Atas: Streak & Review SRS (30/70) */}
       <div className="grid gap-6 lg:grid-cols-[4fr_6fr] relative">
-        {/* Ambient Glow background for the grid */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/2 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-primary/10 blur-[100px] rounded-full" />
-          <div className="absolute top-1/2 right-1/4 translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-blue-500/10 blur-[100px] rounded-full" />
-        </div>
-
         {/* Streak Widget */}
-        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative lg:col-span-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(23,166,115,0.15)] group">
+        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative lg:col-span-1 group">
           <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
             <Flame className="w-32 h-32 text-primary" />
           </div>
@@ -435,7 +429,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Review Kosakata (SRS) - 60% */}
-        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_30px_rgba(59,130,246,0.1)]">
+        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -520,7 +514,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Sesi Hari Ini - Full Width */}
-      <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm transition-all duration-300 hover:shadow-[0_8px_30px_rgba(255,255,255,0.02)]">
+      <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -540,7 +534,7 @@ export default function DashboardPage() {
             {/* Modul Card */}
             {nextModule ? (
               <a href={`/dashboard/modul`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <FolderOpen className="h-4 w-4" />
                   </div>
@@ -565,7 +559,7 @@ export default function DashboardPage() {
             {/* Daftar Kata Card */}
             {nextDeck ? (
               <a href={`/dashboard/flashcard/${nextDeck.id}`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
                     <Languages className="h-4 w-4" />
                   </div>
@@ -592,7 +586,7 @@ export default function DashboardPage() {
             {/* Estafet Card */}
             {nextEstafet ? (
               <a href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 hover:bg-muted/30 transition-all">
+                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                     <BookText className="h-4 w-4" />
                   </div>

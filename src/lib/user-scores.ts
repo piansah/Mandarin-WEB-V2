@@ -28,7 +28,7 @@ type SaveResult = { error: string | null; skipped?: boolean }
  * - Kalau sudah ada dan skor baru lebih tinggi/sama → di-upsert (overwrite).
  * - Kalau skor baru lebih rendah → dilewati (skor terbaik tetap dipertahankan).
  */
-export async function saveUserScore(type: ScoreType, key: string, score: number, meta?: any): Promise<SaveResult> {
+export async function saveUserScore(type: ScoreType, key: string, score: number, meta?: Record<string, unknown> | null): Promise<SaveResult> {
   const supa = createClient()
   const {
     data: { user },
@@ -48,14 +48,6 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
   // Rekam streak karena user sudah mengerjakan task hari ini
   const today = new Date().toISOString().slice(0, 10)
   
-  // Cek apakah hari ini sudah ada streak (supaya animasi hanya main 1x)
-  const { data: existingStreak } = await supa
-    .from("daily_streaks")
-    .select("date")
-    .eq("user_id", user.id)
-    .eq("date", today)
-    .maybeSingle()
-
   const { error: streakErr } = await supa.from("daily_streaks").upsert(
     { user_id: user.id, date: today },
     { onConflict: "user_id,date", ignoreDuplicates: true }
@@ -68,7 +60,7 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
 
   const { error } = await supa
     .from("user_scores")
-    .upsert({ user_id: user.id, type, key, score, ...(meta && { meta }) }, { onConflict: "user_id,type,key" })
+    .upsert({ user_id: user.id, type, key, score, ...(meta && { meta: meta as unknown }) } as any, { onConflict: "user_id,type,key" }) // eslint-disable-line @typescript-eslint/no-explicit-any
 
   return { error: error?.message ?? null }
 }
@@ -139,4 +131,4 @@ export async function getDeckPracticeScores(deckKey: string | number): Promise<D
   }
 
   return { fcDone, quizScore, nadaDone, tulisDone }
-}
+}

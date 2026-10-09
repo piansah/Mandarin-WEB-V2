@@ -6,7 +6,7 @@ import { RotateCcw, SkipForward, CheckCircle2, Volume2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { PracticeHeader } from "@/components/practice-header"
-import { PageLoader } from "@/components/page-loader"
+import { PageLoader, FullscreenLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
 import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card } from "@/lib/quiz-generator"
 import { shuffle } from "@/lib/array-utils"
@@ -273,9 +273,10 @@ export default function QuizPage() {
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
     if (saved[storageKey]) {
+      const timestamp = Date.now()
       saved[storageKey].allQ = updatedQ
       saved[storageKey].answered = updatedAns
-      saved[storageKey].timestamp = Date.now()
+      saved[storageKey].timestamp = timestamp
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     }
 
@@ -454,11 +455,7 @@ export default function QuizPage() {
 
   /* ── Loading ── */
   if (loading) {
-    return (
-      <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <PageLoader />
-      </div>
-    )
+    return <FullscreenLoader />
   }
 
   /* ── Error (empty) ── */

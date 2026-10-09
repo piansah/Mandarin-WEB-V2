@@ -8,6 +8,7 @@ import { speakMandarin } from "@/lib/tts"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
+import { FullscreenLoader } from "@/components/page-loader"
 import styles from "../../[key]/page.module.css"
 
 type HanziItem = {
@@ -367,9 +368,10 @@ export default function CumulativeQuizPracticePage() {
 
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
     if (saved[key]) {
+      const timestamp = Date.now()
       saved[key].allQ = updatedQ
       saved[key].answered = updatedAns
-      saved[key].timestamp = Date.now()
+      saved[key].timestamp = timestamp
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
 
@@ -548,14 +550,7 @@ export default function CumulativeQuizPracticePage() {
 
   /* ── Loading ── */
   if (loading) {
-    return (
-      <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>
-        <div>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #17344a", borderTopColor: "#42d6a4", animation: "spin 0.8s linear infinite" }} />
-        </div>
-        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-      </div>
-    )
+    return <FullscreenLoader />
   }
 
   /* ── Error (empty) ── */

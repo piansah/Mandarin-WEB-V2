@@ -93,7 +93,6 @@ export default function CumulativeFlashcardSessionPage() {
         return
       }
 
-      // Quiz estafet sekarang menggunakan hanzi_sets yang sama (tidak perlu kalimat_sets)
       const quizKey = key // Hanzi set key yang sama digunakan untuk quiz
 
       if (cancelled) return

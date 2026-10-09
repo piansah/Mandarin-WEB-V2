@@ -141,7 +141,7 @@ function computeModuleStatuses(
 import { SupabaseClient } from "@supabase/supabase-js"
 
 export async function fetchModulOverview(
-  client?: SupabaseClient<any, "public", any>
+  client?: SupabaseClient
 ): Promise<ModulOverview> {
   const supa = client ?? createClient()
   const {
@@ -489,10 +489,15 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
         id: q.id,
         questionText: q.question_text,
         correctOptionId: q.correct_option_id,
-        options: opts.map((o: any) => ({
-          id: o.id,
-          text: o.text ?? o.option_text ?? "",
-        })),
+        options: opts.map((o) => {
+          if (typeof o === "object" && o !== null && "id" in o) {
+            return {
+              id: String(o.id),
+              text: (o as { text?: string; option_text?: string }).text ?? (o as { option_text?: string }).option_text ?? "",
+            }
+          }
+          return { id: "", text: "" }
+        }),
       }
     }),
   }
