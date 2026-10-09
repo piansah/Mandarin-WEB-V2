@@ -653,11 +653,10 @@ export default function CumulativeQuizPracticePage() {
             <div className={styles.liveTxt}>{totalAnswered} / {total} dijawab</div>
             <div className={styles.liveScore}>{totalCorrect} benar</div>
           </div>
-          <div className="flex gap-2 w-full">
+          <div className="flex gap-2 w-full sm:w-auto">
             <button
               type="button"
-              className={styles.resetBtn}
-              style={{ flex: 1, minWidth: 0 }}
+              className={`${styles.resetBtn} flex-1 sm:flex-none`}
               onClick={handleReset}
             >
               Ulangi
@@ -665,8 +664,7 @@ export default function CumulativeQuizPracticePage() {
             {!submitted && (
               <button
                 type="button"
-                className={styles.submitBtn}
-                style={{ flex: 1, minWidth: 0 }}
+                className={`${styles.submitBtn} flex-1 sm:flex-none`}
                 onClick={handleSubmit}
               >
                 Selesai

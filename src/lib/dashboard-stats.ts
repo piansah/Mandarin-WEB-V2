@@ -55,7 +55,7 @@ export type DashboardStats = {
 
 const TYPE_LABEL: Record<string, string> = {
   quiz: "Quiz",
-  kal: "Quiz Kalimat",
+  kal: "Quiz Estafet",
   grammar: "Grammar",
   cerita: "Cerita",
   cerita_quiz: "Quiz Cerita",
@@ -347,6 +347,9 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
           resolvedTitle = moduleMap[modId] ?? "Modul Pembelajaran"
         } else if (keyTitleMap[r.key]) {
           resolvedTitle = keyTitleMap[r.key]
+        } else if (r.type === "kal" && r.key.toLowerCase().startsWith("k")) {
+          const level = r.key.slice(1)
+          resolvedTitle = `Estafet — Level ${level}`
         } else {
           resolvedTitle = r.key
         }
