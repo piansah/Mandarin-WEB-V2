@@ -3,12 +3,12 @@
 import * as React from "react"
 import { fetchUserSettings } from "@/lib/user-settings"
 
-type HanziFont = "noto-sans-sc" | "ma-shan-zheng" | "zcool-xiao-wei" | "long-cang"
+type HanziFont = "noto-sans-sc" | "ma-shan-zheng" | "noto-serif-sc" | "long-cang"
 
 const FONT_FAMILY_VALUES: Record<HanziFont, string> = {
   "noto-sans-sc": "var(--font-noto-sans-sc), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
   "ma-shan-zheng": "var(--font-ma-shan-zheng), 'Ma Shan Zheng', 'Noto Sans SC', sans-serif",
-  "zcool-xiao-wei": "var(--font-zcool-xiao-wei), 'ZCOOL XiaoWei', 'Noto Sans SC', sans-serif",
+  "noto-serif-sc": "var(--font-noto-serif-sc), 'Noto Serif SC', 'Noto Sans SC', sans-serif",
   "long-cang": "var(--font-long-cang), 'Long Cang', 'Noto Sans SC', sans-serif",
 }
 

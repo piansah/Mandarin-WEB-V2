@@ -213,7 +213,7 @@ export function SwipeFlashcardSession({
 
             <div className="w-full rounded-xl border border-border/40 bg-muted/20 p-3">
               <div className="text-xs font-semibold text-muted-foreground mb-2">Arti setiap penilaian</div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                 <div className="flex items-baseline gap-1">
                   <span className="font-semibold text-red-400 shrink-0">Lupa ·</span>
                   <span className="text-muted-foreground">belum ingat, ulang dari awal</span>

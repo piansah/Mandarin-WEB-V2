@@ -227,7 +227,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
       supa.from("user_profile").select("display_name").eq("user_id", user.id).maybeSingle(),
       supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", since),
       supa.rpc("get_user_stats"),
-      supa.from("user_card_progress").select("card_id, srs_level, next_review, last_reviewed").eq("user_id", user.id),
+      supa.from("user_card_progress").select("card_id, srs_level, next_review, last_reviewed, last_quality").eq("user_id", user.id),
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       supa
         .from("user_scores")
@@ -240,13 +240,21 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
 
     const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
 
-    const progressByCard = new Map<string, { srs_level: number; next_review: string | null }>()
+    const progressByCard = new Map<string, { srs_level: number; next_review: string | null; last_quality: number | null }>()
     ;(progressRes.data ?? []).forEach((row) => {
       if (!row.card_id) return
-      progressByCard.set(row.card_id, { srs_level: row.srs_level, next_review: row.next_review })
+      progressByCard.set(row.card_id, {
+        srs_level: row.srs_level,
+        next_review: row.next_review,
+        last_quality: (row as { last_quality?: number | null }).last_quality ?? null,
+      })
     })
     const cards = [...progressByCard.values()]
-    const wordsMastered = cards.filter((c) => c.srs_level >= 1).length
+    const wordsMastered = cards.filter((c) =>
+      c.last_quality !== null && c.last_quality !== undefined
+        ? c.last_quality === 4 || c.last_quality === 5
+        : c.srs_level >= 1
+    ).length
     const today = todayStr()
     const flashcardDue = cards.filter((c) => c.next_review && c.next_review <= today).length
 

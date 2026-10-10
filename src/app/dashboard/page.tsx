@@ -57,7 +57,7 @@ export default function DashboardPage() {
 
       const { data: progress } = await supa
         .from("user_card_progress")
-        .select("card_id, srs_level, next_review, last_reviewed")
+        .select("card_id, srs_level, next_review, last_reviewed, last_quality")
         .eq("user_id", user.id)
 
       if (!progress) return
@@ -75,10 +75,11 @@ export default function DashboardPage() {
       const total = reviewed.length
 
       const todayCards = reviewed.filter((r) => r.last_reviewed === today)
-      const hafalToday = todayCards.filter((r) => r.srs_level >= 1).length
-      const lupaToday = todayCards.filter((r) => r.srs_level === 0).length
-      const totalToday = hafalToday + lupaToday
-      const totalHafal = reviewed.filter((r) => r.srs_level >= 1).length
+      // Hafal = hanya Ingat (4) atau Mudah (5), bukan Sulit (3) atau Lupa (0)
+      const hafalToday = todayCards.filter((r) => r.last_quality === 4 || r.last_quality === 5).length
+      const lupaToday = todayCards.filter((r) => r.last_quality === 0 || r.srs_level === 0).length
+      const totalToday = todayCards.length
+      const totalHafal = reviewed.filter((r) => r.last_quality === 4 || r.last_quality === 5).length
       
       // OPTIMIZATION: Remove chunked validation queries - use progress data directly
       // If card is in progress, it exists in flashcard_cards, so no need to validate

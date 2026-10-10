@@ -977,6 +977,7 @@ export type Database = {
           ease_factor: number
           id: number
           interval_days: number
+          last_quality: number | null
           last_reviewed: string | null
           next_review: string | null
           session_id: string | null
@@ -988,6 +989,7 @@ export type Database = {
           ease_factor?: number
           id?: number
           interval_days?: number
+          last_quality?: number | null
           last_reviewed?: string | null
           next_review?: string | null
           session_id?: string | null
@@ -999,6 +1001,7 @@ export type Database = {
           ease_factor?: number
           id?: number
           interval_days?: number
+          last_quality?: number | null
           last_reviewed?: string | null
           next_review?: string | null
           session_id?: string | null

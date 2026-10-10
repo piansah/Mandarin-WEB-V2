@@ -289,7 +289,7 @@ export default function ModulModulesPage() {
                 </TableRow>
               ) : (
                 modules.map((module: ModulModule) => {
-                  const level = levels.find((l: ModulModule) => l.id === module.level_id)
+                  const level = levels.find((l: ModulLevel) => l.id === module.level_id)
                   return (
                     <TableRow key={module.id}>
                       <TableCell className="font-medium">{module.title}</TableCell>

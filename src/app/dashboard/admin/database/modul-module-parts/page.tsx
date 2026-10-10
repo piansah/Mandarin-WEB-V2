@@ -113,16 +113,16 @@ export default function ModulModulePartsPage() {
   const totalRows = data?.total || 0
 
   const addMutation = useMutation({
-    mutationFn: async (payload: ModulModulePart) => {
+    mutationFn: async (payload: Omit<ModulModulePart, "id" | "created_at" | "updated_at">) => {
       const { error } = await supa.from("modul_module_parts").insert(payload)
       if (error) throw error
     },
-    onMutate: async (payload: ModulModulePart) => {
+    onMutate: async (payload: Omit<ModulModulePart, "id" | "created_at" | "updated_at">) => {
       await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
       queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: { rows: ModulModulePart[], total: number } | undefined) => {
         if (!old) return old
-        return { ...old, rows: [{ id: crypto.randomUUID(), ...payload }, ...old.rows], total: old.total + 1 }
+        return { ...old, rows: [{ id: crypto.randomUUID(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...payload }, ...old.rows], total: old.total + 1 }
       })
       return { previousData }
     },
@@ -133,7 +133,7 @@ export default function ModulModulePartsPage() {
       setVocabCards([]); setVocabMode("simple")
       setKalimatCards([]); setKalimatMode("simple")
     },
-    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
+    onError: (_e: unknown, _v: Omit<ModulModulePart, "id" | "created_at" | "updated_at">, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal menambahkan modul modul part")
       if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },
@@ -141,12 +141,12 @@ export default function ModulModulePartsPage() {
   })
 
   const editMutation = useMutation({
-    mutationFn: async (payload: ModulModulePart) => {
+    mutationFn: async (payload: Omit<ModulModulePart, "id" | "created_at" | "updated_at">) => {
       if (!editingPart) return
       const { error } = await supa.from("modul_module_parts").update(payload).eq("id", editingPart.id)
       if (error) throw error
     },
-    onMutate: async (payload: ModulModulePart) => {
+    onMutate: async (payload: Omit<ModulModulePart, "id" | "created_at" | "updated_at">) => {
       await queryClient.cancelQueries({ queryKey: ["modul-module-parts"] })
       const previousData = queryClient.getQueriesData({ queryKey: ["modul-module-parts"] })
       queryClient.setQueriesData({ queryKey: ["modul-module-parts"] }, (old: { rows: ModulModulePart[], total: number } | undefined) => {
@@ -163,7 +163,7 @@ export default function ModulModulePartsPage() {
       setVocabCards([]); setVocabMode("simple")
       setKalimatCards([]); setKalimatMode("simple")
     },
-    onError: (_e: unknown, _v: unknown, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
+    onError: (_e: unknown, _v: Omit<ModulModulePart, "id" | "created_at" | "updated_at">, context: { previousData?: [readonly unknown[], unknown][] } | undefined) => {
       toast.error("Gagal mengupdate modul modul part")
       if (context?.previousData) context.previousData.forEach(([qk, d]: [readonly unknown[], unknown]) => queryClient.setQueryData(qk, d))
     },

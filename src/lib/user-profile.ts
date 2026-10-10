@@ -171,7 +171,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       supa.from("user_profile").select("display_name, selected_avatar, custom_avatar_url").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
       supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10)),
-      supa.from("user_card_progress").select("srs_level").eq("user_id", user.id),
+      supa.from("user_card_progress").select("srs_level, last_quality").eq("user_id", user.id),
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       fetchUnlockedTiers(),
     ])
@@ -214,7 +214,12 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     return best
   })()
 
-  const wordsMastered = (progressRes.data ?? []).filter((c) => c.srs_level >= 1).length
+  // Hafal = hanya Ingat (4) atau Mudah (5). Jika kartu lama belum ada last_quality, fallback srs_level >= 1
+  const wordsMastered = (progressRes.data ?? []).filter((c) =>
+    c.last_quality !== null && c.last_quality !== undefined
+      ? c.last_quality === 4 || c.last_quality === 5
+      : c.srs_level >= 1
+  ).length
   const quizCompleted = quizCountRes.count ?? 0
 
   return {

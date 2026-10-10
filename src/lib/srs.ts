@@ -136,26 +136,44 @@ export function computeNextSrsState(state: SrsState, quality: 0 | 3 | 4 | 5): Sr
   let { repetitions, intervalDays, easeFactor } = state
 
   if (quality < 3) {
-    // Lupa
+    // Lupa — reset ke awal
     repetitions = 0
     intervalDays = 1
-    // easeFactor remains unchanged in classic SM-2 on failure
+    // easeFactor tidak diubah saat gagal (standar SM-2)
   } else {
-    // Passes
+    // Update easeFactor DULU berdasarkan rating, sebelum hitung interval
+    easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor)
+    easeFactor = Math.round(easeFactor * 100) / 100
+
     if (repetitions === 0) {
+      // Review pertama — semua dapat 1 hari
       intervalDays = 1
     } else if (repetitions === 1) {
-      intervalDays = 6
+      // Review kedua — berbeda berdasarkan rating
+      if (quality === 3) {
+        intervalDays = 3   // Sulit: muncul lagi dalam 3 hari
+      } else if (quality === 4) {
+        intervalDays = 6   // Ingat: muncul lagi dalam 6 hari
+      } else {
+        intervalDays = 8   // Mudah: muncul lagi dalam 8 hari
+      }
     } else {
-      intervalDays = Math.round(intervalDays * easeFactor)
+      // Review ketiga+ — multiplier berbeda per rating
+      if (quality === 3) {
+        // Sulit: tumbuh pelan (1.2×), tidak menggunakan easeFactor
+        intervalDays = Math.round(intervalDays * 1.2)
+      } else if (quality === 4) {
+        // Ingat: normal SM-2 (interval × easeFactor)
+        intervalDays = Math.round(intervalDays * easeFactor)
+      } else {
+        // Mudah: bonus lebih panjang (interval × easeFactor × 1.3)
+        intervalDays = Math.round(intervalDays * easeFactor * 1.3)
+      }
     }
 
     intervalDays = Math.min(Math.max(1, intervalDays), MAX_INTERVAL_DAYS)
     repetitions += 1
-    
-    easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
-    easeFactor = Math.max(MIN_EASE_FACTOR, easeFactor)
-    easeFactor = Math.round(easeFactor * 100) / 100 // rounding to 2 decimals
   }
 
   return { repetitions, intervalDays, easeFactor }
@@ -293,6 +311,7 @@ export async function recordSrsReviewBatch(
       card_id: review.cardId,
       ...update,
       last_reviewed: todayStr(),
+      last_quality: review.quality,
       ...(sessionId && { session_id: sessionId }),
     }
   })
@@ -330,6 +349,7 @@ export async function recordSrsReview(
       card_id: review.cardId,
       ...update,
       last_reviewed: todayStr(),
+      last_quality: review.quality,
       ...(sessionId && { session_id: sessionId }),
     }, { onConflict: "user_id,card_id" })
 

@@ -60,7 +60,7 @@ const todayItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Path",
+    title: "Peta Belajar",
     url: "/dashboard/path",
     icon: Target,
   },

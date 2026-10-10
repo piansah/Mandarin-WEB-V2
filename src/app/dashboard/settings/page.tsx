@@ -100,16 +100,16 @@ export default function SettingsPage() {
   ]
 
   const HANZI_FONTS: { value: string; label: string; description: string; sample: string }[] = [
-    { value: "noto-sans-sc", label: "Noto Sans SC", description: "Font modern dan clean", sample: "木" },
-    { value: "ma-shan-zheng", label: "Ma Shan Zheng", description: "Font brush style tradisional", sample: "木" },
-    { value: "zcool-xiao-wei", label: "ZCOOL XiaoWei", description: "Font fun dan playful", sample: "木" },
-    { value: "long-cang", label: "Long Cang", description: "Font elegant dan artistic", sample: "木" },
+    { value: "noto-sans-sc", label: "Noto Sans SC", description: "Font modern dan clean", sample: "你好" },
+    { value: "ma-shan-zheng", label: "Ma Shan Zheng", description: "Font brush style tradisional", sample: "你好" },
+    { value: "noto-serif-sc", label: "Noto Serif SC", description: "Font elegan bergaya klasik", sample: "你好" },
+    { value: "long-cang", label: "Long Cang", description: "Font elegant dan artistic", sample: "你好" },
   ]
 
   const FONT_FAMILY_VALUES: Record<string, string> = {
     "noto-sans-sc": "var(--font-noto-sans-sc), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
     "ma-shan-zheng": "var(--font-ma-shan-zheng), 'Ma Shan Zheng', 'Noto Sans SC', sans-serif",
-    "zcool-xiao-wei": "var(--font-zcool-xiao-wei), 'ZCOOL XiaoWei', 'Noto Sans SC', sans-serif",
+    "noto-serif-sc": "var(--font-noto-serif-sc), 'Noto Serif SC', 'Noto Sans SC', sans-serif",
     "long-cang": "var(--font-long-cang), 'Long Cang', 'Noto Sans SC', sans-serif",
   }
 
@@ -207,7 +207,7 @@ export default function SettingsPage() {
                 onClick={() => setSelectedHanziFont(font.value)}
               >
                 <div className="flex items-center gap-4">
-                  <div className="font-hanzi text-3xl" style={{
+                  <div className="text-3xl font-normal" style={{
                     fontFamily: FONT_FAMILY_VALUES[font.value as keyof typeof FONT_FAMILY_VALUES]
                   }}>
                     {font.sample}
