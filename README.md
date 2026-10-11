@@ -1,118 +1,224 @@
-# 🀄 Mandarin Web V2 - HSK 3.0 Learning Platform
+# 🀄 Journey Learning (Mandarin Web V2)
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
-![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase)
-![React Query](https://img.shields.io/badge/TanStack_Query-V5-FF4154?logo=react-query)
-![Playwright](https://img.shields.io/badge/Playwright-E2E-2EAD33?logo=playwright)
+![TanStack Query](https://img.shields.io/badge/TanStack_Query-v5-FF4154?logo=react-query)
 ![Vitest](https://img.shields.io/badge/Vitest-Unit_Tests-FCC72B?logo=vitest)
+![Playwright](https://img.shields.io/badge/Playwright-E2E-2EAD33?logo=playwright)
 
-Mandarin Web V2 is a comprehensive web-based E-Learning platform for learning Mandarin Chinese, following the latest **HSK 3.0 curriculum standards**.
+A web-based e-learning platform for **learning Mandarin Chinese, one character a day**, aligned with the **HSK 3.0** curriculum. It combines spaced-repetition flashcards, structured lessons, quizzes, writing and tone practice, mini-games, and progress tracking. The interface is in Indonesian.
 
-This project was built from scratch by a solo developer using modern, mid-to-senior level software engineering principles, heavily focusing on scalability, type-safety, performance (UX), and maintainability.
+🔗 **Live demo:** https://mandarin-journey.vercel.app
+
+> Built and maintained by a solo developer.
 
 ---
 
-## ✨ Key Features
+## ✨ Features
 
-- **Structured HSK Curriculum**: Learning modules, quizzes, and grammar exercises structured from HSK 1 to HSK 6.
-- **Spaced Repetition System (SRS)**: Smart flashcard system utilizing memory algorithms to optimize vocabulary retention.
-- **Admin Dashboard**: A highly reactive content management panel (14+ CRUD pages) featuring *Optimistic Updates*—rendering data changes instantly without waiting for database responses.
-- **Gamification**: Story relays, speedrun modes, and scoring systems designed to keep users motivated.
-- **Secure Authentication & RLS**: User data is securely protected utilizing Supabase authentication and Row Level Security (RLS) policies at the PostgreSQL level.
+### Learning
+- **Flashcards with Spaced Repetition (SM-2)** — four ratings (Forgot / Hard / Good / Easy) schedule each card; due cards are surfaced daily.
+- **Structured modules** — levels, lesson parts, tags, videos, bookmarks, and per-module quizzes and progress.
+- **Grammar** — grammar patterns with practice questions.
+- **Stories (Cerita)** — reading practice in paragraph-based story sets.
+- **HSK exam simulation** and a **placement test** that unlocks the right starting tier.
+- **Personal decks** — create your own cards, decks, and themes; mark favorites.
+
+### Practice
+- **Hanzi writing** and a **Hanzi map** for exploring characters.
+- **Tone (nada) practice** and **speaking practice** using the browser's speech recognition and text-to-speech (`zh-CN`).
+- **OCR scanner** — scan Chinese text from images using Tesseract.js (`chi_sim`).
+- **Mini-games** — Match, Snake, and Speedrun, each with scores.
+
+### Motivation & Tracking
+- Daily **streaks**, **XP**, statistics dashboard, and achievement badges.
+- Social features (follow other learners) and leaderboards.
+- Customizable hanzi display font.
+
+### Platform
+- **Installable PWA** with a service worker (navigation is intentionally not cached, to avoid stale auth redirects).
+- **Admin panel** — 14+ CRUD pages for all content tables, with *optimistic updates*, user management, role management, and in-app bug reports.
+- **Error boundaries** (`error.tsx`) per section, so one failing page does not take down the rest of the app.
+
+---
+
+## 🧠 How the SRS Works
+
+The scheduler is a customized **SM-2**. Ratings map to quality `0` (Forgot), `3` (Hard), `4` (Good), `5` (Easy). The ease factor starts at `2.5`, never drops below `1.3`, and intervals are capped at `365` days.
+
+| Review # (consecutive correct) | Hard (3) | Good (4) | Easy (5) |
+|---|---|---|---|
+| 1st | 1 day | 1 day | 1 day |
+| 2nd | 3 days | 6 days | 8 days |
+| 3rd and later | interval × 1.2 | interval × EF | interval × EF × 1.3 |
+
+- **Forgot** resets the card to 1 day and zero repetitions; the ease factor is left unchanged.
+- The ease factor is updated from the rating *before* the interval is computed.
+- The last rating is stored in `user_card_progress.last_quality`. A word counts as *mastered* only if its latest rating is Good or Easy (legacy cards fall back to `srs_level >= 1`).
+- Dates use the user's local timezone, so a review at 23:30 is not scheduled a day early.
+
+The core logic lives in `src/lib/srs.ts` and is covered by unit tests in `src/test/srs.test.ts`.
 
 ---
 
 ## 🚀 Architecture & Tech Stack
 
-The tech stack was meticulously chosen to enforce a clear separation of concerns between the UI, state management, and the database.
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) + React 19 + React Server Components |
+| Language | TypeScript |
+| Styling / UI | Tailwind CSS 4, shadcn/ui |
+| Data fetching & cache | TanStack Query v5 (optimistic updates in the admin panel) |
+| Backend / DB | Supabase (PostgreSQL, Auth with Google OAuth, Row Level Security, Edge Functions) |
+| OCR / Speech | Tesseract.js, Web Speech API |
+| Testing | Vitest (unit), Playwright (E2E) |
+| CI / Hosting | GitHub Actions, Vercel |
 
-### 1. Frontend & Framework: Next.js (App Router) + React Server Components
-- Leverages **React Server Components (RSC)** to statically render pages on the server (ensuring SEO friendliness and zero client-side JS overhead for reading materials).
-- **Tailwind CSS & shadcn/ui**: Provides a consistent, modern, responsive, and accessible UI without being tied to heavy third-party component libraries.
-
-### 2. State Management & Caching: TanStack Query (React Query)
-- All backend data fetching is automatically cached.
-- **Optimistic Updates Implementation**: For CRUD operations in the Admin Dashboard, the interface updates instantly (eliminating loading spinners) and rolls back in the background if the server responds with an error. This delivers lightning-fast UX comparable to Native applications.
-
-### 3. Backend & Database: Supabase (PostgreSQL)
-- **Database as Code**: The entire database schema is managed using SQL migration files (`supabase/migrations`), ensuring schema changes are easily trackable and replicable.
-- **Strict Typing**: TypeScript types are auto-generated directly from the Supabase PostgreSQL schema, guaranteeing end-to-end type safety (0 `any` types during data fetching).
-
-### 4. Quality Assurance & Testing
-- **E2E Testing (Playwright)**: Simulates real users for navigation, login flows, and CRUD operations (Smoke tests & Integration tests).
-- **Unit Testing (Vitest)**: Tests core business logic in isolation (e.g., the Spaced Repetition System interval calculation algorithms).
-- **CI/CD (GitHub Actions)**: Automated pipelines that enforce type checking (`tsc --noEmit`), linting, and testing before allowing code to be pushed or integrated.
+Highlights:
+- **Server-first rendering** — Server Components for read-heavy pages; client components only where interaction is needed.
+- **End-to-end types** — `src/lib/database.types.ts` is generated from the Supabase schema (`npm run supabase:types`) and used for typed queries.
+- **Request proxy** (`src/proxy.ts`) — refreshes the session, verifies the user with `getUser()`, redirects unauthenticated visitors, and sends new users through the placement test before the dashboard.
+- **Edge Function** `get-user-stats` aggregates per-user statistics server-side.
 
 ---
 
-## 🗂️ Directory Structure
+## 🔐 Security Model
+
+- **Authentication:** Supabase Auth (Google OAuth). The OAuth callback only redirects to same-origin paths, which prevents open-redirect attacks via the `next` parameter.
+- **Roles:** `superadmin` > `admin` > `user`, stored in `user_profile.role`. The database is the single source of truth; there are no hardcoded admin emails in the client.
+- **Admin RPCs:** `SECURITY DEFINER` functions (`get_all_users_admin`, `get_users_for_regular_admin`, `update_user_role_admin`, `get_admin_stats`) check the caller's role *inside* the function, and `EXECUTE` is revoked from `anon`/`PUBLIC`.
+- **Role-change guard:** a database trigger on `user_profile` rejects changes to the `role` column unless the caller is a superadmin, regardless of which code path performs the update.
+- **Row Level Security:** policies on `user_profile` use helper functions (`is_admin()`, `is_superadmin()`) instead of self-referencing subqueries; profile inserts are restricted to the `user` role.
+- **Server-side checks:** admin pages and API routes verify the role on the server (`admin-middleware.ts`, `admin-auth.ts`), never relying on client-side checks alone.
+
+> Client-side role helpers in `src/lib/auth-roles.ts` exist only to show or hide UI. Real enforcement happens in the database and on the server.
+
+---
+
+## 🗂️ Project Structure
 
 ```
 src/
 ├── app/
-│   ├── (auth)/           # Authentication flows (Login, Register)
-│   ├── dashboard/
-│   │   ├── admin/        # Admin Panel (User Management, Optimistic Database CRUD)
-│   │   └── ...           # User Area (Flashcards, Grammar, Modules, Games)
+│   ├── api/                   # Route handlers (admin APIs, etc.)
+│   ├── auth/callback/         # OAuth callback (sanitized redirect)
+│   ├── login/  privacy/  terms/
+│   └── dashboard/
+│       ├── admin/             # Admin panel: users, analytics, database CRUD
+│       ├── flashcard/  review/  practice/   # SRS flashcards, quizzes, tone & writing practice
+│       ├── modul/  grammar/  cerita/        # Lessons, grammar, stories
+│       ├── games/                           # match, snake, speedrun
+│       ├── peta-hanzi/  tulis-hanzi/        # Hanzi map and writing
+│       ├── placement/  simulasi-hsk/        # Placement test and HSK simulation
+│       ├── personal-cards/  favorit/        # Personal decks and favorites
+│       └── statistik/  profile/  settings/
 ├── components/
-│   ├── ui/               # Reusable base components (shadcn/ui)
-│   └── ...               # Feature-specific components
-├── hooks/                # Custom React hooks (e.g., useSupabase)
+│   ├── ui/                    # shadcn/ui base components
+│   └── ...                    # Feature components (flashcard session, OCR scanner, ...)
+├── hooks/                     # use-supabase, use-pwa-install, use-service-worker, use-mobile
 ├── lib/
-│   ├── supabase/         # Supabase Client & Server (SSR) Configurations
-│   ├── database.types.ts # ⚠️ Auto-generated types (SSoT for database typing)
-│   ├── auth-roles.ts     # RBAC (Role-Based Access Control) Logic
-│   ├── srs.ts            # Spaced Repetition core algorithms
-└── ...
+│   ├── supabase/              # Browser & server clients
+│   ├── database.types.ts      # Generated DB types
+│   ├── auth-roles.ts          # Client-side role helpers (UI only)
+│   ├── admin-auth.ts          # Server-side admin verification
+│   ├── admin-middleware.ts    # requireAdmin() / checkAdminStatus()
+│   └── srs.ts                 # Spaced-repetition algorithm
+├── proxy.ts                   # Session refresh and route protection
+└── test/                      # Vitest unit tests
 
-e2e/                      # Playwright Specs for End-to-End Testing
-supabase/migrations/      # SQL versioning files for Database Schema
-.github/workflows/ci.yml  # CI/CD Automation Pipeline
+e2e/                           # Playwright specs
+supabase/
+├── migrations/                # SQL migrations (incremental changes)
+└── functions/get-user-stats/  # Edge Function
+public/                        # PWA manifest, icons, service worker
 ```
 
 ---
 
-## 🏁 Getting Started (Local Development)
+## 🏁 Getting Started
 
 ### Prerequisites
 - Node.js 20+
-- Supabase CLI (`npm install -g supabase`)
-- `.env.local` environment file
+- A Supabase project (free tier works)
+- Supabase CLI (optional, for generating types and pushing migrations)
 
-### Installation & Setup
+### Setup
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Run the development server
+# 2. Create .env.local (see below)
+
+# 3. Start the dev server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+Open [http://localhost:3000](http://localhost:3000).
 
-### Available NPM Scripts
+### Environment variables
+
+Create `.env.local` in the project root:
 
 ```bash
-npm run dev               # Run the local development server
-npm run lint              # Run ESLint for code standard checks
-npm run test              # Run unit tests with Vitest
-npm run test:e2e          # Run end-to-end tests with Playwright
-npm run build             # Build the application for production
-npm run supabase:types    # Sync TypeScript types with the latest Database schema
-npm run db:push           # Push local SQL migrations to the Remote Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+
+# Optional: enables the test login route used by E2E tests. Never enable in production.
+# NEXT_PUBLIC_TEST_MODE=true
+```
+
+Never commit `.env*` files. If a key was ever committed, rotate it in the Supabase dashboard.
+
+### Scripts
+
+```bash
+npm run dev               # Local development server
+npm run build             # Production build
+npm run lint              # ESLint
+npm run test              # Unit tests (Vitest)
+npm run test:e2e          # End-to-end tests (Playwright)
+npm run supabase:types    # Regenerate database.types.ts from the schema
+npm run db:push           # Push local SQL migrations to the remote Supabase project
 ```
 
 ---
 
-## 🎯 Project Status & Engineering Assessment
+## 🗄️ Database Notes
 
-This application demonstrates high-level engineering standards for a solo project. 
-Key technical achievements include:
-- **Zero TypeScript Errors** (a perfectly clean `tsc --noEmit`).
-- **Clean Architecture**: Strong separation between fetching, mutating, and rendering logic.
-- **Graceful Error Handling**: Implemented *Error Boundaries* (`error.tsx`) ensuring that if a component fails to render, the rest of the application will not crash.
-- **High Performance**: Gradual transition to *React Server Components* to eliminate unnecessary JavaScript payloads on user devices.
+- Incremental schema changes live in `supabase/migrations/` (SM-2 columns, role system, `last_quality`, word compounds, and more).
+- **The base tables were originally created through the Supabase dashboard**, so the migration folder alone does not rebuild the full schema. To reproduce the database in a new project, export the current schema first:
 
-*(Last updated: September 2026)*
+  ```bash
+  supabase link --project-ref <project-ref>
+  supabase db dump -f schema.sql
+  ```
+
+  Then run `schema.sql` in the new project, followed by any newer migrations.
+- Role management depends on the SQL in the role-security migration (helper functions, RPC checks, trigger, and policies). Keep that file in `supabase/migrations/` so the setup stays reproducible.
+
+---
+
+## ✅ Testing & CI
+
+- **Unit tests (Vitest)** — SRS interval calculation, session accuracy and mastery counting, dashboard statistics, profile badges, and hanzi map logic. Run with `npm run test`.
+- **E2E tests (Playwright)** — home page smoke test and admin CRUD flow. Run with `npm run test:e2e`.
+- **CI (GitHub Actions)** — on every push: lint, type-check, and tests. A separate job deploys database migrations and only runs after the checks pass.
+
+---
+
+## 🛣️ Roadmap
+
+- Input validation (Zod) and pagination limits for admin API routes.
+- Broader test coverage: study-session flows end to end, plus edge cases of the SRS scheduler.
+- Audit Row Level Security on all content tables.
+- Break up the largest practice pages into smaller components.
+- Guest/demo mode so new visitors can try the flashcards before signing in.
+- Multi-language support (the app is currently Mandarin-only).
+
+---
+
+*Last updated: October 2026*
