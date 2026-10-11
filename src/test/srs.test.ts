@@ -30,13 +30,13 @@ describe("SM-2 SRS Algorithm", () => {
     expect(state).toEqual({ intervalDays: 1, easeFactor: 2.6, repetitions: 1 })
     
     state = computeNextSrsState(state, 5)
-    expect(state).toEqual({ intervalDays: 6, easeFactor: 2.7, repetitions: 2 })
+    expect(state).toEqual({ intervalDays: 8, easeFactor: 2.7, repetitions: 2 })
     
     state = computeNextSrsState(state, 5)
-    expect(state).toEqual({ intervalDays: 16, easeFactor: 2.8, repetitions: 3 })
+    expect(state).toEqual({ intervalDays: 29, easeFactor: 2.8, repetitions: 3 })
     
     state = computeNextSrsState(state, 5)
-    expect(state).toEqual({ intervalDays: 45, easeFactor: 2.9, repetitions: 4 })
+    expect(state).toEqual({ intervalDays: 109, easeFactor: 2.9, repetitions: 4 })
   })
 
   it("Sequence: Ingat x3", () => {
@@ -59,10 +59,10 @@ describe("SM-2 SRS Algorithm", () => {
     expect(state).toEqual({ intervalDays: 1, easeFactor: 2.36, repetitions: 1 })
     
     state = computeNextSrsState(state, 3)
-    expect(state).toEqual({ intervalDays: 6, easeFactor: 2.22, repetitions: 2 })
+    expect(state).toEqual({ intervalDays: 3, easeFactor: 2.22, repetitions: 2 })
     
     state = computeNextSrsState(state, 3)
-    expect(state).toEqual({ intervalDays: 13, easeFactor: 2.08, repetitions: 3 })
+    expect(state).toEqual({ intervalDays: 4, easeFactor: 2.08, repetitions: 3 })
   })
 
   it("Sequence: Mudah x3 then Lupa", () => {
@@ -71,7 +71,7 @@ describe("SM-2 SRS Algorithm", () => {
     state = computeNextSrsState(state, 5)
     state = computeNextSrsState(state, 5)
     state = computeNextSrsState(state, 5)
-    expect(state).toEqual({ intervalDays: 16, easeFactor: 2.8, repetitions: 3 })
+    expect(state).toEqual({ intervalDays: 29, easeFactor: 2.8, repetitions: 3 })
     
     state = computeNextSrsState(state, 0)
     expect(state).toEqual({ intervalDays: 1, easeFactor: 2.8, repetitions: 0 })

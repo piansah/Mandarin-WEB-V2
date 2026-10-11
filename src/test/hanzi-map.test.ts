@@ -77,8 +77,8 @@ describe("getPartner", () => {
     expect(getPartner("学生", "学")).toBe("生")
   })
 
-  it("returns partner for 2-char word (reverse)", () => {
-    expect(getPartner("学生", "生")).toBe("学")
+  it("returns null for 2-char word when center is second char (prefix-only rule)", () => {
+    expect(getPartner("学生", "生")).toBe(null)
   })
 
   it("returns null for 1-char word", () => {
@@ -191,8 +191,8 @@ describe("mergeWords", () => {
       { id: 1, hanzi: "学生", pinyin: "xuéshēng", arti: "siswa", source: "flashcard" },
     ]
     const compound: VocabularyWord[] = [
-      { id: 2, hanzi: "同学", pinyin: "tóngxué", arti: "teman", source: "compound" },
-      { id: 3, hanzi: "大学", pinyin: "dàxué", arti: "universitas", source: "compound" },
+      { id: 2, hanzi: "学校", pinyin: "xuéxiào", arti: "sekolah", source: "compound" },
+      { id: 3, hanzi: "学者", pinyin: "xuézhě", arti: "ilmuwan", source: "compound" },
     ]
     const merged = mergeWords(flashcard, compound, 3, "学")
     expect(merged).toHaveLength(3)
@@ -204,16 +204,16 @@ describe("mergeWords", () => {
   it("flashcards-only when >= limit", () => {
     const flashcard: VocabularyWord[] = [
       { id: 1, hanzi: "学生", pinyin: "xuéshēng", arti: "siswa", source: "flashcard" },
-      { id: 2, hanzi: "同学", pinyin: "tóngxué", arti: "teman", source: "flashcard" },
-      { id: 3, hanzi: "大学", pinyin: "dàxué", arti: "universitas", source: "flashcard" },
-      { id: 4, hanzi: "中学", pinyin: "zhōngxué", arti: "SMP", source: "flashcard" },
-      { id: 5, hanzi: "小学", pinyin: "xiǎoxué", arti: "SD", source: "flashcard" },
-      { id: 6, hanzi: "上学", pinyin: "shàngxué", arti: "sekolah", source: "flashcard" },
-      { id: 7, hanzi: "放学", pinyin: "fàngxué", arti: "pulang sekolah", source: "flashcard" },
-      { id: 8, hanzi: "学校", pinyin: "xuéxiào", arti: "sekolah", source: "flashcard" },
+      { id: 2, hanzi: "学校", pinyin: "xuéxiào", arti: "sekolah", source: "flashcard" },
+      { id: 3, hanzi: "学者", pinyin: "xuézhě", arti: "ilmuwan", source: "flashcard" },
+      { id: 4, hanzi: "学习", pinyin: "xuéxí", arti: "belajar", source: "flashcard" },
+      { id: 5, hanzi: "学分", pinyin: "xuéfēn", arti: "SKS", source: "flashcard" },
+      { id: 6, hanzi: "学期", pinyin: "xuéqī", arti: "semester", source: "flashcard" },
+      { id: 7, hanzi: "学年", pinyin: "xuénián", arti: "tahun ajaran", source: "flashcard" },
+      { id: 8, hanzi: "学费", pinyin: "xuéfèi", arti: "biaya sekolah", source: "flashcard" },
     ]
     const compound: VocabularyWord[] = [
-      { id: 9, hanzi: "同学", pinyin: "tóngxué", arti: "teman", source: "compound" },
+      { id: 9, hanzi: "学术", pinyin: "xuéshù", arti: "akademik", source: "compound" },
     ]
     const merged = mergeWords(flashcard, compound, 8, "学")
     expect(merged).toHaveLength(8)
@@ -224,7 +224,7 @@ describe("mergeWords", () => {
     const flashcard: VocabularyWord[] = []
     const compound: VocabularyWord[] = [
       { id: 1, hanzi: "学生", pinyin: "xuéshēng", arti: "siswa", source: "compound" },
-      { id: 2, hanzi: "同学", pinyin: "tóngxué", arti: "teman", source: "compound" },
+      { id: 2, hanzi: "学校", pinyin: "xuéxiào", arti: "sekolah", source: "compound" },
     ]
     const merged = mergeWords(flashcard, compound, 8, "学")
     expect(merged).toHaveLength(2)
