@@ -1,15 +1,21 @@
 /**
- * AUTH ROLES — Role-based access control
- * 
- * Menangani pengecekan role user (superadmin/admin/user) dan authorization
- * untuk proteksi admin routes dan features.
- * 
- * Menggunakan kombinasi hardcoded admin emails + database role check
- * untuk menghindari circular logic di RLS policies.
- * 
+ * AUTH ROLES — Role-based access control (sisi client)
+ *
+ * Menangani pengecekan role user (superadmin/admin/user).
+ *
+ * PENTING — file ini berjalan di browser, jadi semua pengecekan di sini
+ * hanya untuk UX (menampilkan/menyembunyikan menu). Hak akses yang
+ * sebenarnya ditegakkan di database (RLS + fungsi RPC + trigger, lihat
+ * supabase/migrations/20261009_secure_role_system.sql) dan di server
+ * (admin-auth.ts / admin-middleware.ts).
+ *
+ * Sumber kebenaran role = kolom `user_profile.role`. Tidak ada lagi daftar
+ * email yang di-hardcode. Untuk menjadikan seseorang superadmin, ubah
+ * rolenya lewat SQL editor / service role (lihat file migrasi).
+ *
  * Hierarchy:
- * - superadmin: bisa menambah/hapus admin, full CRUD access
- * - admin: bisa kelola user biasa, tapi tidak bisa ubah role admin lain
+ * - superadmin: bisa mengubah role user lain, full CRUD access
+ * - admin: bisa kelola user biasa, tapi tidak bisa ubah role siapa pun
  * - user: user biasa, akses fitur belajar saja
  */
 
@@ -28,96 +34,16 @@ export interface UserProfileWithRole {
   unlocked_tiers: string[] | null
 }
 
-// Hardcoded superadmin emails (hanya superadmin yang bisa menambah/hapus admin)
-const SUPERADMIN_EMAILS = [
-  "alifalpian157@gmail.com",
-  // Tambah email superadmin lain di sini jika perlu
-]
+const VALID_ROLES: readonly UserRole[] = ["superadmin", "admin", "user"]
 
-// Hardcoded admin emails (termasuk superadmin untuk backward compatibility)
-const ADMIN_EMAILS = [
-  "alifalpian157@gmail.com",
-  // Tambah email admin biasa di sini jika perlu
-]
-
-/**
- * Cek apakah user saat ini adalah superadmin
- * Hanya superadmin yang bisa menambah/hapus admin lain
- */
-export async function isSuperAdmin(): Promise<boolean> {
-  const supa = createClient()
-  const {
-    data: { user },
-  } = await supa.auth.getUser()
-  if (!user) return false
-
-  const userEmail = user.email?.toLowerCase()
-
-  // Cek berdasarkan hardcoded superadmin emails
-  if (userEmail && SUPERADMIN_EMAILS.includes(userEmail)) {
-    return true
-  }
-
-  // Fallback ke database check
-  try {
-    const { data, error } = await supa
-      .from("user_profile")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (error) {
-      console.error("Error checking superadmin role:", error)
-      return false
-    }
-
-    return data?.role === "superadmin"
-  } catch (catchError) {
-    console.error("Exception in isSuperAdmin:", catchError)
-    return false
-  }
+function isUserRole(value: unknown): value is UserRole {
+  return typeof value === "string" && (VALID_ROLES as readonly string[]).includes(value)
 }
 
 /**
- * Cek apakah user saat ini adalah admin (superadmin atau admin biasa)
- * Dipakai di client-side components
- */
-export async function isAdmin(): Promise<boolean> {
-  const supa = createClient()
-  const {
-    data: { user },
-  } = await supa.auth.getUser()
-  if (!user) return false
-
-  const userEmail = user.email?.toLowerCase()
-
-  // Cek berdasarkan hardcoded admin emails (termasuk superadmin)
-  if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
-    return true
-  }
-
-  // Fallback ke database check
-  try {
-    const { data, error } = await supa
-      .from("user_profile")
-      .select("role")
-      .eq("user_id", user.id)
-      .maybeSingle()
-
-    if (error) {
-      console.error("Error checking admin role:", error)
-      return false
-    }
-
-    return data?.role === "admin" || data?.role === "superadmin"
-  } catch (catchError) {
-    console.error("Exception in isAdmin:", catchError)
-    return false
-  }
-}
-
-/**
- * Ambil role user saat ini
+ * Ambil role user saat ini dari database.
+ * - Belum login            -> null
+ * - Profil tidak ada/error -> "user" (fail-closed: tanpa hak istimewa)
  */
 export async function getUserRole(): Promise<UserRole | null> {
   const supa = createClient()
@@ -126,186 +52,134 @@ export async function getUserRole(): Promise<UserRole | null> {
   } = await supa.auth.getUser()
   if (!user) return null
 
-  const userEmail = user.email?.toLowerCase()
-
-  // Cek hardcoded emails dulu
-  if (userEmail && SUPERADMIN_EMAILS.includes(userEmail)) {
-    return "superadmin"
-  }
-  if (userEmail && ADMIN_EMAILS.includes(userEmail)) {
-    return "admin"
-  }
-
-  // Fallback ke database check
-  const { data } = await supa
-    .from("user_profile")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle()
-
-  return (data?.role as UserRole) ?? "user"
-}
-
-/**
- * Update role user (hanya superadmin yang bisa menambah/hapus admin)
- * Admin biasa tidak bisa mengubah role user lain
- */
-export async function updateUserRole(
-  targetUserId: string,
-  newRole: "admin" | "user" | "superadmin"
-): Promise<{ error: string | null }> {
-  // Cek apakah caller adalah superadmin
-  const callerIsSuperAdmin = await isSuperAdmin()
-  if (!callerIsSuperAdmin) {
-    return { error: "Unauthorized: Only superadmins can change roles" }
-  }
-
-  const supa = createClient()
-  
-  // Coba gunakan RPC untuk bypass RLS
-  const { error } = await supa.rpc('update_user_role_admin', {
-    target_user_id: targetUserId,
-    new_role: newRole
-  })
-  
-  if (error) {
-    console.error("RPC error, trying direct update:", error)
-    // Fallback ke direct update jika RPC tidak ada
-    const { error: directError } = await supa
+  try {
+    const { data, error } = await supa
       .from("user_profile")
-      .update({ role: newRole, updated_at: new Date().toISOString() })
-      .eq("user_id", targetUserId)
-    
-    if (directError) {
-      console.error("Direct update error:", directError)
-      return { error: directError.message }
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.error("Error checking user role:", error)
+      return "user"
     }
+
+    return isUserRole(data?.role) ? data.role : "user"
+  } catch (catchError) {
+    console.error("Exception in getUserRole:", catchError)
+    return "user"
   }
-  
-  return { error: null }
 }
 
 /**
- * Ambil semua user dengan role (untuk admin dashboard)
- * Superadmin bisa melihat semua user, admin biasa hanya bisa melihat user biasa dan admin biasa
- * 
- * NOTE: Karena RLS policies bermasalah, kita bypass dengan query langsung
- * tapi tetap validasi di application layer
+ * Cek apakah user saat ini adalah superadmin
  */
-export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
-  const supa = createClient()
-  
-  // Cek apakah caller adalah superadmin
-  const callerIsSuperAdmin = await isSuperAdmin()
-  
-  // Cek apakah caller adalah admin (bukan superadmin)
-  const callerIsAdmin = await isAdmin()
-  const callerIsRegularAdmin = callerIsAdmin && !callerIsSuperAdmin
+export async function isSuperAdmin(): Promise<boolean> {
+  return (await getUserRole()) === "superadmin"
+}
 
-  if (!callerIsAdmin) {
-    return []
-  }
-
-  // Gunakan rpc untuk bypass RLS jika superadmin
-  if (callerIsSuperAdmin) {
-    const { data, error } = await supa.rpc('get_all_users_admin')
-    if (error) {
-      console.error("Error fetching users via RPC:", error)
-      // Fallback ke query biasa jika RPC tidak ada
-      const { data: fallbackData, error: fallbackError } = await supa
-        .from("user_profile")
-        .select("user_id, display_name, role, created_at, updated_at, title_id, unlocked_tiers")
-        .order("created_at", { ascending: false })
-      
-      if (fallbackError) {
-        console.error("Error fetching users (fallback):", fallbackError)
-        return []
-      }
-      
-      return fallbackData as UserProfileWithRole[] || []
-    }
-    
-    return data as UserProfileWithRole[] || []
-  }
-
-  // Admin biasa - gunakan RPC untuk bypass RLS dan filter user/admin biasa
-  if (callerIsRegularAdmin) {
-    const { data, error } = await supa.rpc('get_users_for_regular_admin')
-    if (error) {
-      console.error("Error fetching users via RPC (regular admin):", error)
-      // Fallback ke query biasa
-      let query = supa
-        .from("user_profile")
-        .select("user_id, display_name, role, created_at, updated_at, title_id, unlocked_tiers")
-        .order("created_at", { ascending: false })
-      
-      query = query.in("role", ["user", "admin"])
-      
-      const { data: fallbackData, error: fallbackError } = await query
-      if (fallbackError) {
-        console.error("Error fetching users (fallback):", fallbackError)
-        return []
-      }
-      
-      return fallbackData as UserProfileWithRole[] || []
-    }
-    
-    return data as UserProfileWithRole[] || []
-  }
-
-  // Fallback untuk kasus lain (tidak seharusnya terjadi)
-  return []
+/**
+ * Cek apakah user saat ini adalah admin (superadmin atau admin biasa)
+ * Dipakai di client-side components
+ */
+export async function isAdmin(): Promise<boolean> {
+  const role = await getUserRole()
+  return role === "admin" || role === "superadmin"
 }
 
 /**
  * Cek apakah user memiliki role tertentu
  */
 export async function hasRole(role: UserRole): Promise<boolean> {
-  const userRole = await getUserRole()
-  return userRole === role
+  return (await getUserRole()) === role
+}
+
+/**
+ * Update role user (hanya superadmin).
+ *
+ * Pengecekan di sini hanya untuk pesan error yang ramah. Yang benar-benar
+ * menolak request dari non-superadmin adalah fungsi RPC
+ * `update_user_role_admin` + trigger di database.
+ */
+export async function updateUserRole(
+  targetUserId: string,
+  newRole: UserRole
+): Promise<{ error: string | null }> {
+  if (!isUserRole(newRole)) {
+    return { error: "Role tidak valid" }
+  }
+
+  if (!(await isSuperAdmin())) {
+    return { error: "Unauthorized: Only superadmins can change roles" }
+  }
+
+  const supa = createClient()
+  const { error } = await supa.rpc("update_user_role_admin", {
+    target_user_id: targetUserId,
+    new_role: newRole,
+  })
+
+  if (error) {
+    console.error("Error updating user role:", error)
+    return { error: error.message }
+  }
+
+  return { error: null }
+}
+
+/**
+ * Ambil semua user dengan role (untuk admin dashboard)
+ * - Superadmin: semua user
+ * - Admin biasa: hanya user biasa dan admin biasa
+ * - Lainnya: kosong
+ *
+ * Pembatasan yang sebenarnya dilakukan di dalam fungsi RPC (SECURITY DEFINER
+ * dengan pengecekan role), bukan di sini.
+ */
+export async function getAllUsersWithRoles(): Promise<UserProfileWithRole[]> {
+  const supa = createClient()
+  const role = await getUserRole()
+
+  if (role !== "admin" && role !== "superadmin") {
+    return []
+  }
+
+  const rpcName = role === "superadmin" ? "get_all_users_admin" : "get_users_for_regular_admin"
+  const { data, error } = await supa.rpc(rpcName)
+
+  if (error) {
+    console.error(`Error fetching users via RPC (${rpcName}):`, error)
+    return []
+  }
+
+  return (data ?? []) as unknown as UserProfileWithRole[]
 }
 
 /**
  * Ambil statistik admin untuk dashboard
- * Menggunakan logic yang sama dengan getAllUsersWithRoles() untuk konsistensi
+ * Memakai sumber data yang sama dengan getAllUsersWithRoles() untuk konsistensi
  */
 export async function getAdminStats(): Promise<{
   totalUsers: number
   activeToday: number
   adminUsers: number
 }> {
-  const supa = createClient()
-  
-  
+  const empty = { totalUsers: 0, activeToday: 0, adminUsers: 0 }
+
   try {
-    // Gunakan RPC yang sama dengan user management untuk konsistensi
-    const callerIsSuperAdmin = await isSuperAdmin()
-    const callerIsAdmin = await isAdmin()
-    
-    if (!callerIsAdmin) {
-      return { totalUsers: 0, activeToday: 0, adminUsers: 0 }
-    }
-    
-    // Gunakan RPC yang sama dengan user management
-    const { data, error } = await supa.rpc(callerIsSuperAdmin ? 'get_all_users_admin' : 'get_users_for_regular_admin')
-    
-    if (error) {
-      console.error("Error fetching admin stats via RPC:", error)
-      console.error("Error details:", { code: error.code, message: error.message, details: error.details, hint: error.hint })
-      return { totalUsers: 0, activeToday: 0, adminUsers: 0 }
-    }
-    
-    const users = data as UserProfileWithRole[] || []
+    const users = await getAllUsersWithRoles()
+    if (users.length === 0) return empty
+
     const totalUsers = users.length
-    const adminUsers = users.filter((u: UserProfileWithRole) => u.role === 'admin' || u.role === 'superadmin').length
-    
+    const adminUsers = users.filter((u) => u.role === "admin" || u.role === "superadmin").length
+
     // Active today = users yang updated hari ini
-    const today = new Date().toISOString().split('T')[0]
-    const activeToday = users.filter((u: UserProfileWithRole) => u.updated_at?.startsWith(today)).length
-    
+    const today = new Date().toISOString().split("T")[0]
+    const activeToday = users.filter((u) => u.updated_at?.startsWith(today)).length
+
     return { totalUsers, activeToday, adminUsers }
   } catch (error) {
     console.error("Error fetching admin stats:", error)
-    return { totalUsers: 0, activeToday: 0, adminUsers: 0 }
+    return empty
   }
 }
