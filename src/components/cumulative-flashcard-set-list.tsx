@@ -60,8 +60,6 @@ export function CumulativeFlashcardSetList({
           // Ambil dari Supabase untuk sinkronisasi antar device
           const dbIds = await getHanziReadProgress(set.key);
 
-          console.log(`[Sync] Set: ${set.key}, Local: ${localIds.length}, DB: ${dbIds.length}, Score: ${hanziScores[set.key] ?? 0}`);
-
           // Gabungkan local + DB (union) untuk cross-device sync
           const mergedIds = Array.from(new Set([...localIds, ...dbIds]));
 
@@ -71,12 +69,10 @@ export function CumulativeFlashcardSetList({
             // Buat array dummy semua ID dari 1 sampai itemCount
             const allIds = Array.from({ length: set.itemCount }, (_, i) => i + 1);
             counts[set.key] = set.itemCount;
-            console.log(`[Sync] Using score 100 fallback for ${set.key}: ${set.itemCount} items`);
           } else {
             // Update localStorage jika ada data baru dari DB
             if (mergedIds.length > localIds.length) {
               window.localStorage.setItem(`hanzi_read_progress:${set.key}`, JSON.stringify(mergedIds));
-              console.log(`[Sync] Updated localStorage for ${set.key}: ${localIds.length} -> ${mergedIds.length}`);
             }
 
             counts[set.key] = mergedIds.length;
