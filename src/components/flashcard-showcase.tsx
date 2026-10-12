@@ -4,6 +4,8 @@ import * as React from "react"
 import { ChevronLeft, Eye, EyeOff, SkipForward } from "lucide-react"
 import { WORD_CLASS_LABELS } from "@/lib/hanzi-utils"
 import { speakMandarin } from "@/lib/tts"
+import { DEFAULT_EASE_FACTOR, previewIntervalDays, type SrsState } from "@/lib/srs"
+import { formatIntervalDays } from "./flashcard-session/utils"
 
 type ShowcaseWord = {
   hanzi: string
@@ -23,6 +25,17 @@ const WORDS: ShowcaseWord[] = [
 
 type RatingKey = "lupa" | "sulit" | "ingat" | "mudah"
 
+// Contoh kartu yang sedang direview untuk kedua kalinya (1x berhasil, interval 1 hari).
+// Angka pada tombol dihitung dari algoritma SRS yang sebenarnya (lib/srs.ts),
+// sehingga demo ini selalu sama dengan tampilan di sesi flashcard.
+const DEMO_SRS_STATE: SrsState = {
+  repetitions: 1,
+  intervalDays: 1,
+  easeFactor: DEFAULT_EASE_FACTOR,
+}
+const demoDays = (quality: 0 | 3 | 4 | 5) =>
+  formatIntervalDays(previewIntervalDays(DEMO_SRS_STATE, quality))
+
 const RATINGS: {
   key: RatingKey
   num: number
@@ -32,10 +45,10 @@ const RATINGS: {
   bg: string
   border: string
 }[] = [
-    { key: "lupa", num: 1, label: "Lupa", days: "1 hari", color: "#F16565", bg: "rgba(241,101,101,0.08)", border: "rgba(241,101,101,0.28)" },
-    { key: "sulit", num: 2, label: "Sulit", days: "1 hari", color: "#F2A94E", bg: "rgba(242,169,78,0.08)", border: "rgba(242,169,78,0.28)" },
-    { key: "ingat", num: 3, label: "Ingat", days: "2 hari", color: "#5B9EF2", bg: "rgba(91,158,242,0.08)", border: "rgba(91,158,242,0.28)" },
-    { key: "mudah", num: 4, label: "Mudah", days: "4 hari", color: "#3ECF8E", bg: "rgba(62,207,142,0.08)", border: "rgba(62,207,142,0.28)" },
+    { key: "lupa", num: 1, label: "Lupa", days: demoDays(0), color: "#F16565", bg: "rgba(241,101,101,0.08)", border: "rgba(241,101,101,0.28)" },
+    { key: "sulit", num: 2, label: "Sulit", days: demoDays(3), color: "#F2A94E", bg: "rgba(242,169,78,0.08)", border: "rgba(242,169,78,0.28)" },
+    { key: "ingat", num: 3, label: "Ingat", days: demoDays(4), color: "#5B9EF2", bg: "rgba(91,158,242,0.08)", border: "rgba(91,158,242,0.28)" },
+    { key: "mudah", num: 4, label: "Mudah", days: demoDays(5), color: "#3ECF8E", bg: "rgba(62,207,142,0.08)", border: "rgba(62,207,142,0.28)" },
   ]
 
 const SWIPE_META: Record<RatingKey, { flyX: number; flyY: number; text: string }> = {
