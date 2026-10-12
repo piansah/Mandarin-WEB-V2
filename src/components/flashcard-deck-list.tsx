@@ -10,6 +10,7 @@ import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { getUserScoresByType } from "@/lib/user-scores"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
+import { toast } from "sonner"
 
 export type FlashcardSet = {
   id: number
@@ -109,7 +110,29 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
 
             if (isLocked) {
               return (
-                <div key={deck.id} className="block cursor-not-allowed">
+                <div
+                  key={deck.id}
+                  className="block cursor-pointer"
+                  onClick={() => {
+                    const prevDeck = index > 0 ? decks[index - 1] : null
+                    if (prevDeck) {
+                      const prevScore = quizScores[String(prevDeck.id)]
+                      if (prevScore !== undefined && prevScore < 80) {
+                        toast.error(
+                          <>
+                            Selesaikan <strong>"{prevDeck.title}"</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini. Nilai Anda: {prevScore}%
+                          </>
+                        )
+                      } else {
+                        toast.error(
+                          <>
+                            Selesaikan <strong>"{prevDeck.title}"</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini.
+                          </>
+                        )
+                      }
+                    }
+                  }}
+                >
                   {cardInner}
                 </div>
               )
