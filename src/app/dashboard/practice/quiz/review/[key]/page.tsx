@@ -301,41 +301,9 @@ export default function CumulativeQuizPracticePage() {
     async function load() {
       setLoading(true)
 
-      // ── 1. Cek localStorage lebih dulu (sesi aktif / draft) ──
-      try {
-        const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-        const state = saved[key]
-        const savedQ = state?.allQ
-        const savedAnswered = state?.answered ?? {}
-        // Cek apakah data masih valid (dalam 24 jam) atau sudah di-submit (history permanen)
-        const hoursDiff = state?.timestamp
-          ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
-          : 0
-        if (Array.isArray(savedQ) && savedQ.length > 0 && (state?.submitted || hoursDiff < 24)) {
-          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
-          if (!cancelled) {
-            if (meta.data) {
-              setQuizTitle(meta.data.title)
-              setQuizSub(meta.data.sub)
-            }
-            setAllQ(savedQ)
-            setAnswered(savedAnswered)
-            setSubmitted(Boolean(state.submitted))
-            setLoading(false)
-          }
-          return
-        }
-        // Data expired dan belum di-submit — hapus entry lama
-        if (state) {
-          delete saved[key]
-          localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
-        }
-      } catch { }
-
-      // ── 2. Tidak ada localStorage valid — cek database dulu ──
-      // Jika user sudah pernah menyelesaikan quiz ini di device lain,
-      // user_scores akan punya row (type="kal", key=key). Kalau ada,
-      // langsung tampilkan result screen tanpa harus mengerjakan lagi.
+      // ── 1. Cek database LEBIH DULU — source of truth ──
+      // user_scores adalah sumber kebenaran lintas device.
+      // Jika sudah ada skor kal di DB → tampilkan result langsung.
       const { data: { user } } = await supa.auth.getUser()
       if (!cancelled && user) {
         const { data: dbScore } = await supa
@@ -347,15 +315,29 @@ export default function CumulativeQuizPracticePage() {
           .maybeSingle()
 
         if (!cancelled && dbScore) {
-          // Sudah selesai di device lain — ambil meta dan tampilkan result
+          // Sudah selesai (di device mana pun) — tampilkan result screen dari DB
           const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
           if (!cancelled) {
             if (meta.data) {
               setQuizTitle(meta.data.title)
               setQuizSub(meta.data.sub)
             }
-            // Buat dummy allQ kosong supaya kalkulasi pct bisa pakai skor DB
-            // (totalAnswered=0 → pct dari DB). Kita set state khusus untuk ini.
+
+            // Cek apakah ada detail jawaban di localStorage (jika dikerjakan di device ini)
+            try {
+              const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
+              const state = saved[key]
+              if (state?.submitted && Array.isArray(state?.allQ) && state.allQ.length > 0) {
+                // Ada detail jawaban lokal → tampilkan dengan detail
+                setAllQ(state.allQ)
+                setAnswered(state.answered ?? {})
+                setSubmitted(true)
+                setLoading(false)
+                return
+              }
+            } catch { }
+
+            // Tidak ada detail lokal → tampilkan dengan skor DB saja
             setDbOnlyScore(dbScore.score)
             setSubmitted(true)
             setLoading(false)
@@ -363,6 +345,39 @@ export default function CumulativeQuizPracticePage() {
           return
         }
       }
+
+      if (cancelled) return
+
+      // ── 2. Tidak ada skor di DB — cek localStorage untuk sesi draft ──
+      try {
+        const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
+        const state = saved[key]
+        const savedQ = state?.allQ
+        const savedAnswered = state?.answered ?? {}
+        const hoursDiff = state?.timestamp
+          ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
+          : 0
+        // Restore sesi yang masih aktif (< 24 jam) meski belum submit
+        if (Array.isArray(savedQ) && savedQ.length > 0 && hoursDiff < 24) {
+          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
+          if (!cancelled) {
+            if (meta.data) {
+              setQuizTitle(meta.data.title)
+              setQuizSub(meta.data.sub)
+            }
+            setAllQ(savedQ)
+            setAnswered(savedAnswered)
+            setSubmitted(false)
+            setLoading(false)
+          }
+          return
+        }
+        // Data expired — hapus entry lama
+        if (state) {
+          delete saved[key]
+          localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
+        }
+      } catch { }
 
       // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
       const [metaRes, itemsRes] = await Promise.all([

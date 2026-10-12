@@ -56,11 +56,14 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
     console.error("Gagal merekam daily streak:", streakErr)
   }
 
-  if (existing && existing.score >= score) return { error: null, skipped: true }
+  // Skip jika skor existing lebih tinggi/sama DAN tidak ada meta yang perlu diperbarui
+  if (existing && existing.score >= score && !meta) return { error: null, skipped: true }
+  // Kalau skor lama lebih tinggi tapi ada meta baru, tetap lanjut upsert (update meta saja, skor tetap pakai yang lama)
+  const finalScore = existing && existing.score > score ? existing.score : score
 
   const { error } = await supa
     .from("user_scores")
-    .upsert({ user_id: user.id, type, key, score, ...(meta && { meta: meta as unknown }) } as any, { onConflict: "user_id,type,key" }) // eslint-disable-line @typescript-eslint/no-explicit-any
+    .upsert({ user_id: user.id, type, key, score: finalScore, ...(meta && { meta: meta as unknown }) } as any, { onConflict: "user_id,type,key" }) // eslint-disable-line @typescript-eslint/no-explicit-any
 
   return { error: error?.message ?? null }
 }
@@ -203,7 +206,7 @@ export async function getHanziReadProgress(setKey: string): Promise<number[]> {
 
 /**
  * Simpan daftar ID kalimat yang sudah selesai dibaca ke Supabase.
- * Menggunakan upsert pada (user_id, type, key) agar tidak duplikat.
+ * Selalu mempertahankan score yang sudah ada (tidak di-overwrite ke 0).
  */
 export async function saveHanziReadProgress(setKey: string, completedIds: number[]): Promise<void> {
   const supa = createClient()
@@ -212,6 +215,18 @@ export async function saveHanziReadProgress(setKey: string, completedIds: number
   } = await supa.auth.getUser()
   if (!user) return
 
+  // Cek apakah row sudah ada agar bisa preserve score-nya
+  const { data: existing } = await supa
+    .from("user_scores")
+    .select("score")
+    .eq("user_id", user.id)
+    .eq("type", "hanzi")
+    .eq("key", setKey)
+    .maybeSingle()
+
+  // Pakai score yang sudah ada (bisa 100 kalau sudah selesai), jangan di-reset ke 0
+  const preservedScore = existing?.score ?? 0
+
   await supa
     .from("user_scores")
     .upsert(
@@ -219,7 +234,7 @@ export async function saveHanziReadProgress(setKey: string, completedIds: number
         user_id: user.id,
         type: "hanzi" as ScoreType,
         key: setKey,
-        score: 0,
+        score: preservedScore,
         meta: { read_ids: completedIds } as unknown,
       } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
       { onConflict: "user_id,type,key" }

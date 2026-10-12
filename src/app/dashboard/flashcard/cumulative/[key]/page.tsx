@@ -123,10 +123,26 @@ export default function CumulativeFlashcardSessionPage() {
       const localIds: number[] = localSaved ? (JSON.parse(localSaved) as number[]) : []
       const dbIds = await getHanziReadProgress(key)
       const mergedIds = Array.from(new Set([...localIds, ...dbIds]))
+
       // Simpan merged ke localStorage supaya konsisten
       if (mergedIds.length > localIds.length) {
         window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(mergedIds))
       }
+
+      // Backfill: jika localStorage punya data tapi DB kosong (data lama sebelum fitur sync),
+      // upload sekarang agar device lain bisa mengambilnya.
+      if (localIds.length > 0 && dbIds.length === 0) {
+        const allItemIds = (itemsResult.data ?? []).map((i) => i.id)
+        const isAllDone = allItemIds.length > 0 && localIds.length === allItemIds.length
+        if (isAllDone) {
+          // Sudah selesai semua — simpan score 100 + read_ids
+          saveUserScore("hanzi", key, 100, { read_ids: localIds }).catch(() => {})
+        } else {
+          // Sebagian selesai — simpan read_ids tanpa mengubah score
+          saveHanziReadProgress(key, localIds).catch(() => {})
+        }
+      }
+
       const restored = Object.fromEntries(mergedIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
 
       setSet(setResult.data)
@@ -177,12 +193,10 @@ export default function CumulativeFlashcardSessionPage() {
       const completed = items.filter((entry) => updated[entry.id] === 2).map((entry) => entry.id)
       window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(completed))
       if (items.length > 0 && completed.length === items.length) {
-        // type "hanzi" cuma dapat XP kalau score = 100 (bonus selesai penuh)
-        saveUserScore("hanzi", key, 100).catch(() => {})
-        // Juga simpan meta read_ids agar cross-device sync tetap bekerja
-        saveHanziReadProgress(key, completed).catch(() => {})
+        // Selesai semua — simpan score 100 + read_ids sekaligus (satu upsert, tidak ada race condition)
+        saveUserScore("hanzi", key, 100, { read_ids: completed }).catch(() => {})
       } else {
-        // Simpan progres parsial ke Supabase untuk sinkronisasi antar device
+        // Progres parsial — simpan read_ids ke Supabase untuk sinkronisasi antar device
         saveHanziReadProgress(key, completed).catch(() => {})
       }
       return updated

@@ -229,39 +229,10 @@ export default function QuizPage() {
 
       if (cancelled) return
 
-      // ── 1. Cek localStorage lebih dulu (sesi aktif / draft) ──
       const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
-      const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-      const existingQuiz = savedState[storageKey]
 
-      let internalQuiz: QuizQuestion[]
-      let initialAnswered: Answered = {}
-      let initialSubmitted = false
-
-      // Cek apakah data masih valid (dalam 24 jam) atau sudah di-submit (history permanen)
-      const hoursDiff = existingQuiz?.timestamp
-        ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
-        : 0
-
-      if (existingQuiz && (existingQuiz.submitted || hoursDiff < 24)) {
-        // Restore dari localStorage — sesi belum selesai dalam 24 jam, atau sudah selesai (history permanen)
-        internalQuiz = existingQuiz.allQ
-        initialAnswered = existingQuiz.answered ?? {}
-        initialSubmitted = existingQuiz.submitted ?? false
-
-        setQuizTitle(deckTitle)
-        setQuizSub(deckSub)
-        setAllQ(internalQuiz)
-        setAnswered(initialAnswered)
-        setSubmitted(initialSubmitted)
-        setLoading(false)
-        return
-      }
-
-      // ── 2. Tidak ada localStorage valid — cek database dulu ──
-      // Jika user sudah pernah menyelesaikan quiz ini di device lain,
-      // user_scores akan punya row (type="quiz", key=key). Kalau ada,
-      // langsung tampilkan result screen tanpa harus mengerjakan lagi.
+      // ── 1. Cek database LEBIH DULU — source of truth ──
+      // Jika sudah ada skor quiz di DB → tampilkan result langsung.
       const { data: { user } } = await supa.auth.getUser()
       if (!cancelled && user) {
         const { data: dbScore } = await supa
@@ -273,7 +244,23 @@ export default function QuizPage() {
           .maybeSingle()
 
         if (!cancelled && dbScore) {
-          // Sudah selesai di device lain — langsung tampilkan result dari DB
+          // Sudah selesai — cek apakah ada detail lokal untuk ditampilkan
+          try {
+            const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
+            const existingQuiz = savedState[storageKey]
+            if (existingQuiz?.submitted && Array.isArray(existingQuiz?.allQ) && existingQuiz.allQ.length > 0) {
+              // Ada detail jawaban lokal → tampilkan dengan detail
+              setQuizTitle(deckTitle)
+              setQuizSub(deckSub)
+              setAllQ(existingQuiz.allQ)
+              setAnswered(existingQuiz.answered ?? {})
+              setSubmitted(true)
+              setLoading(false)
+              return
+            }
+          } catch { }
+
+          // Tidak ada detail lokal → tampilkan dengan skor DB saja
           setQuizTitle(deckTitle)
           setQuizSub(deckSub)
           setDbOnlyScore(dbScore.score)
@@ -283,21 +270,39 @@ export default function QuizPage() {
         }
       }
 
+      if (cancelled) return
+
+      // ── 2. Tidak ada skor di DB — cek localStorage untuk sesi draft ──
+      const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
+      const existingQuiz = savedState[storageKey]
+      const hoursDiff = existingQuiz?.timestamp
+        ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
+        : 0
+
+      if (existingQuiz && hoursDiff < 24) {
+        // Restore sesi yang masih aktif (< 24 jam, belum submit)
+        setQuizTitle(deckTitle)
+        setQuizSub(deckSub)
+        setAllQ(existingQuiz.allQ)
+        setAnswered(existingQuiz.answered ?? {})
+        setSubmitted(false)
+        setLoading(false)
+        return
+      }
+
       // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
-      // Generate new quiz (sesi baru dan belum ada data atau expired)
       if (existingQuiz) delete savedState[storageKey]
       const generatedQuiz = generateQuizFromCards(cards)
-      internalQuiz = convertToInternalQuiz(generatedQuiz)
+      const internalQuiz = convertToInternalQuiz(generatedQuiz)
 
-      // Save to localStorage dengan timestamp
       savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false, timestamp: Date.now() }
       localStorage.setItem("hsk_quiz_state", JSON.stringify(savedState))
 
       setQuizTitle(deckTitle)
       setQuizSub(deckSub)
       setAllQ(internalQuiz)
-      setAnswered(initialAnswered)
-      setSubmitted(initialSubmitted)
+      setAnswered({})
+      setSubmitted(false)
       setLoading(false)
     }
     load()
