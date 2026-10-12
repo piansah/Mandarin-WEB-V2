@@ -323,14 +323,14 @@ export default function FlashcardDeckPage() {
                   {quizDone && typeof quizScore === "number" && (
                     <div className="absolute top-2 right-2">
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                        {quizScore}
+                        {quizScore}%
                       </span>
                     </div>
                   )}
                   <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                     <ListChecks className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
+                  <span className="text-xs font-semibold text-center leading-tight">Quiz Nilai</span>
                   {!quizUnlocked && (
                     <span className="text-[10px] text-muted-foreground text-center leading-tight">
                       Selesaikan Flashcard

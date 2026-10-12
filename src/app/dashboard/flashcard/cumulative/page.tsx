@@ -9,7 +9,7 @@ export default async function CumulativeFlashcardPage() {
   const supa = await createClient()
   const { data: sets, error } = await supa
     .from("hanzi_sets")
-    .select("key, title, sub, description, badge, hsk_level, hanzi_items(count)")
+    .select("key, title, sub, description, badge, hsk_level, unlock_after, hanzi_items(count)")
     .order("hsk_level", { ascending: true })
     .order("sort_order", { ascending: true })
 
@@ -31,6 +31,7 @@ export default async function CumulativeFlashcardPage() {
         <CumulativeFlashcardSetList sets={(sets ?? []).map((set) => ({
           ...set,
           itemCount: set.hanzi_items?.[0]?.count ?? 0,
+          unlock_after: set.unlock_after ?? 0,
         })) as CumulativeFlashcardSet[]} />
       )}
     </div>

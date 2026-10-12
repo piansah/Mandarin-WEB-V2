@@ -17,6 +17,7 @@ export type CumulativeFlashcardSet = {
   badge: string;
   hsk_level: number;
   itemCount: number;
+  unlock_after: number;
 };
 
 export function CumulativeFlashcardSetList({
@@ -38,13 +39,19 @@ export function CumulativeFlashcardSetList({
   const [readCounts, setReadCounts] = React.useState<Record<string, number>>(
     {},
   );
+  const [quizScores, setQuizScores] = React.useState<Record<string, number>>({});
 
   React.useEffect(() => {
     async function loadProgress() {
       const counts: Record<string, number> = {};
 
-      // Ambil semua scores type "hanzi" sekaligus untuk efisiensi
-      const hanziScores = await getUserScoresByType("hanzi");
+      // Ambil semua scores type "hanzi" dan "quiz" sekaligus untuk efisiensi
+      const [hanziScores, quizScoresData] = await Promise.all([
+        getUserScoresByType("hanzi"),
+        getUserScoresByType("quiz"),
+      ]);
+
+      setQuizScores(quizScoresData);
 
       await Promise.all(
         sets.map(async (set) => {
@@ -104,11 +111,12 @@ export function CumulativeFlashcardSetList({
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {visibleSets.map((set, index) => {
-            const prevSet = index > 0 ? visibleSets[index - 1] : null;
-            const prevDone = prevSet
-              ? readCounts[prevSet.key] >= prevSet.itemCount && prevSet.itemCount > 0
-              : true;
-            const isLocked = !prevDone;
+            // Unlock logic: cek deck dengan ID = unlock_after memiliki score quiz >= 80%
+            const isUnlockedByQuiz = set.unlock_after === 0
+              ? true
+              : (quizScores[String(set.unlock_after)] ?? 0) >= 80;
+
+            const isLocked = !isUnlockedByQuiz;
 
             const cardInner = (
               <Card className={`flex h-full flex-col border-border/50 bg-card/50 backdrop-blur-sm transition-all ${isLocked ? "opacity-55" : "hover:border-primary/40 hover:shadow-md hover:shadow-primary/5"}`}>

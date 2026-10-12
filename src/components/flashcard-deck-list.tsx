@@ -29,16 +29,14 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
   const decks = sets.filter(deck => (deck.hsk_level ?? 1) === effectiveLevel)
   const totalVocabCount = vocabCountByLevel?.[effectiveLevel] ?? 0
 
-  // Badge "%"/"Belum" di tiap kartu masih pakai skor flashcard-nya sendiri.
+  // Badge "%"/"Belum" di tiap kartu pakai skor QUIZ.
   // Buka-kunci Day berikutnya mengikuti skor QUIZ dari Day sebelumnya
   // Flashcard -> Quiz -> Nada/Menulis.
-  const [fcScores, setFcScores] = React.useState<Record<string, number>>({})
   const [quizScores, setQuizScores] = React.useState<Record<string, number>>({})
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
     setMounted(true)
-    getUserScoresByType("fc_session").then(setFcScores)
     getUserScoresByType("quiz").then(setQuizScores)
   }, [])
 
@@ -59,10 +57,10 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {decks.map((deck, index) => {
-            const score = fcScores[String(deck.id)]
+            const score = quizScores[String(deck.id)]
             const isDone = score !== undefined
             const prevDeck = index > 0 ? decks[index - 1] : null
-            const prevDone = !prevDeck ? true : quizScores[String(prevDeck.id)] !== undefined
+            const prevDone = !prevDeck ? true : (quizScores[String(prevDeck.id)] ?? 0) >= 80
             // Before mount, treat as unlocked to match server-rendered HTML and avoid hydration mismatch
             const isLocked = mounted && !prevDone
 
