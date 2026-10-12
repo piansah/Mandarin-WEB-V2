@@ -5,8 +5,7 @@
  * Bisa dipakai di server components dan route handlers.
  *
  * Sumber kebenaran role = kolom `user_profile.role` di database.
- * Role yang boleh masuk area admin: "admin" dan "superadmin"
- * (sama seperti verifyAdminRole() di admin-auth.ts).
+ * Role yang boleh masuk area admin: "admin" dan "superadmin".
  */
 
 import { redirect } from "next/navigation"

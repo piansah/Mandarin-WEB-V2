@@ -92,9 +92,9 @@ Highlights:
 - **Admin RPCs:** `SECURITY DEFINER` functions (`get_all_users_admin`, `get_users_for_regular_admin`, `update_user_role_admin`, `get_admin_stats`) check the caller's role *inside* the function, and `EXECUTE` is revoked from `anon`/`PUBLIC`.
 - **Role-change guard:** a database trigger on `user_profile` rejects changes to the `role` column unless the caller is a superadmin, regardless of which code path performs the update.
 - **Row Level Security:** policies on `user_profile` use helper functions (`is_admin()`, `is_superadmin()`) instead of self-referencing subqueries; profile inserts are restricted to the `user` role.
-- **Server-side checks:** admin pages and API routes verify the role on the server (`admin-middleware.ts`, `admin-auth.ts`), never relying on client-side checks alone.
+- **Admin area:** the admin layout hides `/dashboard/admin` from non-admins in the browser, but the real enforcement lives in the database: write policies on content tables require `is_admin()`, and the admin RPCs verify the caller's role.
 
-> Client-side role helpers in `src/lib/auth-roles.ts` exist only to show or hide UI. Real enforcement happens in the database and on the server.
+> Client-side role helpers in `src/lib/auth-roles.ts` exist only to show or hide UI. Real enforcement happens in the database (RLS policies, RPC role checks, and triggers).
 
 ---
 
@@ -103,7 +103,6 @@ Highlights:
 ```
 src/
 ├── app/
-│   ├── api/                   # Route handlers (admin APIs, etc.)
 │   ├── auth/callback/         # OAuth callback (sanitized redirect)
 │   ├── login/  privacy/  terms/
 │   └── dashboard/
@@ -123,7 +122,6 @@ src/
 │   ├── supabase/              # Browser & server clients
 │   ├── database.types.ts      # Generated DB types
 │   ├── auth-roles.ts          # Client-side role helpers (UI only)
-│   ├── admin-auth.ts          # Server-side admin verification
 │   ├── admin-middleware.ts    # requireAdmin() / checkAdminStatus()
 │   └── srs.ts                 # Spaced-repetition algorithm
 ├── proxy.ts                   # Session refresh and route protection
@@ -180,8 +178,14 @@ npm run dev               # Local development server
 npm run build             # Production build
 npm run lint              # ESLint
 npm run test              # Unit tests (Vitest)
+npm run test:ui           # Vitest UI
+npm run test:coverage     # Coverage report
 npm run test:e2e          # End-to-end tests (Playwright)
+npm run analyze           # Bundle analysis
 npm run supabase:types    # Regenerate database.types.ts from the schema
+npm run db:pull           # Pull remote schema changes into a migration
+npm run db:new            # Create a new migration file
+npm run db:diff           # Diff local vs remote schema
 npm run db:push           # Push local SQL migrations to the remote Supabase project
 ```
 
@@ -198,7 +202,10 @@ npm run db:push           # Push local SQL migrations to the remote Supabase pro
   ```
 
   Then run `schema.sql` in the new project, followed by any newer migrations.
-- Role management depends on the SQL in the role-security migration (helper functions, RPC checks, trigger, and policies). Keep that file in `supabase/migrations/` so the setup stays reproducible.
+- Security-related migrations (apply in this order after the base schema):
+  - `20261009_secure_role_system.sql` — role helpers, RPC role checks, role-change trigger, `user_profile` policies
+  - `20261011_tighten_content_rls.sql` — admin-only writes on module and flashcard content tables, bookmark and bug-report policies
+  - `20261012_tighten_rls_part2.sql` — remaining content tables, placement, examples, and function hardening
 
 ---
 
@@ -206,7 +213,18 @@ npm run db:push           # Push local SQL migrations to the remote Supabase pro
 
 - **Unit tests (Vitest)** — SRS interval calculation, session accuracy and mastery counting, dashboard statistics, profile badges, and hanzi map logic. Run with `npm run test`.
 - **E2E tests (Playwright)** — home page smoke test and admin CRUD flow. Run with `npm run test:e2e`.
-- **CI (GitHub Actions)** — on every push: lint, type-check, and tests. A separate job deploys database migrations and only runs after the checks pass.
+- **CI (GitHub Actions)** — on every push and pull request: lint, type-check, and tests. Database migrations are **not** deployed automatically; a manual `workflow_dispatch` job (dry run by default) exists for that, because the base schema was created outside the migration folder.
+
+---
+
+## 🛣️ Roadmap
+
+- [ ] Gate `/dashboard/admin` on the server (`requireAdmin()` in a server layout) instead of only in the browser
+- [ ] Form validation (Zod) and `CHECK` constraints for admin-edited content
+- [ ] Broader test coverage (SRS edge cases, study-session flows)
+- [ ] Cap per-session XP in `get_user_stats()` and make the ranking query set-based
+- [ ] Guest/demo mode for first-time visitors
+- [ ] Export the full base schema into `supabase/migrations/` so the database can be rebuilt from the repo
 
 ---
 
