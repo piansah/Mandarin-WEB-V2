@@ -179,12 +179,27 @@
   border: 1.5px solid var(--c-border);
   border-radius: 14px;
   background: var(--c-card);
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  scroll-margin-top: 80px;
 }
 .qCardReplay { cursor: pointer; }
 .qCardReplay:hover { border-color: rgba(66,214,164,.7); }
 .qCardCorrect { border-color: rgba(66,214,164,.5); background: rgba(66,214,164,.05); }
 .qCardWrong { border-color: rgba(248,113,113,.4); background: rgba(248,113,113,.04); }
+.qCardHighlight {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25) !important;
+  animation: pulseHighlight 1.5s ease-in-out;
+}
+
+@keyframes pulseHighlight {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  30%, 70% {
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.35);
+  }
+}
 
 .qTop {
   display: flex;

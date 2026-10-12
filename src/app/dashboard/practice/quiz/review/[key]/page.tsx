@@ -9,6 +9,15 @@ import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
 import { FullscreenLoader } from "@/components/page-loader"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import styles from "../../[key]/page.module.css"
 
 type HanziItem = {
@@ -267,6 +276,9 @@ export default function CumulativeQuizPracticePage() {
   const [answered, setAnswered] = React.useState<Answered>({})
   const [submitted, setSubmitted] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
+  // Skor dari database saja (tidak ada detail jawaban) — dipakai saat user
+  // membuka quiz di device baru tapi sudah pernah selesai di device lain.
+  const [dbOnlyScore, setDbOnlyScore] = React.useState<number | null>(null)
 
   const [filterOpen, setFilterOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
@@ -289,6 +301,7 @@ export default function CumulativeQuizPracticePage() {
     async function load() {
       setLoading(true)
 
+      // ── 1. Cek localStorage lebih dulu (sesi aktif / draft) ──
       try {
         const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
         const state = saved[key]
@@ -319,6 +332,39 @@ export default function CumulativeQuizPracticePage() {
         }
       } catch { }
 
+      // ── 2. Tidak ada localStorage valid — cek database dulu ──
+      // Jika user sudah pernah menyelesaikan quiz ini di device lain,
+      // user_scores akan punya row (type="kal", key=key). Kalau ada,
+      // langsung tampilkan result screen tanpa harus mengerjakan lagi.
+      const { data: { user } } = await supa.auth.getUser()
+      if (!cancelled && user) {
+        const { data: dbScore } = await supa
+          .from("user_scores")
+          .select("score")
+          .eq("user_id", user.id)
+          .eq("type", "kal")
+          .eq("key", key)
+          .maybeSingle()
+
+        if (!cancelled && dbScore) {
+          // Sudah selesai di device lain — ambil meta dan tampilkan result
+          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
+          if (!cancelled) {
+            if (meta.data) {
+              setQuizTitle(meta.data.title)
+              setQuizSub(meta.data.sub)
+            }
+            // Buat dummy allQ kosong supaya kalkulasi pct bisa pakai skor DB
+            // (totalAnswered=0 → pct dari DB). Kita set state khusus untuk ini.
+            setDbOnlyScore(dbScore.score)
+            setSubmitted(true)
+            setLoading(false)
+          }
+          return
+        }
+      }
+
+      // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
       const [metaRes, itemsRes] = await Promise.all([
         supa.from("hanzi_sets").select("title,sub").eq("key", key).single(),
         supa
@@ -391,7 +437,42 @@ export default function CumulativeQuizPracticePage() {
     speakMandarin(speech)
   }
 
+  const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
+  const [highlightGi, setHighlightGi] = React.useState<number | null>(null)
+
+  function scrollToQuestion(gi: number) {
+    const cardEl = document.getElementById(`card-${gi}`)
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: "smooth", block: "center" })
+      setHighlightGi(gi)
+      setTimeout(() => {
+        setHighlightGi(prev => (prev === gi ? null : prev))
+      }, 2000)
+    }
+  }
+
   function handleSubmit() {
+    // Cari apakah ada soal yang belum dijawab
+    const firstUnanswered = allQ.find(q => answered[q.gi] === undefined)
+    if (firstUnanswered) {
+      // Jika tab aktif bukan "all" dan bukan section soal ini, ganti tab dulu agar card dirender di DOM
+      if (activeTab !== "all" && activeTab !== firstUnanswered.si) {
+        setActiveTab("all")
+        setTimeout(() => {
+          scrollToQuestion(firstUnanswered.gi)
+        }, 100)
+      } else {
+        scrollToQuestion(firstUnanswered.gi)
+      }
+      return
+    }
+
+    // Jika semua sudah terjawab, tampilkan confirm dialog
+    setShowConfirmDialog(true)
+  }
+
+  function handleConfirmFinish() {
+    setShowConfirmDialog(false)
     setSubmitted(true)
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
     if (saved[key]) {
@@ -466,10 +547,14 @@ export default function CumulativeQuizPracticePage() {
 
   /* ── Result screen ── */
   if (!loading && submitted) {
-    const skip = total - totalAnswered
-    const wrong = totalAnswered - totalCorrect
-    // Calculate percentage based on answered questions, not total questions
-    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+    // Jika dibuka dari device lain (dbOnlyScore), gunakan skor dari database langsung.
+    // Jika dari sesi lokal yang sudah selesai, hitung dari jawaban.
+    const isDbOnly = dbOnlyScore !== null && totalAnswered === 0
+    const skip = isDbOnly ? 0 : total - totalAnswered
+    const wrong = isDbOnly ? 0 : totalAnswered - totalCorrect
+    const pct = isDbOnly
+      ? dbOnlyScore
+      : totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     const { msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
@@ -516,6 +601,7 @@ export default function CumulativeQuizPracticePage() {
             </div>
           </div>
 
+          {!isDbOnly && (
           <div className="flex flex-wrap justify-center gap-2 relative z-10">
             <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
               <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
@@ -533,6 +619,13 @@ export default function CumulativeQuizPracticePage() {
               <span className="text-xs text-muted-foreground">Dilewati</span>
             </div>
           </div>
+          )}
+          {isDbOnly && (
+            <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/25 text-xs text-blue-400">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              <span>Skor tersinkronisasi dari perangkat lain</span>
+            </div>
+          )}
 
           <div className="relative z-10 w-full max-w-xs">
             <div className="mb-4 px-4 py-3 rounded-xl bg-muted/40 border border-border/40 text-xs text-muted-foreground text-center leading-relaxed">
@@ -638,6 +731,7 @@ export default function CumulativeQuizPracticePage() {
                     num={offset + li + 1}
                     isAnswered={answered[q.gi] !== undefined}
                     isCorrect={answered[q.gi]}
+                    isHighlighted={highlightGi === q.gi}
                     onSelect={sel => selectAns(q.gi, sel, q.ans)}
                     onReplay={() => replayQuestion(q.gi)}
                   />
@@ -672,18 +766,39 @@ export default function CumulativeQuizPracticePage() {
             )}
           </div>
         </div>
+
+        {/* Dialog Konfirmasi Selesai */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Selesaikan Quiz?</DialogTitle>
+              <DialogDescription>
+                Semua {total} soal sudah terjawab. Apakah kamu yakin ingin menyelesaikan quiz estafet ini dan melihat hasil skormu?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleConfirmFinish} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+                Ya, Selesaikan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
 }
 
 function QuizCard({
-  q, num, isAnswered, isCorrect, onSelect, onReplay,
+  q, num, isAnswered, isCorrect, isHighlighted, onSelect, onReplay,
 }: {
   q: QuizQuestion
   num: number
   isAnswered: boolean
   isCorrect: boolean | undefined
+  isHighlighted?: boolean
   onSelect: (sel: number) => void
   onReplay: () => void
 }) {
@@ -691,7 +806,7 @@ function QuizCard({
   const cardClass = !isAnswered ? styles.qCard : isCorrect ? `${styles.qCard} ${styles.qCardCorrect}` : `${styles.qCard} ${styles.qCardWrong}`
 
   return (
-    <div id={`card-${q.gi}`} className={`${cardClass} ${isAnswered && q.si !== 1 ? styles.qCardReplay : ""}`} onClick={isAnswered && q.si !== 1 ? onReplay : undefined}>
+    <div id={`card-${q.gi}`} className={`${cardClass} ${isHighlighted ? styles.qCardHighlight : ""} ${isAnswered && q.si !== 1 ? styles.qCardReplay : ""}`} onClick={isAnswered && q.si !== 1 ? onReplay : undefined}>
       <div className={styles.qTop}>
         <span className={styles.qNum}>{num}</span>
         <div className={styles.qText}>

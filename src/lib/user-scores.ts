@@ -132,3 +132,96 @@ export async function getDeckPracticeScores(deckKey: string | number): Promise<D
 
   return { fcDone, quizScore, nadaDone, tulisDone }
 }
+
+export type EstafetPracticeScores = {
+  quizScore: number | null
+  speakingDone: boolean
+  speakingScore: number | null
+}
+
+/**
+ * Ambil status selesai & skor untuk latihan pada set estafet (kal = Quiz Kalimat, speaking_session = Latihan Speaking).
+ */
+export async function getEstafetPracticeScores(setKey: string): Promise<EstafetPracticeScores> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) {
+    return { quizScore: null, speakingDone: false, speakingScore: null }
+  }
+
+  const { data, error } = await supa
+    .from("user_scores")
+    .select("type, score")
+    .eq("user_id", user.id)
+    .eq("key", setKey)
+    .in("type", ["kal", "speaking_session"])
+
+  if (error || !data) {
+    return { quizScore: null, speakingDone: false, speakingScore: null }
+  }
+
+  let quizScore: number | null = null
+  let speakingDone = false
+  let speakingScore: number | null = null
+
+  for (const row of data) {
+    if (row.type === "kal") quizScore = row.score
+    if (row.type === "speaking_session") {
+      speakingDone = true
+      speakingScore = row.score
+    }
+  }
+
+  return { quizScore, speakingDone, speakingScore }
+}
+
+/**
+ * Ambil daftar ID kalimat yang sudah selesai dibaca untuk satu hanzi set key.
+ * Data disimpan di user_scores sebagai type="hanzi_read", key=setKey, meta={ ids: number[] }.
+ */
+export async function getHanziReadProgress(setKey: string): Promise<number[]> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return []
+
+  const { data } = await supa
+    .from("user_scores")
+    .select("meta")
+    .eq("user_id", user.id)
+    .eq("type", "hanzi")
+    .eq("key", setKey)
+    .maybeSingle()
+
+  if (!data?.meta) return []
+  const meta = data.meta as { read_ids?: number[] }
+  return Array.isArray(meta.read_ids) ? meta.read_ids : []
+}
+
+/**
+ * Simpan daftar ID kalimat yang sudah selesai dibaca ke Supabase.
+ * Menggunakan upsert pada (user_id, type, key) agar tidak duplikat.
+ */
+export async function saveHanziReadProgress(setKey: string, completedIds: number[]): Promise<void> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return
+
+  await supa
+    .from("user_scores")
+    .upsert(
+      {
+        user_id: user.id,
+        type: "hanzi" as ScoreType,
+        key: setKey,
+        score: 0,
+        meta: { read_ids: completedIds } as unknown,
+      } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+      { onConflict: "user_id,type,key" }
+    )
+}

@@ -20,7 +20,7 @@ import {
 import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
-import { saveUserScore } from "@/lib/user-scores"
+import { saveUserScore, getEstafetPracticeScores, getHanziReadProgress, saveHanziReadProgress } from "@/lib/user-scores"
 import { checkUserContentReports } from "@/lib/bug-reports"
 import styles from "./page.module.css"
 
@@ -64,9 +64,30 @@ export default function CumulativeFlashcardSessionPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [reportModal, setReportModal] = React.useState<{ isOpen: boolean; itemId: number | null; itemLabel: string }>({ isOpen: false, itemId: null, itemLabel: "" })
-  // Quiz Kalimat Kumulatif dulu punya menu & daftar sendiri (/dashboard/quiz/review),
-  // sekarang dipindah jadi salah satu opsi latihan di sini — menggunakan hanzi_sets yang sama.
   const [quizKey, setQuizKey] = React.useState<string | null>(null)
+  const [quizScore, setQuizScore] = React.useState<number | null>(null)
+  const [speakingDone, setSpeakingDone] = React.useState(false)
+
+  const refreshScores = React.useCallback(async () => {
+    if (!key) return
+    const res = await getEstafetPracticeScores(key)
+    setQuizScore(res.quizScore)
+    setSpeakingDone(res.speakingDone)
+  }, [key])
+
+  React.useEffect(() => {
+    refreshScores()
+
+    function handleVisibility() {
+      if (document.visibilityState === "visible") refreshScores()
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+    window.addEventListener("focus", refreshScores)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility)
+      window.removeEventListener("focus", refreshScores)
+    }
+  }, [refreshScores])
 
   React.useEffect(() => {
     let cancelled = false
@@ -97,9 +118,16 @@ export default function CumulativeFlashcardSessionPage() {
 
       if (cancelled) return
 
-      const saved = window.localStorage.getItem(`hanzi_read_progress:${key}`)
-      const completedIds = saved ? (JSON.parse(saved) as number[]) : []
-      const restored = Object.fromEntries(completedIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
+      // Gabungkan progres dari localStorage + Supabase (union) agar cross-device
+      const localSaved = window.localStorage.getItem(`hanzi_read_progress:${key}`)
+      const localIds: number[] = localSaved ? (JSON.parse(localSaved) as number[]) : []
+      const dbIds = await getHanziReadProgress(key)
+      const mergedIds = Array.from(new Set([...localIds, ...dbIds]))
+      // Simpan merged ke localStorage supaya konsisten
+      if (mergedIds.length > localIds.length) {
+        window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(mergedIds))
+      }
+      const restored = Object.fromEntries(mergedIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
 
       setSet(setResult.data)
       setItems(itemsResult.data ?? [])
@@ -151,6 +179,11 @@ export default function CumulativeFlashcardSessionPage() {
       if (items.length > 0 && completed.length === items.length) {
         // type "hanzi" cuma dapat XP kalau score = 100 (bonus selesai penuh)
         saveUserScore("hanzi", key, 100).catch(() => {})
+        // Juga simpan meta read_ids agar cross-device sync tetap bekerja
+        saveHanziReadProgress(key, completed).catch(() => {})
+      } else {
+        // Simpan progres parsial ke Supabase untuk sinkronisasi antar device
+        saveHanziReadProgress(key, completed).catch(() => {})
       }
       return updated
     })
@@ -331,12 +364,21 @@ export default function CumulativeFlashcardSessionPage() {
                       type="button"
                       onClick={() => { if (quizKey) navigateToQuiz() }}
                       aria-disabled={!quizKey}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors ${
-                        quizKey
-                          ? "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                          : "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative ${
+                        !quizKey
+                          ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                          : quizScore !== null
+                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
                       }`}
                     >
+                      {quizScore !== null && typeof quizScore === "number" && (
+                        <div className="absolute top-2 right-2">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                            {quizScore}
+                          </span>
+                        </div>
+                      )}
                       <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                         <ListChecks className="h-5 w-5" />
                       </div>
@@ -349,8 +391,17 @@ export default function CumulativeFlashcardSessionPage() {
                     <button
                       type="button"
                       onClick={navigateToSpeakingPractice}
-                      className="flex flex-col items-center justify-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative cursor-pointer ${
+                        speakingDone
+                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
+                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50"
+                      }`}
                     >
+                      {speakingDone && (
+                        <div className="absolute top-2 right-2 flex items-center justify-center">
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        </div>
+                      )}
                       <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
                         <Mic className="h-5 w-5" />
                       </div>

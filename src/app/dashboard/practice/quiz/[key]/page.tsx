@@ -10,6 +10,15 @@ import { PageLoader, FullscreenLoader } from "@/components/page-loader"
 import { saveUserScore } from "@/lib/user-scores"
 import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card } from "@/lib/quiz-generator"
 import { shuffle } from "@/lib/array-utils"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import styles from "./page.module.css"
 
 /* ── Types ── */
@@ -138,6 +147,9 @@ export default function QuizPage() {
   const [answered, setAnswered] = React.useState<Answered>({})
   const [submitted, setSubmitted] = React.useState(false)
   const [activeTab, setActiveTab] = React.useState<TabId>("all")
+  // Skor dari database saja (tidak ada detail jawaban) — dipakai saat user
+  // membuka quiz di device baru tapi sudah pernah selesai di device lain.
+  const [dbOnlyScore, setDbOnlyScore] = React.useState<number | null>(null)
 
   const [filterOpen, setFilterOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
@@ -217,7 +229,7 @@ export default function QuizPage() {
 
       if (cancelled) return
 
-      // Check localStorage for existing quiz state
+      // ── 1. Cek localStorage lebih dulu (sesi aktif / draft) ──
       const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
       const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
       const existingQuiz = savedState[storageKey]
@@ -236,16 +248,50 @@ export default function QuizPage() {
         internalQuiz = existingQuiz.allQ
         initialAnswered = existingQuiz.answered ?? {}
         initialSubmitted = existingQuiz.submitted ?? false
-      } else {
-        // Generate new quiz (sesi baru dan belum ada data atau expired)
-        if (existingQuiz) delete savedState[storageKey]
-        const generatedQuiz = generateQuizFromCards(cards)
-        internalQuiz = convertToInternalQuiz(generatedQuiz)
 
-        // Save to localStorage dengan timestamp
-        savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false, timestamp: Date.now() }
-        localStorage.setItem("hsk_quiz_state", JSON.stringify(savedState))
+        setQuizTitle(deckTitle)
+        setQuizSub(deckSub)
+        setAllQ(internalQuiz)
+        setAnswered(initialAnswered)
+        setSubmitted(initialSubmitted)
+        setLoading(false)
+        return
       }
+
+      // ── 2. Tidak ada localStorage valid — cek database dulu ──
+      // Jika user sudah pernah menyelesaikan quiz ini di device lain,
+      // user_scores akan punya row (type="quiz", key=key). Kalau ada,
+      // langsung tampilkan result screen tanpa harus mengerjakan lagi.
+      const { data: { user } } = await supa.auth.getUser()
+      if (!cancelled && user) {
+        const { data: dbScore } = await supa
+          .from("user_scores")
+          .select("score")
+          .eq("user_id", user.id)
+          .eq("type", "quiz")
+          .eq("key", key)
+          .maybeSingle()
+
+        if (!cancelled && dbScore) {
+          // Sudah selesai di device lain — langsung tampilkan result dari DB
+          setQuizTitle(deckTitle)
+          setQuizSub(deckSub)
+          setDbOnlyScore(dbScore.score)
+          setSubmitted(true)
+          setLoading(false)
+          return
+        }
+      }
+
+      // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
+      // Generate new quiz (sesi baru dan belum ada data atau expired)
+      if (existingQuiz) delete savedState[storageKey]
+      const generatedQuiz = generateQuizFromCards(cards)
+      internalQuiz = convertToInternalQuiz(generatedQuiz)
+
+      // Save to localStorage dengan timestamp
+      savedState[storageKey] = { allQ: internalQuiz, answered: {}, submitted: false, timestamp: Date.now() }
+      localStorage.setItem("hsk_quiz_state", JSON.stringify(savedState))
 
       setQuizTitle(deckTitle)
       setQuizSub(deckSub)
@@ -297,8 +343,43 @@ export default function QuizPage() {
     speakMandarin(speech)
   }
 
+  const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
+  const [highlightGi, setHighlightGi] = React.useState<number | null>(null)
+
+  function scrollToQuestion(gi: number) {
+    const cardEl = document.getElementById(`card-${gi}`)
+    if (cardEl) {
+      cardEl.scrollIntoView({ behavior: "smooth", block: "center" })
+      setHighlightGi(gi)
+      setTimeout(() => {
+        setHighlightGi(prev => (prev === gi ? null : prev))
+      }, 2000)
+    }
+  }
+
   /* ── Submit quiz ── */
   function handleSubmit() {
+    // Cari apakah ada soal yang belum dijawab
+    const firstUnanswered = allQ.find(q => answered[q.gi] === undefined)
+    if (firstUnanswered) {
+      // Jika tab aktif bukan "all" dan bukan section soal ini, ganti tab dulu agar card dirender di DOM
+      if (activeTab !== "all" && activeTab !== firstUnanswered.si) {
+        setActiveTab("all")
+        setTimeout(() => {
+          scrollToQuestion(firstUnanswered.gi)
+        }, 100)
+      } else {
+        scrollToQuestion(firstUnanswered.gi)
+      }
+      return
+    }
+
+    // Jika semua sudah terjawab, tampilkan confirm dialog
+    setShowConfirmDialog(true)
+  }
+
+  function handleConfirmFinish() {
+    setShowConfirmDialog(false)
     setSubmitted(true)
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
@@ -374,10 +455,13 @@ export default function QuizPage() {
 
   /* ── Result screen ── */
   if (!loading && submitted) {
-    const skip = totalQuestions - totalAnswered
-    const wrong = totalAnswered - totalCorrect
-    // Calculate percentage based on answered questions, not total questions
-    const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
+    // Jika dibuka dari device lain (dbOnlyScore), gunakan skor dari database langsung.
+    const isDbOnly = dbOnlyScore !== null && totalAnswered === 0
+    const skip = isDbOnly ? 0 : totalQuestions - totalAnswered
+    const wrong = isDbOnly ? 0 : totalAnswered - totalCorrect
+    const pct = isDbOnly
+      ? dbOnlyScore
+      : totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     const { grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
     const circumference = 2 * Math.PI * 54
@@ -425,6 +509,7 @@ export default function QuizPage() {
               </div>
             </div>
 
+            {!isDbOnly && (
             <div className="flex flex-wrap justify-center gap-2 relative z-10">
               <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
                 <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
@@ -442,6 +527,13 @@ export default function QuizPage() {
                 <span className="text-xs text-muted-foreground">Dilewati</span>
               </div>
             </div>
+            )}
+            {isDbOnly && (
+              <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/25 text-xs text-blue-400">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Skor tersinkronisasi dari perangkat lain</span>
+              </div>
+            )}
 
             <div className="flex gap-3 w-full max-w-xs relative z-10">
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
@@ -550,7 +642,7 @@ export default function QuizPage() {
                       <div
                         key={q.gi}
                         id={`card-${q.gi}`}
-                        className={`${styles.qCard} ${cardStateClass}`}
+                        className={`${styles.qCard} ${cardStateClass} ${highlightGi === q.gi ? styles.qCardHighlight : ""}`}
                       >
                         <div className={styles.qTop}>
                           <div className={styles.qNum}>{idx + 1}</div>
@@ -641,6 +733,26 @@ export default function QuizPage() {
             )}
           </div>
         </div>
+
+        {/* Dialog Konfirmasi Selesai */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Selesaikan Quiz?</DialogTitle>
+              <DialogDescription>
+                Semua {totalQuestions} soal sudah terjawab. Apakah kamu yakin ingin menyelesaikan quiz ini dan melihat hasil skormu?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+                Batal
+              </Button>
+              <Button onClick={handleConfirmFinish} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
+                Ya, Selesaikan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
