@@ -210,15 +210,4 @@ npm run db:push           # Push local SQL migrations to the remote Supabase pro
 
 ---
 
-## 🛣️ Roadmap
-
-- Input validation (Zod) and pagination limits for admin API routes.
-- Broader test coverage: study-session flows end to end, plus edge cases of the SRS scheduler.
-- Audit Row Level Security on all content tables.
-- Break up the largest practice pages into smaller components.
-- Guest/demo mode so new visitors can try the flashcards before signing in.
-- Multi-language support (the app is currently Mandarin-only).
-
----
-
 *Last updated: October 2026*

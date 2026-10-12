@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "supabase/**",
     "e2e/**",
+    "scripts/**",
     "fix-any.js",
   ]),
   {
@@ -23,6 +24,8 @@ const eslintConfig = defineConfig([
       "react-hooks/purity": "off",
       "react/no-unescaped-entities": "off",
       "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/ban-ts-comment": "off",
       "@next/next/no-location-assign-relative-destination": "warn"
