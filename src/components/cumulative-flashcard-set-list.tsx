@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { HskLevelFilter } from "@/components/hsk-level-filter";
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock";
+import { getHanziReadProgress } from "@/lib/user-scores";
 
 export type CumulativeFlashcardSet = {
   key: string;
@@ -39,26 +40,39 @@ export function CumulativeFlashcardSetList({
   );
 
   React.useEffect(() => {
-    const counts = Object.fromEntries(
-      sets.map((set) => {
-        try {
-          const stored = window.localStorage.getItem(
-            `hanzi_read_progress:${set.key}`,
-          );
-          const completedIds = stored ? JSON.parse(stored) : [];
-          return [
-            set.key,
-            Array.isArray(completedIds) ? completedIds.length : 0,
-          ];
-        } catch {
-          return [set.key, 0];
-        }
-      }),
-    ) as Record<string, number>;
-    // Sinkronisasi dari localStorage (sistem eksternal) ke state React saat mount —
-    // pola yang sah, bukan cascading render; localStorage tidak berubah karena setState ini.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReadCounts(counts);
+    async function loadProgress() {
+      const counts: Record<string, number> = {};
+
+      await Promise.all(
+        sets.map(async (set) => {
+          // Ambil dari localStorage
+          let localIds: number[] = [];
+          try {
+            const stored = window.localStorage.getItem(`hanzi_read_progress:${set.key}`);
+            localIds = stored ? JSON.parse(stored) : [];
+          } catch {
+            localIds = [];
+          }
+
+          // Ambil dari Supabase untuk sinkronisasi antar device
+          const dbIds = await getHanziReadProgress(set.key);
+
+          // Gabungkan local + DB (union) untuk cross-device sync
+          const mergedIds = Array.from(new Set([...localIds, ...dbIds]));
+
+          // Update localStorage jika ada data baru dari DB
+          if (mergedIds.length > localIds.length) {
+            window.localStorage.setItem(`hanzi_read_progress:${set.key}`, JSON.stringify(mergedIds));
+          }
+
+          counts[set.key] = mergedIds.length;
+        })
+      );
+
+      setReadCounts(counts);
+    }
+
+    loadProgress();
   }, [sets]);
 
   return (
