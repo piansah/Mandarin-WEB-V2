@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { createNotification } from "@/lib/notifications"
 import styles from "../../[key]/page.module.css"
 
 type HanziItem = {
@@ -497,6 +498,15 @@ export default function CumulativeQuizPracticePage() {
     // Calculate percentage based on answered questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     saveUserScore("kal", key, pct).catch(() => { })
+
+    // Send notification if score >= 80
+    if (pct >= 80) {
+      createNotification(
+        "kalimat_quiz_completed",
+        "Quiz Kalimat Selesai!",
+        `Selamat! Anda menyelesaikan quiz kalimat dengan nilai ${pct}%.`
+      ).catch(() => {})
+    }
   }
 
   function handleRetry() {

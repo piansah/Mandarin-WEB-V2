@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, PanelLeft, BookOpen, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2, PenLine, Network, Gamepad2 } from "lucide-react"
+import { Search, PanelLeft, BookOpen, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2, PenLine, Network, Gamepad2, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
+import { NotificationDropdown } from "@/components/notification-dropdown"
 
 type SearchResult = {
   type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar' | 'games'
@@ -290,13 +291,7 @@ export function DashboardHeader() {
         {!mobileSearchActive && (
           <>
             <DashboardThemeToggle />
-            {/* Bell icon hidden - notifikasi belum diimplementasikan */}
-            {/* <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full relative shrink-0">
-              <Bell className="h-4 w-4" />
-              <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px]">
-                •
-              </Badge>
-            </Button> */}
+            <NotificationDropdown />
           </>
         )}
       </div>

@@ -65,7 +65,7 @@ function showSpeedBadge(label: string) {
   }, 1600)
 }
 
-export function speakMandarin(text: string, options: { silent?: boolean } = {}) {
+export function speakMandarin(text: string, options: { silent?: boolean; rate?: number } = {}) {
   if (!isSupported() || !text.trim()) return
 
   const now = Date.now()
@@ -94,7 +94,7 @@ export function speakMandarin(text: string, options: { silent?: boolean } = {}) 
   window.speechSynthesis.cancel()
   const utterance = new SpeechSynthesisUtterance(text)
   utterance.lang = "zh-CN"
-  utterance.rate = speed.rate
+  utterance.rate = options.rate ?? speed.rate
   utterance.pitch = 1
   utterance.volume = 1
   utterance.voice = voices.find(voice =>

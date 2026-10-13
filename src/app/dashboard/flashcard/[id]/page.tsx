@@ -22,6 +22,7 @@ import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, D
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
 import { getDeckPracticeScores } from "@/lib/user-scores"
+import { createDeckAllCompletedNotification } from "@/lib/notifications"
 
 const idsLabels = IDS_LABELS
 
@@ -67,7 +68,18 @@ export default function FlashcardDeckPage() {
     setQuizScore(res.quizScore)
     setNadaDone(res.nadaDone)
     setTulisDone(res.tulisDone)
-  }, [deckId, supa])
+
+    // Check if all exercises are completed and send notification
+    const allCompleted = res.fcDone && res.quizScore !== null && res.nadaDone && res.tulisDone
+    if (allCompleted && deck) {
+      const notifKey = `deck_all_completed_${deckId}`
+      const alreadyNotified = localStorage.getItem(notifKey)
+      if (!alreadyNotified) {
+        createDeckAllCompletedNotification(deck.title).catch(() => {})
+        localStorage.setItem(notifKey, "true")
+      }
+    }
+  }, [deckId, supa, deck])
 
   React.useEffect(() => {
     async function load() {
@@ -330,7 +342,7 @@ export default function FlashcardDeckPage() {
                   <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                     <ListChecks className="h-5 w-5" />
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Quiz Nilai</span>
+                  <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
                   {!quizUnlocked && (
                     <span className="text-[10px] text-muted-foreground text-center leading-tight">
                       Selesaikan Flashcard

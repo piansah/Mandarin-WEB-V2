@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import {
   Minus,
   Plus,
@@ -13,14 +13,18 @@ import {
   Play,
   Pause,
   Gauge,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Card, CardContent } from "@/components/ui/card"
 import { useSupabase } from "@/hooks/use-supabase"
-import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
+import { speakMandarin, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
+import { createCeritaCompletedNotification } from "@/lib/notifications"
 import { PracticeHeader } from "@/components/practice-header"
 import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
@@ -40,16 +44,6 @@ type CeritaDetail = {
   quizQuestions: QuizQuestion[]
 }
 
-// Catatan perbaikan bug segmentasi (mis. "你好" kepecah jadi "你" + "好"):
-// Sebelumnya di sini ada `segmentParagraph()` custom yang cuma menerima daftar
-// kata hasil ekstraksi karakter TUNGGAL dari paragraf (lihat riwayat git),
-// jadi kata multi-karakter seperti "你好" tidak pernah bisa dikenali walau
-// sudah ada lengkap di database. Sekarang kita pakai `segmentText()` dari
-// `@/lib/hanzi-segmentation` — fungsi yang sama yang dipakai fitur search &
-// OCR — yang melakukan greedy longest-match terhadap SELURUH cache
-// `flashcard_cards` + `word_compounds` sekaligus, jadi kata 2–4 karakter
-// bisa dikenali dengan benar.
-
 type Popover = { word: string; pinyin: string; arti: string; x: number; y: number }
 
 const FONT_LEVELS = [16, 20, 24, 28, 32]
@@ -62,9 +56,18 @@ const AUTOPLAY_SPEEDS = [
 ]
 const AUTOPLAY_SPEED_KEY = "cerita_autoplay_speed"
 
+/**
+ * Satu-satunya sumber kebenaran untuk deteksi tanda baca.
+ * Segmen dianggap tanda baca kalau setelah membuang spasi, tanda baca (\p{P})
+ * dan simbol (\p{S}) tidak ada karakter yang tersisa. Ini juga menangani
+ * segmen campuran seperti "，" atau " 。" maupun tanda baca full-width.
+ */
+function isPunct(text: string): boolean {
+  return text.replace(/[\s\p{P}\p{S}]/gu, "") === ""
+}
+
 export default function CeritaReadPage() {
   const params = useParams<{ key: string }>()
-  const router = useRouter()
   const key = params.key
   const supa = useSupabase()
 
@@ -84,9 +87,111 @@ export default function CeritaReadPage() {
   const [quizSelected, setQuizSelected] = React.useState<number | null>(null)
   const [quizDone, setQuizDone] = React.useState(false)
 
+  // Load quiz state from localStorage and Supabase
+  React.useEffect(() => {
+    const quizStateKey = `cerita_quiz_${key}`
+    const saved = localStorage.getItem(quizStateKey)
+    if (saved) {
+      try {
+        const state = JSON.parse(saved)
+        if (state.quizOpen) {
+          setQuizOpen(true)
+          setQuizItems(state.quizItems || [])
+          setQuizIdx(state.quizIdx || 0)
+          setQuizCorrect(state.quizCorrect || 0)
+          setQuizDone(state.quizDone || false)
+        }
+      } catch (e) {
+        console.error("Failed to load quiz state:", e)
+      }
+    }
+
+    // Load from Supabase for cross-device sync
+    const loadFromSupabase = async () => {
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+
+      const { data } = await supa
+        .from("user_scores")
+        .select("meta")
+        .eq("user_id", user.id)
+        .eq("type", "cerita_quiz")
+        .eq("key", key)
+        .single()
+
+      if (data?.meta && (data.meta as any).quizState) {
+        const state = (data.meta as any).quizState
+        if (state.quizOpen) {
+          setQuizOpen(true)
+          setQuizItems(state.quizItems || [])
+          setQuizIdx(state.quizIdx || 0)
+          setQuizCorrect(state.quizCorrect || 0)
+          setQuizDone(state.quizDone || false)
+        }
+      }
+    }
+
+    loadFromSupabase().catch(console.error)
+  }, [key, supa])
+
+  // Save quiz state to localStorage and Supabase
+  React.useEffect(() => {
+    if (!quizOpen) {
+      localStorage.removeItem(`cerita_quiz_${key}`)
+      // Also clear from Supabase
+      const clearFromSupabase = async () => {
+        const { data: { user } } = await supa.auth.getUser()
+        if (!user) return
+        await supa
+          .from("user_scores")
+          .update({ meta: null })
+          .eq("user_id", user.id)
+          .eq("type", "cerita_quiz")
+          .eq("key", key)
+      }
+      clearFromSupabase().catch(console.error)
+      return
+    }
+    const state = { quizOpen, quizItems, quizIdx, quizCorrect, quizDone }
+    localStorage.setItem(`cerita_quiz_${key}`, JSON.stringify(state))
+
+    // Save to Supabase for cross-device sync
+    const saveToSupabase = async () => {
+      const { data: { user } } = await supa.auth.getUser()
+      if (!user) return
+      
+      // Cek apakah sudah ada row dengan score
+      const { data: existing } = await supa
+        .from("user_scores")
+        .select("score")
+        .eq("user_id", user.id)
+        .eq("type", "cerita_quiz")
+        .eq("key", key)
+        .single()
+      
+      if (existing && existing.score > 0) {
+        // Jika sudah ada score, jangan timpa quiz state (quiz sudah selesai)
+        return
+      }
+      
+      await supa
+        .from("user_scores")
+        .upsert({
+          user_id: user.id,
+          type: "cerita_quiz",
+          key,
+          score: 0, // Will be updated when quiz is done
+          meta: { quizState: state }
+        }, {
+          onConflict: "user_id_type_key"
+        })
+    }
+    saveToSupabase().catch(console.error)
+  }, [quizOpen, quizItems, quizIdx, quizCorrect, quizDone, key, supa])
+
   /* ── Autoplay (baca otomatis berurutan) ── */
   const [autoplayOn, setAutoplayOn] = React.useState(false)
-  const [autoplayIdx, setAutoplayIdx] = React.useState<number | null>(null)
+  const [activeWordIdx, setActiveWordIdx] = React.useState<{ paraIdx: number; wordIdx: number } | null>(null)
   const [speedIdx, setSpeedIdx] = React.useState(0)
   const autoplayStopRef = React.useRef(false)
   const autoplayRunIdRef = React.useRef(0)
@@ -109,8 +214,7 @@ export default function CeritaReadPage() {
   // Target level highlight: story ber-badge "HSK 1" -> hanya kosakata
   // hsk_level === 1 yang di-highlight/klik. Kata di luar level itu (termasuk
   // entri word_compounds yang memang tidak punya hsk_level) tampil sebagai
-  // teks biasa — sengaja, biar user tetap ada usaha nyari sendiri, bukan
-  // semua kata disodorkan.
+  // teks biasa — sengaja, biar user tetap ada usaha nyari sendiri.
   const targetHskLevel = React.useMemo(() => {
     const match = data?.badge.match(/\d+/)
     return match ? Number(match[0]) : null
@@ -120,11 +224,8 @@ export default function CeritaReadPage() {
   // compound (mis. "李明"): kalau ada 2 karakter yang masing-masing valid
   // sebagai vocab SATUAN tapi tidak terdaftar sebagai satu kesatuan, dan
   // pasangan itu berulang (>=2x) di cerita yang sama, hampir pasti itu nama
-  // orang/istilah khusus penulis — bukan 2 kosakata acak yang kebetulan
-  // nempel. Digabung jadi satu unit polos (tidak di-highlight) supaya tidak
-  // dipecah jadi highlight kosakata yang menyesatkan. Ini otomatis, tidak
-  // perlu daftar nama manual per cerita, jadi tetap jalan untuk cerita lama
-  // maupun baru tanpa perlu diisi satu-satu.
+  // orang/istilah khusus penulis. Digabung jadi satu unit polos (tidak
+  // di-highlight) supaya tidak dipecah jadi highlight yang menyesatkan.
   const storySegments = React.useMemo(() => {
     if (!data) return [] as SegmentedWord[][]
     const perParagraph = data.paragraphs.map((para) => segmentText(para))
@@ -135,8 +236,8 @@ export default function CeritaReadPage() {
         const a = segs[i]
         const b = segs[i + 1]
         if (a.found && b.found && [...a.hanzi].length === 1 && [...b.hanzi].length === 1) {
-          const key = a.hanzi + b.hanzi
-          bigramCount.set(key, (bigramCount.get(key) ?? 0) + 1)
+          const pairKey = a.hanzi + b.hanzi
+          bigramCount.set(pairKey, (bigramCount.get(pairKey) ?? 0) + 1)
         }
       }
     })
@@ -165,11 +266,8 @@ export default function CeritaReadPage() {
   }, [data])
 
   const getScrollEl = React.useCallback((): HTMLElement | null => {
-    // Sejak halaman ini dirender di dalam layout dashboard normal (sidebar +
-    // header tetap terlihat, bukan overlay fullscreen lagi), `rootRef`
-    // sendiri bukan lagi elemen yang scroll — scroll container sebenarnya
-    // adalah wrapper `overflow-auto` di dashboard-layout-client.tsx, satu
-    // level di atas. Lihat juga catatan serupa di swipe-flashcard-session.tsx.
+    // Halaman ini dirender di dalam layout dashboard normal, jadi scroll
+    // container sebenarnya adalah wrapper `overflow-auto` satu level di atas.
     return (rootRef.current?.closest(".overflow-auto") as HTMLElement | null) ?? rootRef.current
   }, [])
 
@@ -197,12 +295,11 @@ export default function CeritaReadPage() {
 
       const paragraphs = (parasRes.data ?? []).map((p) => p.hanzi_text)
 
-      // Muat SELURUH cache kosakata global (flashcard_cards + word_compounds,
-      // fetch semua baris via pagination, bukan cuma 1 batch/limit tertentu).
-      // Ini sumber data yang sama dipakai fitur search & OCR, sehingga kata
-      // multi-karakter seperti "你好" ikut ter-cache dan bisa dikenali saat
-      // segmentasi di bawah, bukan cuma karakter tunggal.
+      // Muat SELURUH cache kosakata global (flashcard_cards + word_compounds)
+      // supaya kata multi-karakter seperti "你好" bisa dikenali saat segmentasi.
       await initGlobalSearchCache()
+
+      if (cancelled) return
 
       setData({
         title: metaRes.data.title,
@@ -224,6 +321,7 @@ export default function CeritaReadPage() {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
   /* ── Restore progress + attach scroll tracking ── */
@@ -258,12 +356,31 @@ export default function CeritaReadPage() {
       if (lastSavedPctRef.current < 95) {
         lastSavedPctRef.current = 100
         setCeritaProgress(key, 100)
+
+        console.log("[Cerita] Progress reached 95%+, triggering notification check")
+        
+        // Kirim notifikasi saat cerita selesai dibaca (sekali saja)
+        const notifKey = `cerita_completed_${key}`
+        const alreadyNotified = localStorage.getItem(notifKey)
+        console.log("[Cerita] Notification check:", { alreadyNotified, hasData: !!data })
+        
+        if (!alreadyNotified && data) {
+          console.log("[Cerita] Calling createCeritaCompletedNotification for:", data.title)
+          createCeritaCompletedNotification(data.title)
+            .then(() => {
+              console.log("[Cerita] Notification promise resolved, setting localStorage")
+              localStorage.setItem(notifKey, "true")
+            })
+            .catch((err) => console.error("[Cerita] Failed to create notification:", err))
+        } else {
+          console.log("[Cerita] Skipped notification - already notified or no data")
+        }
       }
     } else if (current - lastSavedPctRef.current >= 5 || (current === 0 && lastSavedPctRef.current !== 0)) {
       lastSavedPctRef.current = current
       setCeritaProgress(key, current)
     }
-  }, [getScrollEl, key])
+  }, [getScrollEl, key, data])
 
   React.useEffect(() => {
     if (!data) return
@@ -276,8 +393,9 @@ export default function CeritaReadPage() {
   const stopAutoplay = React.useCallback(() => {
     autoplayStopRef.current = true
     autoplayRunIdRef.current += 1
+    cancelTTS()
     setAutoplayOn(false)
-    setAutoplayIdx(null)
+    setActiveWordIdx(null)
   }, [])
 
   /* ── Cleanup on unmount / tab hidden ── */
@@ -306,33 +424,42 @@ export default function CeritaReadPage() {
     const runId = (autoplayRunIdRef.current += 1)
     setAutoplayOn(true)
 
+    const cancelled = () => autoplayStopRef.current || runId !== autoplayRunIdRef.current
+
     for (let i = 0; i < data.paragraphs.length; i++) {
-      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
-      setAutoplayIdx(i)
+      if (cancelled()) return
       paragraphRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "center" })
-      
-      const startTime = Date.now()
-      await speakParagraph(data.paragraphs[i], AUTOPLAY_SPEEDS[speedIdxRef.current].rate)
-      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
 
-      // Hitung durasi membaca minimum disesuaikan dengan rate speed
-      const rate = AUTOPLAY_SPEEDS[speedIdxRef.current].rate
-      const textLength = data.paragraphs[i].length
-      const speedFactor = 0.7 / rate
-      const minDuration = (2500 + textLength * 250) * speedFactor
+      const segments = storySegments[i] ?? []
 
-      const elapsed = Date.now() - startTime
-      if (elapsed < minDuration) {
-        await new Promise((resolve) => setTimeout(resolve, minDuration - elapsed))
+      // Highlight & baca kata per kata
+      for (let j = 0; j < segments.length; j++) {
+        if (cancelled()) return
+
+        // Tanda baca dilewati: tidak di-highlight dan tidak dibaca
+        if (isPunct(segments[j].hanzi)) continue
+
+        setActiveWordIdx({ paraIdx: i, wordIdx: j })
+
+        await speakMandarin(segments[j].hanzi, { rate: AUTOPLAY_SPEEDS[speedIdxRef.current].rate })
+        if (cancelled()) return
+
+        // Jeda kecil antar kata
+        await new Promise((resolve) => setTimeout(resolve, 400))
       }
-      if (autoplayStopRef.current || runId !== autoplayRunIdRef.current) return
+
+      setActiveWordIdx(null)
+
+      // Jeda antar paragraf
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      if (cancelled()) return
     }
 
     if (runId === autoplayRunIdRef.current) {
       setAutoplayOn(false)
-      setAutoplayIdx(null)
+      setActiveWordIdx(null)
     }
-  }, [data])
+  }, [data, storySegments])
 
   function toggleAutoplay() {
     if (autoplayOn) stopAutoplay()
@@ -367,10 +494,8 @@ export default function CeritaReadPage() {
 
   function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
     const rect = (e.target as HTMLElement).getBoundingClientRect()
-    // pinyin/arti sudah ikut dari hasil segmentText() (cache global), jadi
-    // tidak perlu query ulang ke Supabase dan tidak perlu state "Loading..."
-    // — sekaligus otomatis mendukung kata dari word_compounds, bukan cuma
-    // flashcard_cards seperti sebelumnya.
+    // pinyin/arti sudah ikut dari hasil segmentText() (cache global),
+    // jadi tidak perlu query ulang ke Supabase.
     setPopover({
       word: seg.hanzi,
       pinyin: seg.pinyin || "Tidak ditemukan",
@@ -502,7 +627,7 @@ export default function CeritaReadPage() {
             <button
               type="button"
               onClick={resetProgress}
-              className="grid h-7 w-7 place-items-center rounded-lg border border-border/60 bg-background/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="grid h-7 w-7 place-items-center rounded-lg border border-border/60 bg-background/60 text-foreground hover:bg-muted"
               aria-label="Reset progress"
               title="Reset progress"
             >
@@ -514,28 +639,33 @@ export default function CeritaReadPage() {
       <div className="mx-auto w-full max-w-3xl px-4 pt-6 sm:px-6">
         {data.paragraphs.map((para, pi) => {
           const segments = storySegments[pi] ?? []
-          const isActive = autoplayIdx === pi
+          const isWordActive = activeWordIdx?.paraIdx === pi
           return (
             <p
               key={pi}
               ref={(el) => { paragraphRefs.current[pi] = el }}
               style={{ fontSize }}
-              className={`font-hanzi relative mb-5 rounded-lg pr-8 leading-loose text-foreground transition-colors ${
-                isActive ? "bg-primary/10 ring-1 ring-primary/30" : ""
-              }`}
+              className="font-hanzi relative mb-5 rounded-lg leading-loose text-foreground"
             >
               {segments.map((seg, si) => {
-                // Highlight hanya untuk kosakata yang levelnya PAS sama
-                // dengan target HSK cerita ini. Kata found=true tapi beda
-                // level (atau entri word_compounds yang tidak punya
-                // hsk_level) tetap tampil sebagai teks biasa (tidak
-                // di-highlight, tidak bisa diklik) — sengaja, supaya user
-                // masih ada usaha mencari tahu sendiri, bukan semua kata
-                // disodorkan.
+                const isPunctuation = isPunct(seg.hanzi)
+
+                // Highlight hanya untuk kosakata yang levelnya PAS sama dengan
+                // target HSK cerita ini. Kata lain tampil sebagai teks biasa
+                // (tidak di-highlight, tidak bisa diklik) — sengaja.
                 const shouldHighlight =
-                  seg.found && (targetHskLevel === null || seg.hsk === targetHskLevel)
+                  !isPunctuation && seg.found && (targetHskLevel === null || seg.hsk === targetHskLevel)
+
+                // Tanda baca tidak pernah jadi "kata aktif" saat autoplay
+                const isCurrentWord = !isPunctuation && isWordActive && activeWordIdx?.wordIdx === si
+
                 return !shouldHighlight ? (
-                  <React.Fragment key={si}>{seg.hanzi}</React.Fragment>
+                  <span
+                    key={si}
+                    className={`inline-block mr-1 transition-colors ${isCurrentWord ? "bg-primary/20 px-1 rounded" : ""}`}
+                  >
+                    {seg.hanzi}
+                  </span>
                 ) : (
                   <button
                     key={si}
@@ -544,20 +674,14 @@ export default function CeritaReadPage() {
                       e.stopPropagation()
                       openWordPopover(seg, e)
                     }}
-                    className="rounded-sm bg-primary/10 px-0.5 text-primary transition-colors hover:bg-primary/20"
+                    className={`rounded-sm px-0.5 text-primary transition-colors hover:bg-primary/20 ${
+                      isCurrentWord ? "bg-primary/30" : "bg-primary/10"
+                    }`}
                   >
                     {seg.hanzi}
                   </button>
                 )
               })}
-              <button
-                type="button"
-                onClick={() => speakMandarin(para)}
-                className="absolute right-0 top-1 grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                title="Dengar paragraf ini"
-              >
-                🔊
-              </button>
             </p>
           )
         })}
@@ -571,9 +695,11 @@ export default function CeritaReadPage() {
         </div>
 
         {quizOpen && (
-          <div ref={quizPanelRef} className="rounded-2xl border border-border/60 bg-card/50 p-5">
+          <div ref={quizPanelRef} className="mb-8">
             {quizItems.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Soal belum tersedia untuk cerita ini.</p>
+              <Card className="rounded-2xl border border-border/60 bg-card/50 p-5">
+                <p className="py-6 text-center text-sm text-muted-foreground">Soal belum tersedia untuk cerita ini.</p>
+              </Card>
             ) : quizDone ? (
               <QuizResult
                 correct={quizCorrect}
@@ -582,14 +708,16 @@ export default function CeritaReadPage() {
                 onClose={() => setQuizOpen(false)}
               />
             ) : (
-              <QuizQuestionCard
-                question={quizItems[quizIdx]}
-                index={quizIdx}
-                total={quizItems.length}
-                selected={quizSelected}
-                onAnswer={answerQuiz}
-                onNext={nextQuiz}
-              />
+              <Card className="rounded-2xl border border-border/60 bg-card/50 p-5">
+                <QuizQuestionCard
+                  question={quizItems[quizIdx]}
+                  index={quizIdx}
+                  total={quizItems.length}
+                  selected={quizSelected}
+                  onAnswer={answerQuiz}
+                  onNext={nextQuiz}
+                />
+              </Card>
             )}
           </div>
         )}
@@ -732,31 +860,78 @@ function QuizResult({
   const pct = Math.round((correct / total) * 100)
   const wrong = total - correct
   const emoji = pct >= 80 ? "🎉" : pct >= 60 ? "💪" : "📚"
+  const hanziWatermark = "完"
   const title = pct >= 80 ? "Hebat!" : pct >= 60 ? "Lumayan!" : "Terus Berlatih!"
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center">
-      <div className="text-4xl">{emoji}</div>
-      <div className="text-lg font-bold">{title}</div>
-      <p className="text-sm text-muted-foreground">{correct} dari {total} soal benar</p>
-      <div className="flex gap-3">
-        <div className="flex flex-col items-center rounded-xl border border-border/60 px-4 py-2">
-          <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{correct}</span>
-          <span className="text-[10px] text-muted-foreground">Benar</span>
+    <Card className="w-full border-border/50 bg-card/50 backdrop-blur-sm shadow-lg mb-6">
+      <CardContent className="flex flex-col items-center gap-6 p-8 relative overflow-hidden">
+        {/* Watermark */}
+        <div
+          aria-hidden="true"
+          className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07] font-hanzi"
+          style={{
+            fontSize: "12rem",
+            lineHeight: 1,
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          {hanziWatermark}
         </div>
-        <div className="flex flex-col items-center rounded-xl border border-border/60 px-4 py-2">
-          <span className="text-base font-bold text-red-600 dark:text-red-400">{wrong}</span>
-          <span className="text-[10px] text-muted-foreground">Salah</span>
+
+        {/* Header */}
+        <div className="flex flex-col items-center gap-1 relative z-10 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">{title}</h2>
+          <p className="text-sm text-muted-foreground">{correct} dari {total} soal benar</p>
         </div>
-        <div className="flex flex-col items-center rounded-xl border border-border/60 px-4 py-2">
-          <span className="text-base font-bold text-primary">{pct}%</span>
-          <span className="text-[10px] text-muted-foreground">Skor</span>
+
+        {/* Ring akurasi */}
+        <div className="relative z-10 flex items-center justify-center">
+          {(() => {
+            const circumference = 2 * Math.PI * 54
+            return (
+              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                <circle
+                  cx="60" cy="60" r="54" fill="none"
+                  stroke={pct >= 80 ? "#34d399" : pct >= 60 ? "#fbbf24" : "#f87171"}
+                  strokeWidth="10"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference - (pct / 100) * circumference}
+                  style={{ transition: "stroke 400ms ease" }}
+                />
+              </svg>
+            )
+          })()}
+          <div className="absolute flex flex-col items-center">
+            <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Skor</span>
+          </div>
         </div>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={onRetry}>Coba Lagi</Button>
-        <Button variant="secondary" onClick={onClose}>Tutup</Button>
-      </div>
-    </div>
+
+        {/* Rincian penilaian */}
+        <div className="flex flex-wrap justify-center gap-2 relative z-10">
+          <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+            <span className="text-sm font-semibold text-emerald-500 tabular-nums">{correct}</span>
+            <span className="text-xs text-muted-foreground">Benar</span>
+          </div>
+          <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+            <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><XCircle className="h-3.5 w-3.5" /></span>
+            <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
+            <span className="text-xs text-muted-foreground">Salah</span>
+          </div>
+        </div>
+
+        {/* Buttons */}
+        <div className="flex gap-3 w-full max-w-xs relative z-10">
+          <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={onRetry}><RotateCcw className="h-4 w-4 mr-2" />Coba Lagi</Button>
+          <Button variant="secondary" className="flex-1 rounded-2xl h-11" onClick={onClose}>Tutup</Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

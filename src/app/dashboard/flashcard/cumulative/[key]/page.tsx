@@ -4,6 +4,7 @@ import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { RotateCcw, Mic, CheckCircle2, Star, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
@@ -250,20 +251,20 @@ export default function CumulativeFlashcardSessionPage() {
           {groups.map((group) => (
             <section key={`${group.tag}-${group.label}`}>
               <div className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{group.tag}</span>{group.label}</div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-2 items-stretch">
                 {group.items.map((item, index) => {
                   const state = stateById[item.id] ?? 0
                   return (
-                    <SwipeToReport
-                      key={item.id}
-                      reported={reportedItems.has(item.id)}
-                      onReport={() => openReportModal(item)}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => advance(item)}
-                        className={`min-h-36 w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
+                    <div key={item.id} className="h-full">
+                      <SwipeToReport
+                        reported={reportedItems.has(item.id)}
+                        onReport={() => openReportModal(item)}
                       >
+                        <button
+                          type="button"
+                          onClick={() => advance(item)}
+                          className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
+                        >
                         <div className="flex items-start justify-between gap-3">
                           <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
                           <div className="flex items-center gap-2">
@@ -280,78 +281,83 @@ export default function CumulativeFlashcardSessionPage() {
                         {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
                       </button>
                     </SwipeToReport>
+                    </div>
                   )
                 })}
               </div>
             </section>
           ))}
           {completedCount === items.length && items.length > 0 && (
-            <div className="flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
-              {/*
-                Signature: watermark emoji besar di belakang ring, gaya
-                sama persis dengan watermark yang muncul di flashcard session.
-              */}
-              <div
-                aria-hidden="true"
-                className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
-                style={{
-                  fontSize: "16rem",
-                  lineHeight: 1,
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                }}
-              >
-                完
-              </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <Card className="w-full border-border/50 bg-card/50 backdrop-blur-sm shadow-lg md:col-span-2">
+                <CardContent className="flex flex-col items-center gap-6 p-8 relative overflow-hidden">
+                  {/*
+                    Signature: watermark emoji besar di belakang ring, gaya
+                    sama persis dengan watermark yang muncul di flashcard session.
+                  */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
+                    style={{
+                      fontSize: "12rem",
+                      lineHeight: 1,
+                      top: "50%",
+                      left: "50%",
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  >
+                    完
+                  </div>
 
-              <div className="flex flex-col items-center gap-1 relative z-10">
-                <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Semua kalimat telah dibaca!</h2>
-                <p className="text-sm text-muted-foreground">{completedCount} dari {items.length} kalimat selesai</p>
-              </div>
+                  <div className="flex flex-col items-center gap-1 relative z-10 text-center">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Semua kalimat telah dibaca!</h2>
+                    <p className="text-sm text-muted-foreground">{completedCount} dari {items.length} kalimat selesai</p>
+                  </div>
 
-              {/* Ring akurasi */}
-              <div className="relative z-10 flex items-center justify-center">
-                {(() => {
-                  const circumference = 2 * Math.PI * 54
-                  return (
-                    <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                      <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                      <circle
-                        cx="60" cy="60" r="54" fill="none"
-                        stroke="#34d399"
-                        strokeWidth="10"
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={0}
-                        style={{ transition: "stroke 400ms ease" }}
-                      />
-                    </svg>
-                  )
-                })()}
-                <div className="absolute flex flex-col items-center">
-                  <span className="text-4xl font-bold text-foreground tabular-nums">100%</span>
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-                </div>
-              </div>
+                  {/* Ring akurasi */}
+                  <div className="relative z-10 flex items-center justify-center">
+                    {(() => {
+                      const circumference = 2 * Math.PI * 54
+                      return (
+                        <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
+                          <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
+                          <circle
+                            cx="60" cy="60" r="54" fill="none"
+                            stroke="#34d399"
+                            strokeWidth="10"
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={0}
+                            style={{ transition: "stroke 400ms ease" }}
+                          />
+                        </svg>
+                      )
+                    })()}
+                    <div className="absolute flex flex-col items-center">
+                      <span className="text-4xl font-bold text-foreground tabular-nums">100%</span>
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
+                    </div>
+                  </div>
 
-              {/* Rincian penilaian */}
-              <div className="flex flex-wrap justify-center gap-2 relative z-10">
-                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
-                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
-                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{completedCount}</span>
-                  <span className="text-xs text-muted-foreground">Selesai</span>
-                </div>
-                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
-                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Star className="h-3.5 w-3.5" /></span>
-                  <span className="text-sm font-semibold text-blue-500 tabular-nums">{items.length}</span>
-                  <span className="text-xs text-muted-foreground">Total</span>
-                </div>
-              </div>
+                  {/* Rincian penilaian */}
+                  <div className="flex flex-wrap justify-center gap-2 relative z-10">
+                    <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                      <span className="text-sm font-semibold text-emerald-500 tabular-nums">{completedCount}</span>
+                      <span className="text-xs text-muted-foreground">Selesai</span>
+                    </div>
+                    <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25">
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-500/15 text-blue-500"><Star className="h-3.5 w-3.5" /></span>
+                      <span className="text-sm font-semibold text-blue-500 tabular-nums">{items.length}</span>
+                      <span className="text-xs text-muted-foreground">Total</span>
+                    </div>
+                  </div>
 
-              <div className="flex gap-3 w-full max-w-xs relative z-10">
-                <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress}><RotateCcw className="h-4 w-4 mr-2" />Ulangi dari awal</Button>
-              </div>
+                  <div className="flex gap-3 w-full max-w-xs relative z-10">
+                    <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress}><RotateCcw className="h-4 w-4 mr-2" />Ulangi dari awal</Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </main>
@@ -396,7 +402,7 @@ export default function CumulativeFlashcardSessionPage() {
                       <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                         <ListChecks className="h-5 w-5" />
                       </div>
-                      <span className="text-xs font-semibold text-center leading-tight">Quiz Nilai</span>
+                      <span className="text-xs font-semibold text-center leading-tight">Quiz Estafet</span>
                       {!quizKey && (
                         <span className="text-[10px] text-muted-foreground text-center leading-tight">Belum Tersedia</span>
                       )}

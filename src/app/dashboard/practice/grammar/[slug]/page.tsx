@@ -10,6 +10,7 @@ import { PageLoader } from "@/components/page-loader"
 import { deleteGrammarScore, sessionKey, setGrammarScore } from "@/lib/grammar-scores"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
+import { createGrammarCompletedNotification } from "@/lib/notifications"
 import styles from "./page.module.css"
 
 type Example = { hz?: string; py?: string; id?: string }
@@ -285,6 +286,10 @@ export default function GrammarPracticePage() {
   function finish(pct: number) {
     setGrammarScore(slug, pct)
     saveUserScore("grammar", slug, pct).catch(() => {})
+
+    // Send grammar completion notification
+    createGrammarCompletedNotification(slug, pct).catch(() => {})
+
     window.localStorage.removeItem(sessionKey(slug))
     setPhase("done")
   }
