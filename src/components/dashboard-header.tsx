@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { DashboardThemeToggle } from "@/components/dashboard-theme-toggle"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
-import { NotificationDropdown } from "@/components/notification-dropdown"
 
 type SearchResult = {
   type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar' | 'games'
@@ -289,10 +288,7 @@ export function DashboardHeader() {
 
         {/* Theme Toggle - Sembunyikan jika mobile search aktif */}
         {!mobileSearchActive && (
-          <>
-            <DashboardThemeToggle />
-            <NotificationDropdown />
-          </>
+          <DashboardThemeToggle />
         )}
       </div>
     </header>

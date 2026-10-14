@@ -19,49 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  createDeckUnlockedNotification,
-  createEstafetUnlockedNotification,
-  createQuizCompletedNotification
-} from "@/lib/notifications"
 import { createClient } from "@/lib/supabase/browser"
 import styles from "./page.module.css"
-
-/* ── Helper: Check and send notifications for unlocked decks/estafets ── */
-async function checkAndSendNotifications(deckId: string) {
-  const supa = createClient()
-  const { data: { user } } = await supa.auth.getUser()
-  if (!user) return
-
-  const deckIdNum = parseInt(deckId, 10)
-  if (isNaN(deckIdNum)) return
-
-  // Check next deck (deckId + 1)
-  const { data: nextDeck } = await supa
-    .from("flashcard_sets")
-    .select("id, title")
-    .eq("id", deckIdNum + 1)
-    .maybeSingle()
-
-  if (nextDeck) {
-    await createDeckUnlockedNotification(nextDeck.id, nextDeck.title)
-  }
-
-  // Check estafets that unlock after this deck
-  const { data: estafets } = await supa
-    .from("hanzi_sets")
-    .select("key, title, unlock_after")
-    .eq("unlock_after", deckIdNum)
-
-  if (estafets && estafets.length > 0) {
-    for (const estafet of estafets) {
-      await createEstafetUnlockedNotification(
-        parseInt(estafet.unlock_after.toString(), 10),
-        estafet.title
-      )
-    }
-  }
-}
 
 /* ── Types ── */
 type QuizSection = 0 | 1 | 2
@@ -434,14 +393,6 @@ export default function QuizPage() {
     // Calculate percentage based on answered questions
     const pct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     saveUserScore("quiz", key, pct).catch(() => { })
-
-    // Send quiz completion notification
-    createQuizCompletedNotification(isPersonal ? "Personal Deck" : `Deck ${key}`, pct).catch(() => {})
-
-    // Check if score >= 80 and send notifications for unlocked decks/estafets
-    if (pct >= 80) {
-      checkAndSendNotifications(key).catch(() => {})
-    }
 
     // Keep localStorage for permanent history (don't delete)
   }

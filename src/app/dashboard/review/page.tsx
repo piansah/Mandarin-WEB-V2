@@ -4,7 +4,6 @@ import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { fetchDueFlashcards, recordSrsReviewBatch, type DueFlashcard, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
-import { createNotification } from "@/lib/notifications"
 
 export default function ReviewPage() {
   const supa = useSupabase()
@@ -21,20 +20,6 @@ export default function ReviewPage() {
       }
       setUserId(user.id)
       const due = await fetchDueFlashcards(supa, user.id)
-
-      // Send notification if there are cards due for review
-      if (due.length > 0) {
-        const notifKey = `review_due_${user.id}`
-        const lastNotifCount = parseInt(localStorage.getItem(notifKey) || "0", 10)
-        if (due.length !== lastNotifCount) {
-          createNotification(
-            "review_due",
-            "📚 Kartu Perlu Direview!",
-            `Anda memiliki ${due.length} kartu yang perlu direview hari ini.`
-          ).catch((err) => console.error("Failed to create notification:", err))
-          localStorage.setItem(notifKey, due.length.toString())
-        }
-      }
 
       // Convert DueFlashcard to SwipeFlashcard
       const swipeCards: SwipeFlashcard[] = due.map(card => ({

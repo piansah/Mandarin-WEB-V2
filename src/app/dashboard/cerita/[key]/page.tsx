@@ -24,7 +24,6 @@ import { speakMandarin, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
-import { createCeritaCompletedNotification } from "@/lib/notifications"
 import { PracticeHeader } from "@/components/practice-header"
 import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
@@ -356,31 +355,12 @@ export default function CeritaReadPage() {
       if (lastSavedPctRef.current < 95) {
         lastSavedPctRef.current = 100
         setCeritaProgress(key, 100)
-
-        console.log("[Cerita] Progress reached 95%+, triggering notification check")
-        
-        // Kirim notifikasi saat cerita selesai dibaca (sekali saja)
-        const notifKey = `cerita_completed_${key}`
-        const alreadyNotified = localStorage.getItem(notifKey)
-        console.log("[Cerita] Notification check:", { alreadyNotified, hasData: !!data })
-        
-        if (!alreadyNotified && data) {
-          console.log("[Cerita] Calling createCeritaCompletedNotification for:", data.title)
-          createCeritaCompletedNotification(data.title)
-            .then(() => {
-              console.log("[Cerita] Notification promise resolved, setting localStorage")
-              localStorage.setItem(notifKey, "true")
-            })
-            .catch((err) => console.error("[Cerita] Failed to create notification:", err))
-        } else {
-          console.log("[Cerita] Skipped notification - already notified or no data")
-        }
       }
     } else if (current - lastSavedPctRef.current >= 5 || (current === 0 && lastSavedPctRef.current !== 0)) {
       lastSavedPctRef.current = current
       setCeritaProgress(key, current)
     }
-  }, [getScrollEl, key, data])
+  }, [getScrollEl, key])
 
   React.useEffect(() => {
     if (!data) return

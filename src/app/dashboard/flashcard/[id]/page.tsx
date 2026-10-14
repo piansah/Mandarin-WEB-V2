@@ -22,7 +22,6 @@ import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, D
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
 import { getDeckPracticeScores } from "@/lib/user-scores"
-import { createDeckAllCompletedNotification } from "@/lib/notifications"
 
 const idsLabels = IDS_LABELS
 
@@ -68,17 +67,6 @@ export default function FlashcardDeckPage() {
     setQuizScore(res.quizScore)
     setNadaDone(res.nadaDone)
     setTulisDone(res.tulisDone)
-
-    // Check if all exercises are completed and send notification
-    const allCompleted = res.fcDone && res.quizScore !== null && res.nadaDone && res.tulisDone
-    if (allCompleted && deck) {
-      const notifKey = `deck_all_completed_${deckId}`
-      const alreadyNotified = localStorage.getItem(notifKey)
-      if (!alreadyNotified) {
-        createDeckAllCompletedNotification(deck.title).catch(() => {})
-        localStorage.setItem(notifKey, "true")
-      }
-    }
   }, [deckId, supa, deck])
 
   React.useEffect(() => {
