@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Simulasi Ujian HSK - Mock Exam */
+
 import * as React from "react"
 import { ClipboardList, FlaskConical, CheckCircle, BookOpen, BarChart3, BrainCircuit } from "lucide-react"
 

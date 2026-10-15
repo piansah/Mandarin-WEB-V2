@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Cerita Detail - Interactive Story Reader */
+
 import * as React from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -158,7 +162,7 @@ export default function CeritaReadPage() {
     const saveToSupabase = async () => {
       const { data: { user } } = await supa.auth.getUser()
       if (!user) return
-      
+
       // Cek apakah sudah ada row dengan score
       const { data: existing } = await supa
         .from("user_scores")
@@ -167,12 +171,12 @@ export default function CeritaReadPage() {
         .eq("type", "cerita_quiz")
         .eq("key", key)
         .single()
-      
+
       if (existing && existing.score > 0) {
         // Jika sudah ada score, jangan timpa quiz state (quiz sudah selesai)
         return
       }
-      
+
       await supa
         .from("user_scores")
         .upsert({
@@ -654,9 +658,8 @@ export default function CeritaReadPage() {
                       e.stopPropagation()
                       openWordPopover(seg, e)
                     }}
-                    className={`rounded-sm px-0.5 text-primary transition-colors hover:bg-primary/20 ${
-                      isCurrentWord ? "bg-primary/30" : "bg-primary/10"
-                    }`}
+                    className={`rounded-sm px-0.5 text-primary transition-colors hover:bg-primary/20 ${isCurrentWord ? "bg-primary/30" : "bg-primary/10"
+                      }`}
                   >
                     {seg.hanzi}
                   </button>
@@ -797,13 +800,12 @@ function QuizQuestionCard({
               type="button"
               disabled={answered}
               onClick={() => onAnswer(i)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed ${
-                showState
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed ${showState
                   ? isCorrect
                     ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
                     : "border-red-500/50 bg-red-500/10 text-red-700 dark:text-red-400"
                   : "border-border/60 bg-background hover:border-primary/40"
-              }`}
+                }`}
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
                 {["A", "B", "C", "D"][i]}

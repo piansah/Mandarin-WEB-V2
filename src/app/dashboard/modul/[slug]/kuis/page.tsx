@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Modul Kuis - Module Quiz */
+
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -258,7 +262,7 @@ export default function ModulKuisPage() {
     <div className="flex flex-col max-w-6xl mx-auto p-4 md:p-6 gap-6 text-foreground">
       {/* Top Bar: Breadcrumbs & Progress */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur pb-4 pt-4 md:pt-6 -mt-4 md:-mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm text-muted-foreground border-b mb-4">
-        
+
         {/* Desktop Breadcrumb */}
         <div className="hidden sm:flex items-center gap-2 overflow-x-auto whitespace-nowrap w-full sm:w-auto pb-2 sm:pb-0 hide-scrollbar">
           <Link href="/dashboard" className="hover:text-foreground transition-colors">Beranda</Link>
@@ -303,138 +307,136 @@ export default function ModulKuisPage() {
           </p>
         </div>
 
-      {/* Kartu Soal */}
-      <div className="border rounded-2xl p-5 sm:p-6 bg-card flex flex-col gap-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Badge variant="secondary" className="bg-primary/10 text-primary font-medium">
-              Pilihan Ganda
-            </Badge>
-            <span className="text-sm sm:text-base font-medium">{currentQuestion.questionText}</span>
+        {/* Kartu Soal */}
+        <div className="border rounded-2xl p-5 sm:p-6 bg-card flex flex-col gap-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Badge variant="secondary" className="bg-primary/10 text-primary font-medium">
+                Pilihan Ganda
+              </Badge>
+              <span className="text-sm sm:text-base font-medium">{currentQuestion.questionText}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (currentQuestion?.questionText) {
+                    speakMandarin(currentQuestion.questionText)
+                  }
+                }}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={handleReset}
+                disabled={!selectedOptionId}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Reset
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                if (currentQuestion?.questionText) {
-                  speakMandarin(currentQuestion.questionText)
+
+          <div className={`grid ${currentQuestion.options.every(o => o.text.length < 25) ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-3`}>
+            {currentQuestion.options.map((option, i) => {
+              const isSelected = selectedOptionId === option.id
+              const isAnswered = Boolean(answers[currentQuestion.id])
+              const isCorrectOption = option.id === currentQuestion.correctOptionId
+              const isWrongSelected = isSelected && !isCorrectOption
+
+              let optionClass = "border-muted hover:border-muted-foreground/40 hover:bg-muted/40"
+              let badgeClass = "bg-muted text-muted-foreground"
+
+              if (isAnswered) {
+                if (isCorrectOption) {
+                  optionClass = "border-primary bg-primary/5 ring-1 ring-primary"
+                  badgeClass = "bg-primary text-primary-foreground"
+                } else if (isWrongSelected) {
+                  optionClass = "border-red-500 bg-red-500/5 ring-1 ring-red-500"
+                  badgeClass = "bg-red-500 text-white"
+                } else {
+                  optionClass = "border-muted opacity-50"
                 }
-              }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-            </button>
+              } else if (isSelected) {
+                optionClass = "border-primary bg-primary/5"
+                badgeClass = "bg-primary text-primary-foreground"
+              }
+
+              return (
+                <button
+                  key={option.id}
+                  onClick={() => handleSelectOption(option.id)}
+                  disabled={isAnswered}
+                  className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-colors ${optionClass}`}
+                >
+                  <span
+                    className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${badgeClass}`}
+                  >
+                    {i + 1}
+                  </span>
+                  <span className="text-sm">{option.text}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Feedback Section */}
+          {answers[currentQuestion.id] && (
+            <div className={`p-4 rounded-xl text-sm font-medium ${answers[currentQuestion.id] === currentQuestion.correctOptionId
+                ? "bg-primary/10 text-primary"
+                : "bg-red-500/10 text-red-500"
+              }`}>
+              {answers[currentQuestion.id] === currentQuestion.correctOptionId ? (
+                <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Jawaban kamu benar!</span>
+              ) : (
+                <span className="flex items-center gap-2"><XCircle className="w-5 h-5" /> Jawaban kurang tepat.</span>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-2">
             <button
-              onClick={handleReset}
-              disabled={!selectedOptionId}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={handlePrevious}
+              disabled={currentIndex === 0}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <RotateCcw className="w-3.5 h-3.5" /> Reset
+              <ArrowLeft className="w-4 h-4" /> Sebelumnya
             </button>
+            <Button
+              className="rounded-full px-6 bg-foreground text-background hover:bg-foreground/90"
+              disabled={!selectedOptionId || saving}
+              onClick={handleSubmitAnswer}
+            >
+              {saving ? "Menyimpan..." : answers[currentQuestion.id] ? (isLastQuestion ? "Selesaikan kuis" : "Selanjutnya") : "Cek jawaban"}
+            </Button>
           </div>
         </div>
 
-        <div className={`grid ${currentQuestion.options.every(o => o.text.length < 25) ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"} gap-3`}>
-          {currentQuestion.options.map((option, i) => {
-            const isSelected = selectedOptionId === option.id
-            const isAnswered = Boolean(answers[currentQuestion.id])
-            const isCorrectOption = option.id === currentQuestion.correctOptionId
-            const isWrongSelected = isSelected && !isCorrectOption
-
-            let optionClass = "border-muted hover:border-muted-foreground/40 hover:bg-muted/40"
-            let badgeClass = "bg-muted text-muted-foreground"
-
-            if (isAnswered) {
-              if (isCorrectOption) {
-                optionClass = "border-primary bg-primary/5 ring-1 ring-primary"
-                badgeClass = "bg-primary text-primary-foreground"
-              } else if (isWrongSelected) {
-                optionClass = "border-red-500 bg-red-500/5 ring-1 ring-red-500"
-                badgeClass = "bg-red-500 text-white"
-              } else {
-                optionClass = "border-muted opacity-50"
-              }
-            } else if (isSelected) {
-              optionClass = "border-primary bg-primary/5"
-              badgeClass = "bg-primary text-primary-foreground"
-            }
-
+        {/* Pagination nomor soal */}
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          {questions.map((q, i) => {
+            const isCurrent = i === currentIndex
+            const isAnswered = Boolean(answers[q.id])
             return (
               <button
-                key={option.id}
-                onClick={() => handleSelectOption(option.id)}
-                disabled={isAnswered}
-                className={`flex items-center gap-3 p-4 rounded-xl border text-left transition-colors ${optionClass}`}
+                key={q.id}
+                onClick={() => goToQuestion(i)}
+                className={`w-8 h-8 rounded-md text-xs font-bold flex items-center justify-center transition-colors ${isCurrent
+                    ? "bg-foreground text-background"
+                    : isAnswered
+                      ? answers[q.id] === q.correctOptionId ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-500"
+                      : "bg-muted text-muted-foreground"
+                  }`}
               >
-                <span
-                  className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${badgeClass}`}
-                >
-                  {i + 1}
-                </span>
-                <span className="text-sm">{option.text}</span>
+                {isAnswered && !isCurrent ? (
+                  answers[q.id] === q.correctOptionId ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />
+                ) : (
+                  i + 1
+                )}
               </button>
             )
           })}
         </div>
-
-        {/* Feedback Section */}
-        {answers[currentQuestion.id] && (
-          <div className={`p-4 rounded-xl text-sm font-medium ${
-            answers[currentQuestion.id] === currentQuestion.correctOptionId 
-              ? "bg-primary/10 text-primary" 
-              : "bg-red-500/10 text-red-500"
-          }`}>
-            {answers[currentQuestion.id] === currentQuestion.correctOptionId ? (
-              <span className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5" /> Jawaban kamu benar!</span>
-            ) : (
-              <span className="flex items-center gap-2"><XCircle className="w-5 h-5" /> Jawaban kurang tepat.</span>
-            )}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-2">
-          <button
-            onClick={handlePrevious}
-            disabled={currentIndex === 0}
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ArrowLeft className="w-4 h-4" /> Sebelumnya
-          </button>
-          <Button
-            className="rounded-full px-6 bg-foreground text-background hover:bg-foreground/90"
-            disabled={!selectedOptionId || saving}
-            onClick={handleSubmitAnswer}
-          >
-            {saving ? "Menyimpan..." : answers[currentQuestion.id] ? (isLastQuestion ? "Selesaikan kuis" : "Selanjutnya") : "Cek jawaban"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Pagination nomor soal */}
-      <div className="flex items-center justify-center gap-2 flex-wrap">
-        {questions.map((q, i) => {
-          const isCurrent = i === currentIndex
-          const isAnswered = Boolean(answers[q.id])
-          return (
-            <button
-              key={q.id}
-              onClick={() => goToQuestion(i)}
-              className={`w-8 h-8 rounded-md text-xs font-bold flex items-center justify-center transition-colors ${
-                isCurrent
-                  ? "bg-foreground text-background"
-                  : isAnswered
-                    ? answers[q.id] === q.correctOptionId ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-500"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {isAnswered && !isCurrent ? (
-                answers[q.id] === q.correctOptionId ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />
-              ) : (
-                i + 1
-              )}
-            </button>
-          )
-        })}
-      </div>
         {/* Keyboard hints */}
         <div className="hidden sm:flex items-center justify-center gap-4 flex-wrap text-xs text-muted-foreground mt-2 w-full">
           <span className="flex items-center gap-1.5"><kbd className="border rounded-md px-1.5 py-0.5 bg-muted/50 font-sans">1</kbd> - <kbd className="border rounded-md px-1.5 py-0.5 bg-muted/50 font-sans">4</kbd> pilih jawaban</span>

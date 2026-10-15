@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   route.ts -- auth/callback/route.ts */
+
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 

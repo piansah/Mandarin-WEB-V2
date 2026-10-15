@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   error.tsx -- Modul Error Boundary */
+
 import { useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertCircle, RefreshCw, Layers } from "lucide-react"

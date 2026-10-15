@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Mini Games - Game Hub */
+
 import * as React from "react"
 import Link from "next/link"
 import { Gamepad2, ArrowRight, Unlock, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
@@ -24,7 +28,7 @@ export default function GameHubPage() {
         setLoading(false)
       }
     }
-    
+
     loadStats()
   }, [supa])
 
@@ -72,7 +76,7 @@ export default function GameHubPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 border border-primary/10">
         <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-secondary/20 blur-3xl rounded-full pointer-events-none" />
-        
+
         <div className="space-y-3 relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-2">
             <Gamepad2 className="w-4 h-4" />
@@ -91,14 +95,14 @@ export default function GameHubPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {games.map((game, idx) => {
           return (
-            <div 
+            <div
               key={game.id}
               className="animate-in fade-in slide-in-from-bottom-4 duration-700"
               style={{ animationDelay: `${idx * 100}ms`, animationFillMode: "both" }}
             >
               <Card className="group overflow-hidden h-full flex flex-col border-2 transition-all duration-300 hover:shadow-xl hover:border-primary/50">
                 {/* Thumbnail Area */}
-                <div 
+                <div
                   className="h-48 relative overflow-hidden"
                   style={{ background: game.image }}
                 >
@@ -107,7 +111,7 @@ export default function GameHubPage() {
                   <div className="absolute -bottom-10 -right-10 opacity-30 scale-150 group-hover:scale-110 transition-transform duration-700">
                     <game.icon className="w-48 h-48 text-white" />
                   </div>
-                  
+
                   {/* Status Badge */}
                   <div className="absolute top-4 right-4">
                     <Badge variant="default" className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-md border-white/20 flex gap-1.5 items-center px-3 py-1">
@@ -126,7 +130,7 @@ export default function GameHubPage() {
                       {game.description}
                     </p>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-6 mt-auto">
                     {game.tags.map(tag => (
                       <span key={tag} className="text-[10px] uppercase tracking-wider font-semibold bg-muted px-2 py-1 rounded-md text-muted-foreground">

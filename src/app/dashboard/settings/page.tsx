@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Settings - User Preferences */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -199,11 +204,10 @@ export default function SettingsPage() {
             {HANZI_FONTS.map((font) => (
               <div
                 key={font.value}
-                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                  selectedHanziFont === font.value
+                className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-all ${selectedHanziFont === font.value
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
-                }`}
+                  }`}
                 onClick={() => setSelectedHanziFont(font.value)}
               >
                 <div className="flex items-center gap-4">

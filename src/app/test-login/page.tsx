@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Test Login Page (Dev Only) */
+
 import { toast } from "sonner";
 
 import { useState } from "react"
@@ -19,7 +24,7 @@ export default function TestLogin() {
       email,
       password,
     })
-    
+
     if (error) {
       toast.error("Error: " + error.message)
     } else {
@@ -33,20 +38,20 @@ export default function TestLogin() {
       <form onSubmit={handleLogin} id="test-login-form">
         <div>
           <label>Email</label>
-          <input 
-            type="email" 
-            id="test-email" 
-            value={email} 
-            onChange={e => setEmail(e.target.value)} 
+          <input
+            type="email"
+            id="test-email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
           />
         </div>
         <div>
           <label>Password</label>
-          <input 
-            type="password" 
-            id="test-password" 
-            value={password} 
-            onChange={e => setPassword(e.target.value)} 
+          <input
+            type="password"
+            id="test-password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
           />
         </div>
         <button type="submit" id="test-submit">Login</button>

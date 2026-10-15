@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Tulis Hanzi - Hanzi Writing Practice */
+
 import * as React from "react"
 import { PenLine } from "lucide-react"
 import { toast } from "sonner"

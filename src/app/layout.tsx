@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   layout.tsx -- Root Layout */
+
 import type { Metadata } from "next";
 import { Noto_Sans_SC, Poppins, Noto_Serif_SC, Ma_Shan_Zheng, Long_Cang } from "next/font/google";
 import "./globals.css";

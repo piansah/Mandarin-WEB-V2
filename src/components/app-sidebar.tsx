@@ -48,6 +48,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { useRouter } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { BugReportDialog } from "@/components/bug-report-dialog"
@@ -154,6 +162,7 @@ export function AppSidebar({
   const router = useRouter()
   const { isMobile, setOpen, setOpenMobile, pinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
+  const [logoutDialogOpen, setLogoutDialogOpen] = React.useState(false)
   const [isAdminUser, setIsAdminUser] = React.useState(false)
   const supabase = useSupabase()
   const closeTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -410,7 +419,7 @@ export function AppSidebar({
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
+                <DropdownMenuItem onClick={() => setLogoutDialogOpen(true)} className="text-red-500 focus:text-red-500 focus:bg-red-500/10">
                   <LogOut className="h-4 w-4" />
                   Keluar
                 </DropdownMenuItem>
@@ -420,6 +429,35 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarFooter>
       <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
+
+      {/* Logout Confirm Dialog */}
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent showCloseButton={false} className="max-w-sm">
+          <DialogHeader>
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 mb-1">
+              <LogOut className="h-5 w-5 text-red-500" />
+            </div>
+            <DialogTitle className="text-base">Keluar dari akun?</DialogTitle>
+            <DialogDescription>
+              Kamu akan keluar dari sesi belajar sekarang. Progresmu sudah tersimpan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setLogoutDialogOpen(false)}
+              className="flex-1 sm:flex-none rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex-1 sm:flex-none rounded-lg bg-red-500 hover:bg-red-600 text-white px-4 py-2 text-sm font-semibold transition-colors"
+            >
+              Ya, Keluar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   )
 }

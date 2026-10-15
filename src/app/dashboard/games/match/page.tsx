@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Match Game - Character Matching */
+
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { MatchBoard } from "@/components/games/match-board"
@@ -46,7 +50,7 @@ export default function MatchGamePage() {
         try {
           const arr: number[] = JSON.parse(localStorage.getItem(key) || "[]")
           result[level] = new Set(arr)
-        } catch {}
+        } catch { }
       }
     }
     return result
@@ -286,12 +290,12 @@ export default function MatchGamePage() {
                     <div className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 font-black text-base",
                       isLocked ? "bg-muted text-muted-foreground" :
-                      isHskCleared ? "bg-green-500/10 text-green-500" :
-                      "bg-blue-500/10 text-blue-500"
+                        isHskCleared ? "bg-green-500/10 text-green-500" :
+                          "bg-blue-500/10 text-blue-500"
                     )}>
                       {isLocked ? <Lock className="w-5 h-5" /> :
-                       isHskCleared ? "✓" :
-                       level}
+                        isHskCleared ? "✓" :
+                          level}
                     </div>
 
                     {/* Info */}
@@ -351,12 +355,12 @@ export default function MatchGamePage() {
                     <div className={cn(
                       "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 text-lg font-black",
                       isLocked ? "bg-muted text-muted-foreground" :
-                      isCleared ? "bg-green-500/10 text-green-500" :
-                      "bg-blue-500/10 text-blue-500"
+                        isCleared ? "bg-green-500/10 text-green-500" :
+                          "bg-blue-500/10 text-blue-500"
                     )}>
                       {isLocked ? <Lock className="w-5 h-5" /> :
-                       isCleared ? "✓" :
-                       stage.index}
+                        isCleared ? "✓" :
+                          stage.index}
                     </div>
 
                     {/* Info */}

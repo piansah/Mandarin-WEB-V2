@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Quiz Kumulatif - Cumulative Quiz Session */
+
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, RotateCcw, SkipForward } from "lucide-react"
@@ -282,6 +286,7 @@ export default function CumulativeQuizPracticePage() {
 
   const [filterOpen, setFilterOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
+  const itemsRef = React.useRef<HanziItem[]>([])
 
   React.useEffect(() => {
     const handler = (e: PointerEvent) => {
@@ -301,85 +306,7 @@ export default function CumulativeQuizPracticePage() {
     async function load() {
       setLoading(true)
 
-      // ── 1. Cek database LEBIH DULU — source of truth ──
-      // user_scores adalah sumber kebenaran lintas device.
-      // Jika sudah ada skor kal di DB → tampilkan result langsung.
-      const { data: { user } } = await supa.auth.getUser()
-      if (!cancelled && user) {
-        const { data: dbScore } = await supa
-          .from("user_scores")
-          .select("score")
-          .eq("user_id", user.id)
-          .eq("type", "kal")
-          .eq("key", key)
-          .maybeSingle()
-
-        if (!cancelled && dbScore) {
-          // Sudah selesai (di device mana pun) — tampilkan result screen dari DB
-          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
-          if (!cancelled) {
-            if (meta.data) {
-              setQuizTitle(meta.data.title)
-              setQuizSub(meta.data.sub)
-            }
-
-            // Cek apakah ada detail jawaban di localStorage (jika dikerjakan di device ini)
-            try {
-              const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-              const state = saved[key]
-              if (state?.submitted && Array.isArray(state?.allQ) && state.allQ.length > 0) {
-                // Ada detail jawaban lokal → tampilkan dengan detail
-                setAllQ(state.allQ)
-                setAnswered(state.answered ?? {})
-                setSubmitted(true)
-                setLoading(false)
-                return
-              }
-            } catch { }
-
-            // Tidak ada detail lokal → tampilkan dengan skor DB saja
-            setDbOnlyScore(dbScore.score)
-            setSubmitted(true)
-            setLoading(false)
-          }
-          return
-        }
-      }
-
-      if (cancelled) return
-
-      // ── 2. Tidak ada skor di DB — cek localStorage untuk sesi draft ──
-      try {
-        const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-        const state = saved[key]
-        const savedQ = state?.allQ
-        const savedAnswered = state?.answered ?? {}
-        const hoursDiff = state?.timestamp
-          ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
-          : 0
-        // Restore sesi yang masih aktif (< 24 jam) meski belum submit
-        if (Array.isArray(savedQ) && savedQ.length > 0 && hoursDiff < 24) {
-          const meta = await supa.from("hanzi_sets").select("title,sub").eq("key", key).single()
-          if (!cancelled) {
-            if (meta.data) {
-              setQuizTitle(meta.data.title)
-              setQuizSub(meta.data.sub)
-            }
-            setAllQ(savedQ)
-            setAnswered(savedAnswered)
-            setSubmitted(false)
-            setLoading(false)
-          }
-          return
-        }
-        // Data expired — hapus entry lama
-        if (state) {
-          delete saved[key]
-          localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
-        }
-      } catch { }
-
-      // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
+      // Ambil metadata & items lebih awal agar selalu tersedia saat reload / retry
       const [metaRes, itemsRes] = await Promise.all([
         supa.from("hanzi_sets").select("title,sub").eq("key", key).single(),
         supa
@@ -401,9 +328,78 @@ export default function CumulativeQuizPracticePage() {
         return
       }
 
-      const built = buildKalimatQuiz((itemsRes.data ?? []) as HanziItem[])
+      const items = (itemsRes.data ?? []) as HanziItem[]
+      itemsRef.current = items
+
+      if (items.length === 0) {
+        setQuizTitle(metaRes.data?.title ?? "")
+        setQuizSub(metaRes.data?.sub ?? "")
+        setAllQ([])
+        setLoading(false)
+        return
+      }
+
       const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-      // Simpan dengan timestamp agar bisa di-expire setelah 24 jam
+      const state = saved[key]
+      const savedQ = state?.allQ
+      const savedAnswered = state?.answered ?? {}
+      const hoursDiff = state?.timestamp
+        ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
+        : 0
+
+      // ── 1. Cek sesi draft / retry yang sedang aktif (< 24 jam dan belum submit) ──
+      if (Array.isArray(savedQ) && savedQ.length > 0 && !state?.submitted && hoursDiff < 24) {
+        if (!cancelled) {
+          setQuizTitle(metaRes.data.title)
+          setQuizSub(metaRes.data.sub)
+          setAllQ(savedQ)
+          setAnswered(savedAnswered)
+          setSubmitted(false)
+          setLoading(false)
+        }
+        return
+      }
+
+      // ── 2. Cek apakah kuis sudah pernah diselesaikan (di localStorage atau DB) ──
+      const { data: { user } } = await supa.auth.getUser()
+      let dbScore = null
+      if (!cancelled && user) {
+        const { data } = await supa
+          .from("user_scores")
+          .select("score")
+          .eq("user_id", user.id)
+          .eq("type", "kal")
+          .eq("key", key)
+          .maybeSingle()
+        dbScore = data
+      }
+
+      if (!cancelled && (state?.submitted || dbScore)) {
+        setQuizTitle(metaRes.data.title)
+        setQuizSub(metaRes.data.sub)
+
+        if (state?.submitted && Array.isArray(savedQ) && savedQ.length > 0) {
+          // Ada detail jawaban lokal -> tampilkan dengan detail
+          setAllQ(savedQ)
+          setAnswered(savedAnswered)
+          setSubmitted(true)
+          setLoading(false)
+          return
+        }
+
+        // Tampilkan result screen dari skor DB, TAPI siapkan allQ dari items agar saat klik "Ulangi", soal tidak kosong!
+        const built = buildKalimatQuiz(items)
+        setAllQ(built)
+        setDbOnlyScore(dbScore ? dbScore.score : (state?.score ?? null))
+        setSubmitted(true)
+        setLoading(false)
+        return
+      }
+
+      if (cancelled) return
+
+      // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
+      const built = buildKalimatQuiz(items)
       saved[key] = { allQ: built, answered: {}, submitted: false, timestamp: Date.now() }
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
 
@@ -411,6 +407,7 @@ export default function CumulativeQuizPracticePage() {
       setQuizSub(metaRes.data.sub)
       setAllQ(built)
       setAnswered({})
+      setSubmitted(false)
       setLoading(false)
     }
     load()
@@ -500,21 +497,37 @@ export default function CumulativeQuizPracticePage() {
   }
 
   function handleRetry() {
+    setDbOnlyScore(null)
     setAnswered({})
     setSubmitted(false)
-    // Reset card selectedIdx in allQ
-    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+
+    // Buat soal baru dari items jika ada, atau reset selectedIdx dari allQ yang ada
+    let resetQ: QuizQuestion[] = []
+    if (itemsRef.current.length > 0) {
+      resetQ = buildKalimatQuiz(itemsRef.current)
+    } else if (allQ.length > 0) {
+      resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    }
+
     setAllQ(resetQ)
+
     // Update localStorage
     const saved = JSON.parse(localStorage.getItem("hsk_kal_state") ?? "{}")
-    if (saved[key]) {
-      saved[key].allQ = resetQ
-      saved[key].answered = {}
-      saved[key].submitted = false
-      saved[key].timestamp = Date.now()
-      localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
+    saved[key] = {
+      allQ: resetQ,
+      answered: {},
+      submitted: false,
+      timestamp: Date.now(),
     }
+    localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
   }
+
+  // Auto-recovery jika allQ kosong tapi itemsRef tersedia
+  React.useEffect(() => {
+    if (!loading && !submitted && allQ.length === 0 && itemsRef.current.length > 0) {
+      handleRetry()
+    }
+  }, [loading, submitted, allQ.length])
 
   // Scroll ke kartu pertama yang benar-benar tampil di layar (bukan card-0),
   // karena gi Bagian 4 dibuat lebih dulu sehingga card-0 ada di Bagian 4.
@@ -617,23 +630,23 @@ export default function CumulativeQuizPracticePage() {
           </div>
 
           {!isDbOnly && (
-          <div className="flex flex-wrap justify-center gap-2 relative z-10">
-            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
-              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
-              <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
-              <span className="text-xs text-muted-foreground">Benar</span>
+            <div className="flex flex-wrap justify-center gap-2 relative z-10">
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
+                <span className="text-xs text-muted-foreground">Benar</span>
+              </div>
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
+                <span className="text-xs text-muted-foreground">Salah</span>
+              </div>
+              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
+                <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
+                <span className="text-xs text-muted-foreground">Dilewati</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
-              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
-              <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
-              <span className="text-xs text-muted-foreground">Salah</span>
-            </div>
-            <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
-              <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
-              <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
-              <span className="text-xs text-muted-foreground">Dilewati</span>
-            </div>
-          </div>
           )}
           {isDbOnly && (
             <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/25 text-xs text-blue-400">

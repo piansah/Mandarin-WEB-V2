@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Personal Cards - Decks in Theme */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -13,7 +18,7 @@ export default function ThemeDetailPage() {
   const params = useParams()
   const themeId = parseInt(params.themeId as string)
   const router = useRouter()
-  
+
   const [theme, setTheme] = React.useState<PersonalTheme | null>(null)
   const [decks, setDecks] = React.useState<PersonalDeck[]>([])
   const [loading, setLoading] = React.useState(true)

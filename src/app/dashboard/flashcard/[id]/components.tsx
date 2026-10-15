@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   components.tsx -- Flashcard Deck - Sub-Components */
+
 import * as React from "react"
 import { getTone, TONE_CLASS } from "@/lib/hanzi-utils"
 

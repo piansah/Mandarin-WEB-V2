@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Grammar - Grammar Exercise Session */
+
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { X, RotateCcw, CheckCircle2, Star } from "lucide-react"
@@ -284,7 +288,7 @@ export default function GrammarPracticePage() {
 
   function finish(pct: number) {
     setGrammarScore(slug, pct)
-    saveUserScore("grammar", slug, pct).catch(() => {})
+    saveUserScore("grammar", slug, pct).catch(() => { })
 
     window.localStorage.removeItem(sessionKey(slug))
     setPhase("done")
@@ -301,7 +305,7 @@ export default function GrammarPracticePage() {
         if (reviewRound === 0) {
           const firstPassPct = questions.length ? Math.round((correctCount / questions.length) * 100) : 0
           setGrammarScore(slug, firstPassPct)
-          saveUserScore("grammar", slug, firstPassPct).catch(() => {})
+          saveUserScore("grammar", slug, firstPassPct).catch(() => { })
         }
         startReview(remainingWrong)
         return
@@ -481,20 +485,20 @@ export default function GrammarPracticePage() {
 
         <footer className={styles.footer}>
           {phase === "theory" && (
-              <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
-            )}
-            {phase === "soal" && (
-              <>
-                <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
-                {!checked ? (
-                  <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
-                ) : (
-                  <button type="button" className={styles.btnPrimary} onClick={goNext}>
-                    {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
-                  </button>
-                )}
-              </>
-            )}
+            <button type="button" className={styles.btnPrimary} onClick={() => openSoal(idx, states[idx])}>Mulai Latihan</button>
+          )}
+          {phase === "soal" && (
+            <>
+              <button type="button" className={styles.btnGhost} onClick={goPrev}>{idx === 0 ? "Teori" : "Sebelumnya"}</button>
+              {!checked ? (
+                <button type="button" className={styles.btnPrimary} disabled={!canCheck} onClick={checkAnswer}>Periksa</button>
+              ) : (
+                <button type="button" className={styles.btnPrimary} onClick={goNext}>
+                  {idx >= questions.length - 1 && (ok ? wrongQuestions.filter((item) => item.id !== question.id) : wrongQuestions).length === 0 ? "Lihat Hasil" : "Lanjut"}
+                </button>
+              )}
+            </>
+          )}
         </footer>
       </div>
     </div>

@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard Deck - Card Browser and Study */
+
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { useParams, useRouter } from "next/navigation"
@@ -276,122 +280,117 @@ export default function FlashcardDeckPage() {
             <DrawerTrigger render={<Button className="w-full" size="lg" />}>
               Mulai Latihan
             </DrawerTrigger>
-          <DrawerContent>
-            <div className="mx-auto w-full max-w-sm">
-              <DrawerHeader className="text-center pb-2">
-                <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
-                  Pilih Latihan
-                </DrawerTitle>
-              </DrawerHeader>
-              <div className="p-4 grid grid-cols-4 gap-2.5">
-                {/* Flashcard */}
-                <div
-                  onClick={() => navigateToPractice("flashcard")}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${
-                    flashcardDone
-                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
-                      : "border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10"
-                  }`}
-                >
-                  {flashcardDone ? (
-                    <div className="absolute top-2 right-2 flex items-center justify-center">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            <DrawerContent>
+              <div className="mx-auto w-full max-w-sm">
+                <DrawerHeader className="text-center pb-2">
+                  <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+                    Pilih Latihan
+                  </DrawerTitle>
+                </DrawerHeader>
+                <div className="p-4 grid grid-cols-4 gap-2.5">
+                  {/* Flashcard */}
+                  <div
+                    onClick={() => navigateToPractice("flashcard")}
+                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${flashcardDone
+                        ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
+                        : "border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10"
+                      }`}
+                  >
+                    {flashcardDone ? (
+                      <div className="absolute top-2 right-2 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    ) : (
+                      <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                    <div className={`h-11 w-11 rounded-full flex items-center justify-center ${flashcardDone ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+                      }`}>
+                      <Layers className="h-5 w-5" />
                     </div>
-                  ) : (
-                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                  )}
-                  <div className={`h-11 w-11 rounded-full flex items-center justify-center ${
-                    flashcardDone ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
-                  }`}>
-                    <Layers className="h-5 w-5" />
+                    <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
-                </div>
 
-                {/* Quiz — kebuka setelah Flashcard selesai */}
-                <div
-                  onClick={() => { if (quizUnlocked) navigateToQuiz() }}
-                  aria-disabled={!quizUnlocked}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
-                    !quizUnlocked
-                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
-                      : quizDone
-                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
-                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                  }`}
-                >
-                  {quizDone && typeof quizScore === "number" && (
-                    <div className="absolute top-2 right-2">
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                        {quizScore}%
+                  {/* Quiz — kebuka setelah Flashcard selesai */}
+                  <div
+                    onClick={() => { if (quizUnlocked) navigateToQuiz() }}
+                    aria-disabled={!quizUnlocked}
+                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!quizUnlocked
+                        ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                        : quizDone
+                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      }`}
+                  >
+                    {quizDone && typeof quizScore === "number" && (
+                      <div className="absolute top-2 right-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                          {quizScore}%
+                        </span>
+                      </div>
+                    )}
+                    <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <ListChecks className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
+                    {!quizUnlocked && (
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight">
+                        Selesaikan Flashcard
                       </span>
-                    </div>
-                  )}
-                  <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                    <ListChecks className="h-5 w-5" />
+                    )}
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
-                  {!quizUnlocked && (
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                      Selesaikan Flashcard
-                    </span>
-                  )}
-                </div>
 
-                {/* Nada & Menulis — kebuka bareng setelah Quiz selesai */}
-                <div
-                  onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
-                  aria-disabled={!postQuizUnlocked}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
-                    !postQuizUnlocked
-                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
-                      : nadaDone
-                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
-                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                  }`}
-                >
-                  {nadaDone && (
-                    <div className="absolute top-2 right-2 flex items-center justify-center">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  {/* Nada & Menulis — kebuka bareng setelah Quiz selesai */}
+                  <div
+                    onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
+                    aria-disabled={!postQuizUnlocked}
+                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                        ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                        : nadaDone
+                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      }`}
+                  >
+                    {nadaDone && (
+                      <div className="absolute top-2 right-2 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                      <Music className="h-5 w-5" />
                     </div>
-                  )}
-                  <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
-                    <Music className="h-5 w-5" />
+                    <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
+                    {!postQuizUnlocked && (
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
+                    )}
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
-                  {!postQuizUnlocked && (
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
-                  )}
-                </div>
 
-                <div
-                  onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
-                  aria-disabled={!postQuizUnlocked}
-                  className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${
-                    !postQuizUnlocked
-                      ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
-                      : tulisDone
-                      ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
-                      : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                  }`}
-                >
-                  {tulisDone && (
-                    <div className="absolute top-2 right-2 flex items-center justify-center">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  <div
+                    onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
+                    aria-disabled={!postQuizUnlocked}
+                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                        ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                        : tulisDone
+                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                      }`}
+                  >
+                    {tulisDone && (
+                      <div className="absolute top-2 right-2 flex items-center justify-center">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                      <Edit2 className="h-5 w-5" />
                     </div>
-                  )}
-                  <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-                    <Edit2 className="h-5 w-5" />
+                    <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
+                    {!postQuizUnlocked && (
+                      <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
+                    )}
                   </div>
-                  <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
-                  {!postQuizUnlocked && (
-                    <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
-                  )}
                 </div>
               </div>
-            </div>
-          </DrawerContent>
-        </Drawer>
+            </DrawerContent>
+          </Drawer>
         </div>
       </div>
 
@@ -528,9 +527,8 @@ function WordDetailPanel({
           return (
             <button
               key={item.id}
-              className={`relative px-2 text-base font-bold tracking-wide transition-colors ${
-                active ? "text-[#f4d76d]" : "text-[#686bd6] hover:text-slate-200"
-              }`}
+              className={`relative px-2 text-base font-bold tracking-wide transition-colors ${active ? "text-[#f4d76d]" : "text-[#686bd6] hover:text-slate-200"
+                }`}
               onClick={() => onTabChange(item.id)}
             >
               {item.label}

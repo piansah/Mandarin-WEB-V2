@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Favorit - Saved / Bookmarked Words */
+
 import { toast } from "sonner";
 
 import * as React from "react"

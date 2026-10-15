@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Peta Belajar - Learning Path Map */
+
 import * as React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,7 +34,7 @@ export default async function PathPage() {
       <div className="relative mt-4">
         {/* Garis vertikal penghubung (hanya terlihat di layar medium ke atas) */}
         <div className="absolute left-8 top-4 bottom-8 w-1 bg-muted z-0 hidden md:block rounded-full" />
-        
+
         <div className="flex flex-col gap-8 md:gap-12">
           {pathSteps.map((step, index) => {
             const isCompleted = step.status === "completed"
@@ -39,36 +43,36 @@ export default async function PathPage() {
 
             return (
               <div key={step.id} className="relative z-10 flex flex-col md:flex-row gap-4 md:gap-8 items-start group">
-                
+
                 {/* Node Icon */}
                 <div className="hidden md:flex flex-col items-center mt-4 shrink-0">
                   <div className={`w-16 h-16 rounded-full border-[6px] flex items-center justify-center bg-background transition-transform duration-300 group-hover:scale-110
-                    ${isCompleted ? 'border-emerald-500 text-emerald-500' : 
-                      isActive ? 'border-primary text-primary shadow-[0_0_20px_rgba(var(--primary),0.3)]' : 
-                      'border-muted text-muted-foreground bg-muted/20'}`}
+                    ${isCompleted ? 'border-emerald-500 text-emerald-500' :
+                      isActive ? 'border-primary text-primary shadow-[0_0_20px_rgba(var(--primary),0.3)]' :
+                        'border-muted text-muted-foreground bg-muted/20'}`}
                   >
-                    {isCompleted ? <CheckCircle2 className="w-6 h-6" /> : 
-                     isActive ? <Milestone className="w-6 h-6" /> : 
-                     <Lock className="w-6 h-6" />}
+                    {isCompleted ? <CheckCircle2 className="w-6 h-6" /> :
+                      isActive ? <Milestone className="w-6 h-6" /> :
+                        <Lock className="w-6 h-6" />}
                   </div>
                 </div>
 
                 {/* Content Card */}
                 <Card className={`flex-1 overflow-hidden transition-all duration-300 w-full
-                  ${isActive ? 'border-primary ring-2 ring-primary/20 shadow-xl scale-[1.02]' : 
-                    isLocked ? 'opacity-60 bg-muted/10 shadow-none hover:opacity-100' : 
-                    'hover:shadow-md'}`}
+                  ${isActive ? 'border-primary ring-2 ring-primary/20 shadow-xl scale-[1.02]' :
+                    isLocked ? 'opacity-60 bg-muted/10 shadow-none hover:opacity-100' :
+                      'hover:shadow-md'}`}
                 >
                   <CardContent className="p-5 md:p-6">
                     <div className="flex flex-col md:flex-row justify-between gap-6">
-                      
+
                       {/* Left: Info */}
                       <div className="flex flex-col gap-2 flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full tracking-wider uppercase
-                            ${isCompleted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' : 
-                              isActive ? 'bg-primary text-primary-foreground' : 
-                              'bg-muted text-muted-foreground'}`}
+                            ${isCompleted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400' :
+                              isActive ? 'bg-primary text-primary-foreground' :
+                                'bg-muted text-muted-foreground'}`}
                           >
                             Tahap {index + 1}
                           </span>
@@ -78,10 +82,10 @@ export default async function PathPage() {
                             </span>
                           )}
                         </div>
-                        
+
                         <h2 className="text-xl md:text-2xl font-bold">{step.title}</h2>
                         <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
-                        
+
                         <div className="flex flex-wrap items-center gap-3 mt-4">
                           <Link href="/dashboard/modul" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
                             <Library className="w-3.5 h-3.5" />
@@ -113,7 +117,7 @@ export default async function PathPage() {
                             <Button variant="outline" className="w-full rounded-full text-xs h-8">Review Ulang</Button>
                           </div>
                         )}
-                        
+
                         {isActive && (
                           <div className="flex flex-col items-start md:items-end w-full">
                             <span className="text-sm font-bold text-primary mb-2">Progress {step.progress}%</span>

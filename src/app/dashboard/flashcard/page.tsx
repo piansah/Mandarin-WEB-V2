@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard - Deck List */
+
 import { createClient } from "@/lib/supabase/server"
 import { Languages } from "lucide-react"
 import { FlashcardDeckList, type FlashcardSet } from "@/components/flashcard-deck-list"
@@ -22,11 +26,11 @@ export default async function FlashcardPage() {
 
   // Calculate total vocabulary count per HSK level
   const vocabCountByLevel: Record<number, number> = {}
-  ;(sets ?? []).forEach(set => {
-    const level = set.hsk_level ?? 1
-    const count = set.flashcard_cards?.[0]?.count ?? 0
-    vocabCountByLevel[level] = (vocabCountByLevel[level] || 0) + count
-  })
+    ; (sets ?? []).forEach(set => {
+      const level = set.hsk_level ?? 1
+      const count = set.flashcard_cards?.[0]?.count ?? 0
+      vocabCountByLevel[level] = (vocabCountByLevel[level] || 0) + count
+    })
 
   const deckContent = (
     <>

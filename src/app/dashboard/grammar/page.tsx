@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Tata Bahasa - Grammar Exercises List */
+
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { BookOpen, Lock } from "lucide-react"

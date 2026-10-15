@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.module.css -- Practice Tulis - Styles */
+
 /*
   PENTING: `.page` di sini TIDAK boleh punya `height: 100dvh` +
   `overflow-y: auto` sendiri — sama seperti alasan di
@@ -20,7 +24,8 @@
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  overflow-x: clip; /* FIX v2: "hidden" bikin overflow-y ke-compute auto meski overflow-y ditulis eksplisit "visible" (aturan pairing CSS tidak bedain visible eksplisit vs default). "clip" satu golongan non-scrolling sama kayak visible, jadi TIDAK memicu pairing itu -> .page beneran nggak jadi scroll container, sticky PracticeHeader ngikut ke wrapper overflow-auto asli di dashboard-layout-client.tsx */
+  overflow-x: clip;
+  /* FIX v2: "hidden" bikin overflow-y ke-compute auto meski overflow-y ditulis eksplisit "visible" (aturan pairing CSS tidak bedain visible eksplisit vs default). "clip" satu golongan non-scrolling sama kayak visible, jadi TIDAK memicu pairing itu -> .page beneran nggak jadi scroll container, sticky PracticeHeader ngikut ke wrapper overflow-auto asli di dashboard-layout-client.tsx */
   background: linear-gradient(135deg, var(--background) 0%, var(--muted) 50%, var(--background) 100%);
   position: relative;
 }

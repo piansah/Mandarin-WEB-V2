@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Flashcard - Swipe Flashcard Session */
+
 import * as React from "react"
 import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"

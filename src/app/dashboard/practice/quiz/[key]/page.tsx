@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Quiz - Deck Quiz Session */
+
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { RotateCcw, SkipForward, CheckCircle2, Volume2 } from "lucide-react"
@@ -154,6 +158,7 @@ export default function QuizPage() {
 
   const [filterOpen, setFilterOpen] = React.useState(false)
   const filterRef = React.useRef<HTMLDivElement>(null)
+  const cardsRef = React.useRef<Card[]>([])
 
   // Close dropdown on outside click
   React.useEffect(() => {
@@ -188,11 +193,7 @@ export default function QuizPage() {
       let deckSub = ""
 
       if (isPersonal) {
-        // Load from personal_cards — sama pola dengan deck reguler di bawah:
-        // ambil judul & deskripsi deck asli dari personal_decks, bukan teks
-        // statis, supaya tampilan quiz personal identik dengan quiz daftar
-        // kata (cuma bedanya jumlah tipe soal: 3, karena tidak ada kalimat
-        // rumpang untuk kartu personal).
+        // Load from personal_cards
         const [deckData, cardData] = await Promise.all([
           supa.from("personal_decks").select("title, description").eq("id", deckId).maybeSingle(),
           supa.from("personal_cards").select("id, hanzi, pinyin, arti").eq("deck_id", deckId).order("created_at", { ascending: true }),
@@ -229,59 +230,25 @@ export default function QuizPage() {
       }
 
       if (cancelled) return
+      cardsRef.current = cards
 
-      const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
-
-      // ── 1. Cek database LEBIH DULU — source of truth ──
-      // Jika sudah ada skor quiz di DB → tampilkan result langsung.
-      const { data: { user } } = await supa.auth.getUser()
-      if (!cancelled && user) {
-        const { data: dbScore } = await supa
-          .from("user_scores")
-          .select("score")
-          .eq("user_id", user.id)
-          .eq("type", "quiz")
-          .eq("key", key)
-          .maybeSingle()
-
-        if (!cancelled && dbScore) {
-          // Sudah selesai — cek apakah ada detail lokal untuk ditampilkan
-          try {
-            const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-            const existingQuiz = savedState[storageKey]
-            if (existingQuiz?.submitted && Array.isArray(existingQuiz?.allQ) && existingQuiz.allQ.length > 0) {
-              // Ada detail jawaban lokal → tampilkan dengan detail
-              setQuizTitle(deckTitle)
-              setQuizSub(deckSub)
-              setAllQ(existingQuiz.allQ)
-              setAnswered(existingQuiz.answered ?? {})
-              setSubmitted(true)
-              setLoading(false)
-              return
-            }
-          } catch { }
-
-          // Tidak ada detail lokal → tampilkan dengan skor DB saja
-          setQuizTitle(deckTitle)
-          setQuizSub(deckSub)
-          setDbOnlyScore(dbScore.score)
-          setSubmitted(true)
-          setLoading(false)
-          return
-        }
+      if (cards.length === 0) {
+        setQuizTitle(deckTitle)
+        setQuizSub(deckSub)
+        setAllQ([])
+        setLoading(false)
+        return
       }
 
-      if (cancelled) return
-
-      // ── 2. Tidak ada skor di DB — cek localStorage untuk sesi draft ──
+      const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
       const savedState = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
       const existingQuiz = savedState[storageKey]
       const hoursDiff = existingQuiz?.timestamp
         ? (Date.now() - existingQuiz.timestamp) / (1000 * 60 * 60)
         : 0
 
-      if (existingQuiz && hoursDiff < 24) {
-        // Restore sesi yang masih aktif (< 24 jam, belum submit)
+      // ── 1. Cek sesi draft / retry yang sedang aktif (< 24 jam dan belum submit) ──
+      if (existingQuiz && Array.isArray(existingQuiz.allQ) && existingQuiz.allQ.length > 0 && !existingQuiz.submitted && hoursDiff < 24) {
         setQuizTitle(deckTitle)
         setQuizSub(deckSub)
         setAllQ(existingQuiz.allQ)
@@ -290,6 +257,47 @@ export default function QuizPage() {
         setLoading(false)
         return
       }
+
+      // ── 2. Cek apakah kuis sudah pernah selesai (di localStorage atau DB) ──
+      const { data: { user } } = await supa.auth.getUser()
+      let dbScore = null
+      if (!cancelled && user) {
+        const { data } = await supa
+          .from("user_scores")
+          .select("score")
+          .eq("user_id", user.id)
+          .eq("type", "quiz")
+          .eq("key", key)
+          .maybeSingle()
+        dbScore = data
+      }
+
+      if (!cancelled && (existingQuiz?.submitted || dbScore)) {
+        if (existingQuiz?.submitted && Array.isArray(existingQuiz?.allQ) && existingQuiz.allQ.length > 0) {
+          // Ada detail jawaban lokal -> tampilkan dengan detail
+          setQuizTitle(deckTitle)
+          setQuizSub(deckSub)
+          setAllQ(existingQuiz.allQ)
+          setAnswered(existingQuiz.answered ?? {})
+          setSubmitted(true)
+          setLoading(false)
+          return
+        }
+
+        // Tampilkan result screen dari skor DB, TAPI siapkan allQ dari cards agar saat klik "Ulangi", soal tidak kosong!
+        const generatedQuiz = generateQuizFromCards(cards)
+        const internalQuiz = convertToInternalQuiz(generatedQuiz)
+
+        setQuizTitle(deckTitle)
+        setQuizSub(deckSub)
+        setAllQ(internalQuiz)
+        setDbOnlyScore(dbScore ? dbScore.score : (existingQuiz?.score ?? null))
+        setSubmitted(true)
+        setLoading(false)
+        return
+      }
+
+      if (cancelled) return
 
       // ── 3. Belum ada riwayat sama sekali — generate soal baru ──
       if (existingQuiz) delete savedState[storageKey]
@@ -399,22 +407,39 @@ export default function QuizPage() {
 
   /* ── Retry quiz ── */
   function handleRetry() {
+    setDbOnlyScore(null)
     setAnswered({})
     setSubmitted(false)
-    // Reset card selectedIdx in allQ
-    const resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+
+    // Buat soal baru dari cards jika ada, atau reset selectedIdx dari allQ yang ada
+    let resetQ: QuizQuestion[] = []
+    if (cardsRef.current.length > 0) {
+      const generated = generateQuizFromCards(cardsRef.current)
+      resetQ = convertToInternalQuiz(generated)
+    } else if (allQ.length > 0) {
+      resetQ = allQ.map(q => ({ ...q, selectedIdx: undefined }))
+    }
+
     setAllQ(resetQ)
+
     // Update localStorage
     const storageKey = `quiz_${key}_${isPersonal ? 'personal' : 'regular'}`
     const saved = JSON.parse(localStorage.getItem("hsk_quiz_state") ?? "{}")
-    if (saved[storageKey]) {
-      saved[storageKey].allQ = resetQ
-      saved[storageKey].answered = {}
-      saved[storageKey].submitted = false
-      saved[storageKey].timestamp = Date.now()
-      localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
+    saved[storageKey] = {
+      allQ: resetQ,
+      answered: {},
+      submitted: false,
+      timestamp: Date.now(),
     }
+    localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
   }
+
+  // Auto-recovery jika allQ kosong tapi cardsRef tersedia
+  React.useEffect(() => {
+    if (!loading && !submitted && allQ.length === 0 && cardsRef.current.length > 0) {
+      handleRetry()
+    }
+  }, [loading, submitted, allQ.length])
 
   // Scroll ke posisi paling atas (soal 1 Bagian 1). Tidak memakai card-0 /
   // scrollIntoView supaya kartu pertama tidak tertutup header sticky.
@@ -517,23 +542,23 @@ export default function QuizPage() {
             </div>
 
             {!isDbOnly && (
-            <div className="flex flex-wrap justify-center gap-2 relative z-10">
-              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
-                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
-                <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
-                <span className="text-xs text-muted-foreground">Benar</span>
+              <div className="flex flex-wrap justify-center gap-2 relative z-10">
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-emerald-500 tabular-nums">{totalCorrect}</span>
+                  <span className="text-xs text-muted-foreground">Benar</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
+                  <span className="text-xs text-muted-foreground">Salah</span>
+                </div>
+                <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
+                  <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
+                  <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
+                  <span className="text-xs text-muted-foreground">Dilewati</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/25">
-                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-red-500/15 text-red-500"><RotateCcw className="h-3.5 w-3.5" /></span>
-                <span className="text-sm font-semibold text-red-500 tabular-nums">{wrong}</span>
-                <span className="text-xs text-muted-foreground">Salah</span>
-              </div>
-              <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25">
-                <span className="flex items-center justify-center h-6 w-6 rounded-full bg-amber-500/15 text-amber-500"><SkipForward className="h-3.5 w-3.5" /></span>
-                <span className="text-sm font-semibold text-amber-500 tabular-nums">{skip}</span>
-                <span className="text-xs text-muted-foreground">Dilewati</span>
-              </div>
-            </div>
             )}
             {isDbOnly && (
               <div className="relative z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/25 text-xs text-blue-400">
@@ -563,7 +588,17 @@ export default function QuizPage() {
       <div className={styles.page} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", flexDirection: "column", gap: 16 }}>
         <div style={{ fontSize: 48 }}>📭</div>
         <div>Soal kuis tidak ditemukan.</div>
-        <button className={styles.btnBack} onClick={() => router.back()}>Kembali</button>
+        <div className="flex items-center gap-3">
+          <button className={styles.btnBack} onClick={() => router.back()}>Kembali</button>
+          {cardsRef.current.length > 0 && (
+            <button
+              className="rounded-2xl px-5 h-10 bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+              onClick={handleRetry}
+            >
+              Mulai Ulang
+            </button>
+          )}
+        </div>
       </div>
     )
   }

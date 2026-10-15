@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Nada - Tone Training Session */
+
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { CheckCircle2, XCircle, Flame, ListChecks, Volume2 } from "lucide-react"
@@ -458,7 +462,7 @@ export default function NadaPracticePage() {
   // Save score when session completes (but not for personal decks)
   React.useEffect(() => {
     if (done && !isPersonal && total > 0) {
-      saveUserScore("nada_session", String(deckId), accuracy).catch(() => {})
+      saveUserScore("nada_session", String(deckId), accuracy).catch(() => { })
     }
   }, [done, accuracy, deckId, isPersonal, total])
 

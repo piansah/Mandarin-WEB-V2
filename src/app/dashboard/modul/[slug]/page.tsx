@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Modul Detail - Module Content and Lessons */
+
 import * as React from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -218,11 +222,10 @@ export default function ModulDetailPage() {
                 <button
                   key={part.id}
                   onClick={() => goToPart(i)}
-                  className={`flex items-start gap-3 p-3 rounded-lg text-left transition-colors ${
-                    i === activePartIndex
+                  className={`flex items-start gap-3 p-3 rounded-lg text-left transition-colors ${i === activePartIndex
                       ? "bg-primary/10 text-primary font-medium"
                       : "hover:bg-muted text-muted-foreground"
-                  }`}
+                    }`}
                 >
                   <span className={`shrink-0 w-5 text-sm ${i === activePartIndex ? "text-primary font-bold" : ""}`}>
                     {i + 1}

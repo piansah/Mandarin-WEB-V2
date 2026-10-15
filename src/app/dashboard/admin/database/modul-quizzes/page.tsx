@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin DB - Modul Quizzes */
+
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -267,24 +271,24 @@ export default function ModulQuizzesPage() {
                       <TableCell>{quiz.passing_score}%</TableCell>
                       <TableCell>{new Date(quiz.created_at).toLocaleDateString('id-ID')}</TableCell>
                       <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
-                            <MoreVertical className="h-4 w-4" />
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditModal(quiz)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteClick(quiz)} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Hapus
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                              <MoreVertical className="h-4 w-4" />
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditModal(quiz)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteClick(quiz)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   )
                 })
@@ -313,51 +317,51 @@ export default function ModulQuizzesPage() {
                 <CardTitle>{editingQuiz ? "Edit Modul Quiz" : "Tambah Modul Quiz"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">modul</label>
-                <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih modul" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {modules.map((modul) => (
-                      <SelectItem key={modul.id} value={modul.id}>
-                        {modul.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Judul quiz..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Passing Score (%)</label>
-                <Input
-                  type="number"
-                  value={formData.passing_score}
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10)
-                    setFormData({ ...formData, passing_score: Number.isNaN(parsed) ? 70 : parsed })
-                  }}
-                  min={0}
-                  max={100}
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button onClick={editingQuiz ? handleEdit : handleAdd} className="flex-1">
-                  {editingQuiz ? "Update" : "Tambah"}
-                </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingQuiz(null); setFormData({ module_id: "", title: "", passing_score: 70 }) }}>
-                  Batal
-                </Button>
-              </div>
-            </CardContent>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">modul</label>
+                  <Select value={formData.module_id} onValueChange={(value) => setFormData({ ...formData, module_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih modul" />
+                    </SelectTrigger>
+                    <SelectContent className="z-[10000]">
+                      {modules.map((modul) => (
+                        <SelectItem key={modul.id} value={modul.id}>
+                          {modul.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title</label>
+                  <Input
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Judul quiz..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Passing Score (%)</label>
+                  <Input
+                    type="number"
+                    value={formData.passing_score}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value, 10)
+                      setFormData({ ...formData, passing_score: Number.isNaN(parsed) ? 70 : parsed })
+                    }}
+                    min={0}
+                    max={100}
+                  />
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={editingQuiz ? handleEdit : handleAdd} className="flex-1">
+                    {editingQuiz ? "Update" : "Tambah"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingQuiz(null); setFormData({ module_id: "", title: "", passing_score: 70 }) }}>
+                    Batal
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
         </div>

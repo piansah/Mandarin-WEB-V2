@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard Kumulatif - Swipe Session */
+
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { RotateCcw, Mic, CheckCircle2, Star, ListChecks } from "lucide-react"
@@ -137,10 +141,10 @@ export default function CumulativeFlashcardSessionPage() {
         const isAllDone = allItemIds.length > 0 && localIds.length === allItemIds.length
         if (isAllDone) {
           // Sudah selesai semua — simpan score 100 + read_ids
-          saveUserScore("hanzi", key, 100, { read_ids: localIds }).catch(() => {})
+          saveUserScore("hanzi", key, 100, { read_ids: localIds }).catch(() => { })
         } else {
           // Sebagian selesai — simpan read_ids tanpa mengubah score
-          saveHanziReadProgress(key, localIds).catch(() => {})
+          saveHanziReadProgress(key, localIds).catch(() => { })
         }
       }
 
@@ -150,12 +154,12 @@ export default function CumulativeFlashcardSessionPage() {
       setItems(itemsResult.data ?? [])
       setQuizKey(quizKey)
       setStateById(restored)
-      
+
       // Batch-check which items have been reported by user (single query)
       const allIds = (itemsResult.data ?? []).map((item) => item.id)
       const reportedSet = await checkUserContentReports(allIds)
       setReportedItems(reportedSet)
-      
+
       setLoading(false)
     }
 
@@ -195,10 +199,10 @@ export default function CumulativeFlashcardSessionPage() {
       window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(completed))
       if (items.length > 0 && completed.length === items.length) {
         // Selesai semua — simpan score 100 + read_ids sekaligus (satu upsert, tidak ada race condition)
-        saveUserScore("hanzi", key, 100, { read_ids: completed }).catch(() => {})
+        saveUserScore("hanzi", key, 100, { read_ids: completed }).catch(() => { })
       } else {
         // Progres parsial — simpan read_ids ke Supabase untuk sinkronisasi antar device
-        saveHanziReadProgress(key, completed).catch(() => {})
+        saveHanziReadProgress(key, completed).catch(() => { })
       }
       return updated
     })
@@ -265,22 +269,22 @@ export default function CumulativeFlashcardSessionPage() {
                           onClick={() => advance(item)}
                           className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
                         >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
-                          <div className="flex items-center gap-2">
-                            {item.user_contribution && (
-                              <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">
-                                User
-                              </span>
-                            )}
-                            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
+                            <div className="flex items-center gap-2">
+                              {item.user_contribution && (
+                                <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">
+                                  User
+                                </span>
+                              )}
+                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
+                            </div>
                           </div>
-                        </div>
-                        {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
-                        {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
-                        {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
-                      </button>
-                    </SwipeToReport>
+                          {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}
+                          {state >= 2 && <div className="mt-3 border-t border-border/60 pt-3 text-sm leading-relaxed text-muted-foreground">{item.arti}</div>}
+                          {state === 0 && <p className="mt-3 text-xs text-muted-foreground/70">Tap untuk buka</p>}
+                        </button>
+                      </SwipeToReport>
                     </div>
                   )
                 })}
@@ -384,13 +388,12 @@ export default function CumulativeFlashcardSessionPage() {
                       type="button"
                       onClick={() => { if (quizKey) navigateToQuiz() }}
                       aria-disabled={!quizKey}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative ${
-                        !quizKey
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative ${!quizKey
                           ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                           : quizScore !== null
-                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
-                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                      }`}
+                            ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                            : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+                        }`}
                     >
                       {quizScore !== null && typeof quizScore === "number" && (
                         <div className="absolute top-2 right-2">
@@ -411,11 +414,10 @@ export default function CumulativeFlashcardSessionPage() {
                     <button
                       type="button"
                       onClick={navigateToSpeakingPractice}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative cursor-pointer ${
-                        speakingDone
+                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative cursor-pointer ${speakingDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
                           : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50"
-                      }`}
+                        }`}
                     >
                       {speakingDone && (
                         <div className="absolute top-2 right-2 flex items-center justify-center">

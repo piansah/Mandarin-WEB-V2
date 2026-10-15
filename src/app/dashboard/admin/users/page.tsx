@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin Users - User Management */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -63,17 +68,17 @@ export default function AdminUsersPage() {
 
       const result = await updateUserRole(userId, newRole)
 
-      
+
       if (result.error) {
         toast.error(`Gagal mengubah role: ${result.error}`)
         return
       }
-      
+
       // Refresh users list
       const usersData = await getAllUsersWithRoles()
       setUsers(usersData)
 
-      
+
       // Close modal if open
       if (editModalOpen) {
         setEditModalOpen(false)
@@ -97,7 +102,7 @@ export default function AdminUsersPage() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return
-    
+
     // TODO: Implement actual delete user logic when endpoint is ready
     toast.error(`Fitur delete user ${userToDelete.display_name} belum diimplementasikan di backend.`)
     setDeleteModalOpen(false)
@@ -148,8 +153,8 @@ export default function AdminUsersPage() {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            {isSuperAdminUser 
-              ? "Kelola semua user dan role" 
+            {isSuperAdminUser
+              ? "Kelola semua user dan role"
               : "Kelola user (read-only)"}
           </p>
         </div>
@@ -204,206 +209,206 @@ export default function AdminUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                  {filteredUsers.map((user) => (
-                <TableRow key={user.user_id}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary" />
-                      </div>
-                      <span>{user.display_name || "Unknown"}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {user.user_id.slice(0, 8)}...
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === "admin" || user.role === "superadmin" ? "secondary" : "outline"}
-                      className="flex items-center gap-1 w-max"
-                    >
-                      {user.role === "superadmin" ? (
-                        <><Shield className="h-3 w-3" />Superadmin</>
-                      ) : user.role === "admin" ? (
-                        <><Shield className="h-3 w-3" />Admin</>
-                      ) : (
-                        <><User className="h-3 w-3" />User</>
-                      )}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {user.title_id || "Belum ada title"}
-                  </TableCell>
-                  <TableCell>
-                    {user.unlocked_tiers && user.unlocked_tiers.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {user.unlocked_tiers.map((tier) => (
-                          <Badge key={tier} variant="outline" className="text-xs capitalize">{tier}</Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                        {isSuperAdminUser ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger>
-                              <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
-                                {updatingRole === user.user_id ? (
-                                  <Clock className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <MoreVertical className="h-4 w-4" />
-                                )}
-                              </div>
-                            </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditModal(user)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit Role
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteUser(user.user_id)} className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  ) : (
-                          <DropdownMenu>
-                      <DropdownMenuTrigger>
-                        <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
-                          {updatingRole === user.user_id ? (
-                            <Clock className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <MoreVertical className="h-4 w-4" />
-                          )}
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.user_id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-4 w-4 text-primary" />
                         </div>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {user.role === "user" && (
-                          <DropdownMenuItem onClick={() => handleRoleChange(user.user_id, "admin")}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Jadikan Admin
-                          </DropdownMenuItem>
+                        <span>{user.display_name || "Unknown"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {user.user_id.slice(0, 8)}...
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={user.role === "admin" || user.role === "superadmin" ? "secondary" : "outline"}
+                        className="flex items-center gap-1 w-max"
+                      >
+                        {user.role === "superadmin" ? (
+                          <><Shield className="h-3 w-3" />Superadmin</>
+                        ) : user.role === "admin" ? (
+                          <><Shield className="h-3 w-3" />Admin</>
+                        ) : (
+                          <><User className="h-3 w-3" />User</>
                         )}
-                        {user.role === "admin" && (
-                          <DropdownMenuItem disabled>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Admin lain
-                          </DropdownMenuItem>
-                        )}
-                        {user.role === "superadmin" && (
-                          <DropdownMenuItem disabled>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Superadmin
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {user.title_id || "Belum ada title"}
+                    </TableCell>
+                    <TableCell>
+                      {user.unlocked_tiers && user.unlocked_tiers.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.unlocked_tiers.map((tier) => (
+                            <Badge key={tier} variant="outline" className="text-xs capitalize">{tier}</Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {isSuperAdminUser ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {updatingRole === user.user_id ? (
+                                <Clock className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreVertical className="h-4 w-4" />
+                              )}
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditModal(user)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteUser(user.user_id)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {updatingRole === user.user_id ? (
+                                <Clock className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <MoreVertical className="h-4 w-4" />
+                              )}
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {user.role === "user" && (
+                              <DropdownMenuItem onClick={() => handleRoleChange(user.user_id, "admin")}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Jadikan Admin
+                              </DropdownMenuItem>
+                            )}
+                            {user.role === "admin" && (
+                              <DropdownMenuItem disabled>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Admin lain
+                              </DropdownMenuItem>
+                            )}
+                            {user.role === "superadmin" && (
+                              <DropdownMenuItem disabled>
+                                <Shield className="h-4 w-4 mr-2" />
+                                Superadmin
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
-    )}
-  </div>
 
-  {!isSuperAdminUser && (
-    <p className="text-sm text-blue-700 dark:text-blue-400">
-      <strong>Info:</strong> Sebagai admin biasa, kamu dapat melihat user biasa dan admin biasa,
-      serta menjadikan user biasa menjadi admin. Untuk akses penuh (kelola superadmin),
-      kamu harus memiliki akses Superadmin.
-    </p>
-  )}
+      {!isSuperAdminUser && (
+        <p className="text-sm text-blue-700 dark:text-blue-400">
+          <strong>Info:</strong> Sebagai admin biasa, kamu dapat melihat user biasa dan admin biasa,
+          serta menjadikan user biasa menjadi admin. Untuk akses penuh (kelola superadmin),
+          kamu harus memiliki akses Superadmin.
+        </p>
+      )}
 
-  {/* Edit Role Modal */}
-  {editModalOpen && editingUser && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Edit Role User</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">
-              User: <span className="font-medium">{editingUser.display_name || "Unknown"}</span>
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Role saat ini: <span className="font-medium capitalize text-foreground">{editingUser.role}</span>
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Pilih role baru:</p>
-            <div className="flex flex-col gap-2">
-              <Button
-                variant={editingUser.role === "user" ? "default" : "outline"}
-                onClick={() => handleRoleChange(editingUser.user_id, "user")}
-                disabled={updatingRole === editingUser.user_id}
-              >
-                <User className="h-4 w-4 mr-2" />
-                User
+      {/* Edit Role Modal */}
+      {editModalOpen && editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Edit Role User</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  User: <span className="font-medium">{editingUser.display_name || "Unknown"}</span>
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Role saat ini: <span className="font-medium capitalize text-foreground">{editingUser.role}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Pilih role baru:</p>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant={editingUser.role === "user" ? "default" : "outline"}
+                    onClick={() => handleRoleChange(editingUser.user_id, "user")}
+                    disabled={updatingRole === editingUser.user_id}
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    User
+                  </Button>
+                  <Button
+                    variant={editingUser.role === "admin" ? "default" : "outline"}
+                    onClick={() => handleRoleChange(editingUser.user_id, "admin")}
+                    disabled={updatingRole === editingUser.user_id}
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Admin
+                  </Button>
+                  {isSuperAdminUser && (
+                    <Button
+                      variant={editingUser.role === "superadmin" ? "default" : "outline"}
+                      onClick={() => handleRoleChange(editingUser.user_id, "superadmin")}
+                      disabled={updatingRole === editingUser.user_id}
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Superadmin
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <Button variant="outline" onClick={closeEditModal} className="w-full">
+                Batal
               </Button>
-              <Button
-                variant={editingUser.role === "admin" ? "default" : "outline"}
-                onClick={() => handleRoleChange(editingUser.user_id, "admin")}
-                disabled={updatingRole === editingUser.user_id}
-              >
-                <Shield className="h-4 w-4 mr-2" />
-                Admin
-              </Button>
-              {isSuperAdminUser && (
-                <Button
-                  variant={editingUser.role === "superadmin" ? "default" : "outline"}
-                  onClick={() => handleRoleChange(editingUser.user_id, "superadmin")}
-                  disabled={updatingRole === editingUser.user_id}
-                >
-                  <Shield className="h-4 w-4 mr-2" />
-                  Superadmin
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete User Modal */}
+      {deleteModalOpen && userToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <CardTitle className="text-center">Hapus User</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-center text-muted-foreground">
+                Apakah Kamu yakin ingin menghapus user <strong className="text-foreground">{userToDelete.display_name || "Unknown"}</strong>? Tindakan ini tidak dapat dibatalkan.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button variant="outline" onClick={closeDeleteModal} className="flex-1">
+                  Batal
                 </Button>
-              )}
-            </div>
-          </div>
-          
-          <Button variant="outline" onClick={closeEditModal} className="w-full">
-            Batal
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
-  )}
-
-  {/* Delete User Modal */}
-  {deleteModalOpen && userToDelete && (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <div className="flex flex-col items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-              <AlertTriangle className="h-6 w-6 text-destructive" />
-            </div>
-            <CardTitle className="text-center">Hapus User</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-center text-muted-foreground">
-            Apakah Kamu yakin ingin menghapus user <strong className="text-foreground">{userToDelete.display_name || "Unknown"}</strong>? Tindakan ini tidak dapat dibatalkan.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Button variant="outline" onClick={closeDeleteModal} className="flex-1">
-              Batal
-            </Button>
-            <Button variant="destructive" onClick={confirmDeleteUser} className="flex-1">
-              Hapus
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )}
+                <Button variant="destructive" onClick={confirmDeleteUser} className="flex-1">
+                  Hapus
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

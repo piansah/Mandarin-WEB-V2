@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard Speaking - Pronunciation Practice */
+
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
@@ -381,7 +385,7 @@ export default function SpeakingPracticePage() {
         {/* Main Content */}
         <main className="flex-1 flex flex-col items-center justify-center gap-4 p-6 overflow-x-hidden overflow-y-auto pb-24">
           {/* Card: kalimat contoh - bisa di tap untuk TTS */}
-          <Card 
+          <Card
             className="w-full max-w-2xl cursor-pointer hover:border-primary/40 transition-all duration-300 active:scale-95"
             onClick={() => speakMandarin(currentItem?.hanzi || "")}
           >
@@ -448,7 +452,7 @@ export default function SpeakingPracticePage() {
             style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
           >
             <div className="mx-auto w-full max-w-6xl px-4 py-4">
-              <Button 
+              <Button
                 onClick={result ? handleNext : handleSkip}
                 disabled={result ? (result.score ?? 0) < 75 : true}
                 className="w-full"

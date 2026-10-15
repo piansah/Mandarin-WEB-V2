@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Snake Game - Word Snake */
+
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SnakeBoard } from "@/components/games/snake-board"
@@ -47,7 +51,7 @@ export default function SnakeGamePage() {
         try {
           const arr: number[] = JSON.parse(localStorage.getItem(key) || "[]")
           result[level] = new Set(arr)
-        } catch {}
+        } catch { }
       }
     }
     return result

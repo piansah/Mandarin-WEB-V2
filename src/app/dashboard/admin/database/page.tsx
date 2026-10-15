@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin Database - Table Browser */
+
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +22,7 @@ export default function AdminDatabasePage() {
   const router = useRouter()
   const supa = useSupabase()
   const [expandedSections, setExpandedSections] = React.useState<Set<string>>(new Set(["modul", "daftar-kata"]))
-        
+
   const { data: recordCounts = {}, isLoading: loading } = useQuery({
     queryKey: ["database-record-counts"],
     queryFn: async () => {
@@ -260,10 +264,10 @@ export default function AdminDatabasePage() {
         {managementCategories.map((category) => {
           const CategoryIcon = category.icon
           const isExpanded = expandedSections.has(category.id)
-          
+
           return (
             <Card key={category.id} className="border-muted/50">
-              <CardHeader 
+              <CardHeader
                 className="pb-4 cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => toggleSection(category.id)}
               >
@@ -284,7 +288,7 @@ export default function AdminDatabasePage() {
                   )}
                 </CardTitle>
               </CardHeader>
-              
+
               {isExpanded && (
                 <CardContent className="pt-0">
                   {/* Guide Section for Modul Category */}
@@ -294,7 +298,7 @@ export default function AdminDatabasePage() {
                         <BookOpen className="w-4 h-4 text-primary" />
                         <h3 className="text-sm font-semibold">Panduan: Cara Membuat Modul Baru</h3>
                       </div>
-                      
+
                       {/* Visual Diagram */}
                       <div className="flex flex-col items-center gap-2 p-4 bg-card rounded-lg border border-border mb-4">
                         {/* Level 1: Modul Levels */}
@@ -310,10 +314,10 @@ export default function AdminDatabasePage() {
                             <p className="text-[10px] text-muted-foreground">HSK 1-6</p>
                           </div>
                         </div>
-                        
+
                         {/* Arrow down */}
                         <div className="w-0.5 h-4 bg-border"></div>
-                        
+
                         {/* Level 2: Modul Modules */}
                         <div className="flex items-center gap-2 w-full">
                           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
@@ -327,10 +331,10 @@ export default function AdminDatabasePage() {
                             <p className="text-[10px] text-muted-foreground">konten modul</p>
                           </div>
                         </div>
-                        
+
                         {/* Arrow down */}
                         <div className="w-0.5 h-4 bg-border"></div>
-                        
+
                         {/* Level 3: Modul Parts */}
                         <div className="flex items-center gap-2 w-full">
                           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
@@ -344,7 +348,7 @@ export default function AdminDatabasePage() {
                             <p className="text-[10px] text-muted-foreground">content/practice/quiz</p>
                           </div>
                         </div>
-                        
+
                         {/* Optional items */}
                         <div className="flex gap-3 mt-2">
                           <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-lg border border-border">
@@ -401,7 +405,7 @@ export default function AdminDatabasePage() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="p-2 bg-muted rounded-lg border border-border mt-3">
                         <p className="text-[10px] flex items-center gap-1">
                           <span>💡</span>
@@ -410,7 +414,7 @@ export default function AdminDatabasePage() {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     {category.sections.map((section, index) => {
                       const SectionIcon = section.icon
@@ -427,9 +431,9 @@ export default function AdminDatabasePage() {
                             <p className="text-xs text-muted-foreground mb-3">{section.description}</p>
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-medium">{loading ? "Loading..." : `${count} records`}</span>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
+                              <Button
+                                size="sm"
+                                variant="outline"
                                 className="text-xs h-7"
                                 onClick={() => handleManage(section.table)}
                               >
@@ -455,9 +459,9 @@ export default function AdminDatabasePage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Klik tombol <strong>&quot;Kelola&quot;</strong> untuk mengelola data secara langsung di web. 
-            CRUD interface sudah tersedia untuk <strong>Flashcard Sets</strong>, <strong>Flashcard Cards</strong>, 
-            <strong>Word Compounds</strong>, <strong>Word Examples</strong>, <strong>Grammar Patterns</strong>, 
+            Klik tombol <strong>&quot;Kelola&quot;</strong> untuk mengelola data secara langsung di web.
+            CRUD interface sudah tersedia untuk <strong>Flashcard Sets</strong>, <strong>Flashcard Cards</strong>,
+            <strong>Word Compounds</strong>, <strong>Word Examples</strong>, <strong>Grammar Patterns</strong>,
             <strong>Grammar Questions</strong>, <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.
           </p>
         </CardContent>

@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Login Page */
+
 import { Metadata } from "next"
 import { LoginClient } from "./login-client"
 

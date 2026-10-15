@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   route.ts -- api/admin/modul-modules/route.ts */
+
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { verifyAdminRole, handleAdminError } from "@/lib/admin-auth"

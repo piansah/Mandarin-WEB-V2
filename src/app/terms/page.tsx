@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Terms of Service Page */
+
 import { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -10,7 +14,7 @@ export default function TermsPage() {
     <div className="min-h-screen bg-[#05070A] text-[#9AA7B5] py-12 px-6">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8 mt-4">Ketentuan Layanan</h1>
-        
+
         <div className="space-y-8 prose prose-invert max-w-none">
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">1. Penerimaan Ketentuan</h2>
@@ -59,7 +63,7 @@ export default function TermsPage() {
             </p>
           </section>
         </div>
-        
+
         <div className="mt-12 pt-8 border-t border-white/10 text-sm text-center">
           Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
         </div>

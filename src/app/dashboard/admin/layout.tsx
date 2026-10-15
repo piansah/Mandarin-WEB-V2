@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   layout.tsx -- Admin Layout */
+
 import { requireAdmin } from "@/lib/admin-middleware"
 
 /**

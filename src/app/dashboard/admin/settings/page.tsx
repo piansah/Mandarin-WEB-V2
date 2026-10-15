@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin Settings */
+
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -104,7 +108,7 @@ export default function AdminSettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Fitur system settings akan dikembangkan lebih lanjut. 
+            Fitur system settings akan dikembangkan lebih lanjut.
             Untuk saat ini, kamu dapat mengelola pengaturan langsung melalui Supabase Dashboard.
           </p>
         </CardContent>

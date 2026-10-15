@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin DB - Modul Modules */
+
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -257,8 +261,8 @@ export default function ModulModulesPage() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => { 
-          setShowAddModal(true) 
+        <Button onClick={() => {
+          setShowAddModal(true)
         }}>
           <Plus className="h-4 w-4 mr-2" />
           Tambah Modul
@@ -316,24 +320,24 @@ export default function ModulModulesPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
-                            <MoreVertical className="h-4 w-4" />
-                          </div>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditModal(module)}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDeleteClick(module)} className="text-destructive">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Hapus
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger>
+                            <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
+                              <MoreVertical className="h-4 w-4" />
+                            </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditModal(module)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDeleteClick(module)} className="text-destructive">
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Hapus
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   )
                 })
@@ -362,136 +366,136 @@ export default function ModulModulesPage() {
                 <CardTitle>{editingModule ? "Edit Modul Module" : "Tambah Modul Module"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Level</label>
-                <Select 
-                  value={formData.level_id || ""} 
-                  onValueChange={(value) => setFormData({ ...formData, level_id: value })}
-                  disabled={levels.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={levels.length === 0 ? "Tidak ada level tersedia" : "Pilih level"} />
-                  </SelectTrigger>
-                  <SelectContent className="z-[10000]">
-                    {levels.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        Tidak ada level tersedia. Buat level terlebih dahulu.
-                      </div>
-                    ) : (
-                      levels.map((level) => (
-                        <SelectItem key={level.id} value={level.id}>
-                          {level.code} - {level.label}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-                {levels.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Buat level di <span className="font-mono">Modul Levels</span> terlebih dahulu
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title</label>
-                <Input
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Judul modul..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Slug</label>
-                <Input
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  placeholder="URL-friendly slug..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Deskripsi modul..."
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Summary</label>
-                <Input
-                  value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                  placeholder="Ringkasan modul..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Order Index</label>
-                  <Input
-                    type="number"
-                    value={formData.order_index}
-                    onChange={(e) => {
-                      const parsed = parseInt(e.target.value, 10)
-                      setFormData({ ...formData, order_index: Number.isNaN(parsed) ? 0 : parsed })
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Duration (minutes)</label>
-                  <Input
-                    type="number"
-                    value={formData.duration_minutes}
-                    onChange={(e) => {
-                      const parsed = parseInt(e.target.value, 10)
-                      setFormData({ ...formData, duration_minutes: Number.isNaN(parsed) ? 0 : parsed })
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Part Count</label>
-                  <Input
-                    type="number"
-                    value={formData.part_count}
-                    onChange={(e) => {
-                      const parsed = parseInt(e.target.value, 10)
-                      setFormData({ ...formData, part_count: Number.isNaN(parsed) ? 0 : parsed })
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <Select value={formData.is_published ? "published" : "draft"} onValueChange={(value) => setFormData({ ...formData, is_published: value === "published" })}>
+                  <label className="text-sm font-medium">Level</label>
+                  <Select
+                    value={formData.level_id || ""}
+                    onValueChange={(value) => setFormData({ ...formData, level_id: value })}
+                    disabled={levels.length === 0}
+                  >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder={levels.length === 0 ? "Tidak ada level tersedia" : "Pilih level"} />
                     </SelectTrigger>
                     <SelectContent className="z-[10000]">
-                      <SelectItem value="published">Published</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
+                      {levels.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground">
+                          Tidak ada level tersedia. Buat level terlebih dahulu.
+                        </div>
+                      ) : (
+                        levels.map((level) => (
+                          <SelectItem key={level.id} value={level.id}>
+                            {level.code} - {level.label}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {levels.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Buat level di <span className="font-mono">Modul Levels</span> terlebih dahulu
+                    </p>
+                  )}
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="has_quiz"
-                  checked={formData.has_quiz}
-                  onChange={(e) => setFormData({ ...formData, has_quiz: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="has_quiz" className="text-sm font-medium">Has Quiz</label>
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button onClick={editingModule ? handleEdit : handleAdd} className="flex-1">
-                  {editingModule ? "Update" : "Tambah"}
-                </Button>
-                <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingModule(null); setFormData({ level_id: "", title: "", slug: "", description: "", summary: "", order_index: 0, duration_minutes: 0, part_count: 0, has_quiz: false, is_published: true }) }}>
-                  Batal
-                </Button>
-              </div>
-            </CardContent>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title</label>
+                  <Input
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                    placeholder="Judul modul..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Slug</label>
+                  <Input
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    placeholder="URL-friendly slug..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Description</label>
+                  <Input
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Deskripsi modul..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Summary</label>
+                  <Input
+                    value={formData.summary}
+                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                    placeholder="Ringkasan modul..."
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Order Index</label>
+                    <Input
+                      type="number"
+                      value={formData.order_index}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10)
+                        setFormData({ ...formData, order_index: Number.isNaN(parsed) ? 0 : parsed })
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Duration (minutes)</label>
+                    <Input
+                      type="number"
+                      value={formData.duration_minutes}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10)
+                        setFormData({ ...formData, duration_minutes: Number.isNaN(parsed) ? 0 : parsed })
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Part Count</label>
+                    <Input
+                      type="number"
+                      value={formData.part_count}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10)
+                        setFormData({ ...formData, part_count: Number.isNaN(parsed) ? 0 : parsed })
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <Select value={formData.is_published ? "published" : "draft"} onValueChange={(value) => setFormData({ ...formData, is_published: value === "published" })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="z-[10000]">
+                        <SelectItem value="published">Published</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="has_quiz"
+                    checked={formData.has_quiz}
+                    onChange={(e) => setFormData({ ...formData, has_quiz: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="has_quiz" className="text-sm font-medium">Has Quiz</label>
+                </div>
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={editingModule ? handleEdit : handleAdd} className="flex-1">
+                    {editingModule ? "Update" : "Tambah"}
+                  </Button>
+                  <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingModule(null); setFormData({ level_id: "", title: "", slug: "", description: "", summary: "", order_index: 0, duration_minutes: 0, part_count: 0, has_quiz: false, is_published: true }) }}>
+                    Batal
+                  </Button>
+                </div>
+              </CardContent>
             </Card>
           </div>
         </div>

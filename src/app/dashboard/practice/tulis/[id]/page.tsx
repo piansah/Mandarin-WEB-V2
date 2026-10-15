@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Practice Tulis - Hanzi Writing Session */
+
 import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import {
@@ -72,9 +76,8 @@ function CompletionBadge({ clean }: { clean: boolean }) {
         </svg>
       )}
       <div
-        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${
-          clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
-        }`}
+        className={`relative z-10 flex items-center justify-center h-11 w-11 rounded-full animate-in zoom-in-75 duration-300 ${clean ? "bg-emerald-500/15 text-emerald-500" : "bg-amber-500/15 text-amber-400"
+          }`}
       >
         {clean ? <CheckCircle2 className="h-6 w-6" /> : <XCircle className="h-6 w-6" />}
       </div>
@@ -447,7 +450,7 @@ export default function TulisHanziPage() {
 
     // Save score when session completes (but not for personal decks)
     if (!isPersonal) {
-      saveUserScore("tulis_session", String(deckId), target).catch(() => {})
+      saveUserScore("tulis_session", String(deckId), target).catch(() => { })
     }
 
     if (prefersReducedMotionRef.current) {
@@ -723,11 +726,10 @@ export default function TulisHanziPage() {
                     disabled={hintPlaying || !writerReady}
                     title="Tampilkan panduan animasi (Space)"
                     aria-label="Tampilkan panduan animasi"
-                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${
-                      hintPlaying
+                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 ${hintPlaying
                         ? "border-primary/60 bg-primary/20 text-primary"
                         : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <Eye className="h-5 w-5" />
                     <span className="text-[10px] font-medium">Panduan</span>
@@ -737,11 +739,10 @@ export default function TulisHanziPage() {
                     onClick={handleStrictMode}
                     title="Strict Mode: sembunyikan panduan garis (S)"
                     aria-label="Strict Mode"
-                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 ${
-                      strictMode
+                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 md:flex-1 rounded-2xl border shadow-sm transition-all active:scale-95 ${strictMode
                         ? "border-amber-500/60 bg-amber-500/20 text-amber-400"
                         : "border-border/60 bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <Shield className="h-5 w-5" />
                     <span className="text-[10px] font-medium">Strict</span>

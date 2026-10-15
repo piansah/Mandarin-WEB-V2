@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Profile - User Account and Badges */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -365,9 +370,8 @@ export default function ProfilePage() {
                 key={option.id}
                 onClick={() => handleSelectAvatar(option.id)}
                 disabled={saving}
-                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all hover:border-primary/50 ${
-                  profile.avatar === option.emoji ? "border-primary bg-primary/10" : "border-border"
-                }`}
+                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all hover:border-primary/50 ${profile.avatar === option.emoji ? "border-primary bg-primary/10" : "border-border"
+                  }`}
               >
                 <div className="text-3xl">{option.emoji}</div>
                 <div className="text-xs text-center">{option.name}</div>

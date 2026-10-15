@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   types.ts -- Flashcard Deck - Type Definitions */
+
 export type Card = {
   id: string
   hanzi: string

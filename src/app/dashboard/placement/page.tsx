@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Placement Test - Initial Level Assessment */
+
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Check, Clock, Compass, Lock, PartyPopper, Target } from "lucide-react"
@@ -192,9 +196,8 @@ export default function PlacementPage() {
                   className="text-left"
                 >
                   <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/40 ${
-                      level === opt.value ? "border-primary/60 bg-primary/5" : ""
-                    }`}
+                    className={`border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/40 ${level === opt.value ? "border-primary/60 bg-primary/5" : ""
+                      }`}
                   >
                     <CardContent className="flex items-center justify-between gap-3 p-3">
                       <div>
@@ -234,9 +237,8 @@ export default function PlacementPage() {
                   }}
                 >
                   <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${
-                      dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
-                    }`}
+                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                      }`}
                   >
                     <CardContent className="flex flex-col items-center gap-0.5 p-3">
                       <p className="text-sm font-semibold">{opt.title}</p>
@@ -274,9 +276,8 @@ export default function PlacementPage() {
                   }}
                 >
                   <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${
-                      goal === opt.value ? "border-primary/60 bg-primary/5" : ""
-                    }`}
+                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${goal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                      }`}
                   >
                     <CardContent className="p-3 text-sm font-semibold">{opt.title}</CardContent>
                   </Card>
@@ -308,9 +309,8 @@ export default function PlacementPage() {
               {tierPreview(level).map((t) => (
                 <div
                   key={t.tier}
-                  className={`flex items-center justify-between rounded-xl border px-4 py-2.5 ${
-                    t.unlocked ? "border-primary/40 bg-primary/5" : "border-border/50 bg-muted/30"
-                  }`}
+                  className={`flex items-center justify-between rounded-xl border px-4 py-2.5 ${t.unlocked ? "border-primary/40 bg-primary/5" : "border-border/50 bg-muted/30"
+                    }`}
                 >
                   <div>
                     <p className="text-sm font-semibold">{t.label}</p>

@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Cerita - Story Reading List */
+
 import * as React from "react"
 import Link from "next/link"
 import { BookMarked } from "lucide-react"

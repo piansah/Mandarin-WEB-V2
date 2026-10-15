@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Speedrun Game - Timed Recognition */
+
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SpeedrunBoard } from "@/components/games/speedrun-board"

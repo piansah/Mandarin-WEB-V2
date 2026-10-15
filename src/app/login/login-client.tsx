@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   login-client.tsx -- Login Client Component */
+
 import { useState } from "react"
 import { LoginForm } from "@/components/login-form"
 import { FlashcardShowcase } from "@/components/flashcard-showcase"
@@ -11,9 +15,8 @@ export function LoginClient() {
     <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-[#05070A]">
       {/* LEFT — flashcard showcase */}
       <div
-        className={`${
-          showLoginOnMobile ? "hidden lg:flex" : "flex"
-        } relative flex-col overflow-hidden p-11 lg:border-r lg:border-white/10 min-h-screen lg:min-h-0`}
+        className={`${showLoginOnMobile ? "hidden lg:flex" : "flex"
+          } relative flex-col overflow-hidden p-11 lg:border-r lg:border-white/10 min-h-screen lg:min-h-0`}
       >
         <div
           className="absolute inset-0"
@@ -50,7 +53,7 @@ export function LoginClient() {
 
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center pt-8 lg:pt-0">
           <FlashcardShowcase />
-          
+
           <button
             onClick={() => setShowLoginOnMobile(true)}
             className="mt-12 lg:hidden w-full max-w-[320px] h-12 bg-white text-black font-semibold rounded-xl hover:bg-gray-200 transition-colors"
@@ -67,9 +70,8 @@ export function LoginClient() {
 
       {/* RIGHT — login */}
       <div
-        className={`${
-          !showLoginOnMobile ? "hidden lg:flex" : "flex"
-        } items-center justify-center p-5 min-h-screen lg:min-h-0 relative`}
+        className={`${!showLoginOnMobile ? "hidden lg:flex" : "flex"
+          } items-center justify-center p-5 min-h-screen lg:min-h-0 relative`}
       >
         <div className="w-full max-w-[350px] flex flex-col gap-[22px]">
           <div className="flex flex-col items-center text-center gap-3">
@@ -97,11 +99,10 @@ export function LoginClient() {
             {["你", "好", "吗"].map((c, i) => (
               <div
                 key={c}
-                className={`w-11 h-11 rounded-xl border flex items-center justify-center text-[21px] ${
-                  i === 1
+                className={`w-11 h-11 rounded-xl border flex items-center justify-center text-[21px] ${i === 1
                     ? "bg-[#123328] border-[#17A673]/40 text-[#4FDDA5]"
                     : "bg-[#10161D] border-white/10 text-[#9AA7B5]"
-                }`}
+                  }`}
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 {c}

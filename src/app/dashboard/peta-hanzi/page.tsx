@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Peta Hanzi - Character Visualization Map */
+
 import * as React from "react"
 import { Network } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"

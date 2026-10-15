@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   layout.tsx -- Practice Layout */
+
 // Halaman-halaman di bawah /practice sengaja TIDAK fullscreen — sidebar dan
 // DashboardHeader dari dashboard-layout-client.tsx tetap tampil, sama seperti
 // flashcard biasa, flashcard kumulatif, dan baca (cerita). Layout ini cuma

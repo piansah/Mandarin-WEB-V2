@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Personal Cards - Custom Deck Themes */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -107,9 +112,8 @@ export default function PersonalCardsPage() {
                     <button
                       key={icon}
                       onClick={() => setSelectedIcon(icon)}
-                      className={`w-10 h-10 rounded-lg border-2 text-xl flex items-center justify-center transition-all ${
-                        selectedIcon === icon ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
-                      }`}
+                      className={`w-10 h-10 rounded-lg border-2 text-xl flex items-center justify-center transition-all ${selectedIcon === icon ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                        }`}
                     >
                       {icon}
                     </button>

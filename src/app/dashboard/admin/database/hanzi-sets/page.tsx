@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Admin DB - Hanzi Sets */
+
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -182,7 +186,7 @@ export default function HanziSetsPage() {
     setShowAddModal(true)
   }
 
-  const filteredSets = sets.filter(set => 
+  const filteredSets = sets.filter(set =>
     set.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     set.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
     set.sub.toLowerCase().includes(searchQuery.toLowerCase())
@@ -190,7 +194,7 @@ export default function HanziSetsPage() {
 
   // Pagination logic (server-side)
   const totalPages = Math.ceil(totalRows / rowsPerPage)
-  
+
   // Reset to page 1 when search or rowsPerPage changes
   React.useEffect(() => {
     setCurrentPage(1)

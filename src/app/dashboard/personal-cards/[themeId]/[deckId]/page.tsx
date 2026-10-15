@@ -1,4 +1,9 @@
 "use client"
+
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Personal Cards - Deck Editor and Flashcard */
+
 import { toast } from "sonner";
 
 import * as React from "react"
@@ -354,58 +359,58 @@ export default function DeckDetailPage() {
               <DrawerTrigger render={<Button className="w-full" size="lg" />}>
                 Mulai Latihan
               </DrawerTrigger>
-            <DrawerContent>
-              <div className="mx-auto w-full max-w-sm">
-                <DrawerHeader className="text-center pb-2">
-                  <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
-                    Pilih Latihan
-                  </DrawerTitle>
-                </DrawerHeader>
-                <div className="p-4 grid grid-cols-4 gap-2.5">
-                  <div
-                    onClick={() => router.push(`/dashboard/practice/flashcard/${deckId}?personal=true`)}
-                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
-                  >
-                    <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
-                    <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <Layers className="h-5 w-5" />
+              <DrawerContent>
+                <div className="mx-auto w-full max-w-sm">
+                  <DrawerHeader className="text-center pb-2">
+                    <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+                      Pilih Latihan
+                    </DrawerTitle>
+                  </DrawerHeader>
+                  <div className="p-4 grid grid-cols-4 gap-2.5">
+                    <div
+                      onClick={() => router.push(`/dashboard/practice/flashcard/${deckId}?personal=true`)}
+                      className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10 cursor-pointer transition-colors relative"
+                    >
+                      <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                      <div className="h-11 w-11 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                        <Layers className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
-                  </div>
 
-                  <div
-                    onClick={() => router.push(`/dashboard/practice/quiz/${deckId}?personal=true`)}
-                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
-                  >
-                    <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                      <ListChecks className="h-5 w-5" />
+                    <div
+                      onClick={() => router.push(`/dashboard/practice/quiz/${deckId}?personal=true`)}
+                      className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                        <ListChecks className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
-                  </div>
 
-                  <div
-                    onClick={() => router.push(`/dashboard/practice/nada/${deckId}?personal=true`)}
-                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
-                  >
-                    <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
-                      <Music className="h-5 w-5" />
+                    <div
+                      onClick={() => router.push(`/dashboard/practice/nada/${deckId}?personal=true`)}
+                      className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+                        <Music className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
-                  </div>
 
-                  <div
-                    onClick={() => router.push(`/dashboard/practice/tulis/${deckId}?personal=true`)}
-                    className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
-                  >
-                    <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-                      <Edit2 className="h-5 w-5" />
+                    <div
+                      onClick={() => router.push(`/dashboard/practice/tulis/${deckId}?personal=true`)}
+                      className="flex flex-col items-center justify-center gap-3 p-3 rounded-xl border border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer transition-colors"
+                    >
+                      <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
+                        <Edit2 className="h-5 w-5" />
+                      </div>
+                      <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
                   </div>
                 </div>
-              </div>
-            </DrawerContent>
-          </Drawer>
+              </DrawerContent>
+            </Drawer>
           </div>
         </div>
       )}

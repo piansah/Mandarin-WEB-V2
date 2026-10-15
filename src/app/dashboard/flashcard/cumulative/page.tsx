@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard Kumulatif - Cumulative Deck List */
+
 import { Layers } from "lucide-react"
 import {
   CumulativeFlashcardSetList,

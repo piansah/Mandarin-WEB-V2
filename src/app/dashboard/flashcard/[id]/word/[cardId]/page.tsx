@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Flashcard Word Detail Page */
+
 
 "use client"
 
@@ -361,8 +365,8 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
         <div className={styles.sentenceHanzi}>
           {segments.length > 0
             ? segments.map((segment, index) => isHanzi(segment.hanzi[0] ?? "")
-                ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} onOpen={onWordOpen} />
-                : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
+              ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} onOpen={onWordOpen} />
+              : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
             : sentence}
         </div>
         {example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}

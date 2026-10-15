@@ -1,3 +1,7 @@
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Quiz Review - Cumulative Quiz List */
+
 import { redirect } from "next/navigation"
 
 // "Quiz Kumulatif" sudah tidak lagi punya daftar terpisah — sekarang jadi

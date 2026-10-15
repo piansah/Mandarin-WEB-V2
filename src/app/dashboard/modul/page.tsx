@@ -1,5 +1,9 @@
 "use client"
 
+/* (c) 2026 Piansah - Mandarin Journey learning. All rights reserved. */
+/* 
+   page.tsx -- Modul - Learning Module List */
+
 import * as React from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
@@ -151,8 +155,8 @@ export default function ModulPage() {
                 <div key={lvl.id} className="relative pl-6">
                   <div
                     className={`absolute -left-[17px] top-0 h-8 w-8 rounded-full border-4 flex items-center justify-center text-[10px] font-bold ${isActiveLevel
-                        ? "bg-primary text-primary-foreground border-background shadow-[0_0_0_2px_hsl(var(--primary))]"
-                        : "bg-muted text-muted-foreground border-background"
+                      ? "bg-primary text-primary-foreground border-background shadow-[0_0_0_2px_hsl(var(--primary))]"
+                      : "bg-muted text-muted-foreground border-background"
                       }`}
                   >
                     {lvl.code.replace("hsk", "").toUpperCase()}
