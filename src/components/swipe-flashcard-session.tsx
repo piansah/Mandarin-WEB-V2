@@ -74,20 +74,21 @@ export function SwipeFlashcardSession({
           title={deckTitle}
           subtitle={deckLevel}
           showStats
+          collapsibleStats
           stats={[
             {
               icon: TrendingUp,
               label: "Jatuh Tempo Hari Ini",
               value: `${session.headerStats.dueToday} dari ${session.headerStats.saved ?? session.headerStats.totalCards} tersimpan`,
             },
+            { icon: CheckCircle2Icon, label: "Dinilai", value: `${session.headerStats.rated} Kartu` },
+            { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} dari ${session.headerStats.totalCards}` },
             {
               icon: CheckCircle2,
               label: "Akurasi Sesi",
               value: `${session.headerStats.accuracy}%`,
               progressPercent: session.headerStats.accuracy,
             },
-            { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} dari ${session.headerStats.totalCards}` },
-            { icon: CheckCircle2Icon, label: "Dinilai", value: session.headerStats.rated },
           ]}
         />
 
