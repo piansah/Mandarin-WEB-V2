@@ -559,13 +559,15 @@ export default function DashboardPage() {
     e.stopPropagation()
     if (!activeDeckHero || activeDeckHero.watermarkList.length === 0) return
     const list = activeDeckHero.watermarkList
+    const currentWord = list[watermarkIndex % list.length] || list[0]
     const nextIdx = (watermarkIndex + 1) % list.length
-    const wordToSpeak = list[nextIdx] || list[0]
+
+    if (currentWord) {
+      speakMandarin(currentWord)
+    }
+
     setIsWatermarkPopping(true)
     setWatermarkIndex(nextIdx)
-    if (wordToSpeak) {
-      speakMandarin(wordToSpeak)
-    }
     setTimeout(() => setIsWatermarkPopping(false), 200)
   }, [activeDeckHero, watermarkIndex])
 
