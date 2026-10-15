@@ -96,6 +96,13 @@ export default function DashboardPage() {
   const [nextModule, setNextModule] = React.useState<{ slug: string; title: string } | null>(null)
   const [nextEstafet, setNextEstafet] = React.useState<{ key: string; title: string } | null>(null)
   const [deckQuotaMet, setDeckQuotaMet] = React.useState(false)
+  const [runningDeckHsk, setRunningDeckHsk] = React.useState<number | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("mandarin_running_hsk")
+      if (saved) return Number(saved)
+    }
+    return null
+  })
   const [hskFilterLevel, setHskFilterLevel] = React.useState<number | null>(null)
 
   const loadSrsStats = React.useCallback(async () => {
@@ -106,28 +113,25 @@ export default function DashboardPage() {
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 
-      // Fetch sets (for hsk_level) and all cards (for set_id → level mapping)
+      // Fetch sets (for hsk_level and card counts)
       const { data: sets } = await supa
         .from("flashcard_sets")
-        .select("id, hsk_level")
+        .select("id, hsk_level, flashcard_cards(count)")
         .eq("is_default", true)
 
-      const { data: allCards } = await supa
-        .from("flashcard_cards")
-        .select("id, set_id")
-
-      // Build card_id → hsk_level map
+      // Total cards per level & setLevelMap
       const setLevelMap = new Map<number, number>()
-      if (sets) sets.forEach(s => setLevelMap.set(s.id, s.hsk_level))
-      const cardLevelMap = new Map<string, number>()
-      if (allCards) allCards.forEach(c => {
-        const lvl = setLevelMap.get(c.set_id)
-        if (lvl !== undefined) cardLevelMap.set(c.id, lvl)
-      })
-
-      // Total cards per level
       const totalByLevel = new Map<number, number>()
-      cardLevelMap.forEach(lvl => totalByLevel.set(lvl, (totalByLevel.get(lvl) || 0) + 1))
+      let grandTotalCards = 0
+      if (sets) {
+        sets.forEach((s: any) => {
+          setLevelMap.set(s.id, s.hsk_level)
+          const lvl = s.hsk_level || 1
+          const cnt = s.flashcard_cards?.[0]?.count ?? 0
+          totalByLevel.set(lvl, (totalByLevel.get(lvl) || 0) + cnt)
+          grandTotalCards += cnt
+        })
+      }
 
       const { data: progress } = await supa
         .from("user_card_progress")
@@ -148,6 +152,23 @@ export default function DashboardPage() {
       const reviewed = [...progressByCard.values()]
       const total = reviewed.length
 
+      // Map only reviewed cards to their level
+      const cardLevelMap = new Map<string, number>()
+      const reviewedCardIds = reviewed.map((r) => r.card_id).filter(Boolean)
+      if (reviewedCardIds.length > 0) {
+        const { data: studiedCards } = await supa
+          .from("flashcard_cards")
+          .select("id, set_id")
+          .in("id", reviewedCardIds)
+
+        if (studiedCards) {
+          studiedCards.forEach((c) => {
+            const lvl = setLevelMap.get(c.set_id)
+            if (lvl !== undefined) cardLevelMap.set(c.id, lvl)
+          })
+        }
+      }
+
       const todayCards = reviewed.filter((r) => r.last_reviewed === today)
       const hafalToday = todayCards.filter((r) => r.last_quality === 4 || r.last_quality === 5).length
       const lupaToday = todayCards.filter((r) => r.last_quality === 0 || r.srs_level === 0).length
@@ -161,7 +182,7 @@ export default function DashboardPage() {
       const ingat = reviewed.filter((r) => r.last_quality === 4).length
       const sulit = reviewed.filter((r) => r.last_quality === 3).length
       const lupa = reviewed.filter((r) => r.last_quality !== null && r.last_quality <= 2).length
-      const totalCards = allCards?.length ?? total
+      const totalCards = grandTotalCards || total
       const notStarted = Math.max(0, totalCards - total)
 
       // Per-level breakdown
@@ -299,6 +320,15 @@ export default function DashboardPage() {
 
           // Count completed decks
           completedDeckCount++
+        }
+
+        // Tentukan HSK level yang sedang berjalan sesuai progress deck
+        const runningHsk = firstIncompleteDeck
+          ? firstIncompleteDeck.hsk_level
+          : (decks && decks.length > 0 ? decks[decks.length - 1].hsk_level : 1)
+        setRunningDeckHsk(runningHsk)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("mandarin_running_hsk", String(runningHsk))
         }
 
         // Cek apakah user melanjutkan mengerjakan deck berikutnya hari ini
@@ -915,7 +945,7 @@ export default function DashboardPage() {
           {(() => {
             const activeLevel = hskFilterLevel === 0
               ? null
-              : (hskFilterLevel ?? activeDeckHero?.hsk_level ?? (srsStats?.hskLevels && srsStats.hskLevels.length > 0 ? srsStats.hskLevels[0] : 1))
+              : (hskFilterLevel ?? runningDeckHsk ?? activeDeckHero?.hsk_level ?? (srsStats?.hskLevels && srsStats.hskLevels.length > 0 ? srsStats.hskLevels[0] : 1))
 
             return (
               <>
@@ -927,7 +957,9 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <CardTitle className="text-base font-bold">Kosakata HSK</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-0.5">Kondisi hafalanmu di level yang sedang dipelajari.</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Kondisi hafalanmu<span className="hidden sm:inline"> di level yang sedang dipelajari</span>
+                        </p>
                       </div>
                     </div>
 
@@ -1002,10 +1034,10 @@ export default function DashboardPage() {
 
                     return (
                       <div className="space-y-4">
-                        {/* Chart + Legend */}
-                        <div className="flex items-center gap-5">
+                        {/* Chart + Legend: mobile stacked (chart on top), desktop row */}
+                        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
                           {/* Donut SVG */}
-                          <div className="shrink-0 relative">
+                          <div className="shrink-0 relative mx-auto sm:mx-0 my-1 sm:my-0">
                             <svg width="128" height="128" viewBox="0 0 128 128">
                               {/* track */}
                               <circle cx={cx} cy={cy} r={R} fill="none" stroke="currentColor"
@@ -1027,7 +1059,7 @@ export default function DashboardPage() {
                           </div>
 
                           {/* Legend */}
-                          <div className="flex-1 space-y-2">
+                          <div className="w-full flex-1 space-y-2">
                             {legendItems.map(item => (
                               <div key={item.label}
                                 className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border ${item.border} ${item.bg}`}
