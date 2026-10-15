@@ -1,6 +1,5 @@
 import { toast } from "sonner";
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { SwipeFlashcard, FlashcardPrefs, SessionHeaderStats } from "./types"
 import { shuffleArray, loadPrefs, savePrefs, normalizeChinese, getSimilarity } from "./utils"
@@ -25,7 +24,7 @@ export function useFlashcardSession({
   cards,
   userId,
   deckCardIds,
-  wordDetailPath,
+  wordDetailPath: _wordDetailPath,
   onComplete,
   disableSwipeProp = false,
   deckId,
@@ -41,7 +40,6 @@ export function useFlashcardSession({
   deckId?: number
   sessionId?: string | null
 }) {
-  const router = useRouter()
   const supa = useSupabase()
 
   const [prefs, setPrefs] = React.useState<FlashcardPrefs>({ autoPlayTts: true, cardOrder: "sequential", swipeEnabled: true })
@@ -164,8 +162,6 @@ export function useFlashcardSession({
   const startX = React.useRef(0)
   const startY = React.useRef(0)
   const cardRef = React.useRef<HTMLDivElement | null>(null)
-  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const didLongPress = React.useRef(false)
   
   const [isRecording, setIsRecording] = React.useState(false)
   const [feedback, setFeedback] = React.useState<{ type: "ok" | "warn" | "err" | "interim"; msg: string; hanzi?: string } | null>(null)
@@ -191,12 +187,6 @@ export function useFlashcardSession({
       speakMandarin(card.hanzi)
     }
   }, [flip, idx, isRecording, card?.hanzi, prefs.autoPlayTts])
-
-  React.useEffect(() => {
-    return () => {
-      if (longPressTimer.current) clearTimeout(longPressTimer.current)
-    }
-  }, [])
 
   React.useEffect(() => {
     if (!done || cards.length === 0 || scoreSavedRef.current) return
@@ -301,10 +291,6 @@ export function useFlashcardSession({
   }, [card, flyOut, done, idx])
 
   function handleCardClick() {
-    if (didLongPress.current) {
-      didLongPress.current = false
-      return
-    }
     if (isDragging || dragX > 10 || dragX < -10 || dragY > 10 || dragY < -10) return
 
     if (flip === 0) setFlip(1)
@@ -445,11 +431,7 @@ export function useFlashcardSession({
     return computeSessionStats(latestRatings, lapsedCardIds)
   }, [latestRatings, lapsedCardIds])
 
-  function cancelLongPress() {
-    if (!longPressTimer.current) return
-    clearTimeout(longPressTimer.current)
-    longPressTimer.current = null
-  }
+
 
   function animateFlyOutAndAdvance(quality: 0 | 3 | 4 | 5, toX: number, toY: number) {
     setIsDragging(false)
@@ -544,18 +526,10 @@ export function useFlashcardSession({
     if ((e.target as HTMLElement).closest("[data-no-drag]")) return
     if (disableSwipe) return
 
-    didLongPress.current = false
     startX.current = e.clientX
     startY.current = e.clientY
     setIsDragging(true)
     cardRef.current?.setPointerCapture(e.pointerId)
-    longPressTimer.current = setTimeout(() => {
-      longPressTimer.current = null
-      didLongPress.current = true
-      setIsDragging(false)
-      const href = wordDetailPath?.(card) ?? null
-      if (href) router.push(href)
-    }, 600)
   }
 
   function onPointerMove(e: React.PointerEvent) {
@@ -563,7 +537,6 @@ export function useFlashcardSession({
     const nextDragX = e.clientX - startX.current
     const nextDragY = e.clientY - startY.current
 
-    if (Math.abs(nextDragX) > 10 || Math.abs(nextDragY) > 10) cancelLongPress()
     if (Math.abs(nextDragX) > 14 || Math.abs(nextDragY) > 14) setFlip(currentFlip => (currentFlip === 2 ? currentFlip : 2))
 
     setDragX(nextDragX)
@@ -571,7 +544,6 @@ export function useFlashcardSession({
   }
 
   function onPointerUp() {
-    cancelLongPress()
     if (!isDragging || flyOut || disableSwipe) return
     const absX = Math.abs(dragX)
 
@@ -586,7 +558,6 @@ export function useFlashcardSession({
   }
 
   function onPointerCancel() {
-    cancelLongPress()
     setDragX(0); setDragY(0); setIsDragging(false)
   }
 
