@@ -388,7 +388,9 @@ export default function DashboardPage() {
           } else if (!quizDone) {
             currentStep = 2
             stepName = "Quiz Kosakata"
-            actionUrl = `/dashboard/practice/quiz/${targetHeroDeck.id}`
+            // Arahkan ke deck page (daftar kata), bukan langsung ke practice —
+            // biarkan user yang memutuskan dengan klik tombol latihan yang tersedia.
+            actionUrl = `/dashboard/flashcard/${targetHeroDeck.id}`
           } else {
             currentStep = 2
             stepName = "Selesai"
