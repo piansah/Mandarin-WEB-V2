@@ -65,6 +65,24 @@ function showSpeedBadge(label: string) {
   }, 1600)
 }
 
+function findBestMandarinVoice(): SpeechSynthesisVoice | null {
+  if (!voices.length) loadVoices()
+  const zhVoices = voices.filter(voice =>
+    voice.lang === "zh-CN" ||
+    voice.lang === "zh-TW" ||
+    voice.lang.startsWith("zh") ||
+    /mandarin|chinese/i.test(voice.name),
+  )
+  if (!zhVoices.length) return null
+
+  // Utamakan natural/online voices jika tersedia di sistem (mis. Xiaoxiao, Yunxi, Google)
+  const natural = zhVoices.find(v => /natural|online|xiaoxiao|yunxi|google/i.test(v.name))
+  if (natural) return natural
+
+  const mainland = zhVoices.find(v => v.lang === "zh-CN")
+  return mainland || zhVoices[0]
+}
+
 export function speakMandarin(text: string, options: { silent?: boolean; rate?: number } = {}) {
   if (!isSupported() || !text.trim()) return
 
@@ -97,12 +115,7 @@ export function speakMandarin(text: string, options: { silent?: boolean; rate?: 
   utterance.rate = options.rate ?? speed.rate
   utterance.pitch = 1
   utterance.volume = 1
-  utterance.voice = voices.find(voice =>
-    voice.lang === "zh-CN" ||
-    voice.lang === "zh-TW" ||
-    voice.lang.startsWith("zh") ||
-    /mandarin|chinese/i.test(voice.name),
-  ) ?? null
+  utterance.voice = findBestMandarinVoice()
   utterance.onend = () => { currentText = null }
   utterance.onerror = () => { currentText = null }
 
@@ -110,7 +123,11 @@ export function speakMandarin(text: string, options: { silent?: boolean; rate?: 
   window.speechSynthesis.speak(utterance)
 }
 
-export function speakParagraph(text: string, rate: number): Promise<void> {
+export function speakParagraph(
+  text: string,
+  rate: number = 1,
+  onBoundary?: (charIndex: number) => void
+): Promise<void> {
   return new Promise((resolve) => {
     if (!isSupported() || !text.trim()) {
       resolve()
@@ -125,14 +142,35 @@ export function speakParagraph(text: string, rate: number): Promise<void> {
     utterance.rate = rate
     utterance.pitch = 1
     utterance.volume = 1
-    utterance.voice = voices.find(voice =>
-      voice.lang === "zh-CN" ||
-      voice.lang === "zh-TW" ||
-      voice.lang.startsWith("zh") ||
-      /mandarin|chinese/i.test(voice.name),
-    ) ?? null
-    utterance.onend = () => resolve()
-    utterance.onerror = () => resolve()
+    utterance.voice = findBestMandarinVoice()
+
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      currentText = null
+      resolve()
+    }
+
+    if (onBoundary) {
+      utterance.onboundary = (e) => {
+        if (typeof e.charIndex === "number") {
+          onBoundary(e.charIndex)
+        }
+      }
+    }
+
+    // Safety timeout untuk mencegah macet jika browser tidak menembakkan event onend
+    const maxDurationMs = Math.max(5000, Math.round((text.length / Math.max(rate, 0.3)) * 600) + 4000)
+    const timer = setTimeout(finish, maxDurationMs)
+
+    const wrappedFinish = () => {
+      clearTimeout(timer)
+      finish()
+    }
+    utterance.onend = wrappedFinish
+    utterance.onerror = wrappedFinish
+
     currentText = text
     window.speechSynthesis.speak(utterance)
   })

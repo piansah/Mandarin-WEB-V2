@@ -24,7 +24,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { useSupabase } from "@/hooks/use-supabase"
-import { speakMandarin, cancelTTS } from "@/lib/tts"
+import { speakMandarin, speakParagraph, cancelTTS } from "@/lib/tts"
 import { getCeritaProgress, setCeritaProgress, clearCeritaProgress } from "@/lib/cerita-progress"
 import { saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
@@ -194,12 +194,14 @@ export default function CeritaReadPage() {
 
   /* ── Autoplay (baca otomatis berurutan) ── */
   const [autoplayOn, setAutoplayOn] = React.useState(false)
+  const [playingParaIdx, setPlayingParaIdx] = React.useState<number | null>(null)
   const [activeWordIdx, setActiveWordIdx] = React.useState<{ paraIdx: number; wordIdx: number } | null>(null)
   const [speedIdx, setSpeedIdx] = React.useState(0)
   const autoplayStopRef = React.useRef(false)
   const autoplayRunIdRef = React.useRef(0)
   const speedIdxRef = React.useRef(0)
   const paragraphRefs = React.useRef<(HTMLParagraphElement | null)[]>([])
+  const activeTickerRef = React.useRef<ReturnType<typeof setInterval> | null>(null)
 
   React.useEffect(() => {
     const saved = window.localStorage.getItem(AUTOPLAY_SPEED_KEY)
@@ -327,58 +329,25 @@ export default function CeritaReadPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 
-  /* ── Restore progress + attach scroll tracking ── */
+  /* ── Muat progress membaca TTS yang tersimpan ── */
   React.useEffect(() => {
-    if (!data) return
-    const el = getScrollEl()
-    if (!el) return
-
     const saved = getCeritaProgress()[key]
-    if (saved && saved > 0 && saved < 100) {
-      const timer = setTimeout(() => {
-        const max = el.scrollHeight - el.clientHeight
-        if (max <= 0) return
-        el.scrollTop = (max * saved) / 100
-        const real = Math.round((el.scrollTop / max) * 100)
-        setPct(real)
-        lastSavedPctRef.current = real
-      }, 120)
-      return () => clearTimeout(timer)
+    if (typeof saved === "number" && !Number.isNaN(saved)) {
+      setPct(saved)
+      lastSavedPctRef.current = saved
     }
-  }, [data, key, getScrollEl])
-
-  const updateProgress = React.useCallback(() => {
-    const el = getScrollEl()
-    if (!el) return
-    const max = el.scrollHeight - el.clientHeight
-    if (max <= 0) return
-    const current = Math.round((el.scrollTop / max) * 100)
-    setPct(current)
-
-    if (current >= 95) {
-      if (lastSavedPctRef.current < 95) {
-        lastSavedPctRef.current = 100
-        setCeritaProgress(key, 100)
-      }
-    } else if (current - lastSavedPctRef.current >= 5 || (current === 0 && lastSavedPctRef.current !== 0)) {
-      lastSavedPctRef.current = current
-      setCeritaProgress(key, current)
-    }
-  }, [getScrollEl, key])
-
-  React.useEffect(() => {
-    if (!data) return
-    const el = getScrollEl()
-    if (!el) return
-    el.addEventListener("scroll", updateProgress, { passive: true })
-    return () => el.removeEventListener("scroll", updateProgress)
-  }, [data, getScrollEl, updateProgress])
+  }, [key])
 
   const stopAutoplay = React.useCallback(() => {
     autoplayStopRef.current = true
     autoplayRunIdRef.current += 1
+    if (activeTickerRef.current) {
+      clearInterval(activeTickerRef.current)
+      activeTickerRef.current = null
+    }
     cancelTTS()
     setAutoplayOn(false)
+    setPlayingParaIdx(null)
     setActiveWordIdx(null)
   }, [])
 
@@ -414,41 +383,258 @@ export default function CeritaReadPage() {
       if (cancelled()) return
       paragraphRefs.current[i]?.scrollIntoView({ behavior: "smooth", block: "center" })
 
+      const paraText = data.paragraphs[i]
       const segments = storySegments[i] ?? []
 
-      // Highlight & baca kata per kata
+      // Petakan index karakter tiap segmen di dalam paragraf
+      const segRanges: { wordIdx: number; start: number; end: number }[] = []
+      let charOffset = 0
       for (let j = 0; j < segments.length; j++) {
+        const len = segments[j].hanzi.length
+        segRanges.push({ wordIdx: j, start: charOffset, end: charOffset + len })
+        charOffset += len
+      }
+
+      // Pecah paragraf menjadi kalimat-kalimat utuh (berakhir di 。！？!?\n)
+      // agar TTS membaca secara alami (prosodi & tone sandhi terjaga) dan tidak dieja terputus per kata
+      const sentenceRegex = /[^。！？!?\n]+[。！？!?\n]*/g
+      const sentences: { text: string; start: number; end: number }[] = []
+      let m: RegExpExecArray | null
+      while ((m = sentenceRegex.exec(paraText)) !== null) {
+        if (m[0].trim()) {
+          sentences.push({
+            text: m[0],
+            start: m.index,
+            end: m.index + m[0].length,
+          })
+        }
+      }
+      if (sentences.length === 0 && paraText.trim()) {
+        sentences.push({ text: paraText, start: 0, end: paraText.length })
+      }
+
+      for (const sent of sentences) {
         if (cancelled()) return
 
-        // Tanda baca dilewati: tidak di-highlight dan tidak dibaca
-        if (isPunct(segments[j].hanzi)) continue
+        const currentRate = AUTOPLAY_SPEEDS[speedIdxRef.current]?.rate ?? 1
 
-        setActiveWordIdx({ paraIdx: i, wordIdx: j })
+        // Kumpulkan semua kata di kalimat ini beserta jadwal waktu relatifnya
+        const sentenceWords: { wordIdx: number; startMs: number; endMs: number; isPunctuation: boolean }[] = []
+        const baseCharMs = 245 / currentRate
+        let timeCursor = 0
 
-        await speakMandarin(segments[j].hanzi, { rate: AUTOPLAY_SPEEDS[speedIdxRef.current].rate })
+        for (let j = 0; j < segments.length; j++) {
+          const r = segRanges[j]
+          if (r.start >= sent.start && r.end <= sent.end) {
+            const text = segments[j].hanzi
+            const isPunctuation = isPunct(text)
+            let dur = 0
+            if (isPunctuation) {
+              if (/[，,、]/.test(text)) dur = baseCharMs * 1.1
+              else if (/[。！？!?]/.test(text)) dur = baseCharMs * 1.6
+              else dur = baseCharMs * 0.7
+            } else {
+              dur = Math.max(1, [...text].length) * baseCharMs
+            }
+
+            sentenceWords.push({
+              wordIdx: j,
+              startMs: timeCursor,
+              endMs: timeCursor + dur,
+              isPunctuation,
+            })
+            timeCursor += dur
+          }
+        }
+
+        // Jalankan ticker animasi highlight per kata (berfungsi realtime baik ada event onboundary maupun tidak)
+        let tickerInterval: ReturnType<typeof setInterval> | null = null
+        const startTime = performance.now()
+
+        // Set kata pertama yang bukan tanda baca di awal kalimat
+        const firstWord = sentenceWords.find((w) => !w.isPunctuation)
+        if (firstWord) {
+          setActiveWordIdx({ paraIdx: i, wordIdx: firstWord.wordIdx })
+        }
+
+        tickerInterval = setInterval(() => {
+          if (cancelled()) {
+            if (tickerInterval) clearInterval(tickerInterval)
+            return
+          }
+          const elapsed = performance.now() - startTime
+          const active = sentenceWords.find((w) => elapsed >= w.startMs && elapsed < w.endMs)
+          if (active && !active.isPunctuation) {
+            setActiveWordIdx({ paraIdx: i, wordIdx: active.wordIdx })
+          }
+        }, 30)
+        activeTickerRef.current = tickerInterval
+
+        // Bacakan kalimat utuh sampai selesai. Jika browser menembakkan event boundary, sinkronkan langsung
+        await speakParagraph(sent.text, currentRate, (charIndex) => {
+          if (cancelled()) return
+          const absChar = sent.start + charIndex
+          const match = segRanges.find((r) => absChar >= r.start && absChar < r.end)
+          if (match && !isPunct(segments[match.wordIdx].hanzi)) {
+            setActiveWordIdx({ paraIdx: i, wordIdx: match.wordIdx })
+          }
+        })
+
+        if (tickerInterval) {
+          clearInterval(tickerInterval)
+          tickerInterval = null
+        }
+        activeTickerRef.current = null
+
         if (cancelled()) return
 
-        // Jeda kecil antar kata
-        await new Promise((resolve) => setTimeout(resolve, 400))
+        // Update progress bar berbasis selesainya pembacaan kalimat demi kalimat oleh TTS
+        const sIdx = sentences.indexOf(sent)
+        const sentenceRatio = (sIdx + 1) / sentences.length
+        const currentProgressRatio = (i + sentenceRatio) / data.paragraphs.length
+        const calculatedPct = Math.min(100, Math.round(currentProgressRatio * 100))
+
+        setPct((prev) => {
+          const next = Math.max(prev, calculatedPct)
+          if (next !== lastSavedPctRef.current) {
+            lastSavedPctRef.current = next
+            setCeritaProgress(key, next)
+          }
+          return next
+        })
+
+        // Jeda napas alami antar kalimat (250ms)
+        await new Promise((resolve) => setTimeout(resolve, 250))
       }
 
       setActiveWordIdx(null)
 
-      // Jeda antar paragraf
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      // Jeda wajar antar paragraf (600ms)
+      if (i < data.paragraphs.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 600))
+      }
       if (cancelled()) return
     }
 
     if (runId === autoplayRunIdRef.current) {
       setAutoplayOn(false)
       setActiveWordIdx(null)
+      // Selesai membaca semua paragraf sampai akhir
+      setPct(100)
+      lastSavedPctRef.current = 100
+      setCeritaProgress(key, 100)
     }
-  }, [data, storySegments])
+  }, [data, storySegments, key])
 
   function toggleAutoplay() {
     if (autoplayOn) stopAutoplay()
     else startAutoplay()
   }
+
+  const togglePlayParagraph = React.useCallback(async (pi: number) => {
+    if (playingParaIdx === pi) {
+      stopAutoplay()
+      return
+    }
+
+    // Hentikan apapun yang sedang berjalan dulu
+    stopAutoplay()
+
+    if (!data) return
+    const paraText = data.paragraphs[pi]
+    if (!paraText) return
+
+    cancelTTS()
+    autoplayStopRef.current = false
+    const runId = (autoplayRunIdRef.current += 1)
+    const cancelled = () => autoplayStopRef.current || runId !== autoplayRunIdRef.current
+
+    setPlayingParaIdx(pi)
+    paragraphRefs.current[pi]?.scrollIntoView({ behavior: "smooth", block: "center" })
+
+    const segments = storySegments[pi] ?? []
+
+    const segRanges: { wordIdx: number; start: number; end: number }[] = []
+    let charOffset = 0
+    for (let j = 0; j < segments.length; j++) {
+      const len = segments[j].hanzi.length
+      segRanges.push({ wordIdx: j, start: charOffset, end: charOffset + len })
+      charOffset += len
+    }
+
+    const sentenceRegex = /[^。！？!?\n]+[。！？!?\n]*/g
+    const sentences: { text: string; start: number; end: number }[] = []
+    let m: RegExpExecArray | null
+    while ((m = sentenceRegex.exec(paraText)) !== null) {
+      if (m[0].trim()) {
+        sentences.push({ text: m[0], start: m.index, end: m.index + m[0].length })
+      }
+    }
+    if (sentences.length === 0 && paraText.trim()) {
+      sentences.push({ text: paraText, start: 0, end: paraText.length })
+    }
+
+    const currentRate = AUTOPLAY_SPEEDS[speedIdxRef.current]?.rate ?? 1
+
+    for (const sent of sentences) {
+      if (cancelled()) break
+
+      const sentenceWords: { wordIdx: number; startMs: number; endMs: number; isPunctuation: boolean }[] = []
+      const baseCharMs = 245 / currentRate
+      let timeCursor = 0
+
+      for (let j = 0; j < segments.length; j++) {
+        const r = segRanges[j]
+        if (r.start >= sent.start && r.end <= sent.end) {
+          const text = segments[j].hanzi
+          const isPunctuation = isPunct(text)
+          let dur = 0
+          if (isPunctuation) {
+            if (/[，,、]/.test(text)) dur = baseCharMs * 1.1
+            else if (/[。！？!?]/.test(text)) dur = baseCharMs * 1.6
+            else dur = baseCharMs * 0.7
+          } else {
+            dur = Math.max(1, [...text].length) * baseCharMs
+          }
+          sentenceWords.push({ wordIdx: j, startMs: timeCursor, endMs: timeCursor + dur, isPunctuation })
+          timeCursor += dur
+        }
+      }
+
+      const firstWord = sentenceWords.find((w) => !w.isPunctuation)
+      if (firstWord) setActiveWordIdx({ paraIdx: pi, wordIdx: firstWord.wordIdx })
+
+      let tickerInterval: ReturnType<typeof setInterval> | null = null
+      const startTime = performance.now()
+      tickerInterval = setInterval(() => {
+        if (cancelled()) { if (tickerInterval) clearInterval(tickerInterval); return }
+        const elapsed = performance.now() - startTime
+        const active = sentenceWords.find((w) => elapsed >= w.startMs && elapsed < w.endMs)
+        if (active && !active.isPunctuation) setActiveWordIdx({ paraIdx: pi, wordIdx: active.wordIdx })
+      }, 30)
+      activeTickerRef.current = tickerInterval
+
+      await speakParagraph(sent.text, currentRate, (charIndex) => {
+        if (cancelled()) return
+        const absChar = sent.start + charIndex
+        const match = segRanges.find((r) => absChar >= r.start && absChar < r.end)
+        if (match && !isPunct(segments[match.wordIdx].hanzi)) {
+          setActiveWordIdx({ paraIdx: pi, wordIdx: match.wordIdx })
+        }
+      })
+
+      if (tickerInterval) { clearInterval(tickerInterval); tickerInterval = null }
+      activeTickerRef.current = null
+
+      if (cancelled()) break
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+
+    if (runId === autoplayRunIdRef.current) {
+      setPlayingParaIdx(null)
+      setActiveWordIdx(null)
+    }
+  }, [data, storySegments, playingParaIdx, stopAutoplay])
 
   function cycleSpeed() {
     setSpeedIdx((current) => {
@@ -469,14 +655,16 @@ export default function CeritaReadPage() {
 
   function confirmReset() {
     setConfirmOpen(false)
+    stopAutoplay()
     clearCeritaProgress(key)
-    lastSavedPctRef.current = -1
+    lastSavedPctRef.current = 0
     setPct(0)
     const el = getScrollEl()
     if (el) el.scrollTop = 0
   }
 
   function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
+    if (autoplayOn) stopAutoplay()
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     // pinyin/arti sudah ikut dari hasil segmentText() (cache global),
     // jadi tidak perlu query ulang ke Supabase.
@@ -624,48 +812,75 @@ export default function CeritaReadPage() {
         {data.paragraphs.map((para, pi) => {
           const segments = storySegments[pi] ?? []
           const isWordActive = activeWordIdx?.paraIdx === pi
+          const isParaPlaying = playingParaIdx === pi
           return (
-            <p
+            <div
               key={pi}
-              ref={(el) => { paragraphRefs.current[pi] = el }}
-              style={{ fontSize }}
-              className="font-hanzi relative mb-5 rounded-lg leading-loose text-foreground"
+              className="group relative mb-5 flex items-start gap-2"
             >
-              {segments.map((seg, si) => {
-                const isPunctuation = isPunct(seg.hanzi)
+              {/* Per-paragraph speaker button */}
+              <button
+                type="button"
+                onClick={() => togglePlayParagraph(pi)}
+                aria-label={isParaPlaying ? "Hentikan bacaan paragraf" : "Bacakan paragraf ini"}
+                title={isParaPlaying ? "Hentikan" : "Bacakan paragraf ini"}
+                className={`mt-1 flex-shrink-0 grid h-7 w-7 place-items-center rounded-full border transition-all ${
+                  isParaPlaying
+                    ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                    : "border-border/50 bg-background/60 text-muted-foreground opacity-0 group-hover:opacity-100 hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                }`}
+              >
+                {isParaPlaying
+                  ? <Pause className="h-3 w-3" />
+                  : <Volume2 className="h-3 w-3" />}
+              </button>
 
-                // Highlight hanya untuk kosakata yang levelnya PAS sama dengan
-                // target HSK cerita ini. Kata lain tampil sebagai teks biasa
-                // (tidak di-highlight, tidak bisa diklik) — sengaja.
-                const shouldHighlight =
-                  !isPunctuation && seg.found && (targetHskLevel === null || seg.hsk === targetHskLevel)
+              <p
+                ref={(el) => { paragraphRefs.current[pi] = el }}
+                style={{ fontSize }}
+                className="font-hanzi flex-1 leading-loose text-foreground"
+              >
+                {segments.map((seg, si) => {
+                  const isPunctuation = isPunct(seg.hanzi)
 
-                // Tanda baca tidak pernah jadi "kata aktif" saat autoplay
-                const isCurrentWord = !isPunctuation && isWordActive && activeWordIdx?.wordIdx === si
+                  // Highlight hanya untuk kosakata yang levelnya PAS sama dengan
+                  // target HSK cerita ini. Kata lain tampil sebagai teks biasa
+                  // (tidak di-highlight, tidak bisa diklik) — sengaja.
+                  const shouldHighlight =
+                    !isPunctuation && seg.found && (targetHskLevel === null || seg.hsk === targetHskLevel)
 
-                return !shouldHighlight ? (
-                  <span
-                    key={si}
-                    className={`inline-block mr-1 transition-colors ${isCurrentWord ? "bg-primary/20 px-1 rounded" : ""}`}
-                  >
-                    {seg.hanzi}
-                  </span>
-                ) : (
-                  <button
-                    key={si}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openWordPopover(seg, e)
-                    }}
-                    className={`rounded-sm px-0.5 text-primary transition-colors hover:bg-primary/20 ${isCurrentWord ? "bg-primary/30" : "bg-primary/10"
+                  // Tanda baca tidak pernah jadi "kata aktif" saat autoplay
+                  const isCurrentWord = !isPunctuation && isWordActive && activeWordIdx?.wordIdx === si
+
+                  return !shouldHighlight ? (
+                    <span
+                      key={si}
+                      className={`inline-block mr-1 transition-all ${
+                        isCurrentWord ? "bg-primary/25 text-primary font-bold px-1 rounded shadow-xs" : ""
                       }`}
-                  >
-                    {seg.hanzi}
-                  </button>
-                )
-              })}
-            </p>
+                    >
+                      {seg.hanzi}
+                    </span>
+                  ) : (
+                    <button
+                      key={si}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openWordPopover(seg, e)
+                      }}
+                      className={`rounded-sm px-1 transition-all ${
+                        isCurrentWord
+                          ? "bg-primary text-primary-foreground font-bold shadow-sm scale-105"
+                          : "text-primary bg-primary/10 hover:bg-primary/20"
+                      }`}
+                    >
+                      {seg.hanzi}
+                    </button>
+                  )
+                })}
+              </p>
+            </div>
           )
         })}
 
