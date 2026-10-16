@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { submitBugReport } from "@/lib/bug-report"
+import { toast } from "sonner"
 
 export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [title, setTitle] = React.useState("")
@@ -33,8 +34,13 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
     setSaving(false)
     if (error) {
       setErrorMsg("Gagal mengirim laporan. Coba lagi ya.")
+      toast.error("Gagal mengirim laporan. Coba lagi ya.", { position: "bottom-right" })
       return
     }
+    toast.success("Laporan berhasil dikirim!", {
+      description: "Terima kasih atas laporan Anda.",
+      position: "bottom-right",
+    })
     setSent(true)
     setTitle("")
     setDescription("")

@@ -14,6 +14,7 @@
  * chaining) tanpa error apapun.
  */
 
+import { toast } from "sonner"
 import { submitContentReport } from "./bug-reports"
 
 let bugReportModalElement: HTMLElement | null = null
@@ -54,11 +55,30 @@ export function openBugReportModal(
     }
     
     submitBtn.onclick = async () => {
-      if (reportType === "content" && targetId) {
-        await submitContentReport("kalimat", targetId, title, "Laporan user", description)
+      submitBtn.disabled = true
+      submitBtn.textContent = "Mengirim..."
+      try {
+        if (reportType === "content" && targetId) {
+          const res = await submitContentReport("kalimat", targetId, title, "Laporan user", description)
+          if (res?.error) {
+            toast.error(res.error, { position: "bottom-right" })
+            submitBtn.disabled = false
+            submitBtn.textContent = "Kirim"
+            return
+          }
+        }
+        closeModal()
+        toast.success("Laporan berhasil dikirim!", {
+          description: "Terima kasih atas bantuan Anda.",
+          position: "bottom-right",
+        })
+        resolve(true)
+      } catch (err) {
+        console.error("Gagal mengirim laporan:", err)
+        toast.error("Gagal mengirim laporan. Coba lagi nanti.", { position: "bottom-right" })
+        submitBtn.disabled = false
+        submitBtn.textContent = "Kirim"
       }
-      closeModal()
-      resolve(true)
     }
   })
 }

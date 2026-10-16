@@ -53,15 +53,19 @@ export function ReportModal({
     setSubmitting(false)
 
     if (result.error) {
-      toast.error(result.error)
+      toast.error(result.error, { position: "bottom-right" })
     } else {
+      toast.success("Laporan berhasil dikirim!", {
+        description: "Terima kasih atas laporan Anda.",
+        position: "bottom-right",
+      })
       setSubmitted(true)
       setTimeout(() => {
         onClose()
         setSubmitted(false)
         setSelectedReason(null)
         setDescription("")
-      }, 2000)
+      }, 1500)
     }
   }
 
