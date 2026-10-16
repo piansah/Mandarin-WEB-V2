@@ -18,8 +18,10 @@ export type Database = {
         Row: {
           created_at: string | null
           description: string
+          detail: string | null
           device_info: Json | null
           id: number
+          reason: string | null
           report_type: string | null
           status: string | null
           target_id: string | null
@@ -29,8 +31,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           description: string
+          detail?: string | null
           device_info?: Json | null
           id?: number
+          reason?: string | null
           report_type?: string | null
           status?: string | null
           target_id?: string | null
@@ -40,8 +44,10 @@ export type Database = {
         Update: {
           created_at?: string | null
           description?: string
+          detail?: string | null
           device_info?: Json | null
           id?: number
+          reason?: string | null
           report_type?: string | null
           status?: string | null
           target_id?: string | null

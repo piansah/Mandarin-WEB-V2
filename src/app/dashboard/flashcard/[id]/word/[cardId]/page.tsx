@@ -352,7 +352,7 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
 
   const handleReport = () => {
     window.openBugReportModal?.(
-      `Kesalahan Kalimat: ${sentence}`,
+      sentence,
       `Ditemukan kesalahan pada kalimat: ${sentence} (${example.pinyin || ""})`,
       'content',
       String(example.id)

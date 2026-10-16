@@ -43,11 +43,12 @@ export function ReportModal({
     }
 
     setSubmitting(true)
+    const reasonLabel = REPORT_REASONS[selectedReason as keyof typeof REPORT_REASONS] || selectedReason
     const result = await submitContentReport(
       contentType,
       contentId,
       contentLabel,
-      selectedReason,
+      reasonLabel,
       description.trim() || null
     )
     setSubmitting(false)

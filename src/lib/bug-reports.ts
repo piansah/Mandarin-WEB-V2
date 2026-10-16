@@ -17,6 +17,8 @@ export type BugReport = {
   user_id: string | null
   title: string
   description: string
+  reason?: string | null
+  detail?: string | null
   device_info: Record<string, unknown> | null
   status: ReportStatus
   created_at: string
@@ -42,8 +44,10 @@ export async function submitContentReport(
   const { supa, user } = await requireUser()
   if (!user) return { error: "Belum login" }
 
-  const title = `Kesalahan ${contentType === "kalimat" ? "Kalimat" : "Kata"}: ${contentLabel}`
-  const fullDescription = `Ditemukan kesalahan pada ${contentType}: ${contentLabel}\n\nAlasan: ${reason}\n\n${description || "Tidak ada detail tambahan."}`
+  // Bersihkan awalan duplikat jika contentLabel sudah membawa kata "Kesalahan Kalimat/Kata:"
+  const cleanLabel = contentLabel.replace(/^(Kesalahan\s+(Kalimat|Kata):\s*)+/i, "").trim()
+  const title = `Kesalahan ${contentType === "kalimat" ? "Kalimat" : "Kata"}: ${cleanLabel}`
+  const cleanDescription = `Ditemukan kesalahan pada ${contentType}: ${cleanLabel}`
 
   const deviceInfo = {
     userAgent: navigator.userAgent,
@@ -54,7 +58,9 @@ export async function submitContentReport(
   const { error } = await supa.from("bug_reports").insert({
     user_id: user.id,
     title,
-    description: fullDescription,
+    description: cleanDescription,
+    reason: reason || null,
+    detail: description?.trim() ? description.trim() : null,
     device_info: deviceInfo,
     report_type: "content",
     target_id: String(contentId),
