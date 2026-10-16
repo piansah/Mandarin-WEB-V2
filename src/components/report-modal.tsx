@@ -32,9 +32,14 @@ export function ReportModal({
   const [selectedReason, setSelectedReason] = React.useState<string | null>(null)
   const [description, setDescription] = React.useState("")
   const [submitting, setSubmitting] = React.useState(false)
-  const [submitted, setSubmitted] = React.useState(false)
 
   if (!isOpen) return null
+
+  function handleClose() {
+    setSelectedReason(null)
+    setDescription("")
+    onClose()
+  }
 
   async function handleSubmit() {
     if (!selectedReason) {
@@ -60,13 +65,7 @@ export function ReportModal({
         description: "Terima kasih atas laporan Anda.",
         position: "bottom-right",
       })
-      setSubmitted(true)
-      setTimeout(() => {
-        onClose()
-        setSubmitted(false)
-        setSelectedReason(null)
-        setDescription("")
-      }, 1500)
+      handleClose()
     }
   }
 
@@ -84,64 +83,55 @@ export function ReportModal({
                 Laporkan masalah pada: <span className="font-medium">{contentLabel}</span>
               </CardDescription>
             </div>
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button variant="ghost" size="icon-sm" onClick={handleClose}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {submitted ? (
-            <div className="text-center py-4">
-              <div className="text-4xl mb-2">✅</div>
-              <p className="text-sm text-muted-foreground">Report berhasil dikirim. Terima kasih!</p>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Alasan Report</label>
-                <div className="space-y-2">
-                  {Object.entries(REPORT_REASONS).map(([value, label]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setSelectedReason(value)}
-                      className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
-                        selectedReason === value
-                          ? "border-orange-500 bg-orange-500/10"
-                          : "border-border hover:border-orange-500/50"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Detail (opsional)</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Jelaskan lebih detail tentang masalahnya..."
-                  className="w-full px-3 py-2 rounded-md border bg-background min-h-[80px]"
-                  maxLength={500}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={onClose}>
-                  Batal
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={submitting || !selectedReason}
-                  className="bg-orange-500 hover:bg-orange-600"
+          <div>
+            <label className="text-sm font-medium mb-2 block">Alasan Report</label>
+            <div className="space-y-2">
+              {Object.entries(REPORT_REASONS).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setSelectedReason(value)}
+                  className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-all ${
+                    selectedReason === value
+                      ? "border-orange-500 bg-orange-500/10"
+                      : "border-border hover:border-orange-500/50"
+                  }`}
                 >
-                  {submitting ? "Mengirim..." : "Kirim Report"}
-                </Button>
-              </div>
-            </>
-          )}
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Detail (opsional)</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Jelaskan lebih detail tentang masalahnya..."
+              className="w-full px-3 py-2 rounded-md border bg-background min-h-[80px]"
+              maxLength={500}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={handleClose}>
+              Batal
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || !selectedReason}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {submitting ? "Mengirim..." : "Kirim Report"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
