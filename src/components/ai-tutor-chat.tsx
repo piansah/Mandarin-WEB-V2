@@ -10,9 +10,32 @@ import {
   Send,
   Bot,
   Plus,
+  Trash2,
   Loader2,
+  History,
+  MessageSquareText,
+  Layers3,
+  Check,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useSupabase } from "@/hooks/use-supabase"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +45,18 @@ type Message = {
   role: "user" | "assistant"
   content: string
   created_at?: string
+}
+
+type ChatSession = {
+  id: string
+  title: string
+  updated_at: string
+}
+
+type FlashcardDeck = {
+  id: number
+  title: string
+  hsk_level: number
 }
 
 // ─── Helper: format text AI (bold, newline) ──────────────────────────────────
@@ -46,8 +81,16 @@ function formatAIText(text: string) {
 export function AITutorChat() {
   const supabase = useSupabase()
   const [messages, setMessages] = React.useState<Message[]>([])
+  const [sessions, setSessions] = React.useState<ChatSession[]>([])
+  const [activeSessionId, setActiveSessionId] = React.useState("")
+  const [decks, setDecks] = React.useState<FlashcardDeck[]>([])
+  const [selectedDeckId, setSelectedDeckId] = React.useState("")
+  const [userId, setUserId] = React.useState("")
   const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(true)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [hasMounted, setHasMounted] = React.useState(false)
   const [streamingText, setStreamingText] = React.useState("")
   const [profileAvatar, setProfileAvatar] = React.useState("")
   const [profileInitial, setProfileInitial] = React.useState("U")
@@ -56,10 +99,15 @@ export function AITutorChat() {
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
 
   React.useEffect(() => {
+    setHasMounted(true)
+  }, [])
+
+  React.useEffect(() => {
     let active = true
     async function loadProfileAvatar() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!active || !user) return
+      setUserId(user.id)
 
       const { data: profile } = await supabase
         .from("user_profile")
@@ -71,9 +119,51 @@ export function AITutorChat() {
       const name = profile?.display_name || user.user_metadata?.full_name || user.email || "User"
       setProfileInitial(String(name).trim().charAt(0).toUpperCase() || "U")
       setProfileAvatar(profile?.custom_avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || "")
+
+      const { data: availableDecks, error: decksError } = await supabase
+        .from("flashcard_sets")
+        .select("id, title, hsk_level")
+        .eq("is_default", true)
+        .order("id", { ascending: true })
+
+      if (!active) return
+      if (decksError) console.error("Gagal memuat daftar deck AI Tutor:", decksError)
+      setDecks(availableDecks ?? [])
+
+      const { data: chatSessions, error: sessionsError } = await supabase
+        .from("chat_sessions")
+        .select("id, title, updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+
+      if (!active) return
+      if (sessionsError) console.error("Gagal memuat sesi AI Tutor:", sessionsError)
+      const availableSessions = chatSessions ?? []
+      setSessions(availableSessions)
+
+      const latestSession = availableSessions[0]
+      if (latestSession) {
+        setActiveSessionId(latestSession.id)
+        const { data: chatMessages, error: messagesError } = await supabase
+          .from("chat_messages")
+          .select("id, role, content, created_at")
+          .eq("session_id", latestSession.id)
+          .order("created_at", { ascending: true })
+
+        if (!active) return
+        if (messagesError) console.error("Gagal memuat pesan AI Tutor:", messagesError)
+        setMessages((chatMessages ?? []).map((msg) => ({
+          id: msg.id,
+          role: msg.role === "assistant" ? "assistant" : "user",
+          content: msg.content,
+          created_at: msg.created_at,
+        })))
+      }
     }
 
-    void loadProfileAvatar()
+    void loadProfileAvatar().finally(() => {
+      if (active) setIsLoadingHistory(false)
+    })
     return () => { active = false }
   }, [supabase])
 
@@ -90,9 +180,79 @@ export function AITutorChat() {
     ta.style.height = Math.min(ta.scrollHeight, 120) + "px"
   }, [input])
 
-  function startNewChat() {
+  async function createChatSession(clearMessages = true): Promise<string> {
+    if (!userId) throw new Error("Profil pengguna belum siap. Coba lagi sebentar.")
+
+    const { data: session, error } = await supabase
+      .from("chat_sessions")
+      .insert({ user_id: userId })
+      .select("id, title, updated_at")
+      .single()
+
+    if (error) throw error
+    setSessions((current) => [session, ...current])
+    setActiveSessionId(session.id)
+    if (clearMessages) {
+      setMessages([])
+      setStreamingText("")
+    }
+    return session.id
+  }
+
+  async function selectChatSession(sessionId: string) {
+    if (!sessionId || sessionId === activeSessionId || isLoading) return
+    setActiveSessionId(sessionId)
+    setIsLoadingHistory(true)
     setMessages([])
-    setStreamingText("")
+    try {
+      const { data, error } = await supabase
+        .from("chat_messages")
+        .select("id, role, content, created_at")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true })
+      if (error) throw error
+      setMessages((data ?? []).map((msg) => ({
+        id: msg.id,
+        role: msg.role === "assistant" ? "assistant" : "user",
+        content: msg.content,
+        created_at: msg.created_at,
+      })))
+    } catch (error) {
+      console.error("Gagal memuat sesi AI Tutor:", error)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
+  async function startNewChat() {
+    if (isLoading) return
+    try {
+      await createChatSession()
+    } catch (error) {
+      console.error("Gagal membuat sesi AI Tutor:", error)
+    }
+  }
+
+  async function deleteActiveChat() {
+    if (!activeSessionId || isLoading) return
+
+    const { error } = await supabase
+      .from("chat_sessions")
+      .delete()
+      .eq("id", activeSessionId)
+      .eq("user_id", userId)
+
+    if (error) {
+      console.error("Gagal menghapus sesi AI Tutor:", error)
+      return
+    }
+
+    const remainingSessions = sessions.filter((session) => session.id !== activeSessionId)
+    setSessions(remainingSessions)
+    setMessages([])
+    setActiveSessionId("")
+    setIsDeleteDialogOpen(false)
+    if (remainingSessions[0]) await selectChatSession(remainingSessions[0].id)
   }
 
   async function sendMessage() {
@@ -112,15 +272,28 @@ export function AITutorChat() {
     setMessages((prev) => [...prev, userMsg])
 
     // History yang dikirim ke API (tanpa pesan user terbaru, sudah ada di `message`)
-    const history = messages.map((m) => ({ role: m.role, content: m.content }))
-
     try {
+      const sessionId = activeSessionId || await createChatSession(false)
+      if (!messages.length) {
+        const title = text.replace(/\s+/g, " ").slice(0, 72)
+        setSessions((current) => current.map((session) => session.id === sessionId
+          ? { ...session, title, updated_at: new Date().toISOString() }
+          : session
+        ).sort((a, b) => b.updated_at.localeCompare(a.updated_at)))
+      } else {
+        setSessions((current) => current.map((session) => session.id === sessionId
+          ? { ...session, updated_at: new Date().toISOString() }
+          : session
+        ).sort((a, b) => b.updated_at.localeCompare(a.updated_at)))
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
-          history,
+          sessionId,
+          deckId: selectedDeckId || null,
         }),
       })
 
@@ -149,14 +322,15 @@ export function AITutorChat() {
           const raw = line.slice(6)
           if (raw === "[DONE]") break
 
+          let parsed: { text?: string; error?: string }
           try {
-            const parsed = JSON.parse(raw)
-            if (parsed.text) {
-              accumulated += parsed.text
-              setStreamingText(accumulated)
-            }
-            if (parsed.error) throw new Error(parsed.error)
-          } catch { /* skip invalid JSON */ }
+            parsed = JSON.parse(raw)
+          } catch { continue }
+          if (parsed.error) throw new Error(parsed.error)
+          if (parsed.text) {
+            accumulated += parsed.text
+            setStreamingText(accumulated)
+          }
         }
       }
 
@@ -211,10 +385,88 @@ export function AITutorChat() {
                   Powered by Gemini · 加油!
                 </p>
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={hasMounted && (isLoadingHistory || isLoading)}
+                  aria-label="Riwayat percakapan"
+                  title="Riwayat percakapan"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <History className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="flex items-center gap-2">
+                      <MessageSquareText className="h-4 w-4" /> Riwayat percakapan
+                    </DropdownMenuLabel>
+                    <div className="max-h-64 overflow-y-auto">
+                      {sessions.length > 0 && sessions.map((session) => (
+                        <DropdownMenuItem
+                          key={session.id}
+                          onClick={() => void selectChatSession(session.id)}
+                          disabled={isLoading || isLoadingHistory}
+                          className="gap-2"
+                        >
+                          <span className="min-w-0 flex-1 truncate">{session.title || "Percakapan baru"}</span>
+                          {session.id === activeSessionId && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                        </DropdownMenuItem>
+                      ))}
+                      {!sessions.length && <p className="px-2 py-2 text-xs text-muted-foreground">Belum ada riwayat percakapan.</p>}
+                    </div>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={hasMounted && (isLoadingHistory || isLoading)}
+                  aria-label="Pilih deck referensi"
+                  title="Deck referensi"
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                >
+                  <Layers3 className="h-4 w-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="flex items-center gap-2">
+                      <Layers3 className="h-4 w-4" /> Deck referensi
+                    </DropdownMenuLabel>
+                    <div className="max-h-64 overflow-y-auto">
+                      <DropdownMenuItem
+                        onClick={() => setSelectedDeckId("")}
+                        disabled={isLoading || isLoadingHistory}
+                      >
+                        <span className="min-w-0 flex-1 truncate">Pengetahuan umum</span>
+                        {!selectedDeckId && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                      </DropdownMenuItem>
+                      {decks.map((deck) => (
+                        <DropdownMenuItem
+                          key={deck.id}
+                          onClick={() => setSelectedDeckId(String(deck.id))}
+                          disabled={isLoading || isLoadingHistory}
+                        >
+                          <span className="min-w-0 flex-1 truncate">Deck {deck.id} · {deck.title} (HSK {deck.hsk_level})</span>
+                          {selectedDeckId === String(deck.id) && <Check className="h-4 w-4 shrink-0 text-primary" />}
+                        </DropdownMenuItem>
+                      ))}
+                      {!decks.length && <p className="px-2 py-2 text-xs text-muted-foreground">Belum ada deck tersedia.</p>}
+                    </div>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={startNewChat}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                  disabled={hasMounted && (!activeSessionId || isLoading || isLoadingHistory)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-40"
+                  aria-label="Hapus percakapan"
+                  title="Hapus percakapan"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => void startNewChat()}
+                  disabled={hasMounted && (isLoading || isLoadingHistory)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
                   aria-label="Chat baru"
                   title="Chat baru"
                 >
@@ -222,6 +474,29 @@ export function AITutorChat() {
                 </button>
               </div>
             </div>
+
+            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Hapus percakapan?</DialogTitle>
+                  <DialogDescription>
+                    Percakapan ini beserta semua pesannya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose render={<Button variant="outline" disabled={isLoading} />}>
+                    Batal
+                  </DialogClose>
+                  <Button
+                    variant="destructive"
+                    onClick={() => void deleteActiveChat()}
+                    disabled={isLoading}
+                  >
+                    Hapus percakapan
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {/* Body */}
             <div className="flex flex-col flex-1 min-h-0">
@@ -231,7 +506,9 @@ export function AITutorChat() {
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {/* Welcome state */}
-                  {messages.length === 0 && !isLoading && (
+                  {isLoadingHistory ? (
+                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Memuat percakapan…</div>
+                  ) : messages.length === 0 && !isLoading && (
                     <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
                       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
                         <span className="text-3xl">🤖</span>
