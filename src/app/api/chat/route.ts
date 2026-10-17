@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     // Siapkan model Gemini dengan system prompt
     const model = genAI.getGenerativeModel({
-      model: "gemini-3.5-flash-lite",
+      model: "gemini-3.6-flash",
       systemInstruction: SYSTEM_PROMPT,
     })
 
