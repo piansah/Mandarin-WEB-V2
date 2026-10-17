@@ -5,10 +5,9 @@
    Menerima pesan user dan streaming respons Gemini tanpa menyimpan chat. */
 
 import { NextRequest, NextResponse } from "next/server"
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import { GoogleGenAI, type Content } from "@google/genai"
 import { createClient } from "@/lib/supabase/server"
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 const GEMINI_TIMEOUT_MS = 25_000
 
 function isTemporaryGeminiError(error: unknown) {
@@ -65,17 +64,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Pesan terlalu panjang (maks 2000 karakter)" }, { status: 400 })
     }
 
-    // Siapkan model Gemini dengan system prompt
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3.5-flash-lite",
-      systemInstruction: SYSTEM_PROMPT,
-    })
-
     // Konversi history ke format Gemini
     const rawHistory = Array.isArray(history)
       ? (history as { role?: unknown; content?: unknown }[])
       : []
-    const geminiHistory: { role: "user" | "model"; parts: { text: string }[] }[] = []
+    const geminiHistory: Content[] = []
 
     for (const msg of rawHistory) {
       if ((msg.role !== "user" && msg.role !== "assistant") || typeof msg.content !== "string") continue
@@ -86,20 +79,32 @@ export async function POST(request: NextRequest) {
       // Gemini requires alternating user/model turns, starting with a user turn.
       if (!previous && role !== "user") continue
       if (previous?.role === role) {
-        previous.parts[0].text += `\n\n${msg.content}`
+        const textPart = previous.parts?.find((part) => typeof part.text === "string")
+        if (textPart?.text) textPart.text += `\n\n${msg.content}`
       } else {
         geminiHistory.push({ role, parts: [{ text: msg.content }] })
       }
     }
 
-    const chat = model.startChat({ history: geminiHistory })
+    const apiKey = process.env.GEMINI_API_KEY
+    if (!apiKey) throw new Error("GEMINI_API_KEY is not configured")
 
-    // Kirim pesan dan stream respons
     const abortController = new AbortController()
     const timeout = setTimeout(() => abortController.abort(), GEMINI_TIMEOUT_MS)
+    const ai = new GoogleGenAI({ apiKey })
+    const chat = ai.chats.create({
+      model: "gemini-3.6-flash",
+      history: geminiHistory,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        abortSignal: abortController.signal,
+      },
+    })
+
+    // Kirim pesan dan stream respons menggunakan Google Gen AI SDK.
     let result
     try {
-      result = await chat.sendMessageStream(message.trim(), { signal: abortController.signal })
+      result = await chat.sendMessageStream({ message: message.trim() })
     } catch (error) {
       clearTimeout(timeout)
       throw error
@@ -110,8 +115,8 @@ export async function POST(request: NextRequest) {
         const encoder = new TextEncoder()
 
         try {
-          for await (const chunk of result.stream) {
-            const text = chunk.text()
+          for await (const chunk of result) {
+            const text = chunk.text
             if (text) {
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
             }
