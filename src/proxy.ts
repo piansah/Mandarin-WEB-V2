@@ -1,8 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
-// Halaman yang wajib login. Tambah prefix lain di sini kalau perlu.
-const PROTECTED_PREFIXES = ["/dashboard"]
+
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
@@ -32,11 +31,13 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    request.nextUrl.pathname.startsWith(prefix)
-  )
+  const isApiRoute = request.nextUrl.pathname.startsWith("/api")
+  const isDashboard = request.nextUrl.pathname.startsWith("/dashboard")
 
-  if (isProtected && !user) {
+  // API route: token sudah di-refresh di atas — cukup, tidak perlu redirect.
+  if (isApiRoute) return response
+
+  if (isDashboard && !user) {
     const loginUrl = new URL("/login", request.url)
     loginUrl.searchParams.set("next", request.nextUrl.pathname)
     return NextResponse.redirect(loginUrl)
@@ -52,7 +53,7 @@ export async function proxy(request: NextRequest) {
   // `has_seen_onboarding` dipakai sebagai penanda "setup awal selesai",
   // sama seperti di project lama.
   const isPlacementRoute = request.nextUrl.pathname.startsWith("/dashboard/placement")
-  if (isProtected && user && !isPlacementRoute) {
+  if (isDashboard && user && !isPlacementRoute) {
     const { data: profile } = await supabase
       .from("user_profile")
       .select("has_seen_onboarding")
