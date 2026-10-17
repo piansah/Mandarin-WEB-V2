@@ -24,7 +24,6 @@ import {
   MoreHorizontal,
   Network,
   PenLine,
-  Bot,
 } from "lucide-react"
 import {
   Sidebar,
@@ -82,11 +81,6 @@ const todayItems = [
     title: "Mini Games",
     url: "/dashboard/games",
     icon: Gamepad2,
-  },
-  {
-    title: "AI Tutor",
-    url: "/dashboard/ai-tutor",
-    icon: Bot,
   },
 ]
 
