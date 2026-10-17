@@ -9,6 +9,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 import { createClient } from "@/lib/supabase/server"
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+const GEMINI_TIMEOUT_MS = 25_000
 
 function isTemporaryGeminiError(error: unknown) {
   const status = typeof error === "object" && error !== null && "status" in error
@@ -17,7 +18,7 @@ function isTemporaryGeminiError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
 
   return status === 429 || status === 500 || status === 502 || status === 503 || status === 504
-    || /\b(429|500|502|503|504)\b|UNAVAILABLE|RESOURCE_EXHAUSTED/i.test(message)
+    || /\b(408|429|500|502|503|504)\b|TIMEOUT|DEADLINE_EXCEEDED|UNAVAILABLE|RESOURCE_EXHAUSTED/i.test(message)
 }
 
 const SYSTEM_PROMPT = `Kamu adalah Tutor Mandarin AI yang ahli dan ramah untuk aplikasi Mandarin Journey (belajar HSK).
@@ -94,21 +95,35 @@ export async function POST(request: NextRequest) {
     const chat = model.startChat({ history: geminiHistory })
 
     // Kirim pesan dan stream respons
-    const result = await chat.sendMessageStream(message.trim())
+    const abortController = new AbortController()
+    const timeout = setTimeout(() => abortController.abort(), GEMINI_TIMEOUT_MS)
+    let result
+    try {
+      result = await chat.sendMessageStream(message.trim(), { signal: abortController.signal })
+    } catch (error) {
+      clearTimeout(timeout)
+      throw error
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder()
 
-        for await (const chunk of result.stream) {
-          const text = chunk.text()
-          if (text) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
+        try {
+          for await (const chunk of result.stream) {
+            const text = chunk.text()
+            if (text) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text })}\n\n`))
+            }
           }
+          controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
+        } catch (error) {
+          console.error("[/api/chat] Gemini stream error:", error)
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: "Layanan AI terputus. Coba lagi sebentar lagi." })}\n\n`))
+        } finally {
+          clearTimeout(timeout)
+          controller.close()
         }
-
-        controller.enqueue(encoder.encode(`data: [DONE]\n\n`))
-        controller.close()
       },
     })
 

@@ -6,10 +6,8 @@
    Chatbot belajar Mandarin dengan Google Gemini, disimpan ke Supabase. */
 
 import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import {
-  MessageCircle,
-  X,
   Send,
   Bot,
   User,
@@ -46,7 +44,6 @@ function formatAIText(text: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function AITutorChat() {
-  const [isOpen, setIsOpen] = React.useState(false)
   const [messages, setMessages] = React.useState<Message[]>([])
   const [input, setInput] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -133,6 +130,7 @@ export function AITutorChat() {
               accumulated += parsed.text
               setStreamingText(accumulated)
             }
+            if (parsed.error) throw new Error(parsed.error)
           } catch { /* skip invalid JSON */ }
         }
       }
@@ -172,51 +170,7 @@ export function AITutorChat() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <>
-      {/* Floating Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            id="ai-tutor-chat-button"
-            key="fab"
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-2xl cursor-pointer"
-            style={{
-              background: "linear-gradient(135deg, #e11d48 0%, #9f1239 100%)",
-              boxShadow: "0 8px 32px rgba(225,29,72,0.4)",
-            }}
-            aria-label="Buka AI Tutor Chat"
-          >
-            <MessageCircle className="h-6 w-6 text-white" />
-            {/* Pulse indicator */}
-            <span className="absolute top-1 right-1 h-3 w-3 rounded-full bg-green-400 ring-2 ring-white" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
-      {/* Chat Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            key="panel"
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-6 right-6 z-50 flex flex-col rounded-2xl overflow-hidden"
-            style={{
-              width: "min(400px, calc(100vw - 24px))",
-              height: "min(600px, calc(100svh - 80px))",
-              background: "var(--color-card)",
-              border: "1px solid var(--color-border)",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05)",
-            }}
-          >
+    <section className="mx-auto flex min-h-[420px] w-full max-w-5xl flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             {/* Header */}
             <div
               className="flex items-center gap-3 px-4 py-3 shrink-0"
@@ -243,13 +197,6 @@ export function AITutorChat() {
                   title="Chat baru"
                 >
                   <Plus className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full text-white/70 hover:bg-white/20 hover:text-white transition-colors"
-                  aria-label="Tutup chat"
-                >
-                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
@@ -435,9 +382,6 @@ export function AITutorChat() {
                 </div>
               </>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    </section>
   )
 }
