@@ -65,6 +65,22 @@ function showSpeedBadge(label: string) {
   }, 1600)
 }
 
+function selectTapSpeed(text: string): TtsSpeed {
+  if (text !== tapText) {
+    tapCount = 0
+    tapText = text
+  }
+
+  const speed = speeds[tapCount % speeds.length]
+  tapCount += 1
+  if (tapTimer) clearTimeout(tapTimer)
+  tapTimer = setTimeout(() => {
+    tapCount = 0
+    tapText = null
+  }, 8000)
+  return speed
+}
+
 function findBestMandarinVoice(): SpeechSynthesisVoice | null {
   if (!voices.length) loadVoices()
   const zhVoices = voices.filter(voice =>
@@ -94,18 +110,7 @@ export function speakMandarin(text: string, options: { silent?: boolean; rate?: 
   ensureVoiceListener()
   if (!voices.length) loadVoices()
 
-  if (text !== tapText) {
-    tapCount = 0
-    tapText = text
-  }
-
-  const speed = speeds[tapCount % speeds.length]
-  tapCount += 1
-  if (tapTimer) clearTimeout(tapTimer)
-  tapTimer = setTimeout(() => {
-    tapCount = 0
-    tapText = null
-  }, 8000)
+  const speed = selectTapSpeed(text)
 
   if (!options.silent) showSpeedBadge(speed.label)
 
@@ -125,8 +130,9 @@ export function speakMandarin(text: string, options: { silent?: boolean; rate?: 
 
 export function speakParagraph(
   text: string,
-  rate: number = 1,
-  onBoundary?: (charIndex: number) => void
+  rate: number | undefined = undefined,
+  onBoundary?: (charIndex: number) => void,
+  onRate?: (rate: number) => void
 ): Promise<void> {
   return new Promise((resolve) => {
     if (!isSupported() || !text.trim()) {
@@ -136,10 +142,15 @@ export function speakParagraph(
     ensureVoiceListener()
     if (!voices.length) loadVoices()
 
+    const selectedSpeed = rate === undefined ? selectTapSpeed(text) : null
+    const effectiveRate = rate ?? selectedSpeed?.rate ?? 1
+    onRate?.(effectiveRate)
+    if (selectedSpeed) showSpeedBadge(selectedSpeed.label)
+
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = "zh-CN"
-    utterance.rate = rate
+    utterance.rate = effectiveRate
     utterance.pitch = 1
     utterance.volume = 1
     utterance.voice = findBestMandarinVoice()
@@ -161,7 +172,7 @@ export function speakParagraph(
     }
 
     // Safety timeout untuk mencegah macet jika browser tidak menembakkan event onend
-    const maxDurationMs = Math.max(5000, Math.round((text.length / Math.max(rate, 0.3)) * 600) + 4000)
+    const maxDurationMs = Math.max(5000, Math.round((text.length / Math.max(effectiveRate, 0.3)) * 600) + 4000)
     const timer = setTimeout(finish, maxDurationMs)
 
     const wrappedFinish = () => {

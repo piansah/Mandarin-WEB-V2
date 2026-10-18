@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/drawer"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
-import { speakMandarin } from "@/lib/tts"
+import { speakParagraph } from "@/lib/tts"
+import { segmentSentenceByPinyin } from "@/lib/hanzi-segmentation"
 import { saveUserScore, getEstafetPracticeScores, getHanziReadProgress, saveHanziReadProgress } from "@/lib/user-scores"
 import { checkUserContentReports } from "@/lib/bug-reports"
 import styles from "./page.module.css"
@@ -72,6 +73,73 @@ export default function CumulativeFlashcardSessionPage() {
   const [quizKey, setQuizKey] = React.useState<string | null>(null)
   const [quizScore, setQuizScore] = React.useState<number | null>(null)
   const [speakingDone, setSpeakingDone] = React.useState(false)
+  const [activePlayback, setActivePlayback] = React.useState<{ itemId: number; segmentIndex: number } | null>(null)
+  const playbackId = React.useRef(0)
+  const segmentedItems = React.useMemo(
+    () => new Map(items.map(item => [item.id, segmentSentenceByPinyin(item.hanzi, item.pinyin)])),
+    [items],
+  )
+
+  const playItem = React.useCallback((item: HanziItem) => {
+    const currentPlaybackId = ++playbackId.current
+    const segments = segmentedItems.get(item.id) ?? []
+    const ranges: Array<{ index: number; start: number; end: number }> = []
+    let offset = 0
+    segments.forEach((segment, index) => {
+      const start = offset
+      offset += segment.hanzi.length
+      ranges.push({ index, start, end: offset })
+    })
+    const first = ranges.find(range => !segments[range.index].isPunct)
+    if (first) setActivePlayback({ itemId: item.id, segmentIndex: first.index })
+    const findWordRange = (charIndex: number) => {
+      const exact = ranges.find(entry => charIndex >= entry.start && charIndex < entry.end)
+      if (exact && !segments[exact.index].isPunct) return exact
+      return ranges
+        .filter(entry => !segments[entry.index].isPunct)
+        .find(entry => entry.start >= charIndex)
+        ?? [...ranges].reverse().find(entry => !segments[entry.index].isPunct && entry.end <= charIndex)
+    }
+    let playbackRate = 1
+    const totalChars = Math.max(1, item.hanzi.length)
+    let anchorCharIndex = 0
+    let anchorTime = performance.now()
+    let lastActiveCharIndex = 0
+    let lastActiveSegment = first?.index ?? -1
+    const applyCharacterIndex = (charIndex: number) => {
+      const range = findWordRange(charIndex)
+      if (range && range.index !== lastActiveSegment) {
+        lastActiveSegment = range.index
+        setActivePlayback({ itemId: item.id, segmentIndex: range.index })
+      }
+    }
+    const fallback = window.setInterval(() => {
+      if (playbackId.current !== currentPlaybackId) return
+      const estimatedIndex = Math.min(
+        totalChars - 1,
+        anchorCharIndex + Math.floor((performance.now() - anchorTime) * playbackRate / 260),
+      )
+      if (estimatedIndex > lastActiveCharIndex) {
+        lastActiveCharIndex = estimatedIndex
+        applyCharacterIndex(estimatedIndex)
+      }
+    }, 80)
+    void speakParagraph(item.hanzi, undefined, charIndex => {
+      if (playbackId.current !== currentPlaybackId) return
+      // Event boundary memberi anchor nyata dari browser. Timer lalu mengisi
+      // jarak antarevent memakai rate audio terpilih, tanpa mengembalikan
+      // highlight ke karakter yang sudah lewat.
+      if (charIndex >= lastActiveCharIndex) {
+        anchorCharIndex = charIndex
+        anchorTime = performance.now()
+        lastActiveCharIndex = charIndex
+        applyCharacterIndex(charIndex)
+      }
+    }, rate => { playbackRate = rate }).finally(() => {
+      window.clearInterval(fallback)
+      if (playbackId.current === currentPlaybackId) setActivePlayback(null)
+    })
+  }, [segmentedItems])
 
   const refreshScores = React.useCallback(async () => {
     if (!key) return
@@ -187,12 +255,12 @@ export default function CumulativeFlashcardSessionPage() {
   function advance(item: HanziItem) {
     const current = stateById[item.id] ?? 0
     if (current === 2) {
-      speakMandarin(item.hanzi)
+      playItem(item)
       return
     }
 
     const next = (current + 1) as 1 | 2
-    if (next === 1) speakMandarin(item.hanzi)
+    playItem(item)
     setStateById((previous) => {
       const updated = { ...previous, [item.id]: next }
       const completed = items.filter((entry) => updated[entry.id] === 2).map((entry) => entry.id)
@@ -251,13 +319,14 @@ export default function CumulativeFlashcardSessionPage() {
         />
 
         <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
-          <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio.</p>
+          <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio. Tap kalimat berulang kali untuk mengganti kecepatan: normal, pelan, lalu lambat.</p>
           {groups.map((group) => (
             <section key={`${group.tag}-${group.label}`}>
               <div className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{group.tag}</span>{group.label}</div>
               <div className="grid gap-3 md:grid-cols-2 items-stretch">
                 {group.items.map((item, index) => {
                   const state = stateById[item.id] ?? 0
+                  const segments = segmentedItems.get(item.id) ?? []
                   return (
                     <div key={item.id} className="h-full">
                       <SwipeToReport
@@ -270,7 +339,12 @@ export default function CumulativeFlashcardSessionPage() {
                           className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className="font-hanzi text-2xl leading-relaxed text-foreground">{item.hanzi}</div>
+                            <div className="font-hanzi text-2xl leading-relaxed text-foreground">
+                              {segments.map((segment, segmentIndex) => {
+                                const active = !segment.isPunct && activePlayback?.itemId === item.id && activePlayback.segmentIndex === segmentIndex
+                                return <span key={`${segment.hanzi}-${segmentIndex}`} className={`rounded-sm transition-colors duration-150 ${active ? "bg-primary/25 text-primary font-semibold shadow-[0_0_0_3px_hsl(var(--primary)/0.12)]" : ""}`}>{segment.hanzi}</span>
+                              })}
+                            </div>
                             <div className="flex items-center gap-2">
                               {item.user_contribution && (
                                 <span className="rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-0.5 text-[10px] font-medium">

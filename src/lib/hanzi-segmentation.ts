@@ -2,6 +2,7 @@
 // src/lib/hanzi-segmentation.ts
 import { createClient } from "@/lib/supabase/browser"
 import { buildQueryTokens, matchPinyinTokens, stripTones, isIndonesianQuery } from "./pinyin-search"
+import { isHanzi, splitPinyin as splitHanziPinyin } from "./hanzi-utils"
 
 export type GlobalWord = {
   id: string | number
@@ -25,6 +26,114 @@ export type SegmentedWord = {
   badge?: string | null
   found: boolean
   isPunct?: boolean
+}
+
+function normalizeWordPinyin(value: string | null | undefined): string {
+  return stripTones(value ?? "").toLowerCase().replace(/[^a-zü]/g, "")
+}
+
+/** Align pinyin word groups with Hanzi by syllable count, then attach dictionary metadata. */
+export function segmentSentenceByPinyin(sentence: string, pinyin?: string | null): SegmentedWord[] {
+  if (!sentence) return []
+  if (!pinyin?.trim()) return segmentText(sentence)
+
+  const pinyinGroups = pinyin.match(/[\p{L}\p{M}üÜ]+(?:[1-5])?/gu) ?? []
+  if (pinyinGroups.length === 0) return []
+
+  const chars = Array.from(sentence)
+  const aligned: SegmentedWord[] = []
+  let charIndex = 0
+
+  for (const pinyinGroup of pinyinGroups) {
+    while (charIndex < chars.length && !isHanzi(chars[charIndex])) {
+      const char = chars[charIndex++]
+      aligned.push({ hanzi: char, found: false, isPunct: true })
+    }
+
+    const syllableCount = splitHanziPinyin(pinyinGroup).length
+    let hanzi = ""
+    while (charIndex < chars.length && hanzi.length < syllableCount) {
+      const char = chars[charIndex]
+      if (!isHanzi(char)) break
+      hanzi += char
+      charIndex += 1
+    }
+    if (hanzi.length !== syllableCount) return []
+
+    const dictionaryWord = segmentText(hanzi).find(segment => segment.hanzi === hanzi)
+    aligned.push(dictionaryWord
+      ? { ...dictionaryWord, pinyin: dictionaryWord.pinyin || pinyinGroup }
+      : { hanzi, pinyin: pinyinGroup, found: false })
+  }
+
+  while (charIndex < chars.length) {
+    const char = chars[charIndex++]
+    aligned.push(isHanzi(char)
+      ? { hanzi: char, found: false }
+      : { hanzi: char, found: false, isPunct: true })
+  }
+
+  return aligned
+}
+
+/** Match a vocabulary item as a complete pinyin-aligned word, not as a Hanzi substring. */
+export function sentenceContainsExactWord(sentence: string, hanzi: string, pinyin?: string | null, sentencePinyin?: string | null): boolean {
+  const targetPinyin = normalizeWordPinyin(pinyin)
+  return segmentSentenceByPinyin(sentence, sentencePinyin).some(segment => {
+    if (segment.hanzi !== hanzi) return false
+    const segmentPinyin = normalizeWordPinyin(segment.pinyin)
+    return !targetPinyin || !segmentPinyin || segmentPinyin === targetPinyin
+  })
+}
+
+const MEANING_STOP_WORDS = new Set(["dan", "atau", "dengan", "dari", "untuk", "pada", "dalam", "adalah", "sebagai"])
+const GENERIC_SINGLE_MEANINGS = new Set(["baik", "bagus", "besar", "kecil", "banyak", "sedikit", "sangat", "lebih", "kurang", "baru", "lama", "sering", "sudah", "belum", "dapat", "bisa"])
+
+function splitMeaningAlternatives(value: string): string[] {
+  const alternatives: string[] = []
+  let current = ""
+  let parentheses = 0
+  for (const char of value) {
+    if (char === "(") parentheses += 1
+    if (char === ")") parentheses = Math.max(0, parentheses - 1)
+    if ((char === ";" || char === "/") && parentheses === 0) {
+      alternatives.push(current)
+      current = ""
+    } else {
+      current += char
+    }
+  }
+  alternatives.push(current)
+  return alternatives.map(item => item.replace(/\([^)]*\)/g, " ").trim()).filter(Boolean)
+}
+
+/** Match any primary meaning alternative; parenthetical notes remain explanatory context. */
+export function sentenceMeaningMatches(wordMeaning?: string | null, sentenceMeaning?: string | null): boolean | null {
+  if (!wordMeaning?.trim() || !sentenceMeaning?.trim()) return null
+  const normalize = (value: string) => value
+    .toLocaleLowerCase("id-ID")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/[\s-]+/)
+    .filter(token => token.length >= 3 && !MEANING_STOP_WORDS.has(token))
+  const sentenceWords = new Set(normalize(sentenceMeaning))
+  if (sentenceWords.size === 0) return null
+
+  let hasComparableMeaning = false
+  for (const alternative of splitMeaningAlternatives(wordMeaning)) {
+    const targetWords = normalize(alternative)
+    if (targetWords.length === 0) continue
+    hasComparableMeaning = true
+    if (targetWords.length === 1) {
+      const [word] = targetWords
+      if (!GENERIC_SINGLE_MEANINGS.has(word) && sentenceWords.has(word)) return true
+      continue
+    }
+
+    const overlap = targetWords.filter(word => sentenceWords.has(word)).length
+    if (overlap / targetWords.length >= 0.5) return true
+  }
+
+  return hasComparableMeaning ? false : null
 }
 
 export function getWordDetailPath(word: {

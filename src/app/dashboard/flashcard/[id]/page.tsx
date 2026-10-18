@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { createPortal } from "react-dom"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ChevronsLeft, Flag, Heart, Plus, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
@@ -28,12 +28,18 @@ import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
 import { getDeckPracticeScores } from "@/lib/user-scores"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
+import { getWordDetailPath } from "@/lib/hanzi-segmentation"
 
 const idsLabels = IDS_LABELS
+
+function getDetailTab(value: string | null): DetailTab {
+  return value === "stroke" || value === "karakter" || value === "kata" ? value : "kalimat"
+}
 
 export default function FlashcardDeckPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const deckId = Number(params.id)
   const { pinned, isMobile } = useSidebar()
 
@@ -50,11 +56,23 @@ export default function FlashcardDeckPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null)
-  const [detailTab, setDetailTab] = React.useState<DetailTab>("kalimat")
+  const [detailTab, setDetailTab] = React.useState<DetailTab>(() => getDetailTab(searchParams.get("tab")))
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
+
+  React.useEffect(() => {
+    setDetailTab(getDetailTab(searchParams.get("tab")))
+  }, [searchParams])
+
+  function handleDetailTabChange(tab: DetailTab) {
+    setDetailTab(tab)
+    const url = new URL(window.location.href)
+    if (tab === "kalimat") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", tab)
+    router.replace(`${url.pathname}${url.search}`, { scroll: false })
+  }
 
   // ── Gating & Status "Pilih Latihan": Flashcard -> Quiz -> (Nada & Menulis bareng) ──
   const [flashcardDone, setFlashcardDone] = React.useState(false)
@@ -208,25 +226,29 @@ export default function FlashcardDeckPage() {
       const [compoundRes, cardRes] = await Promise.all([
         supa
           .from("word_compounds")
-          .select("hanzi, pinyin, arti, badge")
+          .select("id, hanzi, pinyin, arti, badge")
           .ilike("hanzi", `%${activeCard.hanzi}%`)
           .order("frequency", { ascending: false })
           .limit(30),
         supa
           .from("flashcard_cards")
-          .select("hanzi, pinyin, arti, flashcard_sets(hsk_level)")
+          .select("id, set_id, hanzi, pinyin, arti, flashcard_sets(hsk_level)")
           .ilike("hanzi", `%${activeCard.hanzi}%`)
           .limit(30),
       ])
 
       if (cancelled) return
       const flashcardWords = (cardRes.data ?? []).map(word => ({
+        id: word.id,
+        set_id: word.set_id,
+        source: "hsk" as const,
         hanzi: word.hanzi,
         pinyin: word.pinyin,
         arti: word.arti,
         badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
       }))
-      const merged = [...flashcardWords, ...(compoundRes.data ?? [])]
+      const compoundWords = (compoundRes.data ?? []).map(word => ({ ...word, source: "compound" as const }))
+      const merged = [...flashcardWords, ...compoundWords]
       const unique = new Map(merged.map(word => [`${word.hanzi}\u0000${word.pinyin ?? ""}\u0000${word.arti ?? ""}`, word]))
       setCompounds(sortRelatedWords([...unique.values()], activeCard.hanzi).slice(0, 30))
       setCompoundsLoading(false)
@@ -421,10 +443,13 @@ export default function FlashcardDeckPage() {
             compounds={compounds}
             examplesLoading={examplesLoading}
             compoundsLoading={compoundsLoading}
-            onTabChange={setDetailTab}
+            onTabChange={handleDetailTabChange}
             onClose={closeDetail}
             onSpeak={speakMandarin}
-            onOpenCard={openDetail}
+            onOpenWord={word => {
+              const path = getWordDetailPath(word)
+              if (path) router.push(path)
+            }}
           />
         </WordDetailPortal>
       )}
@@ -473,7 +498,7 @@ function WordDetailPanel({
   onTabChange,
   onClose,
   onSpeak,
-  onOpenCard,
+  onOpenWord,
 }: {
   card: Card
   tab: DetailTab
@@ -484,7 +509,7 @@ function WordDetailPanel({
   onTabChange: (tab: DetailTab) => void
   onClose: () => void
   onSpeak: (text: string) => void
-  onOpenCard: (card: Card) => void
+  onOpenWord: (word: CompoundWord) => void
 }) {
   const supa = useSupabase()
   const chars = [...card.hanzi].filter(isHanzi)
@@ -644,25 +669,26 @@ function WordDetailPanel({
             {compoundsLoading && <LoadingLine label="Memuat kata gabungan..." />}
             {!compoundsLoading && compounds.length === 0 && <EmptyLine label="Tidak ada kata gabungan ditemukan." />}
             {compounds.map((word, index) => (
-              <button
+              <div
                 key={`${word.hanzi}-${index}`}
-                className="flex items-center gap-4 rounded-xl border border-cyan-900/50 bg-[#0b1c2b] p-4 text-left transition-colors hover:border-[#e8c96d]/40"
-                onClick={() => onOpenCard({
-                  id: card.id,
-                  hanzi: word.hanzi,
-                  pinyin: word.pinyin ?? "",
-                  arti: word.arti ?? "",
-                })}
+                className="flex items-center gap-3 rounded-xl border border-cyan-900/50 bg-[#0b1c2b] p-3 transition-colors hover:border-[#e8c96d]/40 sm:gap-4 sm:p-4"
               >
-                <span className="font-hanzi min-w-20 text-3xl text-slate-100">{word.hanzi}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">
-                    <ColorPinyin text={word.pinyin ?? ""} />
+                <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left sm:gap-4" onClick={() => onOpenWord(word)} aria-label={`Buka detail kosakata ${word.hanzi}`}>
+                  <span className="font-hanzi min-w-16 text-3xl text-slate-100 sm:min-w-20">{word.hanzi}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">
+                      <ColorPinyin text={word.pinyin ?? ""} />
+                    </span>
+                    <span className="block truncate text-sm text-slate-500">{word.arti}</span>
                   </span>
-                  <span className="block truncate text-sm text-slate-500">{word.arti}</span>
-                </span>
-                {word.badge && <span className="rounded-full border border-[#e8c96d]/30 bg-[#e8c96d]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#e8c96d]">{word.badge}</span>}
-              </button>
+                </button>
+                <div className="flex shrink-0 flex-col items-center gap-1 sm:flex-row sm:gap-2">
+                  {word.badge && <span className="rounded-full border border-[#e8c96d]/30 bg-[#e8c96d]/10 px-2 py-1 text-[10px] font-bold uppercase text-[#e8c96d]">{word.badge}</span>}
+                  <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-white/10 hover:text-white" onClick={() => onSpeak(word.hanzi)} aria-label={`Dengarkan ${word.hanzi}`} title="Dengarkan pelafalan">
+                    <Volume2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}

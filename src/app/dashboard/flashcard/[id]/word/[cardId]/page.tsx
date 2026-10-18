@@ -10,23 +10,27 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Flag, Heart, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { fetchCharacterDictionary, type CharacterDictionary, type CharacterDictionaryEntry } from "@/lib/character-dictionary"
-import { speakMandarin } from "@/lib/tts"
+import { speakMandarin, speakParagraph } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
-import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
+import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, sentenceMeaningMatches, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
 type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
-type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null }
-type CompoundWord = { hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
+type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null; linkedToWord?: boolean }
+type CompoundWord = { id?: string | number; set_id?: number; source?: "hsk" | "compound"; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
 type WordPopoverState = { hanzi: string; pinyin: string; arti: string; x: number; y: number }
 type DictionaryMap = CharacterDictionary
 type DictionaryEntry = CharacterDictionaryEntry
+
+function getDetailTab(value: string | null): DetailTab {
+  return value === "stroke" || value === "karakter" || value === "kata" ? value : "kalimat"
+}
 
 function ColorPinyin({ text }: { text: string }) {
   return <>{text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
@@ -69,7 +73,7 @@ export default function WordDetailPage() {
   const searchParams = useSearchParams()
   const cardId = String(params.cardId)
   const supa = useSupabase()
-  const [tab, setTab] = React.useState<DetailTab>("kalimat")
+  const [tab, setTab] = React.useState<DetailTab>(() => getDetailTab(searchParams.get("tab")))
   const [card, setCard] = React.useState<Card | null>(null)
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
@@ -83,6 +87,21 @@ export default function WordDetailPage() {
   const [reportModal, setReportModal] = React.useState({ isOpen: false, contentLabel: "" })
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
+  const relevantExamples = React.useMemo(() => examples.filter(example =>
+    example.linkedToWord || (!!cacheReady && !!example.hanzi && !!card && sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin))
+  ), [examples, card, cacheReady])
+
+  React.useEffect(() => {
+    setTab(getDetailTab(searchParams.get("tab")))
+  }, [searchParams])
+
+  function handleTabChange(nextTab: DetailTab) {
+    setTab(nextTab)
+    const url = new URL(window.location.href)
+    if (nextTab === "kalimat") url.searchParams.delete("tab")
+    else url.searchParams.set("tab", nextTab)
+    router.replace(`${url.pathname}${url.search}`, { scroll: false })
+  }
 
   React.useEffect(() => {
     let cancelled = false
@@ -165,7 +184,11 @@ export default function WordDetailPage() {
       ])
       if (cancelled) return
       const seen = new Set<string>()
-      setExamples([...(hanziRes.data ?? []), ...(directRes.data ?? []), ...(sentenceRes.data ?? [])].filter(item => { const key = `${item.id}-${item.hanzi}`; if (seen.has(key)) return false; seen.add(key); return true }))
+      setExamples([
+        ...(hanziRes.data ?? []).map(item => ({ ...item, linkedToWord: false })),
+        ...(directRes.data ?? []).map(item => ({ ...item, linkedToWord: true })),
+        ...(sentenceRes.data ?? []).map(item => ({ ...item, linkedToWord: false })),
+      ].filter(item => { const key = `${item.id}-${item.hanzi}`; if (seen.has(key)) return false; seen.add(key); return true }))
       setTabLoading(false)
     }
     loadExamples(); return () => { cancelled = true }
@@ -179,24 +202,27 @@ export default function WordDetailPage() {
       setTabLoading(true)
       const select = "hanzi, pinyin, arti, badge"
       const [primary, flashcardMatches] = await Promise.all([
-        supa.from("word_compounds").select(select).ilike("hanzi", `%${activeCard.hanzi}%`).order("frequency", { ascending: false }).limit(30),
-        supa.from("flashcard_cards").select("hanzi, pinyin, arti, flashcard_sets(hsk_level)").ilike("hanzi", `%${activeCard.hanzi}%`).limit(30),
+        supa.from("word_compounds").select(`id, ${select}`).ilike("hanzi", `%${activeCard.hanzi}%`).order("frequency", { ascending: false }).limit(30),
+        supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti, flashcard_sets(hsk_level)").ilike("hanzi", `%${activeCard.hanzi}%`).limit(30),
       ])
       const flashcardWords: CompoundWord[] = (flashcardMatches.data ?? []).map(word => ({
+        id: word.id,
+        set_id: word.set_id,
+        source: "hsk",
         hanzi: word.hanzi,
         pinyin: word.pinyin,
         arti: word.arti,
         badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
       }))
-      let data: CompoundWord[] = [...flashcardWords, ...(primary.data ?? [])]
+      let data: CompoundWord[] = [...flashcardWords, ...(primary.data ?? []).map(word => ({ ...word, source: "compound" as const }))]
 
       // Dataset compounds tidak selalu memiliki kata lengkap (mis. 你好),
       // sehingga gunakan karakter penyusunnya sebagai fallback — tapi hasilnya
       // harus tetap mengandung SEMUA karakter penyusun (AND), bukan salah satu (OR),
       // supaya tidak muncul kata yang cuma nyambung ke satu suku kata saja.
       if (data.length === 0 && [...activeCard.hanzi].length > 1) {
-        let fallbackQuery = supa.from("word_compounds").select(select)
-        let fallbackCardsQuery = supa.from("flashcard_cards").select("hanzi, pinyin, arti, flashcard_sets(hsk_level)")
+        let fallbackQuery = supa.from("word_compounds").select(`id, ${select}`)
+        let fallbackCardsQuery = supa.from("flashcard_cards").select("id, set_id, hanzi, pinyin, arti, flashcard_sets(hsk_level)")
         for (const char of [...activeCard.hanzi]) {
           fallbackQuery = fallbackQuery.ilike("hanzi", `%${char}%`)
           fallbackCardsQuery = fallbackCardsQuery.ilike("hanzi", `%${char}%`)
@@ -206,12 +232,15 @@ export default function WordDetailPage() {
           fallbackCardsQuery.limit(30),
         ])
         const fallbackFlashcardWords: CompoundWord[] = (fallbackCards.data ?? []).map(word => ({
+          id: word.id,
+          set_id: word.set_id,
+          source: "hsk",
           hanzi: word.hanzi,
           pinyin: word.pinyin,
           arti: word.arti,
           badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
         }))
-        data = [...fallbackFlashcardWords, ...(fallback.data ?? [])]
+        data = [...fallbackFlashcardWords, ...(fallback.data ?? []).map(word => ({ ...word, source: "compound" as const }))]
       }
       if (!cancelled) {
         const unique = new Map(data.map(word => [`${word.hanzi}\u0000${word.pinyin ?? ""}\u0000${word.arti ?? ""}`, word]))
@@ -300,9 +329,9 @@ export default function WordDetailPage() {
   }
 
   return <div className={styles.page}>
-    <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</nav>
+    <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => handleTabChange(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={examples} cacheReady={cacheReady} card={card} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} />}</div>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} card={card} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
 
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
     {wordPopover && (
@@ -366,9 +395,11 @@ function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; fav
 
 function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: { examples: ExampleSentence[]; cacheReady: boolean; card: Card; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
+  const matched = examples.filter(example => sentenceMeaningMatches(card.arti, example.arti) === true)
+  const needsReview = examples.filter(example => sentenceMeaningMatches(card.arti, example.arti) !== true)
   return (
     <div>
-      <div className="flex justify-end mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
           onClick={onAddSentence}
@@ -378,20 +409,86 @@ function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: 
           Tambah Contoh Kalimat
         </button>
       </div>
-      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
+      {matched.length > 0 && <>
+        <div className={styles.sentenceGroupTitle}>{matched.length} contoh kalimat</div>
+        <div className={styles.sentenceList}>{matched.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
+      </>}
+      {needsReview.length > 0 && <div className={styles.sentenceReview}>
+        <div className={styles.sentenceGroupTitle}>{needsReview.length} makna berbeda</div>
+        <div className={styles.sentenceList}>{needsReview.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
+      </div>}
     </div>
   )
 }
 
 function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSentence; cacheReady: boolean; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   const sentence = example.hanzi || ""
-  const gesture = useLongPress(() => speakMandarin(sentence), () => speakMandarin(sentence))
+  const [activeSegment, setActiveSegment] = React.useState<number | null>(null)
+  const playbackId = React.useRef(0)
 
   // Segmentasi kosakata pada kalimat memakai cache global yang sama dengan
   // fitur pencarian & cerita (segmentText), sehingga tiap potongan kata
   // sudah membawa pinyin & arti asli untuk ditampilkan di popup — bukan
   // sekadar status "diketahui/tidak" seperti sebelumnya.
-  const segments = React.useMemo(() => (cacheReady ? segmentText(sentence) : []), [sentence, cacheReady])
+  const segments = React.useMemo(() => (cacheReady ? segmentSentenceByPinyin(sentence, example.pinyin) : []), [sentence, example.pinyin, cacheReady])
+
+  const playSentence = React.useCallback(() => {
+    const currentPlaybackId = ++playbackId.current
+    const playableSegments = segments.length > 0 ? segments : [{ hanzi: sentence, found: false }]
+    let charOffset = 0
+    const ranges = playableSegments.map((segment, index) => {
+      const start = charOffset
+      charOffset += segment.hanzi.length
+      return { index, start, end: charOffset }
+    })
+    const first = ranges.find(range => isHanzi(playableSegments[range.index].hanzi[0] ?? ""))
+    setActiveSegment(first?.index ?? 0)
+    let playbackRate = 1
+    const totalChars = Math.max(1, sentence.length)
+    let anchorCharIndex = 0
+    let anchorTime = performance.now()
+    let lastActiveCharIndex = 0
+    let lastActiveSegment = first?.index ?? -1
+    const findWordRange = (charIndex: number) => {
+      const exact = ranges.find(range => charIndex >= range.start && charIndex < range.end)
+      if (exact && isHanzi(playableSegments[exact.index].hanzi[0] ?? "")) return exact
+      return ranges
+        .filter(range => isHanzi(playableSegments[range.index].hanzi[0] ?? ""))
+        .find(range => range.start >= charIndex)
+        ?? [...ranges].reverse().find(range => isHanzi(playableSegments[range.index].hanzi[0] ?? "") && range.end <= charIndex)
+    }
+    const applyCharacterIndex = (charIndex: number) => {
+      const range = findWordRange(charIndex)
+      if (range && range.index !== lastActiveSegment) {
+        lastActiveSegment = range.index
+        setActiveSegment(range.index)
+      }
+    }
+    const fallback = window.setInterval(() => {
+      if (playbackId.current !== currentPlaybackId) return
+      const estimatedIndex = Math.min(
+        totalChars - 1,
+        anchorCharIndex + Math.floor((performance.now() - anchorTime) * playbackRate / 260),
+      )
+      if (estimatedIndex > lastActiveCharIndex) {
+        lastActiveCharIndex = estimatedIndex
+        applyCharacterIndex(estimatedIndex)
+      }
+    }, 80)
+    void speakParagraph(sentence, undefined, charIndex => {
+      if (playbackId.current !== currentPlaybackId) return
+      if (charIndex >= lastActiveCharIndex) {
+        anchorCharIndex = charIndex
+        anchorTime = performance.now()
+        lastActiveCharIndex = charIndex
+        applyCharacterIndex(charIndex)
+      }
+    }, rate => { playbackRate = rate }).finally(() => {
+      window.clearInterval(fallback)
+      if (playbackId.current === currentPlaybackId) setActiveSegment(null)
+    })
+  }, [segments, sentence])
+  const gesture = useLongPress(playSentence, playSentence)
 
   const handleReport = () => {
     window.openBugReportModal?.(
@@ -404,11 +501,11 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
 
   return (
     <SwipeToReport onReport={() => handleReport()}>
-      <article className={styles.sentenceCard} {...gesture}>
+      <article className={`${styles.sentenceCard} ${activeSegment !== null ? styles.sentenceCardPlaying : ""}`} {...gesture}>
         <div className={styles.sentenceHanzi}>
           {segments.length > 0
             ? segments.map((segment, index) => isHanzi(segment.hanzi[0] ?? "")
-              ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} onOpen={onWordOpen} />
+              ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} active={activeSegment === index} onOpen={onWordOpen} />
               : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
             : sentence}
         </div>
@@ -419,14 +516,14 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
   )
 }
 
-function SentenceToken({ segment, onOpen }: { segment: SegmentedWord; onOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
+function SentenceToken({ segment, active, onOpen }: { segment: SegmentedWord; active: boolean; onOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   // Tap kata hanya membuka popup detail (hanzi/pinyin/arti) — TTS tidak
   // diputar otomatis di sini, hanya lewat tombol "Dengar" di dalam popup.
   return (
     <button
       type="button"
       aria-label={`Detail kata ${segment.hanzi}`}
-      className={segment.found ? styles.knownToken : styles.singleToken}
+      className={`${segment.found ? styles.knownToken : styles.singleToken} ${active ? styles.ttsActiveToken : ""}`}
       onClick={event => { event.stopPropagation(); onOpen(segment, event) }}
     >
       {segment.hanzi}
@@ -443,8 +540,31 @@ function getVocabularyBadge(badge?: string | null) {
   return { label: badge ?? "Native", tone: "wordBadgeNative" }
 }
 
-function WordTab({ compounds }: { compounds: CompoundWord[] }) { if (compounds.length === 0) return <EmptyLine label="Tidak ada kata gabungan ditemukan." />; return <div className={styles.wordList}>{compounds.map((word, index) => <WordRow key={`${word.hanzi}-${index}`} word={word} index={index} />)}</div> }
-function WordRow({ word, index }: { word: CompoundWord; index: number }) { const gesture = useLongPress(() => speakMandarin(word.hanzi), () => speakMandarin(word.hanzi)); const badge = getVocabularyBadge(word.badge); return <button type="button" className={styles.wordRow} {...gesture}><span className={styles.wordHanzi}>{word.hanzi}</span><span className={styles.wordInfo}><span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span><span className={styles.wordMeaning}>{word.arti}</span></span><span className={styles.wordMeta}><span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span><span className={styles.wordNumber}>#{index + 1}</span></span></button> }
+function WordTab({ compounds, onOpen }: { compounds: CompoundWord[]; onOpen: (word: CompoundWord) => void }) {
+  if (compounds.length === 0) return <EmptyLine label="Tidak ada kata gabungan ditemukan." />
+  return <div className={styles.wordList}>{compounds.map((word, index) => <WordRow key={`${word.hanzi}-${word.id ?? index}`} word={word} onOpen={onOpen} />)}</div>
+}
+
+function WordRow({ word, onOpen }: { word: CompoundWord; onOpen: (word: CompoundWord) => void }) {
+  const badge = getVocabularyBadge(word.badge)
+  return (
+    <div className={styles.wordRow}>
+      <button type="button" className={styles.wordRowLink} onClick={() => onOpen(word)} aria-label={`Buka detail kosakata ${word.hanzi}`}>
+        <span className={styles.wordHanzi}>{word.hanzi}</span>
+        <span className={styles.wordInfo}>
+          <span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span>
+          <span className={styles.wordMeaning}>{word.arti}</span>
+        </span>
+      </button>
+      <div className={styles.wordActions}>
+        <span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span>
+        <button type="button" className={styles.wordSpeaker} onClick={() => speakMandarin(word.hanzi)} aria-label={`Dengarkan ${word.hanzi}`} title="Dengarkan pelafalan">
+          <Volume2 className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
 
 function CharBreakdown({ char, dictionary }: { char: string; dictionary: DictionaryMap | null }) {
   const entry = dictionary?.[char]; const { ids, label, parts } = decompParts(entry)

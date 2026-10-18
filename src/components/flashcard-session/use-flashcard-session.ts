@@ -128,10 +128,13 @@ export function useFlashcardSession({
 
           const loadedRepeatQueueIds = parsed.repeatQueueIds ?? []
           const validRepeatQueue: SwipeFlashcard[] = []
+          const seenRepeatIds = new Set<string>()
           const cardsById = new Map(cards.map(c => [String(c.id), c] as [string, SwipeFlashcard]))
           for (const id of loadedRepeatQueueIds) {
+            if (seenRepeatIds.has(String(id))) continue
             const card = cardsById.get(id)
             if (card) {
+              seenRepeatIds.add(String(id))
               validRepeatQueue.push(card)
             }
           }
@@ -449,6 +452,8 @@ export function useFlashcardSession({
     const isFromRepeatQueue = idx >= totalOriginal
     const isDue = isCardDue(card.nextReview)
     const shouldRecordSrs = isDue || quality === 0
+    const alreadyQueuedForRepeat = repeatQueue.some(repeatCard => String(repeatCard.id) === cardIdStr)
+    const willAddRepeat = quality === 0 && !isFromRepeatQueue && !alreadyQueuedForRepeat
 
     if (!isFromRepeatQueue && shouldRecordSrs) {
       setSessionReviews(prev => {
@@ -491,13 +496,13 @@ export function useFlashcardSession({
     setLatestRatings(prev => new Map(prev).set(cardIdStr, quality))
 
     if (quality === 0) {
-      setRepeatQueue(prev => [...prev, card])
+      if (willAddRepeat) setRepeatQueue(prev => [...prev, card])
       setLapsedCardIds(prev => new Set(prev).add(cardIdStr))
     }
 
     setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
 
-    if (idx + 1 >= currentTotal + (quality === 0 ? 1 : 0)) {
+    if (idx + 1 >= currentTotal + (willAddRepeat ? 1 : 0)) {
       setDone(true)
     } else {
       setIdx((i: number) => i + 1)

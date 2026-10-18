@@ -201,6 +201,10 @@
   border-color: rgba(66, 214, 164, .45);
 }
 
+.sentenceCardPlaying:hover {
+  border-color: var(--c-border);
+}
+
 .sentenceHanzi {
   padding-right: 20px;
   color: var(--c-hanzi);
@@ -227,6 +231,27 @@
   line-height: 1.5;
 }
 
+.sentenceGroupTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--c-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sentenceGroupTitle span {
+  color: var(--c-copy);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sentenceReview {
+  margin-top: 18px;
+}
+
+
 .wordList {
   display: flex;
   flex-direction: column;
@@ -244,13 +269,54 @@
   border-radius: 12px;
   background: var(--c-card);
   color: var(--c-text);
+  transition: border-color .16s ease;
+}
+
+.wordRowLink {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.wordRow:hover {
+.wordActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.wordRow:hover,
+.wordRow:focus-within {
   border-color: rgba(66, 214, 164, .45);
+}
+
+.wordSpeaker {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-copy);
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.wordSpeaker:hover,
+.wordSpeaker:focus-visible {
+  background: rgba(255, 255, 255, .08);
+  color: var(--c-text);
 }
 
 .wordHanzi {
@@ -463,6 +529,12 @@
   background: rgba(66, 214, 164, .1);
 }
 
+.ttsActiveToken,
+.ttsActiveToken:hover {
+  background: rgba(66, 214, 164, .24);
+  color: #42d6a4;
+}
+
 .tone1 {
   color: var(--t1);
 }
@@ -608,6 +680,11 @@
   .wordRow {
     gap: 14px;
     padding: 16px;
+  }
+
+  .wordActions {
+    flex-direction: column;
+    gap: 1px;
   }
 
   .wordHanzi {

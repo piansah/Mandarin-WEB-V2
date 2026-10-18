@@ -25,6 +25,9 @@ export type ExampleSentence = {
 }
 
 export type CompoundWord = {
+  id?: string | number
+  set_id?: number
+  source?: "hsk" | "compound"
   hanzi: string
   pinyin: string | null
   arti: string | null
