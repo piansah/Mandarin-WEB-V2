@@ -79,15 +79,17 @@ export function splitPinyin(word: string): string[] {
 /**
  * Parse decomposition entry into parts
  */
-export function decompParts(entry?: { decomposition?: string }): {
+export function decompParts(entry?: { decomposition?: string; components?: string[] }): {
   ids: string
   label: string
   parts: string[]
 } {
   const raw = entry?.decomposition || ""
   const ids = raw[0] || ""
-  const parts = raw
-    ? [...raw].filter(char => char !== ids && char !== "？" && !IDS_LABELS[char])
-    : []
+  const parts = entry?.components?.length
+    ? entry.components
+    : raw
+      ? [...raw].filter(char => char !== ids && char !== "？" && !IDS_LABELS[char])
+      : []
   return { ids, label: IDS_LABELS[ids] || "", parts: [...new Set(parts)] }
 }

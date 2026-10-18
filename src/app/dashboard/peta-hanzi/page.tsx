@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { HanziSearchBar } from "@/components/hanzi-map/hanzi-search-bar"
 import { HanziMapGraph } from "@/components/hanzi-map/hanzi-map-graph"
 import { HanziMapDetail } from "@/components/hanzi-map/hanzi-map-detail"
+import { fetchCharacterEntries } from "@/lib/character-dictionary"
 import {
   fetchWordsForChar,
   fetchExamplesForWord,
@@ -43,9 +44,6 @@ type Snapshot = {
   expandedNodeId: string | null
 }
 
-type DictionaryEntry = { pinyin?: string[]; definition?: string }
-type DictionaryMap = Record<string, DictionaryEntry>
-
 export default function PetaHanziPage() {
   const supa = useSupabase()
   const [searchValue, setSearchValue] = React.useState("")
@@ -63,7 +61,6 @@ export default function PetaHanziPage() {
   const wordCacheRef = React.useRef<Map<string, VocabularyWord[]>>(new Map())
   const exampleCacheRef = React.useRef<Map<string, ExampleSentence[]>>(new Map())
   const rootWordCacheRef = React.useRef<Map<string, VocabularyWord>>(new Map())
-  const dictionaryRef = React.useRef<DictionaryMap | null>(null)
   const expansionRequestIdRef = React.useRef(0)
   const detailRequestIdRef = React.useRef(0)
 
@@ -122,19 +119,6 @@ export default function PetaHanziPage() {
     }
   }
 
-  const loadDictionary = async (): Promise<DictionaryMap | null> => {
-    if (dictionaryRef.current) return dictionaryRef.current
-    try {
-      const res = await fetch("/data/dictionary.json")
-      if (!res.ok) return null
-      const data = (await res.json()) as DictionaryMap
-      dictionaryRef.current = data
-      return data
-    } catch {
-      return null
-    }
-  }
-
   /** Cari data kosakata untuk karakter tunggal (node akar). */
   const resolveRootWord = async (char: string): Promise<VocabularyWord> => {
     const memo = rootWordCacheRef.current.get(char)
@@ -189,14 +173,14 @@ export default function PetaHanziPage() {
       }
     }
 
-    // 4) dictionary.json (pinyin + definisi)
+    // 4) Tabel characters (pinyin + definisi)
     if (!word) {
-      const dict = await loadDictionary()
-      const entry = dict?.[char]
+      const entries = await fetchCharacterEntries(supa, [char])
+      const entry = entries[char]
       word = {
         id: `root-${char}`,
         hanzi: char,
-        pinyin: entry?.pinyin?.join(", ") ?? null,
+        pinyin: entry?.pinyin.join(", ") ?? null,
         arti: entry?.definition ?? null,
         source: "flashcard",
         frequency: null,

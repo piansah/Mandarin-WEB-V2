@@ -31,14 +31,9 @@ export type CompoundWord = {
   badge?: string | null
 }
 
-export type DictionaryEntry = {
-  pinyin?: string[]
-  definition?: string
-  decomposition?: string
-  etymology?: { hint?: string }
-}
+export type DictionaryEntry = import("@/lib/character-dictionary").CharacterDictionaryEntry
 
-export type DictionaryMap = Record<string, DictionaryEntry>
+export type DictionaryMap = import("@/lib/character-dictionary").CharacterDictionary
 
 export type DeckMeta = {
   title: string

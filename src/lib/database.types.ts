@@ -112,6 +112,77 @@ export type Database = {
         }
         Relationships: []
       }
+      character_components: {
+        Row: {
+          character: string
+          component: string
+          position: number
+        }
+        Insert: {
+          character: string
+          component: string
+          position: number
+        }
+        Update: {
+          character?: string
+          component?: string
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_components_character_fkey"
+            columns: ["character"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["character"]
+          },
+        ]
+      }
+      characters: {
+        Row: {
+          character: string
+          decomposition: string
+          definition: string | null
+          definition_en: string | null
+          etymology_hint: string | null
+          etymology_hint_en: string | null
+          etymology_phonetic: string | null
+          etymology_semantic: string | null
+          etymology_type: string | null
+          matches: Json
+          pinyin: Json
+          radical: string
+        }
+        Insert: {
+          character: string
+          decomposition: string
+          definition?: string | null
+          definition_en?: string | null
+          etymology_hint?: string | null
+          etymology_hint_en?: string | null
+          etymology_phonetic?: string | null
+          etymology_semantic?: string | null
+          etymology_type?: string | null
+          matches?: Json
+          pinyin?: Json
+          radical: string
+        }
+        Update: {
+          character?: string
+          decomposition?: string
+          definition?: string | null
+          definition_en?: string | null
+          etymology_hint?: string | null
+          etymology_hint_en?: string | null
+          etymology_phonetic?: string | null
+          etymology_semantic?: string | null
+          etymology_type?: string | null
+          matches?: Json
+          pinyin?: Json
+          radical?: string
+        }
+        Relationships: []
+      }
       cerita_paragraphs: {
         Row: {
           cerita_id: number

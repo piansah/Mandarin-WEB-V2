@@ -9,6 +9,7 @@ import * as React from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Flag, Heart, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
+import { fetchCharacterDictionary, type CharacterDictionary, type CharacterDictionaryEntry } from "@/lib/character-dictionary"
 import { speakMandarin } from "@/lib/tts"
 import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
@@ -22,9 +23,9 @@ type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
 type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
 type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null }
 type CompoundWord = { hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
-type DictionaryEntry = { pinyin?: string[]; definition?: string; decomposition?: string; etymology?: { hint?: string } }
-type DictionaryMap = Record<string, DictionaryEntry>
 type WordPopoverState = { hanzi: string; pinyin: string; arti: string; x: number; y: number }
+type DictionaryMap = CharacterDictionary
+type DictionaryEntry = CharacterDictionaryEntry
 
 function ColorPinyin({ text }: { text: string }) {
   return <>{text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
@@ -73,7 +74,8 @@ export default function WordDetailPage() {
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [cacheReady, setCacheReady] = React.useState(false)
   const [wordPopover, setWordPopover] = React.useState<WordPopoverState | null>(null)
-  const [dictionary, setDictionary] = React.useState<DictionaryMap | null>(null)
+  const [dictionary, setDictionary] = React.useState<CharacterDictionary | null>(null)
+  const [dictionaryKey, setDictionaryKey] = React.useState("")
   const [loading, setLoading] = React.useState(true)
   const [tabLoading, setTabLoading] = React.useState(false)
   const [favorited, setFavorited] = React.useState(false)
@@ -196,11 +198,27 @@ export default function WordDetailPage() {
   }, [card, tab])
 
   React.useEffect(() => {
-    if (tab !== "karakter" || dictionary) return
+    if (!card || tab !== "karakter") return
     let cancelled = false
-    fetch("/data/dictionary.json").then(response => response.ok ? response.json() : null).then((data: DictionaryMap | null) => { if (!cancelled) setDictionary(data) }).catch(() => { if (!cancelled) setDictionary({}) })
+    const characters = [...new Set([...card.hanzi].filter(isHanzi))]
+    const characterKey = characters.join("|")
+    if (dictionaryKey === characterKey) return
+    setDictionary(null)
+    fetchCharacterDictionary(supa, characters)
+      .then(data => {
+        if (cancelled) return
+        setDictionary(data)
+        setDictionaryKey(characterKey)
+      })
+      .catch(error => {
+        console.error("Gagal memuat data karakter:", error)
+        if (!cancelled) {
+          setDictionary({})
+          setDictionaryKey(characterKey)
+        }
+      })
     return () => { cancelled = true }
-  }, [dictionary, tab])
+  }, [card, dictionaryKey, supa, tab])
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
   if (!card && cardId && cardId !== "undefined" && cardId !== "null") return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
@@ -405,7 +423,7 @@ function WordRow({ word, index }: { word: CompoundWord; index: number }) { const
 
 function CharBreakdown({ char, dictionary }: { char: string; dictionary: DictionaryMap | null }) {
   const entry = dictionary?.[char]; const { ids, label, parts } = decompParts(entry)
-  return <section className={styles.charBlock}><div className={styles.charMain}><div className={styles.charHeader}><CharSpeaker char={char} className={styles.charHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : <div className="text-sm text-slate-500">Pinyin belum tersedia</div>}<div className={styles.charDefinition}>{entry?.definition || "Data karakter belum ada di dictionary.json."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}</div>{parts.length > 0 ? <><div className={styles.componentLabel}>↓ komponen</div><div className={styles.componentGrid}>{parts.map(part => <CharComponent key={part} char={part} entry={dictionary?.[part]} />)}</div></> : <p className="py-3 text-center text-sm text-slate-500">Tidak ada data komponen.</p>}</section>
+  return <section className={styles.charBlock}><div className={styles.charMain}><div className={styles.charHeader}><CharSpeaker char={char} className={styles.charHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : <div className="text-sm text-slate-500">Pinyin belum tersedia</div>}<div className={styles.charDefinition}>{entry?.definition || "Data karakter belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}</div>{parts.length > 0 ? <><div className={styles.componentLabel}>↓ komponen</div><div className={styles.componentGrid}>{parts.map(part => <CharComponent key={part} char={part} entry={dictionary?.[part]} />)}</div></> : <p className="py-3 text-center text-sm text-slate-500">Tidak ada data komponen.</p>}</section>
 }
 function CharSpeaker({ char, className }: { char: string; className: string }) { const gesture = useLongPress(() => speakMandarin(char), () => speakMandarin(char)); return <button type="button" aria-label={`Dengarkan ${char}`} className={className} {...gesture}>{char}</button> }
 function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry }) { const { ids, label, parts } = decompParts(entry); return <article className={styles.componentCard}><div className={styles.componentHeader}><CharSpeaker char={char} className={styles.componentHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : null}<div className={styles.charDefinition}>{entry?.definition || "Data komponen belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}{parts.length > 0 && <p className={styles.componentSub}>Komponen: {parts.join(" · ")}</p>}</article> }

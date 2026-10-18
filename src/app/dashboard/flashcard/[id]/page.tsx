@@ -20,6 +20,7 @@ import {
 import { Music, Layers, Edit2, ListChecks, CheckCircle2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
+import { fetchCharacterDictionary } from "@/lib/character-dictionary"
 import { getTone, isHanzi, IDS_LABELS, decompParts } from "@/lib/hanzi-utils"
 import { useSidebar } from "@/components/ui/sidebar"
 import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
@@ -468,9 +469,12 @@ function WordDetailPanel({
   onSpeak: (text: string) => void
   onOpenCard: (card: Card) => void
 }) {
+  const supa = useSupabase()
   const chars = [...card.hanzi].filter(isHanzi)
   const [dictionary, setDictionary] = React.useState<DictionaryMap | null>(null)
   const [dictionaryChecked, setDictionaryChecked] = React.useState(false)
+  const [dictionaryKey, setDictionaryKey] = React.useState("")
+  const characterKey = [...new Set(chars)].join("|")
   const tabs: Array<{ id: DetailTab; label: string }> = [
     { id: "kalimat", label: "Sentences" },
     { id: "stroke", label: "Stroke" },
@@ -479,26 +483,30 @@ function WordDetailPanel({
   ]
 
   React.useEffect(() => {
-    if (tab !== "karakter" || dictionary || dictionaryChecked) return
+    if (tab !== "karakter" || (dictionaryChecked && dictionaryKey === characterKey)) return
 
     let cancelled = false
-    fetch("/data/dictionary.json")
-      .then(res => (res.ok ? res.json() : null))
-      .then((data: DictionaryMap | null) => {
+    setDictionary(null)
+    setDictionaryChecked(false)
+    fetchCharacterDictionary(supa, characterKey ? characterKey.split("|") : [])
+      .then(data => {
         if (cancelled) return
         setDictionary(data)
+        setDictionaryKey(characterKey)
         setDictionaryChecked(true)
       })
-      .catch(() => {
+      .catch(error => {
+        console.error("Gagal memuat data karakter:", error)
         if (cancelled) return
-        setDictionary(null)
+        setDictionary({})
+        setDictionaryKey(characterKey)
         setDictionaryChecked(true)
       })
 
     return () => {
       cancelled = true
     }
-  }, [dictionary, dictionaryChecked, tab])
+  }, [characterKey, dictionaryChecked, dictionaryKey, supa, tab])
 
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col bg-[#07131f] text-slate-100">
@@ -606,9 +614,9 @@ function WordDetailPanel({
                 onSpeak={onSpeak}
               />
             ))}
-            {dictionaryChecked && !dictionary && (
+            {dictionaryChecked && !Object.keys(dictionary ?? {}).length && (
               <div className="text-center text-xs text-slate-600">
-                Simpan dictionary di public/data/dictionary.json untuk menampilkan komponen karakter.
+                Data karakter belum dapat dimuat dari database.
               </div>
             )}
           </div>
