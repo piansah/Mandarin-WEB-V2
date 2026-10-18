@@ -409,10 +409,10 @@ function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: 
           Tambah Contoh Kalimat
         </button>
       </div>
-      {matched.length > 0 && <>
-        <div className={styles.sentenceGroupTitle}>{matched.length} contoh kalimat</div>
-        <div className={styles.sentenceList}>{matched.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
-      </>}
+      <div className={styles.sentenceGroupTitle}>{matched.length} contoh kalimat</div>
+      {matched.length > 0
+        ? <div className={styles.sentenceList}>{matched.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
+        : <div className={styles.sentenceEmpty}>Belum ada contoh kalimat dengan arti yang cocok.</div>}
       {needsReview.length > 0 && <div className={styles.sentenceReview}>
         <div className={styles.sentenceGroupTitle}>{needsReview.length} makna berbeda</div>
         <div className={styles.sentenceList}>{needsReview.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
@@ -445,45 +445,41 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
     setActiveSegment(first?.index ?? 0)
     let playbackRate = 1
     const totalChars = Math.max(1, sentence.length)
-    let anchorCharIndex = 0
-    let anchorTime = performance.now()
     let lastActiveCharIndex = 0
     let lastActiveSegment = first?.index ?? -1
+    const startedAt = performance.now()
     const findWordRange = (charIndex: number) => {
       const exact = ranges.find(range => charIndex >= range.start && charIndex < range.end)
       if (exact && isHanzi(playableSegments[exact.index].hanzi[0] ?? "")) return exact
+      if (exact) {
+        return [...ranges].reverse().find(range =>
+          isHanzi(playableSegments[range.index].hanzi[0] ?? "") && range.end <= exact.start,
+        )
+      }
       return ranges
         .filter(range => isHanzi(playableSegments[range.index].hanzi[0] ?? ""))
-        .find(range => range.start >= charIndex)
-        ?? [...ranges].reverse().find(range => isHanzi(playableSegments[range.index].hanzi[0] ?? "") && range.end <= charIndex)
+        .filter(range => range.end <= charIndex)
+        .at(-1)
     }
     const applyCharacterIndex = (charIndex: number) => {
       const range = findWordRange(charIndex)
-      if (range && range.index !== lastActiveSegment) {
+      if (range && range.index > lastActiveSegment) {
         lastActiveSegment = range.index
         setActiveSegment(range.index)
       }
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      const estimatedIndex = Math.min(
-        totalChars - 1,
-        anchorCharIndex + Math.floor((performance.now() - anchorTime) * playbackRate / 260),
-      )
+      // Pakai satu timeline deterministik. Event boundary dari SpeechSynthesis
+      // bervariasi antar browser/voice dan membuat highlight meloncat.
+      // 260 ms adalah baseline normal; rate lebih lambat memperpanjang durasi.
+      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) * playbackRate / 260))
       if (estimatedIndex > lastActiveCharIndex) {
         lastActiveCharIndex = estimatedIndex
         applyCharacterIndex(estimatedIndex)
       }
-    }, 80)
-    void speakParagraph(sentence, undefined, charIndex => {
-      if (playbackId.current !== currentPlaybackId) return
-      if (charIndex >= lastActiveCharIndex) {
-        anchorCharIndex = charIndex
-        anchorTime = performance.now()
-        lastActiveCharIndex = charIndex
-        applyCharacterIndex(charIndex)
-      }
-    }, rate => { playbackRate = rate }).finally(() => {
+    }, 50)
+    void speakParagraph(sentence, undefined, undefined, rate => { playbackRate = rate }).finally(() => {
       window.clearInterval(fallback)
       if (playbackId.current === currentPlaybackId) setActiveSegment(null)
     })

@@ -247,6 +247,12 @@
   font-weight: 500;
 }
 
+.sentenceEmpty {
+  padding: 4px 0 10px;
+  color: var(--c-copy);
+  font-size: 13px;
+}
+
 .sentenceReview {
   margin-top: 18px;
 }

@@ -92,50 +92,40 @@ export default function CumulativeFlashcardSessionPage() {
     })
     const first = ranges.find(range => !segments[range.index].isPunct)
     if (first) setActivePlayback({ itemId: item.id, segmentIndex: first.index })
+    let playbackRate = 1
+    const startedAt = performance.now()
     const findWordRange = (charIndex: number) => {
       const exact = ranges.find(entry => charIndex >= entry.start && charIndex < entry.end)
       if (exact && !segments[exact.index].isPunct) return exact
+      if (exact) {
+        return [...ranges].reverse().find(entry => !segments[entry.index].isPunct && entry.end <= exact.start)
+      }
       return ranges
         .filter(entry => !segments[entry.index].isPunct)
-        .find(entry => entry.start >= charIndex)
-        ?? [...ranges].reverse().find(entry => !segments[entry.index].isPunct && entry.end <= charIndex)
+        .filter(entry => entry.end <= charIndex)
+        .at(-1)
     }
-    let playbackRate = 1
     const totalChars = Math.max(1, item.hanzi.length)
-    let anchorCharIndex = 0
-    let anchorTime = performance.now()
     let lastActiveCharIndex = 0
     let lastActiveSegment = first?.index ?? -1
     const applyCharacterIndex = (charIndex: number) => {
       const range = findWordRange(charIndex)
-      if (range && range.index !== lastActiveSegment) {
+      if (range && range.index > lastActiveSegment) {
         lastActiveSegment = range.index
         setActivePlayback({ itemId: item.id, segmentIndex: range.index })
       }
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      const estimatedIndex = Math.min(
-        totalChars - 1,
-        anchorCharIndex + Math.floor((performance.now() - anchorTime) * playbackRate / 260),
-      )
+      // Boundary SpeechSynthesis berbeda antar browser/voice dan membuat
+      // highlight meloncat; gunakan progress berbasis waktu yang konsisten.
+      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) * playbackRate / 260))
       if (estimatedIndex > lastActiveCharIndex) {
         lastActiveCharIndex = estimatedIndex
         applyCharacterIndex(estimatedIndex)
       }
-    }, 80)
-    void speakParagraph(item.hanzi, undefined, charIndex => {
-      if (playbackId.current !== currentPlaybackId) return
-      // Event boundary memberi anchor nyata dari browser. Timer lalu mengisi
-      // jarak antarevent memakai rate audio terpilih, tanpa mengembalikan
-      // highlight ke karakter yang sudah lewat.
-      if (charIndex >= lastActiveCharIndex) {
-        anchorCharIndex = charIndex
-        anchorTime = performance.now()
-        lastActiveCharIndex = charIndex
-        applyCharacterIndex(charIndex)
-      }
-    }, rate => { playbackRate = rate }).finally(() => {
+    }, 50)
+    void speakParagraph(item.hanzi, undefined, undefined, rate => { playbackRate = rate }).finally(() => {
       window.clearInterval(fallback)
       if (playbackId.current === currentPlaybackId) setActivePlayback(null)
     })

@@ -87,7 +87,6 @@ export function sentenceContainsExactWord(sentence: string, hanzi: string, pinyi
 }
 
 const MEANING_STOP_WORDS = new Set(["dan", "atau", "dengan", "dari", "untuk", "pada", "dalam", "adalah", "sebagai"])
-const GENERIC_SINGLE_MEANINGS = new Set(["baik", "bagus", "besar", "kecil", "banyak", "sedikit", "sangat", "lebih", "kurang", "baru", "lama", "sering", "sudah", "belum", "dapat", "bisa"])
 
 function splitMeaningAlternatives(value: string): string[] {
   const alternatives: string[] = []
@@ -125,7 +124,7 @@ export function sentenceMeaningMatches(wordMeaning?: string | null, sentenceMean
     hasComparableMeaning = true
     if (targetWords.length === 1) {
       const [word] = targetWords
-      if (!GENERIC_SINGLE_MEANINGS.has(word) && sentenceWords.has(word)) return true
+      if (sentenceWords.has(word)) return true
       continue
     }
 
