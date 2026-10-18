@@ -18,6 +18,7 @@ import { SwipeToReport } from "@/components/swipe-to-report"
 import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
 import { initGlobalSearchCache, segmentText, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
+import { sortRelatedWords } from "@/lib/flashcard-related-words"
 
 type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
 type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
@@ -177,8 +178,17 @@ export default function WordDetailPage() {
     async function loadCompounds() {
       setTabLoading(true)
       const select = "hanzi, pinyin, arti, badge"
-      const primary = await supa.from("word_compounds").select(select).ilike("hanzi", `%${activeCard.hanzi}%`).order("frequency", { ascending: false }).limit(30)
-      let data = primary.data ?? []
+      const [primary, flashcardMatches] = await Promise.all([
+        supa.from("word_compounds").select(select).ilike("hanzi", `%${activeCard.hanzi}%`).order("frequency", { ascending: false }).limit(30),
+        supa.from("flashcard_cards").select("hanzi, pinyin, arti, flashcard_sets(hsk_level)").ilike("hanzi", `%${activeCard.hanzi}%`).limit(30),
+      ])
+      const flashcardWords: CompoundWord[] = (flashcardMatches.data ?? []).map(word => ({
+        hanzi: word.hanzi,
+        pinyin: word.pinyin,
+        arti: word.arti,
+        badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
+      }))
+      let data: CompoundWord[] = [...flashcardWords, ...(primary.data ?? [])]
 
       // Dataset compounds tidak selalu memiliki kata lengkap (mis. 你好),
       // sehingga gunakan karakter penyusunnya sebagai fallback — tapi hasilnya
@@ -186,13 +196,28 @@ export default function WordDetailPage() {
       // supaya tidak muncul kata yang cuma nyambung ke satu suku kata saja.
       if (data.length === 0 && [...activeCard.hanzi].length > 1) {
         let fallbackQuery = supa.from("word_compounds").select(select)
+        let fallbackCardsQuery = supa.from("flashcard_cards").select("hanzi, pinyin, arti, flashcard_sets(hsk_level)")
         for (const char of [...activeCard.hanzi]) {
           fallbackQuery = fallbackQuery.ilike("hanzi", `%${char}%`)
+          fallbackCardsQuery = fallbackCardsQuery.ilike("hanzi", `%${char}%`)
         }
-        const fallback = await fallbackQuery.order("frequency", { ascending: false }).limit(30)
-        data = fallback.data ?? []
+        const [fallback, fallbackCards] = await Promise.all([
+          fallbackQuery.order("frequency", { ascending: false }).limit(30),
+          fallbackCardsQuery.limit(30),
+        ])
+        const fallbackFlashcardWords: CompoundWord[] = (fallbackCards.data ?? []).map(word => ({
+          hanzi: word.hanzi,
+          pinyin: word.pinyin,
+          arti: word.arti,
+          badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
+        }))
+        data = [...fallbackFlashcardWords, ...(fallback.data ?? [])]
       }
-      if (!cancelled) { setCompounds(data); setTabLoading(false) }
+      if (!cancelled) {
+        const unique = new Map(data.map(word => [`${word.hanzi}\u0000${word.pinyin ?? ""}\u0000${word.arti ?? ""}`, word]))
+        setCompounds(sortRelatedWords([...unique.values()], activeCard.hanzi).slice(0, 30))
+        setTabLoading(false)
+      }
     }
     loadCompounds(); return () => { cancelled = true }
   }, [card, tab])
@@ -225,7 +250,7 @@ export default function WordDetailPage() {
   if (!card) return null
 
   const chars = [...card.hanzi].filter(isHanzi)
-  const tabs: Array<{ id: DetailTab; label: string }> = [{ id: "kalimat", label: "Sentences" }, { id: "stroke", label: "Stroke" }, { id: "karakter", label: "Char" }, { id: "kata", label: "Word" }]
+  const tabs: Array<{ id: DetailTab; label: string }> = [{ id: "kalimat", label: "Kalimat" }, { id: "stroke", label: "Goresan" }, { id: "karakter", label: "Karakter" }, { id: "kata", label: "Kata" }]
 
   async function handleToggleFavorite() {
     if (!card) return

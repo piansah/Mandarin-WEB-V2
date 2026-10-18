@@ -27,6 +27,7 @@ import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, D
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
 import { getDeckPracticeScores } from "@/lib/user-scores"
+import { sortRelatedWords } from "@/lib/flashcard-related-words"
 
 const idsLabels = IDS_LABELS
 
@@ -204,14 +205,30 @@ export default function FlashcardDeckPage() {
 
     async function loadCompounds() {
       setCompoundsLoading(true)
-      const { data } = await supa
-        .from("word_compounds")
-        .select("hanzi, pinyin, arti, badge")
-        .ilike("hanzi", `%${activeCard.hanzi}%`)
-        .limit(30)
+      const [compoundRes, cardRes] = await Promise.all([
+        supa
+          .from("word_compounds")
+          .select("hanzi, pinyin, arti, badge")
+          .ilike("hanzi", `%${activeCard.hanzi}%`)
+          .order("frequency", { ascending: false })
+          .limit(30),
+        supa
+          .from("flashcard_cards")
+          .select("hanzi, pinyin, arti, flashcard_sets(hsk_level)")
+          .ilike("hanzi", `%${activeCard.hanzi}%`)
+          .limit(30),
+      ])
 
       if (cancelled) return
-      setCompounds(data ?? [])
+      const flashcardWords = (cardRes.data ?? []).map(word => ({
+        hanzi: word.hanzi,
+        pinyin: word.pinyin,
+        arti: word.arti,
+        badge: word.flashcard_sets?.hsk_level ? `HSK ${word.flashcard_sets.hsk_level}` : null,
+      }))
+      const merged = [...flashcardWords, ...(compoundRes.data ?? [])]
+      const unique = new Map(merged.map(word => [`${word.hanzi}\u0000${word.pinyin ?? ""}\u0000${word.arti ?? ""}`, word]))
+      setCompounds(sortRelatedWords([...unique.values()], activeCard.hanzi).slice(0, 30))
       setCompoundsLoading(false)
     }
 
@@ -476,10 +493,10 @@ function WordDetailPanel({
   const [dictionaryKey, setDictionaryKey] = React.useState("")
   const characterKey = [...new Set(chars)].join("|")
   const tabs: Array<{ id: DetailTab; label: string }> = [
-    { id: "kalimat", label: "Sentences" },
-    { id: "stroke", label: "Stroke" },
-    { id: "karakter", label: "Char" },
-    { id: "kata", label: "Word" },
+    { id: "kalimat", label: "Kalimat" },
+    { id: "stroke", label: "Goresan" },
+    { id: "karakter", label: "Karakter" },
+    { id: "kata", label: "Kata" },
   ]
 
   React.useEffect(() => {
