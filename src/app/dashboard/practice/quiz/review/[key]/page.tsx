@@ -9,7 +9,7 @@ import { useParams, useRouter } from "next/navigation"
 import { CheckCircle2, RotateCcw, SkipForward } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
-import { saveUserScore } from "@/lib/user-scores"
+import { deleteUserScore, saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
 import { FullscreenLoader } from "@/components/page-loader"
@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import styles from "../../[key]/page.module.css"
+import { toast } from "sonner"
 
 type HanziItem = {
   id: number
@@ -496,7 +497,21 @@ export default function CumulativeQuizPracticePage() {
     saveUserScore("kal", key, pct).catch(() => { })
   }
 
-  function handleRetry() {
+  async function handleRetry(clearPreviousScore = true) {
+    if (clearPreviousScore) {
+      setLoading(true)
+      try {
+        const result = await deleteUserScore("kal", key)
+        if (result.error) throw new Error(result.error)
+      } catch (error) {
+        console.error("Gagal menghapus skor quiz estafet:", error)
+        toast.error("Skor lama belum bisa dihapus. Coba ulangi lagi.")
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+    }
+
     setDbOnlyScore(null)
     setAnswered({})
     setSubmitted(false)
@@ -525,7 +540,7 @@ export default function CumulativeQuizPracticePage() {
   // Auto-recovery jika allQ kosong tapi itemsRef tersedia
   React.useEffect(() => {
     if (!loading && !submitted && allQ.length === 0 && itemsRef.current.length > 0) {
-      handleRetry()
+      void handleRetry(false)
     }
   }, [loading, submitted, allQ.length])
 
@@ -661,7 +676,7 @@ export default function CumulativeQuizPracticePage() {
             </div>
             <div className="flex gap-3">
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
-              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={handleRetry}>Ulangi</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => void handleRetry()}>Ulangi</button>
             </div>
           </div>
         </div>

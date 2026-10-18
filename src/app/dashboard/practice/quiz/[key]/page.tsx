@@ -11,7 +11,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { PracticeHeader } from "@/components/practice-header"
 import { PageLoader, FullscreenLoader } from "@/components/page-loader"
-import { saveUserScore } from "@/lib/user-scores"
+import { deleteUserScore, saveUserScore } from "@/lib/user-scores"
 import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card } from "@/lib/quiz-generator"
 import { shuffle } from "@/lib/array-utils"
 import { Button } from "@/components/ui/button"
@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog"
 import { createClient } from "@/lib/supabase/browser"
 import styles from "./page.module.css"
+import { toast } from "sonner"
 
 /* ── Types ── */
 type QuizSection = 0 | 1 | 2
@@ -146,6 +147,7 @@ export default function QuizPage() {
   const supa = useSupabase()
 
   const [loading, setLoading] = React.useState(true)
+  const [hasCards, setHasCards] = React.useState(false)
   const [quizTitle, setQuizTitle] = React.useState("")
   const [quizSub, setQuizSub] = React.useState("")
   const [allQ, setAllQ] = React.useState<QuizQuestion[]>([])
@@ -231,6 +233,7 @@ export default function QuizPage() {
 
       if (cancelled) return
       cardsRef.current = cards
+      setHasCards(cards.length > 0)
 
       if (cards.length === 0) {
         setQuizTitle(deckTitle)
@@ -406,7 +409,21 @@ export default function QuizPage() {
   }
 
   /* ── Retry quiz ── */
-  function handleRetry() {
+  async function handleRetry(clearPreviousScore = true) {
+    if (clearPreviousScore) {
+      setLoading(true)
+      try {
+        const result = await deleteUserScore("quiz", key)
+        if (result.error) throw new Error(result.error)
+      } catch (error) {
+        console.error("Gagal menghapus skor quiz:", error)
+        toast.error("Skor lama belum bisa dihapus. Coba ulangi lagi.")
+        setLoading(false)
+        return
+      }
+      setLoading(false)
+    }
+
     setDbOnlyScore(null)
     setAnswered({})
     setSubmitted(false)
@@ -437,7 +454,7 @@ export default function QuizPage() {
   // Auto-recovery jika allQ kosong tapi cardsRef tersedia
   React.useEffect(() => {
     if (!loading && !submitted && allQ.length === 0 && cardsRef.current.length > 0) {
-      handleRetry()
+      void handleRetry(false)
     }
   }, [loading, submitted, allQ.length])
 
@@ -569,7 +586,7 @@ export default function QuizPage() {
 
             <div className="flex gap-3 w-full max-w-xs relative z-10">
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
-              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={handleRetry}>Ulangi</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => void handleRetry()}>Ulangi</button>
             </div>
           </div>
         </div>
@@ -590,10 +607,10 @@ export default function QuizPage() {
         <div>Soal kuis tidak ditemukan.</div>
         <div className="flex items-center gap-3">
           <button className={styles.btnBack} onClick={() => router.back()}>Kembali</button>
-          {cardsRef.current.length > 0 && (
+          {hasCards && (
             <button
               className="rounded-2xl px-5 h-10 bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
-              onClick={handleRetry}
+              onClick={() => void handleRetry()}
             >
               Mulai Ulang
             </button>

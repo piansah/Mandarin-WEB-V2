@@ -264,8 +264,8 @@ export default function FlashcardDeckPage() {
           {cards.length === 0 && (
             <p className="text-center text-muted-foreground text-sm py-12">Tidak ada kosakata ditemukan</p>
           )}
-          {cards.map((card, i) => (
-            <VocabularyRow key={card.id} card={card} index={i} onOpen={openDetail} />
+          {cards.map((card) => (
+            <VocabularyRow key={card.id} card={card} onOpen={openDetail} />
           ))}
         </div>
       </div>
@@ -414,28 +414,25 @@ export default function FlashcardDeckPage() {
   )
 }
 
-function VocabularyRow({ card, index, onOpen }: { card: Card; index: number; onOpen: (card: Card) => void }) {
-  const pressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const didHold = React.useRef(false)
-  const startPoint = React.useRef({ x: 0, y: 0 })
-  const clearPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); pressTimer.current = null }
-
-  React.useEffect(() => clearPress, [])
-
+function VocabularyRow({ card, onOpen }: { card: Card; onOpen: (card: Card) => void }) {
   return (
     <div
       className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
-      onPointerDown={event => { didHold.current = false; startPoint.current = { x: event.clientX, y: event.clientY }; pressTimer.current = setTimeout(() => { didHold.current = true; if (navigator.vibrate) navigator.vibrate(40); speakMandarin(card.hanzi) }, 550) }}
-      onPointerMove={event => { const point = startPoint.current; if (Math.abs(event.clientX - point.x) > 18 || Math.abs(event.clientY - point.y) > 18) clearPress() }}
-      onPointerUp={clearPress}
-      onPointerCancel={clearPress}
-      onClick={() => { if (didHold.current) { didHold.current = false; return } onOpen(card) }}
+      onClick={() => onOpen(card)}
     >
       <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
       <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
       <div className="ml-1 flex shrink-0 items-center gap-2">
         <HskBadge hskLevel={card.hsk_level} />
-        <span className="text-xs font-medium text-muted-foreground">#{index + 1}</span>
+        <button
+          type="button"
+          onClick={event => { event.stopPropagation(); speakMandarin(card.hanzi) }}
+          className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={`Dengarkan ${card.hanzi}`}
+          title="Dengarkan pelafalan"
+        >
+          <Volume2 className="h-4 w-4" />
+        </button>
       </div>
     </div>
   )

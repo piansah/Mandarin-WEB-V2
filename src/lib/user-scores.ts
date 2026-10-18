@@ -68,6 +68,24 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
   return { error: error?.message ?? null }
 }
 
+/** Hapus skor tersimpan milik user sebelum user memulai ulang latihan. */
+export async function deleteUserScore(type: ScoreType, key: string): Promise<SaveResult> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return { error: "not-authenticated" }
+
+  const { error } = await supa
+    .from("user_scores")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("type", type)
+    .eq("key", key)
+
+  return { error: error?.message ?? null }
+}
+
 /** Ambil semua skor milik user untuk satu `type`, sebagai map key -> score. */
 export async function getUserScoresByType(type: ScoreType): Promise<Record<string, number>> {
   const supa = createClient()
