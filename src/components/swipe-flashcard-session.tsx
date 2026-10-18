@@ -149,15 +149,15 @@ export function SwipeFlashcardSession({
           />
 
           <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl">
-            <div className="grid grid-cols-3 gap-2 w-full">
-              <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs font-medium" onClick={session.goToPrevious} disabled={session.idx === 0}>
-                <ChevronLeft className="h-3.5 w-3.5" /> Sebelumnya
+            <div className="grid w-full grid-cols-[1.2fr_1fr_1fr] gap-2 px-2 sm:px-0">
+              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.goToPrevious} disabled={session.idx === 0}>
+                <ChevronLeft className="h-3.5 w-3.5 shrink-0" /> Sebelumnya
               </Button>
-              <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs font-medium" onClick={session.hideAnswer}>
-                <EyeOff className="h-3.5 w-3.5" /> Sembunyi
+              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.hideAnswer}>
+                <EyeOff className="h-3.5 w-3.5 shrink-0" /> Sembunyi
               </Button>
-              <Button variant="outline" className="rounded-xl h-10 gap-1.5 text-xs font-medium" onClick={session.skipCard}>
-                <SkipForward className="h-3.5 w-3.5" /> Lewati
+              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.skipCard}>
+                <SkipForward className="h-3.5 w-3.5 shrink-0" /> Lewati
               </Button>
             </div>
 
