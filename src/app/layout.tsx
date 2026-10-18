@@ -10,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerProvider } from "@/components/service-worker-provider"
 import { HanziFontProvider } from "@/components/hanzi-font-provider";
 import { ReactQueryProvider } from "@/components/query-provider";
+import Script from "next/script";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -75,6 +76,16 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <Script id="initial-theme" strategy="beforeInteractive">
+          {`try {
+            var theme = localStorage.getItem("theme") || "system";
+            var dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+            var root = document.documentElement;
+            root.classList.remove("light", "dark");
+            root.classList.add(dark ? "dark" : "light");
+            root.style.colorScheme = dark ? "dark" : "light";
+          } catch (_) {}`}
+        </Script>
       </head>
       <body
         className={`${poppins.variable} ${notoSansSC.variable} ${notoSerifSC.variable} ${maShanZheng.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans overflow-x-hidden`}
