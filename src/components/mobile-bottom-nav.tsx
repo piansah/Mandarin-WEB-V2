@@ -14,12 +14,27 @@ const navigationItems = [
   { label: "Profil", href: "/dashboard/profile", icon: UserRound },
 ]
 
+// Bottom navigation stays on section/list pages, then yields the viewport to
+// focused content such as a deck, lesson, story, or practice session.
+export function isMobileBottomNavHidden(pathname: string | null) {
+  if (!pathname) return false
+
+  return (
+    pathname.startsWith("/dashboard/flashcard/") && pathname !== "/dashboard/flashcard/cumulative"
+    || pathname.startsWith("/dashboard/modul/")
+    || pathname.startsWith("/dashboard/cerita/")
+    || pathname.startsWith("/dashboard/practice/")
+    || pathname.startsWith("/dashboard/personal-cards/")
+    || pathname.startsWith("/dashboard/games/")
+  )
+}
+
 export function MobileBottomNav() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { isMobile } = useSidebar()
 
-  if (!isMobile) return null
+  if (!isMobile || isMobileBottomNavHidden(pathname)) return null
 
   return (
     <nav

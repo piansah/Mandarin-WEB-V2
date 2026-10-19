@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { AppSidebar } from "@/components/app-sidebar"
-import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+import { isMobileBottomNavHidden, MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PWAInstall } from "@/components/pwa-install"
 // Registrasi window.openBugReportModal — HARUS di-import dari sini (Client
@@ -44,6 +44,7 @@ export function DashboardLayoutClient({
 }: DashboardLayoutClientProps) {
   const pathname = usePathname()
   const isChromeLess = CHROME_LESS_ROUTES.some((route) => pathname?.startsWith(route))
+  const hideMobileBottomNav = isMobileBottomNavHidden(pathname)
 
   if (isChromeLess) {
     return (
@@ -60,7 +61,9 @@ export function DashboardLayoutClient({
       <SidebarInset className="flex h-svh flex-col overflow-hidden">
         <DashboardHeader />
 
-        <div className="flex-1 min-h-0 overflow-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div className={hideMobileBottomNav
+          ? "flex-1 min-h-0 overflow-auto"
+          : "flex-1 min-h-0 overflow-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"}>
           {children}
         </div>
       </SidebarInset>

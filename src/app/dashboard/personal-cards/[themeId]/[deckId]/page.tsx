@@ -352,9 +352,9 @@ export default function DeckDetailPage() {
       {cards.length > 0 && (
         <div
           className="fixed bottom-0 right-0 z-30 bg-background/95 backdrop-blur-md border-t border-border/40 transition-[left] duration-200 ease-linear"
-          style={{ left: sidebarOffset, paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          style={{ left: sidebarOffset, paddingBottom: "env(safe-area-inset-bottom)" }}
         >
-          <div className="mx-auto w-full max-w-6xl px-4 py-4">
+          <div className="mx-auto w-full max-w-6xl px-6 py-4">
             <Drawer>
               <DrawerTrigger render={<Button className="w-full" size="lg" />}>
                 Mulai Latihan
