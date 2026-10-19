@@ -241,29 +241,49 @@ export async function fetchDueFlashcards(
       }
     }
 
-    const hanziList = (data ?? []).map(c => c.hanzi).filter(Boolean)
+    const hanziList = [...new Set((data ?? []).map(c => c.hanzi).filter(Boolean))]
     const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
     if (hanziList.length > 0) {
-      for (const hanzi of hanziList) {
-        const [directRes, partialRes] = await Promise.all([
-          supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
-          supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
-        ])
+      // Fetch exact word matches in one request instead of two requests for
+      // every card. This was the main source of the long review-page skeleton.
+      const { data: directExamples } = await supa
+        .from("word_examples")
+        .select("id, word_hanzi, hanzi, pinyin, arti")
+        .in("word_hanzi", hanziList)
+        .order("id", { ascending: true })
 
-        const seen = new Set<string>()
-        const allExamples = [...(directRes.data ?? []), ...(partialRes.data ?? [])].filter(item => {
-          const key = `${item.id}-${item.hanzi}`
-          if (seen.has(key)) return false
-          seen.add(key)
-          return true
+      for (const item of directExamples ?? []) {
+        if (!item.word_hanzi || exampleMap.has(item.word_hanzi)) continue
+        exampleMap.set(item.word_hanzi, {
+          hanzi: item.hanzi ?? "",
+          pinyin: item.pinyin ?? "",
+          arti: item.arti ?? "",
         })
+      }
 
-        if (allExamples.length > 0) {
+      // Preserve the contains-match fallback for cards without an exact
+      // example, but run a small batch concurrently instead of serially.
+      const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
+      const fallbackBatchSize = 10
+      for (let i = 0; i < missingHanzi.length; i += fallbackBatchSize) {
+        const batch = missingHanzi.slice(i, i + fallbackBatchSize)
+        const fallbackResults = await Promise.all(batch.map(async (hanzi) => {
+          const { data: examples } = await supa
+            .from("word_examples")
+            .select("id, hanzi, pinyin, arti")
+            .ilike("hanzi", `%${hanzi}%`)
+            .order("id", { ascending: true })
+            .limit(1)
+          return { hanzi, example: examples?.[0] }
+        }))
+
+        for (const { hanzi, example } of fallbackResults) {
+          if (!example) continue
           exampleMap.set(hanzi, {
-            hanzi: allExamples[0].hanzi ?? "",
-            pinyin: allExamples[0].pinyin ?? "",
-            arti: allExamples[0].arti ?? "",
+            hanzi: example.hanzi ?? "",
+            pinyin: example.pinyin ?? "",
+            arti: example.arti ?? "",
           })
         }
       }
