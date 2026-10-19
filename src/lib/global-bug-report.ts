@@ -32,16 +32,27 @@ export function openBugReportModal(
     // Buat modal sederhana
     const modal = document.createElement("div")
     modal.className = "fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-    modal.innerHTML = `
-      <div class="bg-card rounded-lg max-w-md w-full p-6 border border-border">
-        <h3 class="text-lg font-bold mb-2">Laporan: ${title}</h3>
-        <p class="text-sm text-muted-foreground mb-4">${description}</p>
-        <div class="flex gap-2 justify-end">
-          <button id="bug-cancel" class="px-4 py-2 rounded border border-border hover:bg-muted">Batal</button>
-          <button id="bug-submit" class="px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90">Kirim</button>
-        </div>
-      </div>
-    `
+    const panel = document.createElement("div")
+    panel.className = "bg-card rounded-lg max-w-md w-full p-6 border border-border"
+    const heading = document.createElement("h3")
+    heading.className = "text-lg font-bold mb-2"
+    heading.textContent = `Laporan: ${title}`
+    const body = document.createElement("p")
+    body.className = "text-sm text-muted-foreground mb-4"
+    body.textContent = description
+    const actions = document.createElement("div")
+    actions.className = "flex gap-2 justify-end"
+    const cancel = document.createElement("button")
+    cancel.id = "bug-cancel"
+    cancel.className = "px-4 py-2 rounded border border-border hover:bg-muted"
+    cancel.textContent = "Batal"
+    const submit = document.createElement("button")
+    submit.id = "bug-submit"
+    submit.className = "px-4 py-2 rounded bg-primary text-primary-foreground hover:bg-primary/90"
+    submit.textContent = "Kirim"
+    actions.append(cancel, submit)
+    panel.append(heading, body, actions)
+    modal.appendChild(panel)
     
     document.body.appendChild(modal)
     bugReportModalElement = modal

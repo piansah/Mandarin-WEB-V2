@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { useSupabase } from "@/hooks/use-supabase"
 import { getGrammarScores } from "@/lib/grammar-scores"
+import { getUserScoresByType } from "@/lib/user-scores"
 import { HskLevelFilter } from "@/components/hsk-level-filter"
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock"
 
@@ -33,7 +34,20 @@ export default function GrammarListPage() {
   const [selectedLevel, setSelectedLevel] = React.useState(1)
 
   React.useEffect(() => {
+    let active = true
     setScores(getGrammarScores())
+    getUserScoresByType("grammar").then((serverScores) => {
+      if (!active) return
+      // Server scores are shared across devices; retain the best locally cached score too.
+      setScores((localScores) => {
+        const merged = { ...localScores }
+        for (const [slug, score] of Object.entries(serverScores)) {
+          merged[slug] = Math.max(merged[slug] ?? 0, score)
+        }
+        return merged
+      })
+    })
+    return () => { active = false }
   }, [])
 
   React.useEffect(() => {

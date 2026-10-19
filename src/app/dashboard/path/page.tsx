@@ -12,7 +12,7 @@ import { fetchLearningPath } from "@/lib/path"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata = {
-  title: "Learning Path - Mandarin Web",
+  title: "Peta Belajar - Mandarin Web",
 }
 
 export default async function PathPage() {
@@ -26,9 +26,9 @@ export default async function PathPage() {
       <div className="flex flex-col gap-1 text-center md:text-left">
         <div className="flex items-center justify-center md:justify-start gap-2">
           <Map className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Learning Path</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Peta Belajar</h1>
         </div>
-        <p className="text-sm text-muted-foreground">Peta perjalanan belajarmu dari HSK 1 hingga HSK 6</p>
+        <p className="text-sm text-muted-foreground">Persentase menghitung aktivitas tuntas: modul sampai lulus kuis, setiap deck dari kuisnya, setiap tata bahasa dari latihan selesai, dan setiap Estafet dari kuisnya.</p>
       </div>
 
       <div className="relative mt-4">
@@ -87,19 +87,19 @@ export default async function PathPage() {
                         <p className="text-sm text-muted-foreground leading-relaxed">{step.description}</p>
 
                         <div className="flex flex-wrap items-center gap-3 mt-4">
-                          <Link href="/dashboard/modul" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
+                          <Link href="/dashboard/modul" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <Library className="w-3.5 h-3.5" />
                             <span>{step.modules?.length || 0} Modul</span>
                           </Link>
-                          <Link href="/dashboard/flashcard" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
+                          <Link href="/dashboard/flashcard" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>{step.vocabCount} Kata ({step.deckCount} Deck)</span>
                           </Link>
-                          <Link href="/dashboard/grammar" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
+                          <Link href="/dashboard/grammar" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <PenTool className="w-3.5 h-3.5" />
                             <span>{step.grammarCount} Tata Bahasa</span>
                           </Link>
-                          <Link href="/dashboard/cerita" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors cursor-pointer">
+                          <Link href="/dashboard/cerita" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <Map className="w-3.5 h-3.5" />
                             <span>{step.estafetCount} Estafet</span>
                           </Link>
@@ -110,7 +110,7 @@ export default async function PathPage() {
                       <div className="flex flex-col items-start md:items-end justify-center gap-3 shrink-0 min-w-[140px] border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-muted/50">
                         {isCompleted && (
                           <div className="flex flex-col items-start md:items-end w-full">
-                            <span className="text-sm font-bold text-emerald-500 mb-2">Tuntas 100%</span>
+                            <span className="text-sm font-bold text-emerald-500 mb-2">Tuntas {step.progressCompleted}/{step.progressTotal} aktivitas · 100%</span>
                             <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden mb-3">
                               <div className="h-full bg-emerald-500 w-full" />
                             </div>
@@ -120,7 +120,7 @@ export default async function PathPage() {
 
                         {isActive && (
                           <div className="flex flex-col items-start md:items-end w-full">
-                            <span className="text-sm font-bold text-primary mb-2">Progress {step.progress}%</span>
+                            <span className="text-sm font-bold text-primary mb-2">Selesai {step.progressCompleted}/{step.progressTotal} aktivitas · {step.progress}%</span>
                             <div className="w-full h-2.5 bg-primary/20 rounded-full overflow-hidden">
                               <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${step.progress}%` }} />
                             </div>

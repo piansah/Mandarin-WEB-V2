@@ -18,6 +18,8 @@ export type PathStep = {
   estafetCount: number
   status: "completed" | "active" | "locked"
   progress: number
+  progressCompleted: number
+  progressTotal: number
   modules: PathModule[]
 }
 
@@ -30,10 +32,11 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
   // bersamaan agar halaman peta belajar tidak menunggu dua gelombang query.
   const hskLevels = [1, 2, 3, 4, 5, 6]
   
-  const [overview, grammarRes, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
+  const [userRes, overview, grammarRes, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
+    supa.auth.getUser(),
     fetchModulOverview(supa),
-    supa.from("grammar_patterns").select("hsk_level"),
-    supa.from("hanzi_sets").select("hsk_level"),
+    supa.from("grammar_patterns").select("slug, hsk_level"),
+    supa.from("hanzi_sets").select("key, hsk_level"),
     supa.from("flashcard_sets").select("id, hsk_level"),
     ...hskLevels.map(level =>
       supa
@@ -42,6 +45,16 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
         .eq("flashcard_sets.hsk_level", level)
     )
   ])
+
+  const userId = userRes.data.user?.id
+  const scoresRes = userId
+    ? await supa
+      .from("user_scores")
+      .select("type, key")
+      .eq("user_id", userId)
+      .in("type", ["quiz", "grammar", "kal"])
+    : { data: [] as { type: string; key: string }[] }
+  const completedActivities = new Set((scoresRes.data ?? []).map(row => `${row.type}:${row.key}`))
 
   // Inisialisasi counter per level
   const counts: Record<number, { vocab: number, deck: number, grammar: number, estafet: number }> = {
@@ -75,21 +88,29 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
     const levelData = overview.levels.find(l => l.code === levelCode)
     const modules = overview.modules.filter(m => m.level.code === levelCode)
     
-    let status: "completed" | "active" | "locked" = "locked"
-    let progress = 0
+    const levelDecks = (decksRes.data ?? []).filter(deck => deck.hsk_level === i)
+    const levelGrammar = (grammarRes.data ?? []).filter(pattern => pattern.hsk_level === i)
+    const levelEstafet = (estafetRes.data ?? []).filter(set => set.hsk_level === i)
 
-    if (levelData) {
-      if (levelData.totalModules > 0 && levelData.completedModules === levelData.totalModules) {
-        status = "completed"
-        progress = 100
-      } else if (modules.some(m => m.status === "active" || m.status === "completed")) {
-        status = "active"
-        const totalProgress = modules.reduce((sum, m) => sum + m.progressPercent, 0)
-        progress = levelData.totalModules > 0 ? Math.round(totalProgress / levelData.totalModules) : 0
-      } else if (i === 1 && levelData.totalModules === 0) {
-        // Fallback jika tidak ada modul sama sekali tapi ini level pertama
-        status = "active"
-      }
+    // Modul tuntas setelah lulus kuis; deck dan Estafet masing-masing satu
+    // aktivitas yang dihitung dari kuisnya; grammar selesai setelah latihan.
+    const progressTotal = modules.length + levelDecks.length + levelGrammar.length + levelEstafet.length
+    const completedModules = modules.filter(module => module.status === "completed").length
+    const completedDeckActivities = levelDecks.filter(deck => completedActivities.has(`quiz:${deck.id}`)).length
+    const completedGrammar = levelGrammar.filter(pattern => completedActivities.has(`grammar:${pattern.slug}`)).length
+    const completedEstafet = levelEstafet.filter(set => completedActivities.has(`kal:${set.key}`)).length
+    const progressCompleted = completedModules + completedDeckActivities + completedGrammar + completedEstafet
+    const progress = progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0
+
+    let status: "completed" | "active" | "locked" = "locked"
+    if (progressTotal > 0 && progressCompleted === progressTotal) {
+      status = "completed"
+    } else if (
+      progressCompleted > 0 ||
+      modules.some(module => module.status === "active" || module.status === "completed") ||
+      (i === 1 && (levelData?.totalModules ?? 0) === 0)
+    ) {
+      status = "active"
     }
 
     // Pastikan level selanjutnya active jika level sebelumnya completed
@@ -111,6 +132,8 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
       estafetCount: counts[i].estafet,
       status,
       progress,
+      progressCompleted,
+      progressTotal,
       modules: modules.map(m => ({
         title: m.title,
         status: m.status,
