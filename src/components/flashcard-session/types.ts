@@ -3,6 +3,7 @@ export type SwipeFlashcard = {
   hanzi: string
   pinyin: string
   arti: string
+  catatan?: string | null
   hskLevel?: number
   srsLevel?: number
   intervalDays?: number

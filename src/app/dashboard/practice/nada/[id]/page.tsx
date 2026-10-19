@@ -867,7 +867,7 @@ export default function NadaPracticePage() {
                   {q.exampleSentence && (
                     <div className="flex flex-col justify-center gap-1.5 p-4 bg-muted/10">
                       <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-                        Contoh penggunaan:
+                        Contoh Kalimat:
                       </div>
                       <div className="flex items-center gap-2">
                         <div

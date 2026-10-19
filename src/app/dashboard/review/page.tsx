@@ -31,6 +31,7 @@ export default function ReviewPage() {
         hanzi: card.hanzi,
         pinyin: card.pinyin,
         arti: card.arti,
+        catatan: card.catatan,
         setId: card.setId,
         srsLevel: card.srsLevel,
         intervalDays: card.intervalDays,

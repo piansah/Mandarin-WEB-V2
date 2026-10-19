@@ -1,4 +1,5 @@
 import * as React from "react"
+import { ChevronDown, ChevronUp } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
 import { CardTopBar } from "./card-top-bar"
@@ -36,6 +37,7 @@ export function FlashcardCard({
   onPointerCancel,
   onPointerUp
 }: Props) {
+  const [noteExpanded, setNoteExpanded] = React.useState(false)
   let swipeStatus: "none" | "hafal" | "lupa" | "ragu" | "sulit" = "none"
   const absX = Math.abs(dragX)
   const absY = Math.abs(dragY)
@@ -54,6 +56,10 @@ export function FlashcardCard({
   // Decorative Hanzi should fit the card; its length must never determine the
   // card's intrinsic dimensions on narrow screens.
   const watermarkFontSize = `${Math.max(64, Math.min(160, Math.floor(420 / Math.max(1, Array.from(card.hanzi).length))))}px`
+
+  React.useEffect(() => {
+    setNoteExpanded(false)
+  }, [card.id, flip])
 
   function renderDetailFaceInner() {
     return (
@@ -79,7 +85,7 @@ export function FlashcardCard({
         </div>
         <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-muted-foreground">Contoh penggunaan:</div>
+            <div className="text-xs text-muted-foreground">Contoh Kalimat:</div>
           </div>
           {card.exampleSentence ? (
             <>
@@ -97,6 +103,31 @@ export function FlashcardCard({
             <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
           )}
         </div>
+        {card.catatan?.trim() && (
+          <div className="mt-2">
+            <button
+              type="button"
+              data-no-drag
+              aria-expanded={noteExpanded}
+              onClick={(event) => {
+                event.stopPropagation()
+                setNoteExpanded((expanded) => !expanded)
+              }}
+              aria-label={noteExpanded ? "Tutup catatan" : "Buka catatan"}
+              title={noteExpanded ? "Tutup catatan" : "Buka catatan"}
+              className="mx-auto flex h-6 w-10 items-center justify-center rounded-md text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+            >
+              {noteExpanded
+                ? <ChevronUp className="h-4 w-4" aria-hidden="true" />
+                : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
+            </button>
+            {noteExpanded && (
+              <div className="mt-1 rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+                {card.catatan}
+              </div>
+            )}
+          </div>
+        )}
       </>
     )
   }
@@ -111,13 +142,12 @@ export function FlashcardCard({
         <div className="relative w-full min-w-0 [grid-area:1/1]">
           <div aria-hidden="true" className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70" style={{ transform: "translate(0px, 22px) scale(0.96)", zIndex: 0 }} />
           <div aria-hidden="true" className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40" style={{ transform: "translate(0px, 40px) scale(0.92)", zIndex: -1 }} />
-          
+
           <div
             key={`${idx}-${card.id}`}
             ref={cardRef}
-            className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${
-              isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
-            }`}
+            className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
+              }`}
             style={{
               transform: flyOut
                 ? `translate(${flyOut.x}px, ${flyOut.y}px) rotate(${flyOut.x * 0.05}deg) rotateY(360deg)`

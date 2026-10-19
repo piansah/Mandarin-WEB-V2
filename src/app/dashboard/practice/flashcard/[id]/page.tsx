@@ -44,7 +44,7 @@ export default function FlashcardPracticePage() {
         // For personal decks, fetch from personal_cards table
         const { data: personalCards } = await supa
           .from("personal_cards")
-          .select("id, hanzi, pinyin, arti, word_class")
+          .select("id, hanzi, pinyin, arti, catatan, word_class")
           .eq("deck_id", deckId)
           .order("created_at", { ascending: true })
 
@@ -71,7 +71,7 @@ export default function FlashcardPracticePage() {
         // "HSK {level} - {word_class}" di atas kartu.
         const { data } = await supa
           .from("flashcard_cards")
-          .select("id, hanzi, pinyin, arti, word_class")
+          .select("id, hanzi, pinyin, arti, catatan, word_class")
           .eq("set_id", deckId)
           .order("created_at", { ascending: true })
 

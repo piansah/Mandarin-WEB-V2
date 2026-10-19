@@ -5,6 +5,7 @@ export type DueFlashcard = {
   hanzi: string
   pinyin: string
   arti: string
+  catatan?: string | null
   setId: string | number | null
   srsLevel: number
   intervalDays?: number
@@ -224,7 +225,7 @@ export async function fetchDueFlashcards(
     const chunk = cardIds.slice(i, i + 100)
     const { data } = await supa
       .from("flashcard_cards")
-      .select("id, hanzi, pinyin, arti, set_id, word_class")
+      .select("id, hanzi, pinyin, arti, catatan, set_id, word_class")
       .in("id", chunk)
 
     const uniqueSetIds = [...new Set((data ?? []).map(c => c.set_id).filter(Boolean))]
@@ -299,6 +300,7 @@ export async function fetchDueFlashcards(
         hanzi: card.hanzi ?? "",
         pinyin: card.pinyin ?? "",
         arti: card.arti ?? "",
+        catatan: card.catatan ?? null,
         setId: card.set_id ?? null,
         srsLevel: progress?.srs_level ?? 0,
         intervalDays: progress?.interval_days ?? 1,
