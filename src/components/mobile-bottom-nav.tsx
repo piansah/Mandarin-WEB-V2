@@ -24,6 +24,8 @@ export function isMobileBottomNavHidden(pathname: string | null) {
     || pathname.startsWith("/dashboard/modul/")
     || pathname.startsWith("/dashboard/cerita/")
     || pathname.startsWith("/dashboard/practice/")
+    || pathname === "/dashboard/review"
+    || pathname.startsWith("/dashboard/review/")
     || pathname.startsWith("/dashboard/personal-cards/")
     || pathname.startsWith("/dashboard/games/")
   )
