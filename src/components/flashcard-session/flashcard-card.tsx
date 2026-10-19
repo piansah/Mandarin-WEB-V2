@@ -51,14 +51,17 @@ export function FlashcardCard({
 
   const contentOpacity = swipeStatus !== "none" ? 0 : 1
   const cardRotation = dragX * 0.05
+  // Decorative Hanzi should fit the card; its length must never determine the
+  // card's intrinsic dimensions on narrow screens.
+  const watermarkFontSize = `${Math.max(64, Math.min(160, Math.floor(420 / Math.max(1, Array.from(card.hanzi).length))))}px`
 
   function renderDetailFaceInner() {
     return (
       <>
         <div
           aria-hidden="true"
-          className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]"
-          style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
+          className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]"
+          style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
         >
           {card.hanzi}
         </div>
@@ -99,13 +102,13 @@ export function FlashcardCard({
   }
 
   return (
-    <div className="relative w-full max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px]">
-      <div className="grid">
-        <div aria-hidden="true" className="invisible pointer-events-none flex flex-col p-6 rounded-3xl [grid-area:1/1]">
+    <div className="relative w-full min-w-0 max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px]">
+      <div className="grid w-full min-w-0">
+        <div aria-hidden="true" className="invisible pointer-events-none flex w-full min-w-0 flex-col p-6 rounded-3xl [grid-area:1/1]">
           {renderDetailFaceInner()}
         </div>
 
-        <div className="relative w-full [grid-area:1/1]">
+        <div className="relative w-full min-w-0 [grid-area:1/1]">
           <div aria-hidden="true" className="absolute inset-0 rounded-3xl border border-border/30 bg-card/70" style={{ transform: "translate(0px, 22px) scale(0.96)", zIndex: 0 }} />
           <div aria-hidden="true" className="absolute inset-0 rounded-3xl border border-border/20 bg-card/40" style={{ transform: "translate(0px, 40px) scale(0.92)", zIndex: -1 }} />
           
@@ -137,7 +140,7 @@ export function FlashcardCard({
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl overflow-hidden">
-                  <div aria-hidden="true" className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]" style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
+                  <div aria-hidden="true" className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
                     {card.hanzi}
                   </div>
                   <CardTopBar card={card} />
@@ -148,7 +151,7 @@ export function FlashcardCard({
             </div>
 
             <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden" style={{ visibility: flip !== 1 ? "hidden" : "visible" }}>
-              <div aria-hidden="true" className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1]" style={{ fontSize: "10rem", lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
+              <div aria-hidden="true" className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
                 {card.hanzi}
               </div>
               <CardTopBar card={card} />
