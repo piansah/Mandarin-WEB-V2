@@ -111,53 +111,42 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string): Promis
   const dayOfWeek = today.getDay() // 0 = Min
   const monday = new Date(today)
   monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
+  const weekEnd = new Date(monday)
+  weekEnd.setDate(monday.getDate() + 7)
+  const weekStartKey = monday.toISOString().slice(0, 10)
+  const weekEndKey = weekEnd.toISOString().slice(0, 10)
 
-  const activity: WeeklyActivity[] = []
+  // Ambil satu rentang minggu; sebelumnya tiga query diulang berurutan untuk
+  // tiap hari (21 request total).
+  const [sessionsRes, wordsRes, streakRes] = await Promise.all([
+    supa.from("user_scores").select("updated_at").eq("user_id", userId)
+      .gte("updated_at", `${weekStartKey}T00:00:00`).lt("updated_at", `${weekEndKey}T00:00:00`),
+    supa.from("user_card_progress").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).gte("srs_level", 1),
+    supa.from("daily_streaks").select("date").eq("user_id", userId).lte("date", weekEndKey),
+  ])
 
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday)
-    d.setDate(monday.getDate() + i)
-    const dateStr = d.toISOString().slice(0, 10)
+  const sessionsByDate = new Map<string, number>()
+  sessionsRes.data?.forEach((row) => {
+    if (!row.updated_at) return
+    const dateKey = new Date(row.updated_at).toISOString().slice(0, 10)
+    sessionsByDate.set(dateKey, (sessionsByDate.get(dateKey) ?? 0) + 1)
+  })
+  const streakDates = (streakRes.data ?? []).map((row) => row.date as string)
+  const totalWords = wordsRes.count ?? 0
 
-    // Hitung menit belajar dari user_scores (estimasi berdasarkan jumlah sesi)
-    // Anggap 1 sesi rata-rata 5 menit untuk simplifikasi
-    const { count: sessionCount } = await supa
-      .from("user_scores")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("updated_at", `${dateStr}T00:00:00`)
-      .lt("updated_at", `${dateStr}T23:59:59`)
-
-    const minutes = (sessionCount ?? 0) * 5
-
-    // Hitung kata baru dari user_card_progress (srs_level >= 1 untuk pertama kali)
-    // Kita tidak bisa tahu kapan pertama kali, jadi gunakan total dengan srs_level >= 1
-    const { count: wordsCount } = await supa
-      .from("user_card_progress")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("srs_level", 1)
-
-    // Untuk words per hari, kita gunakan estimasi sederhana:
-    // Total words / total active days
-    const { data: streakData } = await supa
-      .from("daily_streaks")
-      .select("date")
-      .eq("user_id", userId)
-      .lte("date", dateStr)
-
-    const totalDays = streakData?.length ?? 1
-    const totalWords = wordsCount ?? 0
-    const wordsPerDay = totalDays > 0 ? Math.round(totalWords / totalDays) : 0
-
-    activity.push({
-      day: DAY_LABEL[i],
-      minutes,
-      words: i === 6 ? totalWords : Math.round(wordsPerDay / 7) // Distribusi rata
-    })
-  }
-
-  return activity
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(monday)
+    date.setDate(monday.getDate() + index)
+    const dateKey = date.toISOString().slice(0, 10)
+    const totalDays = streakDates.filter((streakDate) => streakDate <= dateKey).length || 1
+    const wordsPerDay = Math.round(totalWords / totalDays)
+    return {
+      day: DAY_LABEL[index],
+      minutes: (sessionsByDate.get(dateKey) ?? 0) * 5,
+      words: index === 6 ? totalWords : Math.round(wordsPerDay / 7),
+    }
+  })
 }
 
 /**
@@ -175,12 +164,12 @@ async function fetchHskProgress(supa: SupabaseClient, userId: string): Promise<H
     { level: "HSK 6", hskLevel: 6, color: "bg-yellow-500" },
   ]
 
-  const progress: HskProgress[] = []
-
-  // Ambil semua deck dengan hsk_level
-  const { data: decks } = await supa
-    .from("flashcard_sets")
-    .select("id, hsk_level")
+  // Data deck dan progres user tidak saling bergantung.
+  const [decksRes, progressRes] = await Promise.all([
+    supa.from("flashcard_sets").select("id, hsk_level"),
+    supa.from("user_card_progress").select("card_id").eq("user_id", userId).gte("srs_level", 1),
+  ])
+  const decks = decksRes.data
 
   const decksByLevel = new Map<number, number[]>()
   for (const deck of decks ?? []) {
@@ -191,48 +180,20 @@ async function fetchHskProgress(supa: SupabaseClient, userId: string): Promise<H
     }
   }
 
-  // Kartu yang sudah dipelajari (srs_level >= 1)
-  const { data: progressData } = await supa
-    .from("user_card_progress")
-    .select("card_id, srs_level")
-    .eq("user_id", userId)
-    .gte("srs_level", 1)
-
-  const learnedCardIds = new Set<string>(progressData?.map((p: { card_id: string | number }) => String(p.card_id)) ?? [])
-
-  for (const level of levels) {
+  const learnedCardIds = new Set<string>((progressRes.data ?? []).map((row) => String(row.card_id)))
+  const cardsByLevel = await Promise.all(levels.map((level) => {
     const deckIds = decksByLevel.get(level.hskLevel) ?? []
+    return deckIds.length
+      ? supa.from("flashcard_cards").select("id", { count: "exact" }).in("set_id", deckIds)
+      : Promise.resolve({ data: [], count: 0 })
+  }))
 
-    // Total kartu di semua deck level ini
-    let total = 0
-    let learned = 0
-
-    if (deckIds.length > 0) {
-      const { count } = await supa
-        .from("flashcard_cards")
-        .select("id", { count: "exact", head: true })
-        .in("set_id", deckIds)
-
-      total = count ?? 0
-
-      // Cek berapa dari kartu di level ini yang sudah dipelajari
-      const { data: cardsInLevel } = await supa
-        .from("flashcard_cards")
-        .select("id")
-        .in("set_id", deckIds)
-
-      learned = cardsInLevel?.filter((c: { id: string | number }) => learnedCardIds.has(String(c.id))).length ?? 0
-    }
-
-    progress.push({
-      level: level.level,
-      total,
-      learned,
-      color: level.color,
-    })
-  }
-
-  return progress
+  return levels.map((level, index) => ({
+    level: level.level,
+    total: cardsByLevel[index].count ?? 0,
+    learned: cardsByLevel[index].data?.filter((card) => learnedCardIds.has(String(card.id))).length ?? 0,
+    color: level.color,
+  }))
 }
 
 /**
@@ -248,26 +209,17 @@ async function fetchAccuracyData(supa: SupabaseClient, userId: string): Promise<
     tulis_session: { label: "Tulis", color: "bg-cyan-500" },
   }
 
-  const accuracyData: AccuracyItem[] = []
+  const entries = Object.entries(typeMap)
+  const results = await Promise.all(entries.map(([type]) =>
+    supa.from("user_scores").select("score").eq("user_id", userId).eq("type", type),
+  ))
 
-  for (const [type, info] of Object.entries(typeMap)) {
-    const { data } = await supa
-      .from("user_scores")
-      .select("score")
-      .eq("user_id", userId)
-      .eq("type", type)
-
-    if (data && data.length > 0) {
-      const avgScore = data.reduce((sum: number, row: { score: number | null }) => sum + (row.score ?? 0), 0) / data.length
-      accuracyData.push({
-        label: info.label,
-        value: Math.round(avgScore),
-        color: info.color,
-      })
-    }
-  }
-
-  return accuracyData
+  return entries.flatMap(([type, info], index) => {
+    const scores = results[index].data?.map((row) => row.score ?? 0)
+    if (!scores?.length) return []
+    const average = scores.reduce((sum, score) => sum + score, 0) / scores.length
+    return [{ label: info.label, value: Math.round(average), color: info.color }]
+  })
 }
 
 /**
@@ -314,13 +266,17 @@ async function fetchDifficultWords(supa: SupabaseClient, userId: string): Promis
  * Ambil pencapaian (achievements)
  */
 async function fetchAchievements(supa: SupabaseClient, userId: string): Promise<Achievement[]> {
-  const achievements: Achievement[] = []
+  const [streakRes, wordsRes, quizRes, decksRes] = await Promise.all([
+    supa.from("daily_streaks").select("date").eq("user_id", userId),
+    supa.from("user_card_progress").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).gte("srs_level", 1),
+    supa.from("user_scores").select("id", { count: "exact", head: true })
+      .eq("user_id", userId).eq("type", "quiz"),
+    supa.from("flashcard_sets").select("id").eq("hsk_level", 1),
+  ])
 
-  // Streak 7 hari
-  const { data: streakData } = await supa
-    .from("daily_streaks")
-    .select("date")
-    .eq("user_id", userId)
+  const achievements: Achievement[] = []
+  const streakData = streakRes.data
   const dates = new Set<string>(streakData?.map((s: { date: string }) => s.date) ?? [])
   const currentStreak = calcCurrentStreak(dates)
   achievements.push({
@@ -336,62 +292,34 @@ async function fetchAchievements(supa: SupabaseClient, userId: string): Promise<
     done: currentStreak >= 30,
   })
 
-  // 100 kata pertama
-  const { count: wordsCount } = await supa
-    .from("user_card_progress")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("srs_level", 1)
   achievements.push({
     label: "100 Kata Pertama",
     desc: "Pelajari 100 kata unik",
-    done: (wordsCount ?? 0) >= 100,
+    done: (wordsRes.count ?? 0) >= 100,
   })
 
-  // Modul pertama (selesaikan 1 quiz/grammar)
-  const { count: quizCount } = await supa
-    .from("user_scores")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("type", "quiz")
   achievements.push({
     label: "Modul Pertama",
     desc: "Selesaikan 1 modul belajar",
-    done: (quizCount ?? 0) >= 1,
+    done: (quizRes.count ?? 0) >= 1,
   })
 
   // HSK 1 tuntas
-  const { data: hsk1Decks } = await supa
-    .from("flashcard_sets")
-    .select("id")
-    .eq("hsk_level", 1)
-
+  const hsk1Decks = decksRes.data
   const hsk1DeckIds = hsk1Decks?.map((d: { id: number }) => d.id) ?? []
   let hsk1Total = 0
   let hsk1Learned = 0
 
   if (hsk1DeckIds.length > 0) {
-    const { count } = await supa
-      .from("flashcard_cards")
-      .select("id", { count: "exact", head: true })
-      .in("set_id", hsk1DeckIds)
-
-    hsk1Total = count ?? 0
-
-    const { data: hsk1Cards } = await supa
-      .from("flashcard_cards")
-      .select("id")
-      .in("set_id", hsk1DeckIds)
-
-    const hsk1CardIds = new Set<string>(hsk1Cards?.map((c: { id: string | number }) => String(c.id)) ?? [])
-
-    const { data: userProgress } = await supa
-      .from("user_card_progress")
-      .select("card_id")
-      .eq("user_id", userId)
-      .gte("srs_level", 1)
-
-    hsk1Learned = userProgress?.filter((p: { card_id: string | number }) => hsk1CardIds.has(String(p.card_id))).length ?? 0
+    const [countRes, cardsRes, progressRes] = await Promise.all([
+      supa.from("flashcard_cards").select("id", { count: "exact", head: true }).in("set_id", hsk1DeckIds),
+      supa.from("flashcard_cards").select("id").in("set_id", hsk1DeckIds),
+      supa.from("user_card_progress").select("card_id").eq("user_id", userId).gte("srs_level", 1),
+    ])
+    hsk1Total = countRes.count ?? 0
+    const hsk1CardIds = new Set<string>((cardsRes.data ?? []).map((card) => String(card.id)))
+    hsk1Learned = [...new Set(progressRes.data?.map((row) => String(row.card_id)) ?? [])]
+      .filter((cardId) => hsk1CardIds.has(cardId)).length
   }
 
   achievements.push({
@@ -420,48 +348,27 @@ export async function fetchStatsData(): Promise<StatsData | null> {
     return d.toISOString().slice(0, 10)
   })()
 
-  const { data: streakData } = await supa
-    .from("daily_streaks")
-    .select("date")
-    .eq("user_id", user.id)
-    .gte("date", since)
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  const monthStartStr = monthStart.toISOString().slice(0, 10)
+  const [streakRes, learnedRes, cardsRes, sessionsRes, monthlySessionsRes] = await Promise.all([
+    supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", since),
+    supa.from("user_card_progress").select("id", { count: "exact", head: true })
+      .eq("user_id", user.id).gte("srs_level", 1),
+    supa.from("flashcard_cards").select("id", { count: "exact", head: true }),
+    supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+    supa.from("user_scores").select("id", { count: "exact", head: true })
+      .eq("user_id", user.id).gte("updated_at", `${monthStartStr}T00:00:00`),
+  ])
 
+  const streakData = streakRes.data
   const dates = new Set(streakData?.map((r) => r.date as string) ?? [])
   const streak = calcCurrentStreak(dates)
   const bestStreak = calcBestStreak(dates)
 
-  // Total kata dipelajari
-  const { count: totalWordsLearned } = await supa
-    .from("user_card_progress")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("srs_level", 1)
-
-  // Total flashcard_cards
-  const { count: totalCards } = await supa
-    .from("flashcard_cards")
-    .select("id", { count: "exact", head: true })
-
   // Total menit belajar (estimasi dari total sesi)
-  const { count: totalSessions } = await supa
-    .from("user_scores")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-
-  const totalStudyMinutes = (totalSessions ?? 0) * 5
-
-  // Menit belajar bulan ini
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  const monthStartStr = monthStart.toISOString().slice(0, 10)
-
-  const { count: monthlySessions } = await supa
-    .from("user_scores")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("updated_at", `${monthStartStr}T00:00:00`)
-
-  const monthlyStudyMinutes = (monthlySessions ?? 0) * 5
+  const totalStudyMinutes = (sessionsRes.count ?? 0) * 5
+  const monthlyStudyMinutes = (monthlySessionsRes.count ?? 0) * 5
 
   // Ambil semua data statistik secara paralel
   const [weeklyActivity, hskProgress, accuracyData, difficultWords, achievements] =
@@ -481,8 +388,8 @@ export async function fetchStatsData(): Promise<StatsData | null> {
     achievements,
     streak,
     bestStreak,
-    totalWordsLearned: totalWordsLearned ?? 0,
-    totalCards: totalCards ?? 0,
+    totalWordsLearned: learnedRes.count ?? 0,
+    totalCards: cardsRes.count ?? 0,
     totalStudyMinutes,
     monthlyStudyMinutes,
   }

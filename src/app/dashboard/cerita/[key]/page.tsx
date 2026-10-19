@@ -5,6 +5,7 @@
    page.tsx -- Cerita Detail - Interactive Story Reader */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
@@ -734,13 +735,7 @@ export default function CeritaReadPage() {
     setQuizSelected(null)
   }
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error || !data) {
     return (

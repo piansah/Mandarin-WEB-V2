@@ -5,6 +5,7 @@
    page.tsx -- Profile - User Account and Badges */
 
 import { toast } from "sonner";
+import { PageLoader } from "@/components/page-loader"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
@@ -22,7 +23,7 @@ import {
   BADGES,
   type UserProfile,
 } from "@/lib/user-profile"
-import { Trophy, Star, Flame, BookOpen, Target, Award, Settings, Camera, Loader2 } from "lucide-react"
+import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2 } from "lucide-react"
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -126,11 +127,7 @@ export default function ProfilePage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <p className="text-sm text-muted-foreground">Memuat profil...</p>
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!profile) {
@@ -146,12 +143,6 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold tracking-tight">Profil Saya</h1>
-        <p className="text-sm text-muted-foreground">Kelola profil, level, dan pencapaianmu</p>
-      </div>
-
       {/* Profile Card */}
       <Card>
         <CardContent className="p-6">
@@ -219,8 +210,8 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center gap-2 max-w-full">
                     <h2 className="text-2xl font-bold truncate">{profile.displayName}</h2>
-                    <Button size="sm" variant="ghost" onClick={() => setEditingName(true)} className="shrink-0">
-                      <Settings className="h-4 w-4" />
+                    <Button size="sm" variant="ghost" onClick={() => setEditingName(true)} className="shrink-0" aria-label="Edit nama" title="Edit nama">
+                      <PenLine className="h-4 w-4" />
                     </Button>
                   </div>
                 )}

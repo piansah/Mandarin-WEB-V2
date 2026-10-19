@@ -5,13 +5,14 @@
    page.tsx -- Admin Dashboard - Overview */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   Users, Database, Settings, BarChart3, Shield,
-  TrendingUp, Activity, CheckCircle2, AlertCircle
+  TrendingUp, Activity, CheckCircle2, AlertCircle, Bug
 } from "lucide-react"
 import { isAdmin, getAdminStats } from "@/lib/auth-roles"
 
@@ -45,11 +46,7 @@ export default function AdminDashboardPage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!isAuthorized) {
@@ -91,6 +88,13 @@ export default function AdminDashboardPage() {
       icon: BarChart3,
       href: "/dashboard/admin/analytics",
       color: "bg-orange-500",
+    },
+    {
+      title: "Laporan Bug",
+      description: "Tinjau laporan bug, konten, dan saran pengguna",
+      icon: Bug,
+      href: "/dashboard/admin/bug-reports",
+      color: "bg-rose-500",
     },
   ]
 

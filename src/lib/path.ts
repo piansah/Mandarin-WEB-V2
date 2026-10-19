@@ -26,13 +26,12 @@ import { SupabaseClient } from "@supabase/supabase-js"
 export async function fetchLearningPath(client?: SupabaseClient): Promise<PathStep[]> {
   const supa = client ?? createClient()
   
-  // 1. Dapatkan overview modul untuk status level dan daftar modul
-  const overview = await fetchModulOverview(supa)
-
-  // 2. Aggregate data secara paralel untuk mempercepat
+  // Data overview dan seluruh agregat tidak saling bergantung, jadi ambil
+  // bersamaan agar halaman peta belajar tidak menunggu dua gelombang query.
   const hskLevels = [1, 2, 3, 4, 5, 6]
   
-  const [grammarRes, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
+  const [overview, grammarRes, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
+    fetchModulOverview(supa),
     supa.from("grammar_patterns").select("hsk_level"),
     supa.from("hanzi_sets").select("hsk_level"),
     supa.from("flashcard_sets").select("id, hsk_level"),

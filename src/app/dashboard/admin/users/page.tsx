@@ -7,6 +7,7 @@
 import { toast } from "sonner";
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -131,11 +132,7 @@ export default function AdminUsersPage() {
   })
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-      </div>
-    )
+    return <PageLoader />
   }
 
   const adminCount = users.filter(u => u.role === "admin" || u.role === "superadmin").length

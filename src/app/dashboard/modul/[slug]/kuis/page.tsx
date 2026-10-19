@@ -5,6 +5,7 @@
    page.tsx -- Modul Kuis - Module Quiz */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -191,13 +192,7 @@ export default function ModulKuisPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [currentIndex, currentQuestion, selectedOptionId, answers, saving, finished, questions.length])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error || !quiz) {
     return (

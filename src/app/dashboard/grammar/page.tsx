@@ -5,6 +5,7 @@
    page.tsx -- Tata Bahasa - Grammar Exercises List */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useRouter } from "next/navigation"
 import { BookOpen, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -55,13 +56,7 @@ export default function GrammarListPage() {
   const visible = React.useMemo(() => patterns.filter((item) => item.hsk_level === effectiveLevel), [patterns, effectiveLevel])
   const totalGrammarCount = visible.length
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (patterns.length === 0) {
     return (

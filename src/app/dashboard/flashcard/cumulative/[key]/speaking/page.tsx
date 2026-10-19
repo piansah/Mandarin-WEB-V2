@@ -5,6 +5,7 @@
    page.tsx -- Flashcard Speaking - Pronunciation Practice */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
 import { shuffle } from "@/lib/array-utils"
@@ -267,13 +268,7 @@ export default function SpeakingPracticePage() {
     router.push(`/dashboard/flashcard/cumulative/${key}`)
   }
 
-  if (loading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error || !set) {
     return (

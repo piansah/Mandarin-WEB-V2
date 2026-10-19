@@ -5,6 +5,7 @@
    page.tsx -- Flashcard Deck - Card Browser and Study */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { createPortal } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ChevronsLeft, Flag, Heart, Plus, Volume2 } from "lucide-react"
@@ -271,13 +272,7 @@ export default function FlashcardDeckPage() {
     }
   }, [selectedCard])
 
-  if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error) {
     return (

@@ -5,6 +5,7 @@
    page.tsx -- Modul Detail - Module Content and Lessons */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
@@ -67,13 +68,7 @@ export default function ModulDetailPage() {
     }
   }, [params.slug])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error || !detail) {
     return (

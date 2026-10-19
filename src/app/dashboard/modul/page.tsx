@@ -5,6 +5,7 @@
    page.tsx -- Modul - Learning Module List */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,13 +31,7 @@ export default function ModulPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error) {
     return (

@@ -35,7 +35,7 @@ const menuItems: SearchResult[] = [
 ]
 
 export function DashboardHeader() {
-  const { pinned, togglePinned } = useSidebar()
+  const { pinned, togglePinned, isMobile, setOpenMobile } = useSidebar()
   const router = useRouter()
   const supabase = useSupabase()
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -178,12 +178,12 @@ export function DashboardHeader() {
       {!mobileSearchActive && (
         <Button
           type="button"
-          onClick={togglePinned}
+          onClick={() => isMobile ? setOpenMobile(true) : togglePinned()}
           variant="ghost"
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
-          aria-label={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
-          aria-pressed={pinned}
-          title={pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+          aria-label={isMobile ? "Buka sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
+          aria-pressed={isMobile ? undefined : pinned}
+          title={isMobile ? "Buka sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
         >
           <PanelLeft className="h-5 w-5" />
         </Button>

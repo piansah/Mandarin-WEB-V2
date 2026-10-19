@@ -6,6 +6,7 @@
 "use client"
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Flag, Heart, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
@@ -274,7 +275,7 @@ export default function WordDetailPage() {
     return () => { cancelled = true }
   }, [card, dictionaryKey, supa, tab])
 
-  if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+  if (loading) return <PageLoader />
   if (!card && cardId && cardId !== "undefined" && cardId !== "null") return <div className="p-8 text-sm text-red-400">Detail kata tidak ditemukan.</div>
   if (!card) return null
 
@@ -462,9 +463,9 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      // Timeline berbasis rate terpilih: baseline normal 260 ms, dengan
-      // kalibrasi khusus untuk rate Pelan (0.6) dan Lambat (0.4).
-      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 430 : 560
+      // Normal tetap 260 ms. Pelan/Lambat dipercepat agar highlight tidak
+      // tertinggal dari audio pada voice browser yang lebih cepat.
+      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 350 : 450
       const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) / msPerChar))
       if (estimatedIndex > lastActiveCharIndex) {
         // Batasi satu langkah karakter per tick agar tab yang sempat tertahan

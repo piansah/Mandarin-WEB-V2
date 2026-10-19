@@ -5,6 +5,7 @@
    page.tsx -- Cerita - Story Reading List */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { BookMarked } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -60,13 +61,7 @@ export default function CeritaListPage() {
   const visible = React.useMemo(() => sets.filter((set) => set.hsk_level === effectiveLevel), [sets, effectiveLevel])
   const totalBacaCount = visible.length
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[50vh] flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   if (error) {
     return (

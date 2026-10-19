@@ -5,6 +5,7 @@
    page.tsx -- Dashboard - Scores, Stats, Progress, Activity List */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import {
   RotateCcw,
   CheckCircle2,
@@ -574,11 +575,7 @@ export default function DashboardPage() {
   }, [activeDeckHero, watermarkIndex])
 
   if (loading) {
-    return (
-      <div className="mx-auto w-full max-w-6xl px-6 py-6">
-        <p className="text-sm text-muted-foreground">Memuat dashboard...</p>
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!stats) {

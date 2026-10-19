@@ -259,7 +259,7 @@ export function AppSidebar({
 
       <SidebarContent>
         {/* Dashboard & Modul */}
-        <div className="px-3">
+        <div className="hidden px-3 md:block">
           <div className="mb-2 px-2 pt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             MENU UTAMA
           </div>
@@ -356,7 +356,7 @@ export function AppSidebar({
 
         {/* ADMIN - hanya muncul untuk admin */}
         {isAdminUser && (
-          <div className="px-3 mt-4">
+          <div className="hidden px-3 mt-4 md:block">
             <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
               ADMIN
             </div>
@@ -405,10 +405,12 @@ export function AppSidebar({
                 sideOffset={4}
               >
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={handleProfileClick}>
-                    <User className="h-4 w-4" />
-                    Profil
-                  </DropdownMenuItem>
+                  {!isMobile && (
+                    <DropdownMenuItem onClick={handleProfileClick}>
+                      <User className="h-4 w-4" />
+                      Profil
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="h-4 w-4" />
                     Pengaturan

@@ -5,6 +5,7 @@
    page.tsx -- Statistik - Learning Analytics and Charts */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -61,13 +62,7 @@ export default function StatistikPage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex flex-col p-6 gap-8 text-foreground">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />
-        </div>
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!data) {

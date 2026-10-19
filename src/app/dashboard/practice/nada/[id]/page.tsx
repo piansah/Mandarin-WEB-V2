@@ -5,6 +5,7 @@
    page.tsx -- Practice Nada - Tone Training Session */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { CheckCircle2, XCircle, Flame, ListChecks, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -524,7 +525,7 @@ export default function NadaPracticePage() {
   }, [done, total, correct])
 
   if (loading) {
-    return <div className={styles.page}><div className="flex flex-1 items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" /></div></div>
+    return <PageLoader className={styles.page} />
   }
 
   if (done || total === 0) {

@@ -5,6 +5,7 @@
    page.tsx -- Mini Games - Game Hub */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import Link from "next/link"
 import { Gamepad2, ArrowRight, Unlock, Worm, Languages, SquareStack, LucideIcon } from "lucide-react"
 
@@ -62,13 +63,7 @@ export default function GameHubPage() {
     }
   ]
 
-  if (loading) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
+  if (loading) return <PageLoader />
 
   return (
     <div className="w-full px-6 py-10 space-y-10 animate-in fade-in duration-500">

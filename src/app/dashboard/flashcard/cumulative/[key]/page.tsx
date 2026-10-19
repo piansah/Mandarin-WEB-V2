@@ -5,6 +5,7 @@
    page.tsx -- Flashcard Kumulatif - Swipe Session */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { useParams, useRouter } from "next/navigation"
 import { RotateCcw, Mic, CheckCircle2, Star, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -117,9 +118,9 @@ export default function CumulativeFlashcardSessionPage() {
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      // Timeline berbasis rate terpilih: baseline normal 260 ms, dengan
-      // kalibrasi khusus untuk rate Pelan (0.6) dan Lambat (0.4).
-      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 430 : 560
+      // Normal tetap 260 ms. Pelan/Lambat dipercepat agar highlight tidak
+      // tertinggal dari audio pada voice browser yang lebih cepat.
+      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 350 : 450
       const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) / msPerChar))
       if (estimatedIndex > lastActiveCharIndex) {
         // Batasi satu langkah karakter per tick agar keterlambatan frame tidak
@@ -297,7 +298,7 @@ export default function CumulativeFlashcardSessionPage() {
     setReportModal({ isOpen: false, itemId: null, itemLabel: "" })
   }
 
-  if (loading) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-background"><div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" /></div>
+  if (loading) return <PageLoader />
   if (error || !set) return <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
   return (
