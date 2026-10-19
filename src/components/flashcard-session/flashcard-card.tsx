@@ -61,27 +61,54 @@ export function FlashcardCard({
     setNoteExpanded(false)
   }, [card.id, flip])
 
+  function renderNoteToggle() {
+    if (!card.catatan?.trim()) return null
+    return (
+      <button
+        type="button"
+        data-no-drag
+        aria-label={noteExpanded ? "Tutup catatan" : "Buka catatan"}
+        aria-expanded={noteExpanded}
+        title={noteExpanded ? "Tutup catatan" : "Buka catatan"}
+        onClick={(event) => {
+          event.stopPropagation()
+          setNoteExpanded((expanded) => !expanded)
+        }}
+        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
+      >
+        {noteExpanded
+          ? <ChevronUp className="h-4 w-4" aria-hidden="true" />
+          : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    )
+  }
+
   function renderDetailFaceInner() {
     return (
       <>
         <div
           aria-hidden="true"
-          className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]"
+          className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1] whitespace-nowrap"
           style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}
         >
           {card.hanzi}
         </div>
         <CardTopBar card={card} />
-        <div className="flex-1 flex flex-col items-center justify-center mt-4">
+        <div className="flex min-w-0 flex-1 items-center justify-center mt-4">
+          <div className="flex max-w-full items-center justify-center gap-3 sm:gap-4">
           <div
-            className="font-hanzi text-4xl sm:text-5xl leading-none text-foreground drop-shadow-sm mb-2 cursor-pointer hover:text-primary transition-colors whitespace-nowrap"
+            className="shrink-0 cursor-pointer whitespace-nowrap font-hanzi text-4xl leading-none text-foreground drop-shadow-sm transition-colors hover:text-primary sm:text-5xl"
             data-no-drag
             onClick={(e) => { e.stopPropagation(); speakMandarin(card.hanzi) }}
           >
             {card.hanzi}
           </div>
-          <TonePinyin text={card.pinyin} className="mb-2 text-xl font-sans font-medium drop-shadow-sm" />
-          <span className="text-lg font-semibold text-center text-foreground drop-shadow-sm">{card.arti}</span>
+          <div aria-hidden="true" className="h-12 w-px shrink-0 bg-border/70" />
+          <div className="min-w-0 text-left">
+            <TonePinyin text={card.pinyin} className="mb-1 text-lg font-sans font-medium drop-shadow-sm sm:text-xl" />
+            <span className="block break-words text-base font-semibold text-foreground drop-shadow-sm sm:text-lg">{card.arti}</span>
+          </div>
+          </div>
         </div>
         <div className="mt-3 pt-3 border-t border-border/40 bg-gradient-to-br from-muted/30 to-muted/10 rounded-lg">
           <div className="flex items-center justify-between mb-2">
@@ -97,36 +124,22 @@ export function FlashcardCard({
                 {card.exampleSentence}
               </div>
               {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
-              <div className="text-sm text-foreground">{card.exampleTranslation}</div>
+              <div className="flex items-center justify-center gap-1">
+                <div className="text-sm text-foreground">{card.exampleTranslation}</div>
+                {renderNoteToggle()}
+              </div>
             </>
           ) : (
             <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
           )}
+          {!card.exampleSentence && renderNoteToggle()}
         </div>
         {card.catatan?.trim() && (
-          <div className="mt-2">
-            <button
-              type="button"
-              data-no-drag
-              aria-expanded={noteExpanded}
-              onClick={(event) => {
-                event.stopPropagation()
-                setNoteExpanded((expanded) => !expanded)
-              }}
-              aria-label={noteExpanded ? "Tutup catatan" : "Buka catatan"}
-              title={noteExpanded ? "Tutup catatan" : "Buka catatan"}
-              className="mx-auto flex h-6 w-10 items-center justify-center rounded-md text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
-            >
-              {noteExpanded
-                ? <ChevronUp className="h-4 w-4" aria-hidden="true" />
-                : <ChevronDown className="h-4 w-4" aria-hidden="true" />}
-            </button>
-            {noteExpanded && (
-              <div className="mt-1 rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-                {card.catatan}
-              </div>
-            )}
-          </div>
+          noteExpanded && (
+            <div className="mt-2 w-full rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-center text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
+              {card.catatan}
+            </div>
+          )
         )}
       </>
     )
@@ -170,7 +183,7 @@ export function FlashcardCard({
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl overflow-hidden">
-                  <div aria-hidden="true" className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
+                  <div aria-hidden="true" className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1] whitespace-nowrap" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
                     {card.hanzi}
                   </div>
                   <CardTopBar card={card} />
@@ -181,7 +194,7 @@ export function FlashcardCard({
             </div>
 
             <div className="absolute inset-0 backface-hidden flex flex-col items-center justify-center p-8 bg-gradient-to-br from-card to-card/80 rounded-3xl rotate-y-180 overflow-hidden" style={{ visibility: flip !== 1 ? "hidden" : "visible" }}>
-              <div aria-hidden="true" className="absolute right-4 bottom-3 select-none pointer-events-none font-hanzi text-foreground/[0.1] dark:text-foreground/[0.14]" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
+              <div aria-hidden="true" className="absolute -right-8 -bottom-10 select-none pointer-events-none font-hanzi text-foreground/[0.07] dark:text-foreground/[0.1] whitespace-nowrap" style={{ fontSize: watermarkFontSize, lineHeight: 1, transform: "scaleX(-1) rotate(-8deg)" }}>
                 {card.hanzi}
               </div>
               <CardTopBar card={card} />
