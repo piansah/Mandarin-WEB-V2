@@ -16,7 +16,7 @@ import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
-import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, sentenceMeaningMatches, type SegmentedWord } from "@/lib/hanzi-segmentation"
+import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 
@@ -331,7 +331,7 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => handleTabChange(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} card={card} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
 
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
     {wordPopover && (
@@ -393,10 +393,8 @@ function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; fav
   return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
-function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: { examples: ExampleSentence[]; cacheReady: boolean; card: Card; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
+function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
   if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
-  const matched = examples.filter(example => sentenceMeaningMatches(card.arti, example.arti) === true)
-  const needsReview = examples.filter(example => sentenceMeaningMatches(card.arti, example.arti) !== true)
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
@@ -409,14 +407,8 @@ function SentenceTab({ examples, cacheReady, card, onAddSentence, onWordOpen }: 
           Tambah Contoh Kalimat
         </button>
       </div>
-      <div className={styles.sentenceGroupTitle}>{matched.length} contoh kalimat</div>
-      {matched.length > 0
-        ? <div className={styles.sentenceList}>{matched.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
-        : <div className={styles.sentenceEmpty}>Belum ada contoh kalimat dengan arti yang cocok.</div>}
-      {needsReview.length > 0 && <div className={styles.sentenceReview}>
-        <div className={styles.sentenceGroupTitle}>{needsReview.length} makna berbeda</div>
-        <div className={styles.sentenceList}>{needsReview.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
-      </div>}
+      <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
+      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
     </div>
   )
 }
@@ -470,13 +462,15 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      // Pakai satu timeline deterministik. Event boundary dari SpeechSynthesis
-      // bervariasi antar browser/voice dan membuat highlight meloncat.
-      // 260 ms adalah baseline normal; rate lebih lambat memperpanjang durasi.
-      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) * playbackRate / 260))
+      // Timeline berbasis rate terpilih: baseline normal 260 ms, dengan
+      // kalibrasi khusus untuk rate Pelan (0.6) dan Lambat (0.4).
+      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 430 : 560
+      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) / msPerChar))
       if (estimatedIndex > lastActiveCharIndex) {
-        lastActiveCharIndex = estimatedIndex
-        applyCharacterIndex(estimatedIndex)
+        // Batasi satu langkah karakter per tick agar tab yang sempat tertahan
+        // tidak membuat highlight meloncat beberapa kata sekaligus.
+        lastActiveCharIndex = Math.min(estimatedIndex, lastActiveCharIndex + 1)
+        applyCharacterIndex(lastActiveCharIndex)
       }
     }, 50)
     void speakParagraph(sentence, undefined, undefined, rate => { playbackRate = rate }).finally(() => {

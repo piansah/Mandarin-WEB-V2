@@ -117,12 +117,15 @@ export default function CumulativeFlashcardSessionPage() {
     }
     const fallback = window.setInterval(() => {
       if (playbackId.current !== currentPlaybackId) return
-      // Boundary SpeechSynthesis berbeda antar browser/voice dan membuat
-      // highlight meloncat; gunakan progress berbasis waktu yang konsisten.
-      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) * playbackRate / 260))
+      // Timeline berbasis rate terpilih: baseline normal 260 ms, dengan
+      // kalibrasi khusus untuk rate Pelan (0.6) dan Lambat (0.4).
+      const msPerChar = playbackRate >= 0.95 ? 260 : playbackRate >= 0.5 ? 430 : 560
+      const estimatedIndex = Math.min(totalChars - 1, Math.floor((performance.now() - startedAt) / msPerChar))
       if (estimatedIndex > lastActiveCharIndex) {
-        lastActiveCharIndex = estimatedIndex
-        applyCharacterIndex(estimatedIndex)
+        // Batasi satu langkah karakter per tick agar keterlambatan frame tidak
+        // membuat highlight meloncat melewati beberapa kosakata.
+        lastActiveCharIndex = Math.min(estimatedIndex, lastActiveCharIndex + 1)
+        applyCharacterIndex(lastActiveCharIndex)
       }
     }, 50)
     void speakParagraph(item.hanzi, undefined, undefined, rate => { playbackRate = rate }).finally(() => {
