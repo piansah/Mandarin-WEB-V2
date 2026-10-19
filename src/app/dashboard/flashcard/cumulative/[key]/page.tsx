@@ -313,7 +313,10 @@ export default function CumulativeFlashcardSessionPage() {
         />
 
         <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
-          <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio. Tap kalimat berulang kali untuk mengganti kecepatan: normal, pelan, lalu lambat.</p>
+          <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
+            <span className="md:hidden">Tap kalimat untuk membuka pinyin dan audio. Tap lagi untuk melihat arti; tap berikutnya memutar ulang audio dan mengganti kecepatannya.</span>
+            <span className="hidden md:inline">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio. Tap kalimat berulang kali untuk mengganti kecepatan: normal, pelan, lalu lambat.</span>
+          </p>
           {groups.map((group) => (
             <section key={`${group.tag}-${group.label}`}>
               <div className="mb-3 flex items-center gap-2 border-b border-border/60 pb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground">{group.tag}</span>{group.label}</div>
@@ -330,7 +333,7 @@ export default function CumulativeFlashcardSessionPage() {
                         <button
                           type="button"
                           onClick={() => advance(item)}
-                          className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-primary/50 bg-primary/5" : "border-border/60 bg-card hover:border-primary/40"}`}
+                          className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-orange-500/50 bg-orange-500/5" : "border-border/60 bg-card hover:border-primary/40"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="font-hanzi text-2xl leading-relaxed text-foreground">
@@ -345,7 +348,6 @@ export default function CumulativeFlashcardSessionPage() {
                                   User
                                 </span>
                               )}
-                              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">#{index + 1}</span>
                             </div>
                           </div>
                           {state >= 1 && <TonePinyin text={item.pinyin} className="mt-2 text-sm font-medium" />}

@@ -37,7 +37,11 @@ export function segmentSentenceByPinyin(sentence: string, pinyin?: string | null
   if (!sentence) return []
   if (!pinyin?.trim()) return segmentText(sentence)
 
-  const pinyinGroups = pinyin.match(/[\p{L}\p{M}üÜ]+(?:[1-5])?/gu) ?? []
+  const hasDialogueLabels = /(?:^|\s)[AB]\s*:/i.test(pinyin)
+  const pinyinGroups = (pinyin.match(/[\p{L}\p{M}üÜ]+(?:[1-5])?/gu) ?? [])
+    // Dialogue markers are labels, not Mandarin syllables. The matching A:/B:
+    // characters in the Hanzi text remain as punctuation segments below.
+    .filter(group => !hasDialogueLabels || !/^[AB]$/i.test(group))
   if (pinyinGroups.length === 0) return []
 
   const chars = Array.from(sentence)
