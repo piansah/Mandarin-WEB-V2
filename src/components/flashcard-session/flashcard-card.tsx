@@ -20,6 +20,7 @@ type Props = {
   onPointerMove: (e: React.PointerEvent) => void
   onPointerCancel: () => void
   onPointerUp: () => void
+  onNoteExpandedChange: (expanded: boolean) => void
 }
 
 export function FlashcardCard({
@@ -35,7 +36,8 @@ export function FlashcardCard({
   onPointerDown,
   onPointerMove,
   onPointerCancel,
-  onPointerUp
+  onPointerUp,
+  onNoteExpandedChange
 }: Props) {
   const [noteExpanded, setNoteExpanded] = React.useState(false)
   let swipeStatus: "none" | "hafal" | "lupa" | "ragu" | "sulit" = "none"
@@ -59,7 +61,8 @@ export function FlashcardCard({
 
   React.useEffect(() => {
     setNoteExpanded(false)
-  }, [card.id, flip])
+    onNoteExpandedChange(false)
+  }, [card.id, flip, onNoteExpandedChange])
 
   function renderNoteToggle() {
     if (!card.catatan?.trim()) return null
@@ -72,7 +75,9 @@ export function FlashcardCard({
         title={noteExpanded ? "Tutup catatan" : "Buka catatan"}
         onClick={(event) => {
           event.stopPropagation()
-          setNoteExpanded((expanded) => !expanded)
+          const expanded = !noteExpanded
+          setNoteExpanded(expanded)
+          onNoteExpandedChange(expanded)
         }}
         className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-primary/80 transition-colors hover:bg-primary/10 hover:text-primary"
       >

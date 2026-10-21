@@ -35,8 +35,11 @@ export function SwipeFlashcardSession({
   deckId,
   sessionId,
 }: SwipeFlashcardSessionProps) {
+  const [noteExpanded, setNoteExpanded] = React.useState(false)
   const session = useFlashcardSession({
-    cards, userId, deckCardIds, wordDetailPath, onComplete, disableSwipeProp, deckId, sessionId
+    cards, userId, deckCardIds, wordDetailPath, onComplete,
+    disableSwipeProp: disableSwipeProp || noteExpanded,
+    deckId, sessionId
   })
 
   if (loading) {
@@ -146,6 +149,7 @@ export function SwipeFlashcardSession({
             onPointerMove={session.onPointerMove}
             onPointerCancel={session.onPointerCancel}
             onPointerUp={session.onPointerUp}
+            onNoteExpandedChange={setNoteExpanded}
           />
 
           <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl">
