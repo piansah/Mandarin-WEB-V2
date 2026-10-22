@@ -128,9 +128,9 @@ export function FlashcardCard({
               >
                 {card.exampleSentence}
               </div>
-              {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
+              {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="mb-1 max-w-full text-sm font-italic [text-wrap:pretty]" />}
               <div className="relative flex min-h-6 items-center">
-                <div className="w-full pr-8 text-left text-sm text-foreground">{card.exampleTranslation}</div>
+                <div className="w-full pr-8 text-left text-sm text-foreground [text-wrap:pretty]">{card.exampleTranslation}</div>
                 <div className="absolute right-0 bottom-0">{renderNoteToggle()}</div>
               </div>
             </>
@@ -155,7 +155,7 @@ export function FlashcardCard({
   return (
     <div className="relative w-full min-w-0 max-w-lg md:max-w-2xl lg:max-w-3xl perspective-[800px]">
       <div className="grid w-full min-w-0">
-        <div aria-hidden="true" className="invisible pointer-events-none flex w-full min-w-0 flex-col p-6 rounded-3xl [grid-area:1/1]">
+        <div aria-hidden="true" className="invisible pointer-events-none flex w-full min-w-0 flex-col rounded-3xl px-6 pt-6 pb-8 [grid-area:1/1]">
           {renderDetailFaceInner()}
         </div>
 
@@ -185,7 +185,7 @@ export function FlashcardCard({
           >
             <div className="absolute inset-0 backface-hidden rounded-3xl overflow-hidden" style={{ visibility: flip === 1 ? "hidden" : "visible" }}>
               {flip === 2 ? (
-                <div className="absolute inset-0 flex flex-col p-6 bg-gradient-to-br from-secondary/40 to-secondary/20 rounded-3xl transition-opacity duration-200" style={{ opacity: contentOpacity }}>
+                <div className="absolute inset-0 flex flex-col rounded-3xl bg-gradient-to-br from-secondary/40 to-secondary/20 px-6 pt-6 pb-8 transition-opacity duration-200" style={{ opacity: contentOpacity }}>
                   {renderDetailFaceInner()}
                 </div>
               ) : (

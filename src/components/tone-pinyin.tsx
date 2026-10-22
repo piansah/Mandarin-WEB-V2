@@ -14,13 +14,27 @@ function splitPinyin(word: string) {
 }
 
 export function TonePinyin({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/(\s+|[,!.?·。，！？、；：()]+)/)
+  const attachedPunctuation = parts.reduce<string[]>((result, part) => {
+    if (/^[,!.?·。，！？、；：()]+$/.test(part) && result.length > 0 && !/^\s+$/.test(result[result.length - 1])) {
+      result[result.length - 1] += part
+    } else {
+      result.push(part)
+    }
+    return result
+  }, [])
+
   return (
     <span className={`inline leading-none tracking-normal ${className ?? ""}`}>
-      {text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
-        if (!part || /^(\s+|[,!.?·。，！？、；：()]+)$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
-        return splitPinyin(part).map((syllable, syllableIndex) => {
+      {attachedPunctuation.map((part, index) => {
+        if (!part || /^\s+$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+        const punctuation = part.match(/([,!.?·。，！？、；：()]+)$/)?.[0] ?? ""
+        const word = punctuation ? part.slice(0, -punctuation.length) : part
+        if (!word) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+        return splitPinyin(word).map((syllable, syllableIndex, syllables) => {
           const tone = [...syllable].map(char => toneMap[char]).find(Boolean) ?? "tone0"
-          return <span key={`${syllable}-${syllableIndex}`} className={`inline-block ${tone}`}>{syllable}</span>
+          const trailingPunctuation = syllableIndex === syllables.length - 1 ? punctuation : ""
+          return <span key={`${syllable}-${syllableIndex}`} className={`inline-block ${tone}`}>{syllable}{trailingPunctuation}</span>
         })
       })}
     </span>
