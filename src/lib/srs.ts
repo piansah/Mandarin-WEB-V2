@@ -219,103 +219,90 @@ export async function fetchDueFlashcards(
   }
 
   const cardIds = [...progressByCard.keys()]
-  const cards: DueFlashcard[] = []
-
-  for (let i = 0; i < cardIds.length; i += 100) {
-    const chunk = cardIds.slice(i, i + 100)
-    const { data } = await supa
-      .from("flashcard_cards")
+  const cardChunks = Array.from({ length: Math.ceil(cardIds.length / 250) }, (_, index) =>
+    cardIds.slice(index * 250, (index + 1) * 250)
+  )
+  // Fetch the chunks together instead of waiting for one database round trip
+  // per chunk; reviews with many due cards otherwise keep the page skeleton up.
+  const cardResults = await Promise.all(cardChunks.map(chunk =>
+    supa.from("flashcard_cards")
       .select("id, hanzi, pinyin, arti, catatan, set_id, word_class")
       .in("id", chunk)
+  ))
+  const cardRows = cardResults.flatMap(result => result.data ?? [])
+  const uniqueSetIds = [...new Set(cardRows.map(card => card.set_id).filter(Boolean))]
+  const hanziList = [...new Set(cardRows.map(card => card.hanzi).filter(Boolean))]
 
-    const uniqueSetIds = [...new Set((data ?? []).map(c => c.set_id).filter(Boolean))]
-    const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
+  const [deckResult, examplesResult] = await Promise.all([
+    uniqueSetIds.length > 0
+      ? supa.from("flashcard_sets").select("id, title, hsk_level").in("id", uniqueSetIds)
+      : Promise.resolve({ data: [] }),
+    hanziList.length > 0
+      ? supa.from("word_examples")
+          .select("id, word_hanzi, hanzi, pinyin, arti")
+          .in("word_hanzi", hanziList)
+          .order("id", { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ])
 
-    if (uniqueSetIds.length > 0) {
-      const { data: deckData } = await supa
-        .from("flashcard_sets")
-        .select("id, title, hsk_level")
-        .in("id", uniqueSetIds)
-
-      for (const deck of deckData ?? []) {
-        deckInfoMap.set(deck.id, { title: deck.title ?? "", hsk_level: deck.hsk_level ?? 0 })
-      }
-    }
-
-    const hanziList = [...new Set((data ?? []).map(c => c.hanzi).filter(Boolean))]
-    const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
-
-    if (hanziList.length > 0) {
-      // Fetch exact word matches in one request instead of two requests for
-      // every card. This was the main source of the long review-page skeleton.
-      const { data: directExamples } = await supa
-        .from("word_examples")
-        .select("id, word_hanzi, hanzi, pinyin, arti")
-        .in("word_hanzi", hanziList)
-        .order("id", { ascending: true })
-
-      for (const item of directExamples ?? []) {
-        if (!item.word_hanzi || exampleMap.has(item.word_hanzi)) continue
-        exampleMap.set(item.word_hanzi, {
-          hanzi: item.hanzi ?? "",
-          pinyin: item.pinyin ?? "",
-          arti: item.arti ?? "",
-        })
-      }
-
-      // Preserve the contains-match fallback for cards without an exact
-      // example, but run a small batch concurrently instead of serially.
-      const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-      const fallbackBatchSize = 10
-      for (let i = 0; i < missingHanzi.length; i += fallbackBatchSize) {
-        const batch = missingHanzi.slice(i, i + fallbackBatchSize)
-        const fallbackResults = await Promise.all(batch.map(async (hanzi) => {
-          const { data: examples } = await supa
-            .from("word_examples")
-            .select("id, hanzi, pinyin, arti")
-            .ilike("hanzi", `%${hanzi}%`)
-            .order("id", { ascending: true })
-            .limit(1)
-          return { hanzi, example: examples?.[0] }
-        }))
-
-        for (const { hanzi, example } of fallbackResults) {
-          if (!example) continue
-          exampleMap.set(hanzi, {
-            hanzi: example.hanzi ?? "",
-            pinyin: example.pinyin ?? "",
-            arti: example.arti ?? "",
-          })
-        }
-      }
-    }
-
-    for (const card of data ?? []) {
-      const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
-      const example = card.hanzi ? exampleMap.get(card.hanzi) : null
-      const progress = progressByCard.get(String(card.id))
-      
-      cards.push({
-        id: String(card.id),
-        hanzi: card.hanzi ?? "",
-        pinyin: card.pinyin ?? "",
-        arti: card.arti ?? "",
-        catatan: card.catatan ?? null,
-        setId: card.set_id ?? null,
-        srsLevel: progress?.srs_level ?? 0,
-        intervalDays: progress?.interval_days ?? 1,
-        easeFactor: progress?.ease_factor ?? DEFAULT_EASE_FACTOR,
-        deckTitle: deckInfo?.title,
-        deckHskLevel: deckInfo?.hsk_level,
-        wordClass: card.word_class ?? undefined,
-        exampleSentence: example?.hanzi,
-        examplePinyin: example?.pinyin,
-        exampleTranslation: example?.arti,
-      })
-    }
+  const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
+  for (const deck of deckResult.data ?? []) {
+    deckInfoMap.set(deck.id, { title: deck.title ?? "", hsk_level: deck.hsk_level ?? 0 })
   }
 
-  return cards
+  const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
+  for (const item of examplesResult.data ?? []) {
+    if (!item.word_hanzi || exampleMap.has(item.word_hanzi)) continue
+    exampleMap.set(item.word_hanzi, {
+      hanzi: item.hanzi ?? "",
+      pinyin: item.pinyin ?? "",
+      arti: item.arti ?? "",
+    })
+  }
+
+  // Keep the partial-word fallback, but issue it concurrently so cards
+  // without an exact example do not add one sequential network wait per batch.
+  const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
+  const fallbackResults = await Promise.all(missingHanzi.map(async hanzi => {
+    const { data } = await supa.from("word_examples")
+      .select("id, hanzi, pinyin, arti")
+      .ilike("hanzi", `%${hanzi}%`)
+      .order("id", { ascending: true })
+      .limit(1)
+    return { hanzi, example: data?.[0] }
+  }))
+  for (const { hanzi, example } of fallbackResults) {
+    if (!example) continue
+    exampleMap.set(hanzi, {
+      hanzi: example.hanzi ?? "",
+      pinyin: example.pinyin ?? "",
+      arti: example.arti ?? "",
+    })
+  }
+
+  return cardRows.map(card => {
+    const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
+    const example = card.hanzi ? exampleMap.get(card.hanzi) : null
+    const progress = progressByCard.get(String(card.id))
+
+    return {
+      id: String(card.id),
+      hanzi: card.hanzi ?? "",
+      pinyin: card.pinyin ?? "",
+      arti: card.arti ?? "",
+      catatan: card.catatan ?? null,
+      setId: card.set_id ?? null,
+      srsLevel: progress?.srs_level ?? 0,
+      intervalDays: progress?.interval_days ?? 1,
+      easeFactor: progress?.ease_factor ?? DEFAULT_EASE_FACTOR,
+      deckTitle: deckInfo?.title,
+      deckHskLevel: deckInfo?.hsk_level,
+      wordClass: card.word_class ?? undefined,
+      exampleSentence: example?.hanzi,
+      examplePinyin: example?.pinyin,
+      exampleTranslation: example?.arti,
+    }
+  })
 }
 
 export async function recordSrsReviewBatch(

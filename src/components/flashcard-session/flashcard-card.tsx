@@ -129,15 +129,17 @@ export function FlashcardCard({
                 {card.exampleSentence}
               </div>
               {card.examplePinyin && <TonePinyin text={card.examplePinyin || ""} className="text-sm mb-1 font-italic" />}
-              <div className="flex items-center justify-center gap-1">
-                <div className="text-sm text-foreground">{card.exampleTranslation}</div>
-                {renderNoteToggle()}
+              <div className="relative flex min-h-6 items-center">
+                <div className="w-full pr-8 text-left text-sm text-foreground">{card.exampleTranslation}</div>
+                <div className="absolute right-0 bottom-0">{renderNoteToggle()}</div>
               </div>
             </>
           ) : (
             <div className="text-sm text-muted-foreground italic">Belum ada contoh kalimat untuk kata ini</div>
           )}
-          {!card.exampleSentence && renderNoteToggle()}
+          {!card.exampleSentence && (
+            <div className="mt-1 flex justify-end">{renderNoteToggle()}</div>
+          )}
         </div>
         {card.catatan?.trim() && (
           noteExpanded && (

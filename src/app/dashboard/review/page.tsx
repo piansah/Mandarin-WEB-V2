@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchDueFlashcards, recordSrsReviewBatch, type DueFlashcard, type SrsState } from "@/lib/srs"
+import { fetchDueFlashcards, recordSrsReviewBatch, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function ReviewPage() {
@@ -14,36 +14,40 @@ export default function ReviewPage() {
   const [cards, setCards] = React.useState<SwipeFlashcard[]>([])
   const [loading, setLoading] = React.useState(true)
   const [userId, setUserId] = React.useState<string | null>(null)
+  const [loadError, setLoadError] = React.useState(false)
 
   React.useEffect(() => {
     async function load() {
-      const { data: { user } } = await supa.auth.getUser()
-      if (!user) {
-        setLoading(false)
-        return
-      }
-      setUserId(user.id)
-      const due = await fetchDueFlashcards(supa, user.id)
+      try {
+        const { data: { user }, error } = await supa.auth.getUser()
+        if (error) throw error
+        if (!user) return
 
-      // Convert DueFlashcard to SwipeFlashcard
-      const swipeCards: SwipeFlashcard[] = due.map(card => ({
-        id: card.id,
-        hanzi: card.hanzi,
-        pinyin: card.pinyin,
-        arti: card.arti,
-        catatan: card.catatan,
-        setId: card.setId,
-        srsLevel: card.srsLevel,
-        intervalDays: card.intervalDays,
-        easeFactor: card.easeFactor,
-        exampleSentence: card.exampleSentence,
-        examplePinyin: card.examplePinyin,
-        exampleTranslation: card.exampleTranslation,
-        deckTitle: card.deckTitle,
-        deckHskLevel: card.deckHskLevel,
-      }))
-      setCards(swipeCards)
-      setLoading(false)
+        setUserId(user.id)
+        const due = await fetchDueFlashcards(supa, user.id)
+        const swipeCards: SwipeFlashcard[] = due.map(card => ({
+          id: card.id,
+          hanzi: card.hanzi,
+          pinyin: card.pinyin,
+          arti: card.arti,
+          catatan: card.catatan,
+          setId: card.setId,
+          srsLevel: card.srsLevel,
+          intervalDays: card.intervalDays,
+          easeFactor: card.easeFactor,
+          exampleSentence: card.exampleSentence,
+          examplePinyin: card.examplePinyin,
+          exampleTranslation: card.exampleTranslation,
+          deckTitle: card.deckTitle,
+          deckHskLevel: card.deckHskLevel,
+        }))
+        setCards(swipeCards)
+      } catch (error) {
+        console.error("Gagal memuat review kosakata:", error)
+        setLoadError(true)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [supa])
@@ -65,19 +69,16 @@ export default function ReviewPage() {
     return `/dashboard/flashcard/${card.setId}/word/${card.id}`
   }, [])
 
-  const deckTitle = cards.length > 0 ? cards[0].deckTitle : "Review Kartu"
-  const deckLevel = cards.length > 0 && cards[0].deckHskLevel ? `Level HSK ${cards[0].deckHskLevel}` : "Level A1"
-
   return (
     <SwipeFlashcardSession
       cards={cards}
       loading={loading}
-      emptyTitle="Semua kartu sudah direview!"
-      emptyEmoji="✅"
+      emptyTitle={loadError ? "Review kosakata gagal dimuat" : "Semua kartu sudah direview!"}
+      emptyEmoji={loadError ? "⚠️" : "✅"}
       wordDetailPath={wordDetailPath}
       onComplete={handleComplete}
-      deckTitle={deckTitle}
-      deckLevel={deckLevel}
+      deckTitle="Review Kosakata"
+      deckLevel="Tinjau kartu yang perlu diulang"
       userId={userId}
     />
   )
