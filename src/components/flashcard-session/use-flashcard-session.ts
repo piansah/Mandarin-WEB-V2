@@ -254,14 +254,6 @@ export function useFlashcardSession({
   }, [idx, sessionReviews, latestRatings, repeatQueue, lapsedCardIds, done, userId, deckCardIds])
 
   React.useEffect(() => {
-    if (disableSwipe && cardRef.current) {
-      cardRef.current.style.touchAction = 'none'
-    } else if (cardRef.current) {
-      cardRef.current.style.touchAction = 'auto'
-    }
-  }, [disableSwipe])
-
-  React.useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.code !== "Space") return
       const target = e.target as HTMLElement | null
