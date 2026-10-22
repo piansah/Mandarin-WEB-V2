@@ -164,7 +164,7 @@ export function FlashcardCard({
           <div
             key={`${idx}-${card.id}`}
             ref={cardRef}
-            className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d touch-none flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
+            className={`absolute inset-0 w-full h-full rounded-3xl border border-border/40 bg-card shadow-2xl flex flex-col transform-style-3d ${noteExpanded ? "touch-pan-y" : "touch-none"} flashcardCard z-10 ${isDragging ? "!transition-none cursor-grabbing" : flyOut ? "transition-all duration-300 ease-out cursor-grabbing" : "transition-transform duration-300 cursor-pointer"
               }`}
             style={{
               transform: flyOut
