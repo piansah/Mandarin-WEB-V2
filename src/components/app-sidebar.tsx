@@ -64,16 +64,19 @@ import { isAdmin } from "@/lib/auth-roles"
 const todayItems = [
   {
     title: "Dashboard",
+    subtitle: "Ringkasan progres belajarmu",
     url: "/dashboard",
     icon: LayoutDashboard,
   },
   {
     title: "Peta Belajar",
+    subtitle: "Jalur belajar Mandarin kamu",
     url: "/dashboard/path",
     icon: Target,
   },
   {
     title: "Statistik",
+    subtitle: "Pantau progres dan pencapaian",
     url: "/dashboard/statistik",
     icon: BarChart3,
   },
@@ -82,26 +85,31 @@ const todayItems = [
 const belajarItems = [
   {
     title: "Modul",
+    subtitle: "Materi belajar terstruktur",
     url: "/dashboard/modul",
     icon: FolderOpen,
   },
   {
     title: "Daftar Kata",
+    subtitle: "Kosakata dan latihan flashcard",
     url: "/dashboard/flashcard",
     icon: Languages,
   },
   {
     title: "Estafet",
+    subtitle: "Latihan memahami kalimat",
     url: "/dashboard/flashcard/cumulative",
     icon: Layers,
   },
   {
     title: "Peta Hanzi",
+    subtitle: "Jelajahi karakter dan komponennya",
     url: "/dashboard/peta-hanzi",
     icon: Network,
   },
   {
     title: "Mini Games",
+    subtitle: "Belajar lewat permainan",
     url: "/dashboard/games",
     icon: Gamepad2,
   },
@@ -110,21 +118,25 @@ const belajarItems = [
 const learningPathItems = [
   {
     title: "Tata Bahasa",
+    subtitle: "Pola dan aturan bahasa Mandarin",
     url: "/dashboard/grammar",
     icon: BookOpen,
   },
   {
     title: "Simulasi Ujian HSK",
+    subtitle: "Latihan dengan format ujian HSK",
     url: "/dashboard/simulasi-hsk",
     icon: ClipboardList,
   },
   {
     title: "Baca",
+    subtitle: "Baca cerita Mandarin",
     url: "/dashboard/cerita",
     icon: BookMarked,
   },
   {
     title: "Tulis Hanzi",
+    subtitle: "Latihan menulis karakter Mandarin",
     url: "/dashboard/tulis-hanzi",
     icon: PenLine,
   },
@@ -133,11 +145,13 @@ const learningPathItems = [
 const personalCollectionItems = [
   {
     title: "Favorit",
+    subtitle: "Kosakata yang kamu simpan",
     url: "/dashboard/favorit",
     icon: Star,
   },
   {
     title: "Deck Saya",
+    subtitle: "Deck kosakata buatanmu",
     url: "/dashboard/personal-cards",
     icon: FolderHeart,
   },
@@ -146,6 +160,7 @@ const personalCollectionItems = [
 const adminItems = [
   {
     title: "Dashboard Admin",
+    subtitle: "Kelola sistem dan pengguna",
     url: "/dashboard/admin",
     icon: Shield,
   },
@@ -159,6 +174,10 @@ export function AppSidebar({
   user: { name: string; email: string; avatar: string }
 }) {
   const pathname = usePathname()
+  const activeRoute = [...todayItems, ...belajarItems, ...learningPathItems, ...personalCollectionItems, ...adminItems]
+    .filter((item) => pathname === item.url || (item.url !== "/dashboard" && pathname.startsWith(`${item.url}/`)))
+    .sort((a, b) => b.url.length - a.url.length)[0]?.url
+  const isActiveRoute = (url: string) => activeRoute === url
   const router = useRouter()
   const { isMobile, setOpen, setOpenMobile, pinned } = useSidebar()
   const [bugReportOpen, setBugReportOpen] = React.useState(false)
@@ -266,17 +285,25 @@ export function AppSidebar({
           <SidebarMenu className="gap-1.5">
             {todayItems.map((item) => (
               <SidebarMenuItem key={item.title}>
+                {(() => {
+                  const active = isActiveRoute(item.url)
+                  return (
                 <SidebarMenuButton
                   tooltip={item.title}
-                  isActive={pathname === item.url}
+                  isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="p-3"
+                  className="h-auto min-h-8 p-3"
                 >
-                  <div className="flex items-center gap-2 w-full">
+                  <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
+                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="font-medium">{item.title}</span>
+                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
+                    </span>
                   </div>
                 </SidebarMenuButton>
+                  )
+                })()}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -290,17 +317,25 @@ export function AppSidebar({
           <SidebarMenu className="gap-1.5">
             {belajarItems.map((item) => (
               <SidebarMenuItem key={item.title}>
+                {(() => {
+                  const active = isActiveRoute(item.url)
+                  return (
                 <SidebarMenuButton
                   tooltip={item.title}
-                  isActive={pathname === item.url}
+                  isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="p-3"
+                  className="h-auto min-h-8 p-3"
                 >
-                  <div className="flex items-center gap-2 w-full">
+                  <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
+                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="font-medium">{item.title}</span>
+                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
+                    </span>
                   </div>
                 </SidebarMenuButton>
+                  )
+                })()}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -314,17 +349,25 @@ export function AppSidebar({
           <SidebarMenu className="gap-1">
             {learningPathItems.map((item) => (
               <SidebarMenuItem key={item.title}>
+                {(() => {
+                  const active = isActiveRoute(item.url)
+                  return (
                 <SidebarMenuButton
                   tooltip={item.title}
-                  isActive={pathname === item.url}
+                  isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="p-3"
+                  className="h-auto min-h-8 p-3"
                 >
-                  <div className="flex items-center gap-2 w-full">
+                  <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
+                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="font-medium">{item.title}</span>
+                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
+                    </span>
                   </div>
                 </SidebarMenuButton>
+                  )
+                })()}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -338,17 +381,25 @@ export function AppSidebar({
           <SidebarMenu className="gap-1">
             {personalCollectionItems.map((item) => (
               <SidebarMenuItem key={item.title}>
+                {(() => {
+                  const active = isActiveRoute(item.url)
+                  return (
                 <SidebarMenuButton
                   tooltip={item.title}
-                  isActive={pathname === item.url}
+                  isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="p-3"
+                  className="h-auto min-h-8 p-3"
                 >
-                  <div className="flex items-center gap-2 w-full">
+                  <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="font-medium group-data-[collapsed=true]/sidebar:hidden">{item.title}</span>
+                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="font-medium">{item.title}</span>
+                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
+                    </span>
                   </div>
                 </SidebarMenuButton>
+                  )
+                })()}
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
@@ -363,14 +414,25 @@ export function AppSidebar({
             <SidebarMenu className="gap-1">
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
+                  {(() => {
+                    const active = isActiveRoute(item.url)
+                    return (
                   <SidebarMenuButton
                     tooltip={item.title}
-                    isActive={pathname === item.url}
+                    isActive={active}
                     render={<Link href={item.url} onClick={closeMobileSidebar} />}
+                    className="h-auto min-h-8 p-3"
                   >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <div className="flex w-full min-w-0 items-center gap-2">
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span className="flex min-w-0 flex-col">
+                        <span className="font-medium">{item.title}</span>
+                        {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
+                      </span>
+                    </div>
                   </SidebarMenuButton>
+                    )
+                  })()}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>

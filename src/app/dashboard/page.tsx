@@ -845,8 +845,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Review Kosakata (SRS) Event Shortcut */}
-            <a href="/dashboard/review" className="block group">
+            {/* Review Kosakata (SRS) ditampilkan hanya saat ada kartu jatuh tempo */}
+            {srsStats && srsStats.due > 0 ? <a href="/dashboard/review" className="block group">
               <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
                   <SquareStack className="h-4 w-4" />
@@ -854,26 +854,18 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">
-                      {srsStats && srsStats.due > 0 ? `Review ${srsStats.due} Kartu` : "Review Kosakata"}
+                      Review {srsStats.due} Kartu
                     </h3>
                   </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">
-                    {srsStats && srsStats.due > 0
-                      ? `${srsStats.due} kartu siap direview · Perkuat memori jangka panjang`
-                      : "Semua kartu hari ini sudah aman · Klik untuk review berkala"}
+                    {`${srsStats.due} kartu siap direview · Perkuat memori jangka panjang`}
                   </p>
                 </div>
-                {srsStats && srsStats.due > 0 ? (
-                  <Badge variant="outline" className="border-amber-500/30 text-amber-500 text-xs shrink-0 hidden sm:inline-flex">
-                    Siap review
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="border-muted-foreground/30 text-muted-foreground text-xs shrink-0 hidden sm:inline-flex">
-                    SRS Aktif
-                  </Badge>
-                )}
+                <Badge variant="outline" className="border-amber-500/30 text-amber-500 text-xs shrink-0 hidden sm:inline-flex">
+                  Siap review
+                </Badge>
               </div>
-            </a>
+            </a> : null}
 
             {/* Estafet Card */}
             {nextEstafet ? (
@@ -1002,7 +994,7 @@ export default function DashboardPage() {
                     const { mudah, ingat, sulit, lupa, notStarted, totalCards, due } = activeData
                     const reviewed = mudah + ingat + sulit + lupa
                     const pctDikuasai = totalCards > 0 ? Math.round(((mudah + ingat) / totalCards) * 100) : 0
-                    const countToReview = (due !== undefined && due > 0) ? due : lupa
+                    const countToReview = due ?? 0
 
                     // Donut chart data
                     const segments = [
@@ -1034,7 +1026,9 @@ export default function DashboardPage() {
                     ]
 
                     return (
-                      <div className="space-y-4">
+                      <div className={countToReview === 0 && reviewed > 0
+                        ? "flex min-h-56 flex-col justify-center gap-4"
+                        : "space-y-4"}>
                         {/* Chart + Legend: mobile stacked (chart on top), desktop row */}
                         <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
                           {/* Donut SVG */}
@@ -1084,20 +1078,27 @@ export default function DashboardPage() {
                         </div>
 
                         {/* CTA */}
-                        {reviewed > 0 || lupa > 0 ? (
+                        {countToReview > 0 ? (
                           <Button
                             className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm transition-all cursor-pointer"
                             onClick={() => router.push('/dashboard/review')}
                           >
-                            {countToReview > 0 ? `Review ${countToReview} Kartu` : "Review Kartu"}
+                            Review Kosakata · {countToReview} kata
                           </Button>
-                        ) : (
+                        ) : reviewed === 0 && lupa === 0 ? (
                           <Button
                             variant="outline"
                             className="w-full rounded-full h-11 text-sm"
                             onClick={() => router.push('/dashboard/flashcard')}
                           >
                             Mulai belajar kosakata
+                          </Button>
+                        ) : (
+                          <Button
+                            className="w-full rounded-full h-11 text-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            disabled
+                          >
+                            Tidak ada kosakata untuk direview
                           </Button>
                         )}
                       </div>
