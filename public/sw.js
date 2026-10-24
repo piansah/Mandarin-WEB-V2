@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandarin-journey-v2" // dinaikkan dari v1 supaya cache lama yang mungkin masih menyimpan entry basi otomatis dibuang lewat 'activate' di bawah
+const CACHE_NAME = "mandarin-journey-v3"
 const urlsToCache = [
   // "/" SENGAJA tidak dimasukkan — dia selalu redirect ke "/dashboard",
   // dan cache.add()/cache.put() SELALU throw untuk response hasil
@@ -6,6 +6,8 @@ const urlsToCache = [
   "/manifest.json",
   "/icon-192.png",
   "/icon-512.png",
+  "/icon-192-padded.png",
+  "/icon-512-padded.png",
 ]
 
 self.addEventListener("install", (event) => {
@@ -35,25 +37,35 @@ self.addEventListener("fetch", (event) => {
   // langsung ke network tanpa campur tangan SW sama sekali.
   if (request.method !== "GET") return
 
-  // Request navigasi (buka halaman langsung, reload, atau redirect
-  // seperti "/" -> "/dashboard") SENGAJA tidak di-intercept sama sekali
-  // — dengan tidak memanggil respondWith(), browser menangani request
-  // ini 100% native, termasuk redirect server-side, tanpa risiko SW
-  // salah menangani response redirect (yang sebelumnya menyebabkan
-  // ERR_FAILED di "/"). App ini butuh network buat Supabase, jadi
-  // offline-navigasi bukan use-case penting untuk dikorbankan di sini.
+  // Jangan cache dokumen halaman, request RSC, API, atau data akun. Halaman
+  // dashboard dirender untuk user yang sedang login dan harus selalu valid.
   if (request.mode === "navigate") return
 
+  const url = new URL(request.url)
+  if (url.origin !== self.location.origin) return
+
+  // Cache hanya aset versi build yang immutable dan aset publik. Cache-first
+  // membuat pembukaan ulang PWA tidak perlu mengunduh ulang bundle, style,
+  // font, dan ikon. Request data tetap langsung ke jaringan.
+  const isStaticAsset =
+    url.pathname.startsWith("/_next/static/") ||
+    /\.(?:css|js|woff2?|ttf|otf|svg|png|jpe?g|webp|ico)$/i.test(url.pathname)
+  if (!isStaticAsset) return
+
   event.respondWith(
-    caches.match(request).then((response) => {
-      if (response) {
+    caches.open(CACHE_NAME).then(async (cache) => {
+      const cached = await cache.match(request)
+      if (cached) return cached
+
+      try {
+        const response = await fetch(request)
+        if (response.ok && response.type === "basic") {
+          await cache.put(request, response.clone())
+        }
         return response
-      }
-      return fetch(request).catch(() => {
-        // Kalau offline & tidak ada di cache, biarkan request gagal
-        // secara wajar alih-alih melempar unhandled rejection.
+      } catch {
         return new Response("", { status: 504, statusText: "Offline" })
-      })
+      }
     })
   )
 })

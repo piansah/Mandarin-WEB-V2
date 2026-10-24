@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -43,8 +43,36 @@ export function DashboardLayoutClient({
   defaultPinned,
 }: DashboardLayoutClientProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const checkedPwaResume = React.useRef(false)
   const isChromeLess = CHROME_LESS_ROUTES.some((route) => pathname?.startsWith(route))
   const hideMobileBottomNav = isMobileBottomNavHidden(pathname)
+
+  React.useEffect(() => {
+    if (!pathname) return
+
+    try {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
+      const resumeKey = "pwa_last_dashboard_route"
+
+      if (!checkedPwaResume.current) {
+        checkedPwaResume.current = true
+        const savedRoute = window.localStorage.getItem(resumeKey)
+        if (isStandalone && pathname === "/dashboard" && savedRoute?.startsWith("/dashboard/") && !savedRoute.startsWith("//")) {
+          router.replace(savedRoute)
+          return
+        }
+      }
+
+      if (pathname.startsWith("/dashboard")) {
+        window.localStorage.setItem(resumeKey, `${pathname}${window.location.search}`)
+      }
+    } catch {
+      // Storage may be disabled by the browser; resume behavior is optional.
+    }
+  }, [pathname, router])
 
   if (isChromeLess) {
     return (
