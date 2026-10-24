@@ -5,6 +5,7 @@
    page.tsx -- Admin DB - Modul Levels */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -174,11 +175,7 @@ export default function ModulLevelsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-muted-foreground">Loading...</div>
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (

@@ -5,6 +5,7 @@
    page.tsx -- Admin DB - Modul Module Parts */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Trash2, MoreVertical, Search, FileText, ExternalLink, BookOpen, MessageSquare, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, FileText, ExternalLink, BookOpen, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -269,11 +270,7 @@ export default function ModulModulePartsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (

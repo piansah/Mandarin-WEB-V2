@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -119,11 +120,7 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <p className="text-sm text-muted-foreground">Memuat pengaturan...</p>
-      </div>
-    )
+    return <PageLoader />
   }
 
   if (!settings) {

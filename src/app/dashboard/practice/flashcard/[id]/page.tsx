@@ -9,6 +9,7 @@ import { useParams, useSearchParams } from "next/navigation"
 import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
+import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -125,7 +126,8 @@ export default function FlashcardPracticePage() {
         )
       }
 
-      const cardsWithExamples: SwipeFlashcard[] = rawCards.map(card => {
+        const orderedCards = orderNumeralsBeforeTen(rawCards)
+        const cardsWithExamples: SwipeFlashcard[] = orderedCards.map(card => {
         const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
         const progress = progressByCard.get(String(card.id))
         return {

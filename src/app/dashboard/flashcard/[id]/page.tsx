@@ -30,6 +30,7 @@ import { HskBadge } from "@/components/hsk-badge"
 import { getDeckPracticeScores } from "@/lib/user-scores"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 import { getWordDetailPath } from "@/lib/hanzi-segmentation"
+import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
 
 const idsLabels = IDS_LABELS
 
@@ -126,7 +127,7 @@ export default function FlashcardDeckPage() {
         return
       }
 
-      setCards(cardData ?? [])
+      setCards(orderNumeralsBeforeTen(cardData ?? []))
       setLoading(false)
     }
     load()

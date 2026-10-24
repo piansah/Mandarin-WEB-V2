@@ -5,6 +5,7 @@
    page.tsx -- Admin DB - Modul Quizzes */
 
 import * as React from "react"
+import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
@@ -14,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Plus, Edit, Trash2, MoreVertical, Search, ClipboardCheck, Loader2 } from "lucide-react"
+import { Plus, Edit, Trash2, MoreVertical, Search, ClipboardCheck } from "lucide-react"
 import { toast } from "sonner"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -183,11 +184,7 @@ export default function ModulQuizzesPage() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (
