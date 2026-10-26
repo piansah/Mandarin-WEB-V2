@@ -9,6 +9,7 @@ export type SwipeFlashcard = {
   intervalDays?: number
   easeFactor?: number
   nextReview?: string | null
+  lastReviewed?: string | null
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string

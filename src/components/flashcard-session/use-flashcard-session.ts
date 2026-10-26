@@ -80,6 +80,7 @@ export function useFlashcardSession({
   const [latestRatings, setLatestRatings] = React.useState<Map<string, 0 | 3 | 4 | 5>>(new Map())
   const [lapsedCardIds, setLapsedCardIds] = React.useState<Set<string>>(new Set())
   const failedCardIdsRef = React.useRef<Set<string>>(new Set())
+  const recordedTodayCardIdsRef = React.useRef<Set<string>>(new Set())
   const canSaveSrs = !!userId && !!deckId
   const restoredKeyRef = React.useRef<string | null>(null)
   const restoreDoneRef = React.useRef(false)
@@ -443,11 +444,14 @@ export function useFlashcardSession({
 
     const isFromRepeatQueue = idx >= totalOriginal
     const isDue = isCardDue(card.nextReview)
-    const shouldRecordSrs = isDue || quality === 0
+    const reviewedToday = card.lastReviewed?.slice(0, 10) === todayStr()
+    const alreadyRecordedToday = reviewedToday || recordedTodayCardIdsRef.current.has(cardIdStr)
+    const shouldRecordSrs = !alreadyRecordedToday && (isDue || quality === 0)
     const alreadyQueuedForRepeat = repeatQueue.some(repeatCard => String(repeatCard.id) === cardIdStr)
     const willAddRepeat = quality === 0 && !isFromRepeatQueue && !alreadyQueuedForRepeat
 
     if (!isFromRepeatQueue && shouldRecordSrs) {
+      recordedTodayCardIdsRef.current.add(cardIdStr)
       setSessionReviews(prev => {
         const filtered = prev.filter(r => r.cardId !== cardIdStr)
         return [...filtered, { cardId: cardIdStr, quality, state: getCardSrsState(card) }]
@@ -459,6 +463,7 @@ export function useFlashcardSession({
             failedCardIdsRef.current.delete(cardIdStr)
           })
           .catch((error: unknown) => {
+            recordedTodayCardIdsRef.current.delete(cardIdStr)
             console.error("Gagal menyimpan progress SRS untuk kartu:", cardIdStr, error)
             failedCardIdsRef.current.add(cardIdStr)
             if (!saveErrorShownRef.current) {

@@ -37,7 +37,7 @@ export default function FlashcardPracticePage() {
 
       // eslint-disable-next-line
       let rawCards: any[] = []
-      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null }>()
+      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null; last_reviewed: string | null }>()
       const reviewedCardIds = new Set<string>()
       let deckHskLevel: number | undefined = undefined
 
@@ -89,7 +89,7 @@ export default function FlashcardPracticePage() {
             const chunk = cardIds.slice(i, i + 100)
             const { data: progressRows } = await supa
               .from("user_card_progress")
-              .select("card_id, srs_level, interval_days, ease_factor, next_review")
+              .select("card_id, srs_level, interval_days, ease_factor, next_review, last_reviewed")
               .eq("user_id", user.id)
               .in("card_id", chunk)
 
@@ -99,7 +99,8 @@ export default function FlashcardPracticePage() {
                   srs_level: row.srs_level ?? 0,
                   interval_days: row.interval_days ?? 1,
                   ease_factor: row.ease_factor ?? 2.5,
-                  next_review: row.next_review ?? null
+                  next_review: row.next_review ?? null,
+                  last_reviewed: row.last_reviewed ?? null,
                 })
                 reviewedCardIds.add(String(row.card_id))
               }
@@ -136,6 +137,7 @@ export default function FlashcardPracticePage() {
           intervalDays: progress?.interval_days,
           easeFactor: progress?.ease_factor,
           nextReview: progress?.next_review,
+          lastReviewed: progress?.last_reviewed,
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,
