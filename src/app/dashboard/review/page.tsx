@@ -40,6 +40,7 @@ export default function ReviewPage() {
           exampleTranslation: card.exampleTranslation,
           deckTitle: card.deckTitle,
           deckHskLevel: card.deckHskLevel,
+          wordClass: card.wordClass,
         }))
         setCards(swipeCards)
       } catch (error) {

@@ -292,7 +292,7 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-3"
+                  className="h-auto min-h-8 p-2"
                 >
                   <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -310,7 +310,7 @@ export function AppSidebar({
         </div>
 
         {/* BELAJAR */}
-        <div className="px-3 mt-4">
+        <div className="px-3 mt-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             BELAJAR
           </div>
@@ -324,7 +324,7 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-3"
+                  className="h-auto min-h-8 p-2"
                 >
                   <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -342,7 +342,7 @@ export function AppSidebar({
         </div>
 
         {/* LATIHAN */}
-        <div className="px-3 mt-4">
+        <div className="px-3 mt-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             LATIHAN
           </div>
@@ -356,7 +356,7 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-3"
+                  className="h-auto min-h-8 p-2"
                 >
                   <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -374,7 +374,7 @@ export function AppSidebar({
         </div>
 
         {/* KOLEKSI PRIBADI */}
-        <div className="px-3 mt-4">
+        <div className="px-3 mt-3">
           <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             KOLEKSI PRIBADI
           </div>
@@ -388,7 +388,7 @@ export function AppSidebar({
                   tooltip={item.title}
                   isActive={active}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-3"
+                  className="h-auto min-h-8 p-2"
                 >
                   <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -407,7 +407,7 @@ export function AppSidebar({
 
         {/* ADMIN - hanya muncul untuk admin */}
         {isAdminUser && (
-          <div className="hidden px-3 mt-4 md:block">
+          <div className="hidden px-3 mt-3 md:block">
             <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
               ADMIN
             </div>
@@ -421,7 +421,7 @@ export function AppSidebar({
                     tooltip={item.title}
                     isActive={active}
                     render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                    className="h-auto min-h-8 p-3"
+                    className="h-auto min-h-8 p-2"
                   >
                     <div className="flex w-full min-w-0 items-center gap-2">
                       <item.icon className="h-4 w-4 shrink-0" />

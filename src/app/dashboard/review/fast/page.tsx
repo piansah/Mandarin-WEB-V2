@@ -41,6 +41,7 @@ export default function FastReviewPage() {
         exampleTranslation: card.exampleTranslation,
         deckTitle: card.deckTitle,
         deckHskLevel: card.deckHskLevel,
+        wordClass: card.wordClass,
       }))
       setCards(swipeCards)
       setLoading(false)

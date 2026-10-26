@@ -56,18 +56,32 @@ export function DashboardLayoutClient({
         window.matchMedia("(display-mode: standalone)").matches ||
         ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
       const resumeKey = "pwa_last_dashboard_route"
+      const resumeWindowMs = 10 * 60 * 1000
 
       if (!checkedPwaResume.current) {
         checkedPwaResume.current = true
-        const savedRoute = window.localStorage.getItem(resumeKey)
-        if (isStandalone && pathname === "/dashboard" && savedRoute?.startsWith("/dashboard/") && !savedRoute.startsWith("//")) {
-          router.replace(savedRoute)
-          return
+        const savedValue = window.localStorage.getItem(resumeKey)
+        if (savedValue) {
+          try {
+            const saved = JSON.parse(savedValue) as { path?: string; savedAt?: number }
+            const age = Date.now() - (saved.savedAt ?? 0)
+            const isRecent = age >= 0 && age <= resumeWindowMs
+            if (isStandalone && pathname === "/dashboard" && isRecent && saved.path?.startsWith("/dashboard/") && !saved.path.startsWith("//")) {
+              router.replace(saved.path)
+              return
+            }
+            if (!isRecent) window.localStorage.removeItem(resumeKey)
+          } catch {
+            window.localStorage.removeItem(resumeKey)
+          }
         }
       }
 
       if (pathname.startsWith("/dashboard")) {
-        window.localStorage.setItem(resumeKey, `${pathname}${window.location.search}`)
+        window.localStorage.setItem(resumeKey, JSON.stringify({
+          path: `${pathname}${window.location.search}`,
+          savedAt: Date.now(),
+        }))
       }
     } catch {
       // Storage may be disabled by the browser; resume behavior is optional.
