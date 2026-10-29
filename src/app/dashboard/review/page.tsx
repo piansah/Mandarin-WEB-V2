@@ -15,6 +15,7 @@ export default function ReviewPage() {
   const [loading, setLoading] = React.useState(true)
   const [userId, setUserId] = React.useState<string | null>(null)
   const [loadError, setLoadError] = React.useState(false)
+  const [reviewLevel, setReviewLevel] = React.useState(1)
 
   React.useEffect(() => {
     async function load() {
@@ -25,7 +26,17 @@ export default function ReviewPage() {
 
         setUserId(user.id)
         const due = await fetchDueFlashcards(supa, user.id)
-        const swipeCards: SwipeFlashcard[] = due.map(card => ({
+        const hskParam = new URLSearchParams(window.location.search).get("hsk")
+        const requestedLevel = Number(hskParam)
+        const storedLevel = Number(window.localStorage.getItem("mandarin_running_hsk"))
+        const hskLevel = hskParam && Number.isInteger(requestedLevel) && requestedLevel > 0
+          ? requestedLevel
+          : Number.isInteger(storedLevel) && storedLevel > 0
+            ? storedLevel
+            : 1
+        setReviewLevel(hskLevel)
+        const filteredDue = due.filter(card => card.deckHskLevel === hskLevel)
+        const swipeCards: SwipeFlashcard[] = filteredDue.map(card => ({
           id: card.id,
           hanzi: card.hanzi,
           pinyin: card.pinyin,
@@ -74,7 +85,7 @@ export default function ReviewPage() {
     <SwipeFlashcardSession
       cards={cards}
       loading={loading}
-      emptyTitle={loadError ? "Review kosakata gagal dimuat" : "Semua kartu sudah direview!"}
+      emptyTitle={loadError ? "Review kosakata gagal dimuat" : `Tidak ada kosakata HSK ${reviewLevel} yang perlu direview`}
       emptyEmoji={loadError ? "⚠️" : "✅"}
       wordDetailPath={wordDetailPath}
       onComplete={handleComplete}

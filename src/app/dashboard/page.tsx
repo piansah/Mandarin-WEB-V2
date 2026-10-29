@@ -586,6 +586,12 @@ export default function DashboardPage() {
     )
   }
 
+  const activeSrsLevel = hskFilterLevel ?? runningDeckHsk ?? activeDeckHero?.hsk_level ?? srsStats?.hskLevels?.[0] ?? 1
+  const activeSrsData = activeSrsLevel && srsStats?.byLevel?.[activeSrsLevel]
+    ? srsStats.byLevel[activeSrsLevel]
+    : srsStats
+  const activeSrsDue = activeSrsData?.due ?? 0
+
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-6 flex flex-col gap-6">
       <style dangerouslySetInnerHTML={{
@@ -845,8 +851,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Review Kosakata (SRS) ditampilkan hanya saat ada kartu jatuh tempo */}
-            {srsStats && srsStats.due > 0 ? <a href="/dashboard/review" className="block group">
+            {/* Review Kosakata mengikuti level HSK yang dipilih pada ringkasan */}
+            {activeSrsDue > 0 ? <a href={`/dashboard/review?hsk=${activeSrsLevel}`} className="block group">
               <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
                   <SquareStack className="h-4 w-4" />
@@ -854,11 +860,11 @@ export default function DashboardPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">
-                      Review {srsStats.due} Kartu
+                      Review {activeSrsDue} Kosakata
                     </h3>
                   </div>
                   <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">
-                    {`${srsStats.due} kartu siap direview · Perkuat memori jangka panjang`}
+                    {`${activeSrsDue} kosakata siap direview · Perkuat memori jangka panjang`}
                   </p>
                 </div>
                 <Badge variant="outline" className="border-amber-500/30 text-amber-500 text-xs shrink-0 hidden sm:inline-flex">
@@ -890,8 +896,8 @@ export default function DashboardPage() {
               ? `/dashboard/modul/${nextModule.slug}`
               : nextDeck
                 ? `/dashboard/flashcard/${nextDeck.id}`
-                : (srsStats && srsStats.due > 0)
-                  ? `/dashboard/review`
+                : (activeSrsDue > 0)
+                  ? `/dashboard/review?hsk=${activeSrsLevel}`
                   : nextEstafet
                     ? `/dashboard/flashcard/cumulative/${nextEstafet.key}`
                     : null
@@ -936,9 +942,7 @@ export default function DashboardPage() {
         {/* Review Kosakata (SRS) — new design */}
         <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
           {(() => {
-            const activeLevel = hskFilterLevel === 0
-              ? null
-              : (hskFilterLevel ?? runningDeckHsk ?? activeDeckHero?.hsk_level ?? (srsStats?.hskLevels && srsStats.hskLevels.length > 0 ? srsStats.hskLevels[0] : 1))
+            const activeLevel = activeSrsLevel
 
             return (
               <>
@@ -960,7 +964,7 @@ export default function DashboardPage() {
                     {srsStats?.hskLevels && srsStats.hskLevels.length > 0 && (
                       <DropdownMenu>
                         <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs font-semibold text-foreground transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0">
-                          <span>{activeLevel ? `HSK ${activeLevel}` : "Semua HSK"}</span>
+                          <span>HSK {activeLevel}</span>
                           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="min-w-32 rounded-xl border border-border/50 bg-popover/95 backdrop-blur-md p-1 shadow-md">
@@ -973,12 +977,6 @@ export default function DashboardPage() {
                               HSK {lvl}
                             </DropdownMenuItem>
                           ))}
-                          <DropdownMenuItem
-                            onClick={() => setHskFilterLevel(0)}
-                            className={`rounded-lg text-xs cursor-pointer py-1.5 px-2.5 font-medium ${activeLevel === null ? "bg-accent font-bold" : ""}`}
-                          >
-                            Semua HSK
-                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}
@@ -987,9 +985,7 @@ export default function DashboardPage() {
                 <div className="mx-6 h-px bg-border/50" />
                 <CardContent className="pt-3">
                   {srsStats ? (() => {
-                    const activeData = (activeLevel && srsStats.byLevel && srsStats.byLevel[activeLevel])
-                      ? srsStats.byLevel[activeLevel]
-                      : srsStats
+                    const activeData = activeSrsData ?? srsStats
 
                     const { mudah, ingat, sulit, lupa, notStarted, totalCards, due } = activeData
                     const reviewed = mudah + ingat + sulit + lupa
@@ -1069,11 +1065,9 @@ export default function DashboardPage() {
                                 </span>
                               </div>
                             ))}
-                            {notStarted > 0 && (
-                              <p className="text-xs text-muted-foreground text-center pt-1">
-                                {notStarted} kata belum dipelajari
-                              </p>
-                            )}
+                            <p className="text-xs text-muted-foreground text-center pt-1">
+                              {mudah + ingat} dari {totalCards} kosakata dikuasai
+                            </p>
                           </div>
                         </div>
 
@@ -1081,7 +1075,7 @@ export default function DashboardPage() {
                         {countToReview > 0 ? (
                           <Button
                             className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm transition-all cursor-pointer"
-                            onClick={() => router.push('/dashboard/review')}
+                            onClick={() => router.push(`/dashboard/review?hsk=${activeSrsLevel}`)}
                           >
                             Review Kosakata · {countToReview} kata
                           </Button>
@@ -1098,7 +1092,8 @@ export default function DashboardPage() {
                             className="w-full rounded-full h-11 text-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                             disabled
                           >
-                            Tidak ada kosakata untuk direview
+                            <span className="sm:hidden">Tidak ada review</span>
+                            <span className="hidden sm:inline">Tidak ada kosakata untuk direview</span>
                           </Button>
                         )}
                       </div>

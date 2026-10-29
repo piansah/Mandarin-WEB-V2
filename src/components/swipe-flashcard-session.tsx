@@ -79,8 +79,8 @@ export function SwipeFlashcardSession({
           showStats
           collapsibleStats
           stats={[
-            { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} dari ${session.headerStats.totalCards}` },
-            { icon: CheckCircle2Icon, label: "Dinilai", value: `${session.headerStats.rated} Kartu` },
+            { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} Kartu` },
+            { icon: CheckCircle2Icon, label: "Dinilai", value: `${session.headerStats.rated} dari ${session.headerStats.totalCards}` },
             {
               icon: TrendingUp,
               label: "Jatuh Tempo Hari Ini",

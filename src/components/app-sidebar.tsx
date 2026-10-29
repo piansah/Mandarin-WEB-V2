@@ -266,14 +266,14 @@ export function AppSidebar({
       {...props}
     >
       <SidebarHeader>
-        <div className="px-2 py-1 flex items-center gap-2">
+        <Link href="/dashboard" aria-label="Journey - Dashboard" onClick={closeMobileSidebar} className="px-2 py-1 flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary flex-shrink-0">
             <span className="font-hanzi text-xl font-bold text-white">木</span>
           </div>
           <span className="truncate text-base font-bold">
             <span className="text-black dark:text-white">JOURNEY</span><span className="ml-0.5 text-xl text-primary">.</span>
           </span>
-        </div>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
