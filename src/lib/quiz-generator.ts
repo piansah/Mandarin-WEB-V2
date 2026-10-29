@@ -6,6 +6,7 @@ export type QuizQuestion = {
   question: string
   correct: string
   options: string[]
+  answerDetail: { value: string; kind: "pinyin" | "hanzi" | "arti" }
 }
 
 export type Card = {
@@ -58,6 +59,7 @@ function generateHanziToArti(cards: Card[]): QuizQuestion[] {
     type: "hanzi-arti" as const,
     question: card.hanzi,
     correct: card.arti,
+    answerDetail: { value: card.pinyin, kind: "pinyin" },
     options: shuffle([card.arti, ...generateDistractors(card.arti, cards, 3)]),
   }))
 }
@@ -75,6 +77,7 @@ function generatePinyinToArti(cards: Card[]): QuizQuestion[] {
     type: "pinyin-arti" as const,
     question: card.pinyin,
     correct: card.arti,
+    answerDetail: { value: card.hanzi, kind: "hanzi" },
     options: shuffle([card.arti, ...generateDistractors(card.arti, cards, 3)]),
   }))
 }
@@ -92,6 +95,7 @@ function generateHanziToPinyin(cards: Card[]): QuizQuestion[] {
     type: "hanzi-pinyin" as const,
     question: card.hanzi,
     correct: card.pinyin,
+    answerDetail: { value: card.arti, kind: "arti" },
     options: shuffle([card.pinyin, ...generatePinyinDistractors(card.pinyin, cards, 3)]),
   }))
 }

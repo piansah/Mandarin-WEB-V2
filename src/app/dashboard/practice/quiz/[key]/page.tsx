@@ -38,6 +38,7 @@ type QuizQuestion = {
   ans: number         // correct option index (after shuffle)
   selectedIdx?: number
   type: "hanzi-arti" | "pinyin-arti" | "hanzi-pinyin"
+  answerDetail?: { value: string; kind: "pinyin" | "hanzi" | "arti" }
 }
 
 type Answered = Record<number, boolean> // gi → correct?
@@ -134,7 +135,30 @@ function convertToInternalQuiz(generated: GeneratedQuizQuestion[]): QuizQuestion
       opts: shuffledOptions,
       ans,
       type: q.type,
+      answerDetail: q.answerDetail,
     }
+  })
+}
+
+function hydrateQuizAnswerDetails(questions: QuizQuestion[], cards: Card[]): QuizQuestion[] {
+  return questions.map(question => {
+    if (question.answerDetail) return question
+
+    const correct = question.opts[question.ans]
+    const card = cards.find(item => {
+      if (question.type === "hanzi-arti") return item.hanzi === question.q && item.arti === correct
+      if (question.type === "pinyin-arti") return item.pinyin === question.q && item.arti === correct
+      return item.hanzi === question.q && item.pinyin === correct
+    })
+    if (!card) return question
+
+    const answerDetail = question.type === "hanzi-arti"
+      ? { value: card.pinyin, kind: "pinyin" as const }
+      : question.type === "pinyin-arti"
+        ? { value: card.hanzi, kind: "hanzi" as const }
+        : { value: card.arti, kind: "arti" as const }
+
+    return { ...question, answerDetail }
   })
 }
 
@@ -254,7 +278,7 @@ export default function QuizPage() {
       if (existingQuiz && Array.isArray(existingQuiz.allQ) && existingQuiz.allQ.length > 0 && !existingQuiz.submitted && hoursDiff < 24) {
         setQuizTitle(deckTitle)
         setQuizSub(deckSub)
-        setAllQ(existingQuiz.allQ)
+        setAllQ(hydrateQuizAnswerDetails(existingQuiz.allQ, cards))
         setAnswered(existingQuiz.answered ?? {})
         setSubmitted(false)
         setLoading(false)
@@ -280,7 +304,7 @@ export default function QuizPage() {
           // Ada detail jawaban lokal -> tampilkan dengan detail
           setQuizTitle(deckTitle)
           setQuizSub(deckSub)
-          setAllQ(existingQuiz.allQ)
+          setAllQ(hydrateQuizAnswerDetails(existingQuiz.allQ, cards))
           setAnswered(existingQuiz.answered ?? {})
           setSubmitted(true)
           setLoading(false)
@@ -754,7 +778,18 @@ export default function QuizPage() {
                                 onClick={() => selectAns(q.gi, oi, q.ans)}
                               >
                                 <span className={styles.optLbl}>{String.fromCharCode(65 + oi)}</span>
-                                <span>{q.si === 2 ? <ColorPy text={opt} /> : opt}</span>
+                                <span className={styles.optContent}>
+                                  <span>{q.si === 2 ? <ColorPy text={opt} /> : opt}</span>
+                                  {isAnswered && isRightAnswer && q.answerDetail && (
+                                    <span className={styles.optDetail}>
+                                      {q.answerDetail.kind === "pinyin"
+                                        ? <ColorPy text={q.answerDetail.value} />
+                                        : q.answerDetail.kind === "hanzi"
+                                          ? <span className={styles.optDetailHanzi}>{q.answerDetail.value}</span>
+                                          : q.answerDetail.value}
+                                    </span>
+                                  )}
+                                </span>
                               </button>
                             )
                           })}
