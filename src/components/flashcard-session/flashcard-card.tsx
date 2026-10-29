@@ -19,7 +19,7 @@ type Props = {
   onPointerDown: (e: React.PointerEvent) => void
   onPointerMove: (e: React.PointerEvent) => void
   onPointerCancel: () => void
-  onPointerUp: () => void
+  onPointerUp(): void
   onNoteExpandedChange: (expanded: boolean) => void
 }
 
