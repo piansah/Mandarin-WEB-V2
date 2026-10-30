@@ -276,20 +276,27 @@ export default function DashboardPage() {
         const deckIds = decks.map(d => d.id)
 
         // Get all card IDs and hanzi for all decks at once
-        const { data: allDeckCards } = await supa
-          .from("flashcard_cards")
-          .select("id, set_id, hanzi")
-          .in("set_id", deckIds)
+        const allDeckCards: { id: string; set_id: number; hanzi: string | null }[] = []
+        const cardPageSize = 1000
+        for (let from = 0; ; from += cardPageSize) {
+          const { data, error } = await supa
+            .from("flashcard_cards")
+            .select("id, set_id, hanzi")
+            .in("set_id", deckIds)
+            .order("id", { ascending: true })
+            .range(from, from + cardPageSize - 1)
+          if (error) throw error
+          allDeckCards.push(...(data ?? []))
+          if (!data || data.length < cardPageSize) break
+        }
 
         // Group cards by deck
         const cardsByDeck = new Map<number, { id: string; hanzi: string }[]>()
-        if (allDeckCards) {
-          allDeckCards.forEach(card => {
-            const existing = cardsByDeck.get(card.set_id) || []
-            existing.push({ id: card.id, hanzi: card.hanzi })
-            cardsByDeck.set(card.set_id, existing)
-          })
-        }
+        allDeckCards.forEach(card => {
+          const existing = cardsByDeck.get(card.set_id) || []
+          existing.push({ id: card.id, hanzi: card.hanzi ?? "" })
+          cardsByDeck.set(card.set_id, existing)
+        })
 
         // Get all progress for user at once
         const { data: allProgress } = await supa
@@ -401,23 +408,13 @@ export default function DashboardPage() {
           const targetCards = cardsByDeck.get(targetHeroDeck.id) || []
           const watermarkList: string[] = []
 
-          // Ambil kata asli dari deck yang memiliki minimal 2 suku kata (karakter)
+          // Sertakan semua kosakata unik dari deck, termasuk kata satu karakter.
           targetCards.forEach((c) => {
             const h = c.hanzi?.trim()
-            if (h && h.length >= 2 && !watermarkList.includes(h)) {
+            if (h && !watermarkList.includes(h)) {
               watermarkList.push(h)
             }
           })
-
-          // Jika tidak ada kata >= 2 karakter, gunakan semua kata dari deck
-          if (watermarkList.length === 0) {
-            targetCards.forEach((c) => {
-              const h = c.hanzi?.trim()
-              if (h && !watermarkList.includes(h)) {
-                watermarkList.push(h)
-              }
-            })
-          }
 
           // Fallback jika deck benar-benar kosong
           if (watermarkList.length === 0) {
@@ -688,7 +685,7 @@ export default function DashboardPage() {
 
               {/* Progress bar */}
               <div className="space-y-1 pt-0.5">
-                <div className="h-1.5 sm:h-2 w-full max-w-xs rounded-full bg-emerald-500/10 dark:bg-muted/60 overflow-hidden border border-emerald-500/20 dark:border-border/40 shadow-inner">
+                <div className="h-1.5 sm:h-2 w-[52%] max-w-[140px] sm:w-full sm:max-w-xs rounded-full bg-emerald-500/10 dark:bg-muted/60 overflow-hidden border border-emerald-500/20 dark:border-border/40 shadow-inner">
                   <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000 ease-out"
                     style={{ width: `${activeDeckHero?.percent || 0}%` }}
@@ -837,19 +834,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </a>
-            ) : (
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-emerald-500/10">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-emerald-700 dark:text-emerald-500 text-sm sm:text-base truncate tracking-tight">Daftar Kata</h3>
-                  <p className="text-[10px] sm:text-xs text-emerald-600/80 dark:text-emerald-400/80 truncate tracking-tighter sm:tracking-normal">
-                    {deckQuotaMet ? "Target harian selesai · Sesi baru besok jam 00:00" : "Semua deck sudah selesai"}
-                  </p>
-                </div>
-              </div>
-            )}
+            ) : null}
 
             {/* Review Kosakata mengikuti level HSK yang dipilih pada ringkasan */}
             {activeSrsDue > 0 ? <a href={`/dashboard/review?hsk=${activeSrsLevel}`} className="block group">
