@@ -202,10 +202,8 @@ npm run db:push           # Push local SQL migrations to the remote Supabase pro
   ```
 
   Then run `schema.sql` in the new project, followed by any newer migrations.
-- Security-related migrations (apply in this order after the base schema):
-  - `20261009_secure_role_system.sql` — role helpers, RPC role checks, role-change trigger, `user_profile` policies
-  - `20261011_tighten_content_rls.sql` — admin-only writes on module and flashcard content tables, bookmark and bug-report policies
-  - `20261012_tighten_rls_part2.sql` — remaining content tables, placement, examples, and function hardening
+- **Migration source of truth:** `supabase db push` only applies files in `supabase/migrations/`. SQL files in the repository-root `migrations/` directory are legacy/manual scripts and are not deployed by that command. Before recreating a project or applying these legacy scripts, reconcile them with the live database schema and migration history; do not assume they have run just because they are present in the repository.
+- Current role hardening is in `supabase/migrations/20261019050000_harden_user_profile_roles.sql`; the follow-up `20261030000000_fix_admin_rpc_null_role_guard.sql` closes the missing-profile authorization case.
 
 ---
 

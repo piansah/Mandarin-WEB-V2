@@ -12,6 +12,7 @@ import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardAction } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { listThemes, createTheme, deleteTheme, type PersonalTheme } from "@/lib/personal-decks"
 import { Plus, Trash2, FolderHeart, ChevronRight, BookOpen } from "lucide-react"
 export default function PersonalCardsPage() {
@@ -21,6 +22,8 @@ export default function PersonalCardsPage() {
   const [newThemeName, setNewThemeName] = React.useState("")
   const [selectedIcon, setSelectedIcon] = React.useState("📚")
   const [creating, setCreating] = React.useState(false)
+  const [themeToDelete, setThemeToDelete] = React.useState<number | null>(null)
+  const [deletingTheme, setDeletingTheme] = React.useState(false)
   const router = useRouter()
 
   const ICON_OPTIONS = ["📚", "🎯", "🌟", "🔥", "⚡", "📖", "🎨", "🎵", "🎮", "🧠"]
@@ -51,10 +54,13 @@ export default function PersonalCardsPage() {
     }
   }
 
-  async function handleDeleteTheme(id: number) {
-    if (!confirm("Yakin ingin menghapus tema ini? Semua deck dan kartu di dalamnya juga akan terhapus.")) return
-    const result = await deleteTheme(id)
+  async function handleDeleteTheme() {
+    if (themeToDelete === null) return
+    setDeletingTheme(true)
+    const result = await deleteTheme(themeToDelete)
+    setDeletingTheme(false)
     if (!result.error) {
+      setThemeToDelete(null)
       loadThemes()
     } else {
       toast.error(result.error)
@@ -172,7 +178,7 @@ export default function PersonalCardsPage() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => handleDeleteTheme(theme.id)}
+                    onClick={() => setThemeToDelete(theme.id)}
                     className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -193,6 +199,25 @@ export default function PersonalCardsPage() {
           ))}
         </div>
       )}
+
+      <Dialog open={themeToDelete !== null} onOpenChange={open => { if (!open && !deletingTheme) setThemeToDelete(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus tema?</DialogTitle>
+            <DialogDescription>
+              Yakin ingin menghapus tema ini? Semua deck dan kartu di dalamnya juga akan terhapus.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setThemeToDelete(null)} disabled={deletingTheme}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteTheme} disabled={deletingTheme}>
+              {deletingTheme ? "Menghapus..." : "Hapus tema"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

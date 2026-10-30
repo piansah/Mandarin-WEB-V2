@@ -13,6 +13,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
+import { localDateString, shiftDateString } from "@/lib/local-date"
 import { TIER_ORDER, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
 
 export const TITLES = {
@@ -170,7 +171,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     await Promise.all([
       supa.from("user_profile").select("display_name, selected_avatar, custom_avatar_url").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
-      supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10)),
+      supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", shiftDateString(localDateString(), -400)),
       supa.from("user_card_progress").select("srs_level, last_quality").eq("user_id", user.id),
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       fetchUnlockedTiers(),
@@ -183,15 +184,15 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   const dates = new Set((streakRes.data ?? []).map((r) => r.date as string))
   
   const streak = (() => {
-    const today = new Date().toISOString().slice(0, 10)
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10)
+    const today = localDateString()
+    const yesterday = shiftDateString(today, -1)
     const startFrom = dates.has(today) ? today : dates.has(yesterday) ? yesterday : null
     if (!startFrom) return 0
     let streak = 0
-    const cur = new Date(startFrom)
-    while (dates.has(cur.toISOString().slice(0, 10))) {
+    let cur = startFrom
+    while (dates.has(cur)) {
       streak++
-      cur.setDate(cur.getDate() - 1)
+      cur = shiftDateString(cur, -1)
     }
     return streak
   })()
@@ -202,9 +203,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     let best = 1
     let cur = 1
     for (let i = 1; i < sorted.length; i++) {
-      const prev = new Date(sorted[i - 1])
-      prev.setDate(prev.getDate() + 1)
-      if (prev.toISOString().slice(0, 10) === sorted[i]) {
+      if (shiftDateString(sorted[i - 1], 1) === sorted[i]) {
         cur++
         if (cur > best) best = cur
       } else {

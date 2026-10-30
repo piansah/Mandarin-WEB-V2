@@ -25,6 +25,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
+import { localDateString, shiftDateString } from "@/lib/local-date"
 import { TIER_ORDER, TIER_LABEL, TIER_HSK, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
 
 export type WeekDot = { day: string; active: boolean; isToday: boolean }
@@ -116,24 +117,20 @@ export function calcXPForItem(type: string, score: number): number {
 }
 
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return localDateString()
 }
 
 export function calcCurrentStreak(dates: Set<string>): number {
   const today = todayStr()
-  const yesterday = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().slice(0, 10)
-  })()
+  const yesterday = shiftDateString(today, -1)
   const startFrom = dates.has(today) ? today : dates.has(yesterday) ? yesterday : null
   if (!startFrom) return 0
 
   let streak = 0
-  const cur = new Date(startFrom)
-  while (dates.has(cur.toISOString().slice(0, 10))) {
+  let cur = startFrom
+  while (dates.has(cur)) {
     streak++
-    cur.setDate(cur.getDate() - 1)
+    cur = shiftDateString(cur, -1)
   }
   return streak
 }
@@ -144,9 +141,7 @@ export function calcBestStreak(dates: Set<string>): number {
   let best = 1
   let cur = 1
   for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1])
-    prev.setDate(prev.getDate() + 1)
-    if (prev.toISOString().slice(0, 10) === sorted[i]) {
+    if (shiftDateString(sorted[i - 1], 1) === sorted[i]) {
       cur++
       if (cur > best) best = cur
     } else {
@@ -159,8 +154,8 @@ export function calcBestStreak(dates: Set<string>): number {
 export function calcConsistency(dates: Set<string>): number {
   if (!dates.size) return 0
   const sorted = [...dates].sort()
-  const first = new Date(sorted[0])
-  const today = new Date(todayStr())
+  const first = new Date(`${sorted[0]}T00:00:00Z`)
+  const today = new Date(`${todayStr()}T00:00:00Z`)
   const totalDays = Math.round((today.getTime() - first.getTime()) / 86_400_000) + 1
   return Math.round((dates.size / totalDays) * 100)
 }
@@ -176,7 +171,7 @@ export function buildWeekDots(dates: Set<string>): WeekDot[] {
   return DAY_LABEL.map((label, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const dStr = d.toISOString().slice(0, 10)
+    const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
     return { day: label, active: dates.has(dStr), isToday: dStr === todayStr_ }
   })
 }
@@ -194,10 +189,16 @@ export function timeAgo(iso: string): string {
 }
 
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
-const cacheKey = "dashboard_stats_cache"
 
 export async function fetchDashboardStats(): Promise<DashboardStats | null> {
-  // Check cache first
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return null
+
+  // The cache is private to the authenticated account on this device.
+  const cacheKey = `dashboard_stats_cache:${user.id}`
   const cached = localStorage.getItem(cacheKey)
   if (cached) {
     try {
@@ -210,16 +211,8 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
     }
   }
 
-  const supa = createClient()
-  const {
-    data: { user },
-  } = await supa.auth.getUser()
-  if (!user) return null
-
   const since = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 400)
-    return d.toISOString().slice(0, 10)
+    return shiftDateString(todayStr(), -400)
   })()
 
   const [profileRes, streakRes, statsRpcRes, progressRes, quizCountRes, recentRes, unlockedTiers] =

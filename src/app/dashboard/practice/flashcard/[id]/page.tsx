@@ -10,6 +10,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
+import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -37,7 +38,7 @@ export default function FlashcardPracticePage() {
 
       // eslint-disable-next-line
       let rawCards: any[] = []
-      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null; last_reviewed: string | null }>()
+      const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null; last_reviewed: string | null; last_quality: number | null }>()
       const reviewedCardIds = new Set<string>()
       let deckHskLevel: number | undefined = undefined
 
@@ -89,7 +90,7 @@ export default function FlashcardPracticePage() {
             const chunk = cardIds.slice(i, i + 100)
             const { data: progressRows } = await supa
               .from("user_card_progress")
-              .select("card_id, srs_level, interval_days, ease_factor, next_review, last_reviewed")
+              .select("card_id, srs_level, interval_days, ease_factor, next_review, last_reviewed, last_quality")
               .eq("user_id", user.id)
               .in("card_id", chunk)
 
@@ -101,6 +102,7 @@ export default function FlashcardPracticePage() {
                   ease_factor: row.ease_factor ?? 2.5,
                   next_review: row.next_review ?? null,
                   last_reviewed: row.last_reviewed ?? null,
+                  last_quality: row.last_quality ?? null,
                 })
                 reviewedCardIds.add(String(row.card_id))
               }
@@ -109,22 +111,38 @@ export default function FlashcardPracticePage() {
         }
       }
 
-      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const hanziList = [...new Set(rawCards
+        .map(c => c.hanzi)
+        .filter((hanzi): hanzi is string => typeof hanzi === "string" && hanzi.length > 0))]
       const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
       if (hanziList.length > 0) {
-        await Promise.all(
-          hanziList.map(async (hanzi) => {
-            const [directRes, partialRes] = await Promise.all([
-              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
-              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
-            ])
-            const first = directRes.data?.[0] ?? partialRes.data?.[0]
-            if (first) {
-              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
-            }
+        const { data: exactExamples } = await supa
+          .from("word_examples")
+          .select("id, word_hanzi, hanzi, pinyin, arti")
+          .in("word_hanzi", hanziList)
+          .order("id", { ascending: true })
+
+        for (const example of exactExamples ?? []) {
+          if (!example.word_hanzi || exampleMap.has(example.word_hanzi)) continue
+          exampleMap.set(example.word_hanzi, {
+            hanzi: example.hanzi ?? "",
+            pinyin: example.pinyin ?? "",
+            arti: example.arti ?? "",
           })
-        )
+        }
+
+        const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
+        const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
+        for (const hanzi of missingHanzi) {
+          const example = fallbackExamples.get(hanzi)
+          if (!example) continue
+          exampleMap.set(hanzi, {
+            hanzi: example.hanzi ?? "",
+            pinyin: example.pinyin ?? "",
+            arti: example.arti ?? "",
+          })
+        }
       }
 
         const orderedCards = orderNumeralsBeforeTen(rawCards)
@@ -138,6 +156,7 @@ export default function FlashcardPracticePage() {
           easeFactor: progress?.ease_factor,
           nextReview: progress?.next_review,
           lastReviewed: progress?.last_reviewed,
+          lastQuality: progress?.last_quality as SwipeFlashcard["lastQuality"],
           exampleSentence: ex?.hanzi,
           examplePinyin: ex?.pinyin,
           exampleTranslation: ex?.arti,

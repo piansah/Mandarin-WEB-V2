@@ -14,6 +14,7 @@ import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
 import { saveUserScore } from "@/lib/user-scores"
+import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 import styles from "./page.module.css"
 
 type Card = {
@@ -386,22 +387,24 @@ export default function NadaPracticePage() {
         rawCards = data ?? []
       }
 
-      const hanziList = rawCards.map(c => c.hanzi).filter(Boolean)
+      const hanziList = [...new Set(rawCards.map(c => c.hanzi).filter((hanzi): hanzi is string => typeof hanzi === "string" && hanzi.length > 0))]
       const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
 
       if (hanziList.length > 0) {
-        await Promise.all(
-          hanziList.map(async (hanzi) => {
-            const [directRes, partialRes] = await Promise.all([
-              supa.from("word_examples").select("id, hanzi, pinyin, arti").eq("word_hanzi", hanzi).order("id").limit(1),
-              supa.from("word_examples").select("id, hanzi, pinyin, arti").ilike("hanzi", `%${hanzi}%`).order("id").limit(1),
-            ])
-            const first = directRes.data?.[0] ?? partialRes.data?.[0]
-            if (first) {
-              exampleMap.set(hanzi, { hanzi: first.hanzi ?? "", pinyin: first.pinyin ?? "", arti: first.arti ?? "" })
-            }
-          })
-        )
+        const { data: exactExamples } = await supa.from("word_examples")
+          .select("id, word_hanzi, hanzi, pinyin, arti")
+          .in("word_hanzi", hanziList)
+          .order("id", { ascending: true })
+        for (const example of exactExamples ?? []) {
+          if (!example.word_hanzi || exampleMap.has(example.word_hanzi)) continue
+          exampleMap.set(example.word_hanzi, { hanzi: example.hanzi ?? "", pinyin: example.pinyin ?? "", arti: example.arti ?? "" })
+        }
+        const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
+        const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
+        for (const hanzi of missingHanzi) {
+          const example = fallbackExamples.get(hanzi)
+          if (example) exampleMap.set(hanzi, { hanzi: example.hanzi ?? "", pinyin: example.pinyin ?? "", arti: example.arti ?? "" })
+        }
       }
 
       const cardsWithExamples = rawCards.map(card => {

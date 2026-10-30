@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/browser"
+import { localDateString } from "@/lib/local-date"
 
 // Harus sinkron dengan `type` yang dikenali di
 // supabase/functions/get-user-stats/index.ts
@@ -46,7 +47,7 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
   if (readErr) return { error: readErr.message }
 
   // Rekam streak karena user sudah mengerjakan task hari ini
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateString()
   
   const { error: streakErr } = await supa.from("daily_streaks").upsert(
     { user_id: user.id, date: today },

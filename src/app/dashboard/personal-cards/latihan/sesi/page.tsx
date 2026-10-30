@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { PageLoader } from "@/components/page-loader"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 import { useSupabase } from "@/hooks/use-supabase"
+import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 
 type DeckRow = { id: number; title: string; hsk_level: number | null }
 type CardRow = {
@@ -99,17 +100,10 @@ function CustomFlashcardSessionContent() {
         }
 
         const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-        const fallbackExamples = await Promise.all(missingHanzi.map(async hanzi => {
-          const { data } = await supa
-            .from("word_examples")
-            .select("id, hanzi, pinyin, arti")
-            .ilike("hanzi", `%${hanzi}%`)
-            .order("id", { ascending: true })
-            .limit(1)
-          return { hanzi, example: data?.[0] }
-        }))
+        const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
 
-        for (const { hanzi, example } of fallbackExamples) {
+        for (const hanzi of missingHanzi) {
+          const example = fallbackExamples.get(hanzi)
           if (!example) continue
           exampleMap.set(hanzi, {
             hanzi: example.hanzi ?? "",

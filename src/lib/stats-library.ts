@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
+import { localDateStartIso, localDateString, shiftDateString } from "@/lib/local-date"
 
 type SupabaseClient = ReturnType<typeof createClient>
 
@@ -60,24 +61,20 @@ export type StatsData = {
 }
 
 export function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  return localDateString()
 }
 
 export function calcCurrentStreak(dates: Set<string>): number {
   const today = todayStr()
-  const yesterday = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().slice(0, 10)
-  })()
+  const yesterday = shiftDateString(today, -1)
   const startFrom = dates.has(today) ? today : dates.has(yesterday) ? yesterday : null
   if (!startFrom) return 0
 
   let streak = 0
-  const cur = new Date(startFrom)
-  while (dates.has(cur.toISOString().slice(0, 10))) {
+  let cur = startFrom
+  while (dates.has(cur)) {
     streak++
-    cur.setDate(cur.getDate() - 1)
+    cur = shiftDateString(cur, -1)
   }
   return streak
 }
@@ -88,9 +85,7 @@ export function calcBestStreak(dates: Set<string>): number {
   let best = 1
   let cur = 1
   for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1])
-    prev.setDate(prev.getDate() + 1)
-    if (prev.toISOString().slice(0, 10) === sorted[i]) {
+    if (shiftDateString(sorted[i - 1], 1) === sorted[i]) {
       cur++
       if (cur > best) best = cur
     } else {
@@ -113,14 +108,14 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string): Promis
   monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
   const weekEnd = new Date(monday)
   weekEnd.setDate(monday.getDate() + 7)
-  const weekStartKey = monday.toISOString().slice(0, 10)
-  const weekEndKey = weekEnd.toISOString().slice(0, 10)
+  const weekStartKey = localDateString(monday)
+  const weekEndKey = localDateString(weekEnd)
 
   // Ambil satu rentang minggu; sebelumnya tiga query diulang berurutan untuk
   // tiap hari (21 request total).
   const [sessionsRes, wordsRes, streakRes] = await Promise.all([
     supa.from("user_scores").select("updated_at").eq("user_id", userId)
-      .gte("updated_at", `${weekStartKey}T00:00:00`).lt("updated_at", `${weekEndKey}T00:00:00`),
+      .gte("updated_at", localDateStartIso(weekStartKey)).lt("updated_at", localDateStartIso(weekEndKey)),
     supa.from("user_card_progress").select("id", { count: "exact", head: true })
       .eq("user_id", userId).gte("srs_level", 1),
     supa.from("daily_streaks").select("date").eq("user_id", userId).lte("date", weekEndKey),
@@ -129,7 +124,7 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string): Promis
   const sessionsByDate = new Map<string, number>()
   sessionsRes.data?.forEach((row) => {
     if (!row.updated_at) return
-    const dateKey = new Date(row.updated_at).toISOString().slice(0, 10)
+    const dateKey = localDateString(new Date(row.updated_at))
     sessionsByDate.set(dateKey, (sessionsByDate.get(dateKey) ?? 0) + 1)
   })
   const streakDates = (streakRes.data ?? []).map((row) => row.date as string)
@@ -138,7 +133,7 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string): Promis
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date(monday)
     date.setDate(monday.getDate() + index)
-    const dateKey = date.toISOString().slice(0, 10)
+    const dateKey = localDateString(date)
     const totalDays = streakDates.filter((streakDate) => streakDate <= dateKey).length || 1
     const wordsPerDay = Math.round(totalWords / totalDays)
     return {
@@ -343,14 +338,12 @@ export async function fetchStatsData(): Promise<StatsData | null> {
 
   // Ambil data streak
   const since = (() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 400)
-    return d.toISOString().slice(0, 10)
+    return shiftDateString(localDateString(), -400)
   })()
 
   const monthStart = new Date()
   monthStart.setDate(1)
-  const monthStartStr = monthStart.toISOString().slice(0, 10)
+  const monthStartStr = localDateString(monthStart)
   const [streakRes, learnedRes, cardsRes, sessionsRes, monthlySessionsRes] = await Promise.all([
     supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", since),
     supa.from("user_card_progress").select("id", { count: "exact", head: true })
@@ -358,7 +351,7 @@ export async function fetchStatsData(): Promise<StatsData | null> {
     supa.from("flashcard_cards").select("id", { count: "exact", head: true }),
     supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id),
     supa.from("user_scores").select("id", { count: "exact", head: true })
-      .eq("user_id", user.id).gte("updated_at", `${monthStartStr}T00:00:00`),
+      .eq("user_id", user.id).gte("updated_at", localDateStartIso(monthStartStr)),
   ])
 
   const streakData = streakRes.data

@@ -456,9 +456,12 @@ export function useFlashcardSession({
 
     const isFromRepeatQueue = idx >= totalOriginal
     const isDue = isCardDue(card.nextReview)
+    // On the same day, update SRS only when the learner changes the rating.
+    // Repeating the same rating must not keep pushing the due date forward.
+    const alreadyRecordedInSession = recordedTodayCardIdsRef.current.has(cardIdStr)
     const reviewedToday = card.lastReviewed?.slice(0, 10) === todayStr()
-    const alreadyRecordedToday = reviewedToday || recordedTodayCardIdsRef.current.has(cardIdStr)
-    const shouldRecordSrs = !alreadyRecordedToday && (isDue || quality === 0)
+    const changedRatingToday = reviewedToday && card.lastQuality !== quality
+    const shouldRecordSrs = !alreadyRecordedInSession && (reviewedToday ? changedRatingToday : (isDue || quality === 0))
     const alreadyQueuedForRepeat = repeatQueue.some(repeatCard => String(repeatCard.id) === cardIdStr)
     const willAddRepeat = quality === 0 && !isFromRepeatQueue && !alreadyQueuedForRepeat
 

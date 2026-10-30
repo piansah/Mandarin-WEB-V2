@@ -122,15 +122,27 @@ Deno.serve(async (req: Request) => {
   const userId = user.id;
 
   try {
+    const fetchScorePages = async (columns: string, onlyUserId?: string) => {
+      const pageSize = 1000;
+      const rows: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        let query = adminClient
+          .from("user_scores")
+          .select(columns)
+          .order("id", { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (onlyUserId) query = query.eq("user_id", onlyUserId);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
+    };
+
     /* ── Ambil skor user saat ini ── */
-    const { data: myScores, error: scoresErr } = await adminClient
-      .from("user_scores")
-      .select("key, score, type")
-      .eq("user_id", userId);
-
-    if (scoresErr) throw scoresErr;
-
-    const allMyScores: ScoreRow[] = myScores || [];
+    const allMyScores: ScoreRow[] = await fetchScorePages("key, score, type", userId);
     const myXP = calcXPFromRows(allMyScores);
 
     /* ── Hitung akurasi quiz ── */
@@ -143,12 +155,10 @@ Deno.serve(async (req: Request) => {
 
     /* ── Hitung rank (server-side, data tidak bocor ke client) ── */
     // Ambil hanya kolom yang diperlukan untuk kalkulasi XP semua user
-    const { data: allUserScores, error: rankErr } = await adminClient
-      .from("user_scores")
-      .select("user_id, type, score");
+    const allUserScores = await fetchScorePages("user_id, type, score");
 
     let rank = 0;
-    if (!rankErr && allUserScores) {
+    if (allUserScores.length > 0) {
       // Grup per user_id
       const xpMap = new Map<string, ScoreRow[]>();
       for (const row of allUserScores) {

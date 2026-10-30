@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 
 export type DueFlashcard = {
   id: string
@@ -199,12 +200,28 @@ export async function fetchDueFlashcards(
   userId: string
 ): Promise<DueFlashcard[]> {
   const today = todayStr()
-  const { data: progressRows } = await supa
-    .from("user_card_progress")
-    .select("card_id, next_review, last_reviewed, srs_level, interval_days, ease_factor")
-    .eq("user_id", userId)
-    .lte("next_review", today)
-    .order("next_review", { ascending: true })
+  const progressRows: {
+    card_id: string | null
+    next_review: string | null
+    last_reviewed: string | null
+    srs_level: number | null
+    interval_days: number | null
+    ease_factor: number | null
+  }[] = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supa
+      .from("user_card_progress")
+      .select("card_id, next_review, last_reviewed, srs_level, interval_days, ease_factor")
+      .eq("user_id", userId)
+      .lte("next_review", today)
+      .order("next_review", { ascending: true })
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data) break
+    progressRows.push(...data)
+    if (data.length < pageSize) break
+  }
 
   if (!progressRows?.length) return []
 
@@ -260,18 +277,11 @@ export async function fetchDueFlashcards(
     })
   }
 
-  // Keep the partial-word fallback, but issue it concurrently so cards
-  // without an exact example do not add one sequential network wait per batch.
+  // Keep partial-word fallback matches while batching lookups in small groups.
   const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-  const fallbackResults = await Promise.all(missingHanzi.map(async hanzi => {
-    const { data } = await supa.from("word_examples")
-      .select("id, hanzi, pinyin, arti")
-      .ilike("hanzi", `%${hanzi}%`)
-      .order("id", { ascending: true })
-      .limit(1)
-    return { hanzi, example: data?.[0] }
-  }))
-  for (const { hanzi, example } of fallbackResults) {
+  const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
+  for (const hanzi of missingHanzi) {
+    const example = fallbackExamples.get(hanzi)
     if (!example) continue
     exampleMap.set(hanzi, {
       hanzi: example.hanzi ?? "",

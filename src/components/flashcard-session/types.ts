@@ -10,6 +10,7 @@ export type SwipeFlashcard = {
   easeFactor?: number
   nextReview?: string | null
   lastReviewed?: string | null
+  lastQuality?: 0 | 3 | 4 | 5 | null
   exampleSentence?: string
   examplePinyin?: string
   exampleTranslation?: string
