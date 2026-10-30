@@ -27,6 +27,7 @@ export function useFlashcardSession({
   wordDetailPath: _wordDetailPath,
   onComplete,
   disableSwipeProp = false,
+  studyOnly = false,
   deckId,
   sessionId
 }: {
@@ -37,6 +38,7 @@ export function useFlashcardSession({
   // eslint-disable-next-line
   onComplete?: (stats: any, reviews: any[]) => void
   disableSwipeProp?: boolean
+  studyOnly?: boolean
   deckId?: number
   sessionId?: string | null
 }) {
@@ -274,17 +276,17 @@ export function useFlashcardSession({
       if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return
       if (!card || flyOut || done) return
 
-      if (e.key === "1") { e.preventDefault(); setSelectedRating(0); advance(0); return }
-      if (e.key === "2") { e.preventDefault(); setSelectedRating(3); advance(3); return }
-      if (e.key === "3") { e.preventDefault(); setSelectedRating(4); advance(4); return }
-      if (e.key === "4") { e.preventDefault(); setSelectedRating(5); advance(5); return }
+      if (!studyOnly && e.key === "1") { e.preventDefault(); setSelectedRating(0); advance(0); return }
+      if (!studyOnly && e.key === "2") { e.preventDefault(); setSelectedRating(3); advance(3); return }
+      if (!studyOnly && e.key === "3") { e.preventDefault(); setSelectedRating(4); advance(4); return }
+      if (!studyOnly && e.key === "4") { e.preventDefault(); setSelectedRating(5); advance(5); return }
       if (e.key === "ArrowLeft") { e.preventDefault(); goToPrevious(); return }
       if (e.key === "ArrowRight") { e.preventDefault(); skipCard(); return }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
     // eslint-disable-next-line
-  }, [card, flyOut, done, idx])
+  }, [card, flyOut, done, idx, studyOnly])
 
   function handleCardClick() {
     if (isDragging || dragX > 10 || dragX < -10 || dragY > 10 || dragY < -10) return
@@ -440,6 +442,16 @@ export function useFlashcardSession({
 
   function advance(quality: 0 | 3 | 4 | 5) {
     if (!card) return
+
+    // Sesi custom memakai empat arah swipe hanya untuk navigasi. Jangan
+    // menyimpan rating, mengubah SRS, atau memasukkan kartu ke antrean ulang.
+    if (studyOnly) {
+      setDragX(0); setDragY(0); setFlip(0); setFeedback(null); setSelectedRating(null)
+      if (idx + 1 >= currentTotal) setDone(true)
+      else setIdx((i: number) => i + 1)
+      return
+    }
+
     const cardIdStr = String(card.id)
 
     const isFromRepeatQueue = idx >= totalOriginal

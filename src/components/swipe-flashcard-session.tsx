@@ -34,11 +34,13 @@ export function SwipeFlashcardSession({
   deckCardIds,
   deckId,
   sessionId,
+  studyOnly = false,
 }: SwipeFlashcardSessionProps) {
   const [noteExpanded, setNoteExpanded] = React.useState(false)
   const session = useFlashcardSession({
     cards, userId, deckCardIds, wordDetailPath, onComplete,
     disableSwipeProp: disableSwipeProp || noteExpanded,
+    studyOnly,
     deckId, sessionId
   })
 
@@ -62,6 +64,8 @@ export function SwipeFlashcardSession({
           ingat={session.sessionStats.ingat}
           lupa={session.sessionStats.lupa}
           resultRingValue={session.resultRingValue}
+          studyOnly={studyOnly}
+          studiedCount={cards.length}
           onRetry={() => window.location.reload()}
         />
       </div>
@@ -76,7 +80,7 @@ export function SwipeFlashcardSession({
         <PracticeHeader
           title={deckTitle}
           subtitle={deckLevel}
-          showStats
+          showStats={!studyOnly}
           collapsibleStats
           stats={[
             { icon: Star, label: "Sudah Dikuasai", value: `${session.headerStats.mastered} Kartu` },
@@ -161,11 +165,17 @@ export function SwipeFlashcardSession({
                 <EyeOff className="h-3.5 w-3.5 shrink-0" /> Sembunyi
               </Button>
               <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.skipCard}>
-                <SkipForward className="h-3.5 w-3.5 shrink-0" /> Lewati
+                <SkipForward className="h-3.5 w-3.5 shrink-0" />
+                {studyOnly ? (session.idx + 1 >= cards.length ? "Selesai" : "Berikutnya") : "Lewati"}
               </Button>
             </div>
 
-            <div className="text-sm font-semibold text-foreground">Seberapa mudah kamu mengingatnya?</div>
+            {studyOnly && (
+              <div className="text-xs text-center text-muted-foreground">
+                Latihan bebas · pilihan hanya untuk melanjutkan, tidak mengubah penilaian atau jadwal review
+              </div>
+            )}
+            {!studyOnly && <div className="text-sm font-semibold text-foreground">Seberapa mudah kamu mengingatnya?</div>}
             <div className="grid grid-cols-4 gap-2 w-full">
               <Button
                 variant="outline"
@@ -174,7 +184,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">1</span>
                 <span>Lupa</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 0))}</span>
+                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 0))}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -183,7 +193,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
                 <span>Sulit</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3))}</span>
+                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3))}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -192,7 +202,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
                 <span>Ingat</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4))}</span>
+                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4))}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -201,10 +211,11 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>
                 <span>Mudah</span>
-                <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5))}</span>
+                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5))}</span>}
               </Button>
             </div>
 
+            {!studyOnly && <>
             <p className="hidden sm:flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground/70">
               <kbd className="px-1.5 py-0.5 rounded border border-border/60 bg-muted/40 font-mono text-[10px]">1</kbd>
               <span>–</span>
@@ -237,6 +248,7 @@ export function SwipeFlashcardSession({
                 </div>
               </div>
             </div>
+            </>}
 
             {session.feedback && (
               <div className={`text-center px-4 py-4 rounded-xl border w-full max-w-lg mx-auto shadow-sm ${

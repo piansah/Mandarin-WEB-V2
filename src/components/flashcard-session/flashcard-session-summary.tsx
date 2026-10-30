@@ -14,6 +14,8 @@ type Props = {
   lupa: number
   resultRingValue: number
   onRetry: () => void
+  studyOnly?: boolean
+  studiedCount?: number
 }
 
 export function FlashcardSessionSummary({
@@ -25,7 +27,9 @@ export function FlashcardSessionSummary({
   sulit,
   lupa,
   resultRingValue,
-  onRetry
+  onRetry,
+  studyOnly = false,
+  studiedCount = 0
 }: Props) {
   const router = useRouter()
   const totalRated = mudah + ingat + sulit + lupa
@@ -40,6 +44,22 @@ export function FlashcardSessionSummary({
         <div className="flashcard-result-emoji text-6xl">{emptyEmoji}</div>
         <h2 className="flashcard-result-title text-3xl font-bold text-center">{emptyTitle}</h2>
         <Button variant="outline" className="rounded-2xl px-8" onClick={() => router.back()}>Kembali</Button>
+      </div>
+    )
+  }
+
+  if (studyOnly) {
+    return (
+      <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+        <div className="flashcard-result-emoji text-6xl">✅</div>
+        <div className="relative z-10 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan selesai!</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{studiedCount} kosakata dipelajari · tanpa penilaian</p>
+        </div>
+        <div className="relative z-10 flex w-full max-w-xs gap-3">
+          <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
+          <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={onRetry}>Ulangi</Button>
+        </div>
       </div>
     )
   }

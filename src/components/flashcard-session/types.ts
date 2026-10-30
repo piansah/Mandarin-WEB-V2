@@ -54,6 +54,7 @@ export type SwipeFlashcardSessionProps = {
   deckLevel?: string
   userId?: string | null
   disableSwipe?: boolean
+  studyOnly?: boolean
   deckCardIds?: string[]
   deckId?: number
   sessionId?: string | null

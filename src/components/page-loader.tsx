@@ -333,6 +333,7 @@ function resolveSkeleton(pathname: string) {
   if (pathname.includes("/flashcard/cumulative/") && pathname.endsWith("/speaking")) return <PracticeSkeleton />
   if (pathname.includes("/flashcard/cumulative/")) return <EstafetSkeleton />
   if (pathname.startsWith("/dashboard/review") || pathname.includes("/practice/flashcard/")) return <FlashcardSessionSkeleton />
+  if (pathname.startsWith("/dashboard/personal-cards/latihan/sesi")) return <FlashcardSessionSkeleton />
   if (pathname.includes("/flashcard/") && pathname.includes("/word/")) return <WordDetailSkeleton />
   if (pathname.startsWith("/dashboard/personal-cards/") && pathname.split("/").filter(Boolean).length >= 4) return <DeckDetailSkeleton />
   if (pathname === "/dashboard/flashcard" || pathname === "/dashboard/personal-cards" || pathname.startsWith("/dashboard/personal-cards/") || pathname === "/dashboard/favorit" || pathname === "/dashboard/flashcard/cumulative") return <DeckGridSkeleton />
