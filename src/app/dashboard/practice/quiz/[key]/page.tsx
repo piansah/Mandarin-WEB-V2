@@ -162,6 +162,16 @@ function hydrateQuizAnswerDetails(questions: QuizQuestion[], cards: Card[]): Qui
   })
 }
 
+function getQuizSpeech(question: QuizQuestion): string {
+  if (question.si === 1 && question.answerDetail?.kind === "hanzi") {
+    return question.answerDetail.value
+  }
+
+  let speech = question.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
+  if (question.si === 3) speech = speech.replace(/_{2,}/g, question.opts[question.ans])
+  return speech
+}
+
 /* ── Main component ── */
 export default function QuizPage() {
   const { key } = useParams<{ key: string }>()
@@ -367,21 +377,15 @@ export default function QuizPage() {
       localStorage.setItem("hsk_quiz_state", JSON.stringify(saved))
     }
 
-    // TTS (skip for Pinyin-question type)
+    // Untuk Pinyin → Arti, bacakan Hanzi jawaban benar; TTS pinyin mentah tidak andal.
     const q = allQ[gi]
-    if (q.si !== 1) {
-      let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-      if (q.si === 3) speech = speech.replace(/_{2,}/g, q.opts[cor])
-      speakMandarin(speech)
-    }
+    speakMandarin(getQuizSpeech(q))
   }
 
   function replayQuestion(gi: number) {
     const q = allQ[gi]
-    if (!q || answered[gi] === undefined || q.si === 1) return
-    let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-    if (q.si === 3) speech = speech.replace(/_{2,}/g, q.opts[q.ans])
-    speakMandarin(speech)
+    if (!q || answered[gi] === undefined) return
+    speakMandarin(getQuizSpeech(q))
   }
 
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
@@ -719,7 +723,7 @@ export default function QuizPage() {
                       : ""
                     // Soal berbasis hanzi (Hanzi→Arti, Hanzi→Pinyin): tap teksnya buat putar ulang TTS, setelah terjawab
                     const isHanziQuestion = q.si === 0 || q.si === 2 || q.si === 3
-                    const canReplay = isAnswered && isHanziQuestion
+                    const canReplayQuestion = isAnswered && isHanziQuestion
 
                     return (
                       <div
@@ -731,10 +735,10 @@ export default function QuizPage() {
                           <div className={styles.qNum}>{idx + 1}</div>
                           <div className={styles.qText}>
                             <div
-                              className={canReplay ? styles.qCardReplay : undefined}
-                              onClick={canReplay ? () => replayQuestion(q.gi) : undefined}
-                              role={canReplay ? "button" : undefined}
-                              aria-label={canReplay ? "Putar ulang lafal" : undefined}
+                              className={canReplayQuestion ? styles.qCardReplay : undefined}
+                              onClick={canReplayQuestion ? () => replayQuestion(q.gi) : undefined}
+                              role={canReplayQuestion ? "button" : undefined}
+                              aria-label={canReplayQuestion ? "Putar ulang lafal" : undefined}
                             >
                               {/* Gaya sama dengan quiz kumulatif: semua bagian memakai qRumpang */}
                               {q.si === 1 ? (
@@ -749,12 +753,12 @@ export default function QuizPage() {
                               )}
                             </div>
                           </div>
-                          {isAnswered && q.si !== 1 && (
+                          {isAnswered && (
                             <button
                               type="button"
                               className={styles.replayBtn}
                               onClick={(e) => { e.stopPropagation(); replayQuestion(q.gi) }}
-                              aria-label="Putar ulang"
+                              aria-label="Putar lafal jawaban benar"
                             >
                               <Volume2 className="h-3.5 w-3.5" />
                             </button>
