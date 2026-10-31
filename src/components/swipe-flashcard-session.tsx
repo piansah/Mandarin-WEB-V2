@@ -43,6 +43,20 @@ export function SwipeFlashcardSession({
     studyOnly,
     deckId, sessionId
   })
+  const hideDeckIntervalPreviews = Boolean(deckId && session.card?.lastReviewed)
+  const savedDeckIntervalQuality = hideDeckIntervalPreviews ? session.card?.lastQuality : null
+  const savedDeckIntervalDays = hideDeckIntervalPreviews ? session.card?.intervalDays : null
+
+  const getRatingIntervalLabel = (quality: 0 | 3 | 4 | 5) => {
+    if (studyOnly) return null
+    if (!hideDeckIntervalPreviews) {
+      return formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), quality))
+    }
+    if (savedDeckIntervalQuality === quality && typeof savedDeckIntervalDays === "number") {
+      return formatIntervalDays(savedDeckIntervalDays)
+    }
+    return null
+  }
 
   if (loading) {
     return (
@@ -184,7 +198,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">1</span>
                 <span>Lupa</span>
-                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 0))}</span>}
+                {getRatingIntervalLabel(0) && <span className="text-[10px] font-normal text-muted-foreground">{getRatingIntervalLabel(0)}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -193,7 +207,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
                 <span>Sulit</span>
-                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 3))}</span>}
+                {getRatingIntervalLabel(3) && <span className="text-[10px] font-normal text-muted-foreground">{getRatingIntervalLabel(3)}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -202,7 +216,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
                 <span>Ingat</span>
-                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 4))}</span>}
+                {getRatingIntervalLabel(4) && <span className="text-[10px] font-normal text-muted-foreground">{getRatingIntervalLabel(4)}</span>}
               </Button>
               <Button
                 variant="outline"
@@ -211,7 +225,7 @@ export function SwipeFlashcardSession({
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>
                 <span>Mudah</span>
-                {!studyOnly && <span className="text-[10px] font-normal text-muted-foreground">{formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), 5))}</span>}
+                {getRatingIntervalLabel(5) && <span className="text-[10px] font-normal text-muted-foreground">{getRatingIntervalLabel(5)}</span>}
               </Button>
             </div>
 

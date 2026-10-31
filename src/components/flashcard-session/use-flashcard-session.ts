@@ -82,7 +82,7 @@ export function useFlashcardSession({
   const [latestRatings, setLatestRatings] = React.useState<Map<string, 0 | 3 | 4 | 5>>(new Map())
   const [lapsedCardIds, setLapsedCardIds] = React.useState<Set<string>>(new Set())
   const failedCardIdsRef = React.useRef<Set<string>>(new Set())
-  const recordedTodayCardIdsRef = React.useRef<Set<string>>(new Set())
+  const recordedCardIdsRef = React.useRef<Set<string>>(new Set())
   const canSaveSrs = !!userId && !!deckId
   const restoredKeyRef = React.useRef<string | null>(null)
   const restoreDoneRef = React.useRef(false)
@@ -456,17 +456,20 @@ export function useFlashcardSession({
 
     const isFromRepeatQueue = idx >= totalOriginal
     const isDue = isCardDue(card.nextReview)
-    // On the same day, update SRS only when the learner changes the rating.
-    // Repeating the same rating must not keep pushing the due date forward.
-    const alreadyRecordedInSession = recordedTodayCardIdsRef.current.has(cardIdStr)
-    const reviewedToday = card.lastReviewed?.slice(0, 10) === todayStr()
-    const changedRatingToday = reviewedToday && card.lastQuality !== quality
-    const shouldRecordSrs = !alreadyRecordedInSession && (reviewedToday ? changedRatingToday : (isDue || quality === 0))
+    const alreadyRecordedInSession = recordedCardIdsRef.current.has(cardIdStr)
+    const isDeckPractice = canSaveSrs
+    const hasPreviousRating = card.lastReviewed != null
+    // The first swipe in deck practice establishes SRS. Any later deck session
+    // may change its session stats, but never overwrites that stored rating or
+    // due date. Dedicated review pages have no deckId and retain normal SRS.
+    const shouldRecordSrs = !alreadyRecordedInSession && (isDeckPractice && hasPreviousRating
+      ? false
+      : (isDue || quality === 0))
     const alreadyQueuedForRepeat = repeatQueue.some(repeatCard => String(repeatCard.id) === cardIdStr)
     const willAddRepeat = quality === 0 && !isFromRepeatQueue && !alreadyQueuedForRepeat
 
     if (!isFromRepeatQueue && shouldRecordSrs) {
-      recordedTodayCardIdsRef.current.add(cardIdStr)
+      recordedCardIdsRef.current.add(cardIdStr)
       setSessionReviews(prev => {
         const filtered = prev.filter(r => r.cardId !== cardIdStr)
         return [...filtered, { cardId: cardIdStr, quality, state: getCardSrsState(card) }]
@@ -478,7 +481,7 @@ export function useFlashcardSession({
             failedCardIdsRef.current.delete(cardIdStr)
           })
           .catch((error: unknown) => {
-            recordedTodayCardIdsRef.current.delete(cardIdStr)
+            recordedCardIdsRef.current.delete(cardIdStr)
             console.error("Gagal menyimpan progress SRS untuk kartu:", cardIdStr, error)
             failedCardIdsRef.current.add(cardIdStr)
             if (!saveErrorShownRef.current) {
@@ -505,7 +508,9 @@ export function useFlashcardSession({
       }
     }
 
-    setLatestRatings(prev => new Map(prev).set(cardIdStr, quality))
+    // A card sent back into this session's Lupa queue stays rated Lupa. Its
+    // later swipes are for practice and must not overwrite that result.
+    setLatestRatings(prev => new Map(prev).set(cardIdStr, isFromRepeatQueue ? 0 : quality))
 
     if (quality === 0) {
       if (willAddRepeat) setRepeatQueue(prev => [...prev, card])
