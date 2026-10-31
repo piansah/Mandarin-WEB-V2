@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 // Lebar area tombol report yang tersembunyi di belakang card. Diseret ke
 // kiri (mouse drag / swipe jari) untuk memunculkannya — polanya sama
 // seperti "swipe to reveal action" di aplikasi chat/email.
-const REVEAL_WIDTH = 76
+const REVEAL_WIDTH = 96
 const OPEN_THRESHOLD = REVEAL_WIDTH / 2
 
 type SwipeToReportProps = {
@@ -125,14 +125,14 @@ export function SwipeToReport({ children, onReport, reported = false, className,
   }
 
   return (
-    <div className={cn("relative overflow-hidden rounded-xl", className)}>
+    <div className={cn("relative overflow-visible rounded-xl", className)}>
       {!reported && (
         <button
           type="button"
           onClick={handleReportClick}
           aria-label={reportLabel}
           title={reportLabel}
-          className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
+          className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 rounded-r-xl bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
           // z-index cuma dinaikkan pas kartu lagi/sudah kebuka, supaya tombol
           // menang hit-test dari kartu yang masih animasi geser (200ms) atau
           // ada overlap 1px akibat pembulatan subpixel. Pas kartu ketutup,

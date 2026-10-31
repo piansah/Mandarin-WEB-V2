@@ -136,7 +136,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   opacity: 0;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: left 200ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
 .tts-speed-badge[data-visible="true"] {

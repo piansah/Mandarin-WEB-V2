@@ -18,6 +18,32 @@ let lastSpeakAt = 0
 let voicesListenerReady = false
 let voicesLoadAttempted = false
 let currentText: string | null = null
+let badgePositionObserver: ResizeObserver | null = null
+let badgePositionTarget: HTMLElement | null = null
+
+function positionSpeedBadge(badge: HTMLElement) {
+  const content = document.querySelector<HTMLElement>('[data-slot="sidebar-inset"]')
+  if (!content) {
+    badge.style.left = "50%"
+    badgePositionObserver?.disconnect()
+    badgePositionObserver = null
+    badgePositionTarget = null
+    return
+  }
+
+  const rect = content.getBoundingClientRect()
+  badge.style.left = `${rect.left + rect.width / 2}px`
+
+  if (badgePositionTarget !== content && typeof ResizeObserver !== "undefined") {
+    badgePositionObserver?.disconnect()
+    badgePositionTarget = content
+    badgePositionObserver = new ResizeObserver(() => {
+      const updatedRect = content.getBoundingClientRect()
+      badge.style.left = `${updatedRect.left + updatedRect.width / 2}px`
+    })
+    badgePositionObserver.observe(content)
+  }
+}
 
 function isSupported() {
   return typeof window !== "undefined" && "speechSynthesis" in window
@@ -57,11 +83,15 @@ function showSpeedBadge(label: string) {
     document.body.appendChild(badge)
   }
 
+  positionSpeedBadge(badge)
   badge.textContent = `${label}`
   badge.dataset.visible = "true"
   if (badgeTimer) clearTimeout(badgeTimer)
   badgeTimer = setTimeout(() => {
     badge?.removeAttribute("data-visible")
+    badgePositionObserver?.disconnect()
+    badgePositionObserver = null
+    badgePositionTarget = null
   }, 1600)
 }
 

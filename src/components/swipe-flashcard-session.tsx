@@ -55,7 +55,7 @@ export function SwipeFlashcardSession({
     if (savedDeckIntervalQuality === quality && typeof savedDeckIntervalDays === "number") {
       return formatIntervalDays(savedDeckIntervalDays)
     }
-    return null
+    return "–"
   }
 
   if (loading) {

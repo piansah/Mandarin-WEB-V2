@@ -27,6 +27,8 @@ import { useSidebar } from "@/components/ui/sidebar"
 import type { Card, DetailTab, ExampleSentence, CompoundWord, DictionaryEntry, DictionaryMap, DeckMeta } from "./types"
 import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
+import { ReportModal } from "@/components/report-modal"
+import { SwipeToReport } from "@/components/swipe-to-report"
 import { getDeckPracticeScores } from "@/lib/user-scores"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 import { getWordDetailPath } from "@/lib/hanzi-segmentation"
@@ -58,11 +60,32 @@ export default function FlashcardDeckPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [selectedCard, setSelectedCard] = React.useState<Card | null>(null)
+  const [reportCard, setReportCard] = React.useState<Card | null>(null)
   const [detailTab, setDetailTab] = React.useState<DetailTab>(() => getDetailTab(searchParams.get("tab")))
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [examplesLoading, setExamplesLoading] = React.useState(false)
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
+  const [isScrolling, setIsScrolling] = React.useState(false)
+  const listRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    const scrollContainer = listRef.current?.closest(".overflow-auto")
+    if (!scrollContainer) return
+
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const handleScroll = () => {
+      setIsScrolling(true)
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => setIsScrolling(false), 700)
+    }
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll)
+      if (idleTimer) clearTimeout(idleTimer)
+    }
+  }, [loading])
 
   React.useEffect(() => {
     setDetailTab(getDetailTab(searchParams.get("tab")))
@@ -295,13 +318,19 @@ export default function FlashcardDeckPage() {
       </div>
 
       {/* Card List */}
-      <div className="mx-auto w-full max-w-6xl px-6 pt-4">
+      <div ref={listRef} className="mx-auto w-full max-w-6xl px-6 pt-4">
         <div className="flex flex-col gap-2">
           {cards.length === 0 && (
             <p className="text-center text-muted-foreground text-sm py-12">Tidak ada kosakata ditemukan</p>
           )}
-          {cards.map((card) => (
-            <VocabularyRow key={card.id} card={card} onOpen={openDetail} />
+          {cards.map((card, index) => (
+            <SwipeToReport
+              key={card.id}
+              reportLabel={`Laporkan kosakata ${card.hanzi}`}
+              onReport={() => setReportCard(card)}
+            >
+              <VocabularyRow card={card} count={index + 1} isScrolling={isScrolling} onOpen={openDetail} />
+            </SwipeToReport>
           ))}
         </div>
       </div>
@@ -430,6 +459,14 @@ export default function FlashcardDeckPage() {
         </div>
       </div>
 
+      <ReportModal
+        isOpen={reportCard !== null}
+        onClose={() => setReportCard(null)}
+        contentType="kosakata"
+        contentId={reportCard?.id ?? ""}
+        contentLabel={reportCard?.hanzi ?? ""}
+      />
+
       {selectedCard && (
         <WordDetailPortal>
           <WordDetailPanel
@@ -453,7 +490,7 @@ export default function FlashcardDeckPage() {
   )
 }
 
-function VocabularyRow({ card, onOpen }: { card: Card; onOpen: (card: Card) => void }) {
+function VocabularyRow({ card, count, isScrolling, onOpen }: { card: Card; count: number; isScrolling: boolean; onOpen: (card: Card) => void }) {
   return (
     <div
       className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
@@ -463,15 +500,21 @@ function VocabularyRow({ card, onOpen }: { card: Card; onOpen: (card: Card) => v
       <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
       <div className="ml-1 flex shrink-0 items-center gap-2">
         <HskBadge hskLevel={card.hsk_level} />
-        <button
-          type="button"
-          onClick={event => { event.stopPropagation(); speakMandarin(card.hanzi) }}
-          className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label={`Dengarkan ${card.hanzi}`}
-          title="Dengarkan pelafalan"
-        >
-          <Volume2 className="h-4 w-4" />
-        </button>
+        {isScrolling ? (
+          <span className="grid h-8 min-w-8 place-items-center rounded-full px-1 text-[11px] font-medium tabular-nums text-muted-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none" aria-label={`Kosakata ${count}`}>
+            #{count}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={event => { event.stopPropagation(); speakMandarin(card.hanzi) }}
+            className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none"
+            aria-label={`Dengarkan ${card.hanzi}`}
+            title="Dengarkan pelafalan"
+          >
+            <Volume2 className="h-4 w-4" />
+          </button>
+        )}
       </div>
     </div>
   )

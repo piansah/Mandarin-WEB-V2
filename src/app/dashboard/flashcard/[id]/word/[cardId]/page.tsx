@@ -28,6 +28,12 @@ type CompoundWord = { id?: string | number; set_id?: number; source?: "hsk" | "c
 type WordPopoverState = { hanzi: string; pinyin: string; arti: string; x: number; y: number }
 type DictionaryMap = CharacterDictionary
 type DictionaryEntry = CharacterDictionaryEntry
+type ContentReportState = {
+  isOpen: boolean
+  contentType: "kalimat" | "kosakata"
+  contentId: number | string
+  contentLabel: string
+}
 
 function getDetailTab(value: string | null): DetailTab {
   return value === "stroke" || value === "karakter" || value === "kata" ? value : "kalimat"
@@ -85,7 +91,12 @@ export default function WordDetailPage() {
   const [loading, setLoading] = React.useState(true)
   const [tabLoading, setTabLoading] = React.useState(false)
   const [favorited, setFavorited] = React.useState(false)
-  const [reportModal, setReportModal] = React.useState({ isOpen: false, contentLabel: "" })
+  const [reportModal, setReportModal] = React.useState<ContentReportState>({
+    isOpen: false,
+    contentType: "kosakata",
+    contentId: cardId,
+    contentLabel: "",
+  })
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
   const relevantExamples = React.useMemo(() => examples.filter(example =>
@@ -300,11 +311,20 @@ export default function WordDetailPage() {
 
   function openReportModal() {
     if (!card) return
-    setReportModal({ isOpen: true, contentLabel: card.hanzi })
+    setReportModal({ isOpen: true, contentType: "kosakata", contentId: cardId, contentLabel: card.hanzi })
+  }
+
+  function openSentenceReportModal(example: ExampleSentence) {
+    setReportModal({
+      isOpen: true,
+      contentType: "kalimat",
+      contentId: example.id,
+      contentLabel: example.hanzi ?? "Contoh kalimat",
+    })
   }
 
   function closeReportModal() {
-    setReportModal({ isOpen: false, contentLabel: "" })
+    setReportModal(current => ({ ...current, isOpen: false, contentLabel: "" }))
   }
 
   function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
@@ -332,7 +352,7 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => handleTabChange(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
+    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} onReport={openSentenceReportModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
 
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
     {wordPopover && (
@@ -366,8 +386,8 @@ export default function WordDetailPage() {
     <ReportModal
       isOpen={reportModal.isOpen}
       onClose={closeReportModal}
-      contentType="kosakata"
-      contentId={cardId}
+      contentType={reportModal.contentType}
+      contentId={reportModal.contentId}
       contentLabel={reportModal.contentLabel}
     />
 
@@ -394,7 +414,7 @@ function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; fav
   return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
-function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
+function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
   if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
   return (
     <div>
@@ -409,12 +429,12 @@ function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen }: { exam
         </button>
       </div>
       <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
-      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} />)}</div>
+      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} onReport={onReport} />)}</div>
     </div>
   )
 }
 
-function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSentence; cacheReady: boolean; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void }) {
+function SentenceCard({ example, cacheReady, onWordOpen, onReport }: { example: ExampleSentence; cacheReady: boolean; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
   const sentence = example.hanzi || ""
   const [activeSegment, setActiveSegment] = React.useState<number | null>(null)
   const playbackId = React.useRef(0)
@@ -481,17 +501,8 @@ function SentenceCard({ example, cacheReady, onWordOpen }: { example: ExampleSen
   }, [segments, sentence])
   const gesture = useLongPress(playSentence, playSentence)
 
-  const handleReport = () => {
-    window.openBugReportModal?.(
-      sentence,
-      `Ditemukan kesalahan pada kalimat: ${sentence} (${example.pinyin || ""})`,
-      'content',
-      String(example.id)
-    )
-  }
-
   return (
-    <SwipeToReport onReport={() => handleReport()}>
+    <SwipeToReport onReport={() => onReport(example)}>
       <article className={`${styles.sentenceCard} ${activeSegment !== null ? styles.sentenceCardPlaying : ""}`} {...gesture}>
         <div className={styles.sentenceHanzi}>
           {segments.length > 0
