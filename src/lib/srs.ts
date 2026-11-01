@@ -195,6 +195,45 @@ export function computeSrsUpdate(state: SrsState, quality: 0 | 3 | 4 | 5) {
   }
 }
 
+/**
+ * Update a deck rating before its scheduled review without advancing the SRS
+ * repetition stage. Rating changes reschedule from today; repeating the same
+ * rating is handled as a no-op by the caller.
+ */
+export function computeSrsReassessment(
+  state: SrsState,
+  previousQuality: 0 | 3 | 4 | 5 | null | undefined,
+  quality: 0 | 3 | 4 | 5,
+) {
+  let intervalDays = state.intervalDays || 1
+  let repetitions = state.repetitions
+  const easeFactor = state.easeFactor
+
+  if (quality === 0) {
+    intervalDays = 1
+    repetitions = 0
+  } else if (
+    state.repetitions >= 2 &&
+    (previousQuality === 3 || previousQuality === 4 || previousQuality === 5)
+  ) {
+    const ratingFactor = (rating: 3 | 4 | 5) => {
+      if (rating === 3) return 1.2
+      if (rating === 4) return easeFactor
+      return easeFactor * 1.3
+    }
+    const previousFactor = ratingFactor(previousQuality)
+    intervalDays = Math.round(intervalDays * ratingFactor(quality) / previousFactor)
+    intervalDays = Math.min(Math.max(1, intervalDays), MAX_INTERVAL_DAYS)
+  }
+
+  return {
+    srs_level: repetitions,
+    interval_days: intervalDays,
+    ease_factor: easeFactor,
+    next_review: addDays(intervalDays),
+  }
+}
+
 export async function fetchDueFlashcards(
   supa: SupabaseClient,
   userId: string
@@ -358,9 +397,12 @@ export async function recordSrsReview(
   supa: SupabaseClient,
   userId: string,
   review: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState },
-  sessionId?: string | null
+  sessionId?: string | null,
+  reassessmentFromQuality?: 0 | 3 | 4 | 5 | null
 ) {
-  const update = computeSrsUpdate(review.state, review.quality)
+  const update = reassessmentFromQuality === undefined
+    ? computeSrsUpdate(review.state, review.quality)
+    : computeSrsReassessment(review.state, reassessmentFromQuality, review.quality)
   const { error } = await supa
     .from("user_card_progress")
     .upsert({

@@ -459,11 +459,13 @@ export function useFlashcardSession({
     const alreadyRecordedInSession = recordedCardIdsRef.current.has(cardIdStr)
     const isDeckPractice = canSaveSrs
     const hasPreviousRating = card.lastReviewed != null
-    // The first swipe in deck practice establishes SRS. Any later deck session
-    // may change its session stats, but never overwrites that stored rating or
-    // due date. Dedicated review pages have no deckId and retain normal SRS.
-    const shouldRecordSrs = !alreadyRecordedInSession && (isDeckPractice && hasPreviousRating
-      ? false
+    const isUnscheduledDeckReassessment = isDeckPractice && hasPreviousRating && !isDue && !isFromRepeatQueue
+    const ratingChanged = card.lastQuality != null && card.lastQuality !== quality
+    // Before a deck card is due, only a changed rating reschedules it. Keep the
+    // repetition stage fixed so repeating a deck cannot inflate the interval.
+    // Once due, the swipe is a normal SRS review and advances the stage.
+    const shouldRecordSrs = !alreadyRecordedInSession && (isUnscheduledDeckReassessment
+      ? ratingChanged
       : (isDue || quality === 0))
     const alreadyQueuedForRepeat = repeatQueue.some(repeatCard => String(repeatCard.id) === cardIdStr)
     const willAddRepeat = quality === 0 && !isFromRepeatQueue && !alreadyQueuedForRepeat
@@ -476,7 +478,13 @@ export function useFlashcardSession({
       })
 
       if (canSaveSrs) {
-        void recordSrsReview(supa, userId, { cardId: cardIdStr, quality, state: getCardSrsState(card) }, sessionId)
+        void recordSrsReview(
+          supa,
+          userId,
+          { cardId: cardIdStr, quality, state: getCardSrsState(card) },
+          sessionId,
+          isUnscheduledDeckReassessment ? card.lastQuality : undefined,
+        )
           .then(() => {
             failedCardIdsRef.current.delete(cardIdStr)
           })

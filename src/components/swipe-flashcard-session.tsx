@@ -5,7 +5,7 @@ import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Setti
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
-import { previewIntervalDays, getCardSrsState } from "@/lib/srs"
+import { previewIntervalDays, getCardSrsState, computeSrsReassessment, isCardDue } from "@/lib/srs"
 import styles from "./swipe-flashcard-session.module.css"
 
 import { SwipeFlashcard, SwipeFlashcardSessionProps } from "./flashcard-session/types"
@@ -43,19 +43,24 @@ export function SwipeFlashcardSession({
     studyOnly,
     deckId, sessionId
   })
-  const hideDeckIntervalPreviews = Boolean(deckId && session.card?.lastReviewed)
-  const savedDeckIntervalQuality = hideDeckIntervalPreviews ? session.card?.lastQuality : null
-  const savedDeckIntervalDays = hideDeckIntervalPreviews ? session.card?.intervalDays : null
+  const hasSavedDeckRating = Boolean(deckId && session.card?.lastReviewed)
+  const canReassessDeckRating = Boolean(hasSavedDeckRating && !isCardDue(session.card?.nextReview))
+  const savedDeckIntervalQuality = hasSavedDeckRating ? session.card?.lastQuality : null
+  const savedDeckIntervalDays = hasSavedDeckRating ? session.card?.intervalDays : null
 
   const getRatingIntervalLabel = (quality: 0 | 3 | 4 | 5) => {
     if (studyOnly) return null
-    if (!hideDeckIntervalPreviews) {
+    if (!canReassessDeckRating) {
       return formatIntervalDays(previewIntervalDays(getCardSrsState(session.card ?? {}), quality))
     }
     if (savedDeckIntervalQuality === quality && typeof savedDeckIntervalDays === "number") {
       return formatIntervalDays(savedDeckIntervalDays)
     }
-    return "–"
+    return formatIntervalDays(computeSrsReassessment(
+      getCardSrsState(session.card ?? {}),
+      savedDeckIntervalQuality,
+      quality,
+    ).interval_days)
   }
 
   if (loading) {
