@@ -389,7 +389,15 @@ export default function QuizPage() {
   }
 
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
+  const [repeatConfirmAction, setRepeatConfirmAction] = React.useState<"retry" | "reset" | null>(null)
   const [highlightGi, setHighlightGi] = React.useState<number | null>(null)
+
+  function confirmRepeatAction() {
+    const action = repeatConfirmAction
+    setRepeatConfirmAction(null)
+    if (action === "retry") void handleRetry()
+    if (action === "reset") handleReset()
+  }
 
   function scrollToQuestion(gi: number) {
     const cardEl = document.getElementById(`card-${gi}`)
@@ -614,10 +622,22 @@ export default function QuizPage() {
 
             <div className="flex gap-3 w-full max-w-xs relative z-10">
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
-              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => void handleRetry()}>Ulangi</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => setRepeatConfirmAction("retry")}>Ulangi</button>
             </div>
           </div>
         </div>
+        <Dialog open={repeatConfirmAction === "retry"} onOpenChange={open => { if (!open) setRepeatConfirmAction(null) }}>
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>Ulangi Quiz?</DialogTitle>
+              <DialogDescription>Quiz akan dimulai dari awal. Skor sebelumnya akan dihapus dan diganti setelah quiz selesai.</DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button variant="outline" onClick={() => setRepeatConfirmAction(null)}>Batal</Button>
+              <Button onClick={confirmRepeatAction}>Ya, Ulangi</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
@@ -816,7 +836,7 @@ export default function QuizPage() {
             <button
               type="button"
               className={`${styles.resetBtn} flex-1 sm:flex-none`}
-              onClick={handleReset}
+              onClick={() => setRepeatConfirmAction("reset")}
             >
               Ulangi
             </button>
@@ -847,6 +867,25 @@ export default function QuizPage() {
               </Button>
               <Button onClick={handleConfirmFinish} className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium">
                 Ya, Selesaikan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={repeatConfirmAction !== null} onOpenChange={open => { if (!open) setRepeatConfirmAction(null) }}>
+          <DialogContent className="sm:max-w-[420px]">
+            <DialogHeader>
+              <DialogTitle>{repeatConfirmAction === "retry" ? "Ulangi Quiz?" : "Reset Jawaban?"}</DialogTitle>
+              <DialogDescription>
+                {repeatConfirmAction === "retry"
+                  ? "Quiz akan dimulai dari awal. Skor sebelumnya akan dihapus dan diganti setelah quiz selesai."
+                  : "Semua jawaban pada percobaan ini akan dikosongkan."}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0 mt-4">
+              <Button variant="outline" onClick={() => setRepeatConfirmAction(null)}>Batal</Button>
+              <Button onClick={confirmRepeatAction}>
+                {repeatConfirmAction === "retry" ? "Ya, Ulangi" : "Ya, Reset"}
               </Button>
             </DialogFooter>
           </DialogContent>
