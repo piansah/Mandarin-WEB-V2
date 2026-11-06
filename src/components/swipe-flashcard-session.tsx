@@ -34,6 +34,8 @@ export function SwipeFlashcardSession({
   deckCardIds,
   deckId,
   sessionId,
+  storageKey,
+  reviewBatch,
   studyOnly = false,
 }: SwipeFlashcardSessionProps) {
   const [noteExpanded, setNoteExpanded] = React.useState(false)
@@ -41,7 +43,7 @@ export function SwipeFlashcardSession({
     cards, userId, deckCardIds, wordDetailPath, onComplete,
     disableSwipeProp: disableSwipeProp || noteExpanded,
     studyOnly,
-    deckId, sessionId
+    deckId, sessionId, storageKey
   })
   const hasSavedDeckRating = Boolean(deckId && session.card?.lastReviewed)
   const canReassessDeckRating = Boolean(hasSavedDeckRating && !isCardDue(session.card?.nextReview))
@@ -86,6 +88,11 @@ export function SwipeFlashcardSession({
           studyOnly={studyOnly}
           studiedCount={cards.length}
           onRetry={() => window.location.reload()}
+          reviewBatch={reviewBatch ? {
+            ...reviewBatch,
+            saveStatus: session.completionSaveStatus,
+            onRetrySave: session.retryCompletionSave,
+          } : undefined}
         />
       </div>
     )

@@ -16,6 +16,14 @@ type Props = {
   onRetry: () => void
   studyOnly?: boolean
   studiedCount?: number
+  reviewBatch?: {
+    sessionNumber: number
+    totalSessions: number
+    remainingCount: number
+    onContinue: () => void
+    onRetrySave: () => void
+    saveStatus: "idle" | "saving" | "saved" | "error"
+  }
 }
 
 export function FlashcardSessionSummary({
@@ -29,7 +37,8 @@ export function FlashcardSessionSummary({
   resultRingValue,
   onRetry,
   studyOnly = false,
-  studiedCount = 0
+  studiedCount = 0,
+  reviewBatch
 }: Props) {
   const router = useRouter()
   const totalRated = mudah + ingat + sulit + lupa
@@ -59,6 +68,41 @@ export function FlashcardSessionSummary({
         <div className="relative z-10 flex w-full max-w-xs gap-3">
           <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={() => router.back()}>Kembali</Button>
           <Button className="flex-1 rounded-2xl h-11 shadow-sm" onClick={onRetry}>Ulangi</Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (reviewBatch) {
+    const { sessionNumber, totalSessions, remainingCount, onContinue, onRetrySave, saveStatus } = reviewBatch
+    const saved = saveStatus === "saved"
+    const hasMore = remainingCount > 0
+    return (
+      <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-6 p-8 bg-background overflow-hidden min-h-0">
+        <div className="flashcard-result-emoji text-6xl">{saved ? "✅" : saveStatus === "error" ? "⚠️" : "💾"}</div>
+        <div className="relative z-10 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Sesi {sessionNumber} dari {totalSessions} selesai</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{totalRated} kosakata dinilai</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {saveStatus === "saving" && "Menyimpan penilaian sesi…"}
+            {saveStatus === "error" && "Penilaian belum tersimpan. Coba simpan ulang."}
+            {saved && hasMore && `${remainingCount} kosakata masih menunggu review.`}
+            {saved && !hasMore && "Sesi review selesai."}
+          </p>
+        </div>
+        <div className="relative z-10 flex w-full max-w-sm flex-col gap-3 sm:flex-row">
+          {saveStatus === "error" ? (
+            <Button className="h-11 flex-1 rounded-2xl" onClick={onRetrySave}>Coba simpan lagi</Button>
+          ) : saved && hasMore ? (
+            <>
+              <Button variant="outline" className="h-11 flex-1 rounded-2xl" onClick={() => router.back()}>Selesai dulu</Button>
+              <Button className="h-11 flex-1 rounded-2xl" onClick={onContinue}>Lanjutkan sesi berikutnya</Button>
+            </>
+          ) : saved ? (
+            <Button className="h-11 flex-1 rounded-2xl" onClick={() => router.back()}>Selesai</Button>
+          ) : (
+            <Button variant="outline" className="h-11 flex-1 rounded-2xl" disabled>Sedang menyimpan…</Button>
+          )}
         </div>
       </div>
     )

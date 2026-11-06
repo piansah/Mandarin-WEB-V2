@@ -50,7 +50,7 @@ export type SwipeFlashcardSessionProps = {
   emptyTitle?: string
   emptyEmoji?: string
   wordDetailPath?: (card: SwipeFlashcard) => string | null
-  onComplete?: (stats: SessionStats, reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]) => void
+  onComplete?: (stats: SessionStats, reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]) => void | Promise<void>
   deckTitle?: string
   deckLevel?: string
   userId?: string | null
@@ -59,4 +59,13 @@ export type SwipeFlashcardSessionProps = {
   deckCardIds?: string[]
   deckId?: number
   sessionId?: string | null
+  storageKey?: string
+  reviewBatch?: {
+    sessionNumber: number
+    totalSessions: number
+    remainingCount: number
+    onContinue: () => void
+    onRetrySave?: () => void
+    saveStatus?: "idle" | "saving" | "saved" | "error"
+  }
 }

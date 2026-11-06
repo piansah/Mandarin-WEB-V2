@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchDueFlashcards, recordSrsReviewBatch, type SrsState } from "@/lib/srs"
+import { fetchDueFlashcards, recordSrsReviewBatch, SRS_REVIEW_BATCH_SIZE, type SrsState } from "@/lib/srs"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function ReviewPage() {
@@ -16,6 +16,7 @@ export default function ReviewPage() {
   const [userId, setUserId] = React.useState<string | null>(null)
   const [loadError, setLoadError] = React.useState(false)
   const [reviewLevel, setReviewLevel] = React.useState(1)
+  const [batchIndex, setBatchIndex] = React.useState(0)
 
   React.useEffect(() => {
     async function load() {
@@ -46,6 +47,7 @@ export default function ReviewPage() {
           srsLevel: card.srsLevel,
           intervalDays: card.intervalDays,
           easeFactor: card.easeFactor,
+          nextReview: card.nextReview,
           exampleSentence: card.exampleSentence,
           examplePinyin: card.examplePinyin,
           exampleTranslation: card.exampleTranslation,
@@ -69,7 +71,7 @@ export default function ReviewPage() {
     reviews: { cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]
   ) => {
     const { data: { user } } = await supa.auth.getUser()
-    if (!user) return
+    if (!user) throw new Error("Sesi login berakhir sebelum penilaian tersimpan.")
 
     if (reviews.length > 0) {
       await recordSrsReviewBatch(supa, user.id, reviews)
@@ -81,9 +83,16 @@ export default function ReviewPage() {
     return `/dashboard/flashcard/${card.setId}/word/${card.id}`
   }, [])
 
+  const totalSessions = Math.ceil(cards.length / SRS_REVIEW_BATCH_SIZE)
+  const batchStart = batchIndex * SRS_REVIEW_BATCH_SIZE
+  const activeCards = cards.slice(batchStart, batchStart + SRS_REVIEW_BATCH_SIZE)
+  const remainingCount = Math.max(0, cards.length - batchStart - activeCards.length)
+  const storageKey = `review-hsk-${reviewLevel}`
+
   return (
     <SwipeFlashcardSession
-      cards={cards}
+      key={`${storageKey}-batch-${batchIndex}`}
+      cards={activeCards}
       loading={loading}
       emptyTitle={loadError ? "Review kosakata gagal dimuat" : `Tidak ada kosakata HSK ${reviewLevel} yang perlu direview`}
       emptyEmoji={loadError ? "⚠️" : "✅"}
@@ -92,6 +101,14 @@ export default function ReviewPage() {
       deckTitle="Review Kosakata"
       deckLevel="Tinjau kartu yang perlu diulang"
       userId={userId}
+      deckCardIds={activeCards.map(card => String(card.id))}
+      storageKey={storageKey}
+      reviewBatch={{
+        sessionNumber: batchIndex + 1,
+        totalSessions,
+        remainingCount,
+        onContinue: () => setBatchIndex(index => index + 1),
+      }}
     />
   )
 }

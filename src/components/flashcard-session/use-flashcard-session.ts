@@ -29,18 +29,20 @@ export function useFlashcardSession({
   disableSwipeProp = false,
   studyOnly = false,
   deckId,
-  sessionId
+  sessionId,
+  storageKey
 }: {
   cards: SwipeFlashcard[]
   userId?: string | null
   deckCardIds?: string[]
   wordDetailPath?: (card: SwipeFlashcard) => string | null
   // eslint-disable-next-line
-  onComplete?: (stats: any, reviews: any[]) => void
+  onComplete?: (stats: any, reviews: any[]) => void | Promise<void>
   disableSwipeProp?: boolean
   studyOnly?: boolean
   deckId?: number
   sessionId?: string | null
+  storageKey?: string
 }) {
   const supa = useSupabase()
 
@@ -50,18 +52,33 @@ export function useFlashcardSession({
   const [resetting, setResetting] = React.useState(false)
   const [resetSuccess, setResetSuccess] = React.useState(false)
   const [orderedCards, setOrderedCards] = React.useState<SwipeFlashcard[]>([])
+  const restoredOrderIdsRef = React.useRef<string[] | null>(null)
 
   React.useEffect(() => {
     setPrefs(loadPrefs())
   }, [])
 
   React.useEffect(() => {
+    if (cards.length === 0) {
+      setOrderedCards([])
+      return
+    }
+    const restoredIds = restoredOrderIdsRef.current
+    if (restoredIds?.length) {
+      const byId = new Map(cards.map(item => [String(item.id), item]))
+      const restored = restoredIds.map(id => byId.get(id)).filter((item): item is SwipeFlashcard => Boolean(item))
+      const restoredSet = new Set(restored.map(item => String(item.id)))
+      setOrderedCards([...restored, ...cards.filter(item => !restoredSet.has(String(item.id)))])
+      return
+    }
     setOrderedCards(prefs.cardOrder === "shuffle" ? shuffleArray(cards) : [...cards])
   }, [cards, prefs.cardOrder])
 
   const disableSwipe = disableSwipeProp || !prefs.swipeEnabled
 
-  const sessionStorageKey = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+  const sessionStorageKey = storageKey
+    ? `flashcard_session_${userId}_${storageKey}`
+    : `flashcard_session_${userId}_${deckCardIds?.join('_')}`
 
   const deckIds = React.useMemo(() => {
     const rawIds = deckCardIds && deckCardIds.length > 0 ? deckCardIds.map(String) : cards.map(c => String(c.id))
@@ -77,6 +94,8 @@ export function useFlashcardSession({
 
   const [dueToday, setDueToday] = React.useState(0)
   const [sessionReviews, setSessionReviews] = React.useState<{ cardId: string; quality: 0 | 3 | 4 | 5; state: SrsState }[]>([])
+  const [completionSaveStatus, setCompletionSaveStatus] = React.useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [completionRetryToken, setCompletionRetryToken] = React.useState(0)
   const saveErrorShownRef = React.useRef(false)
   const streakSavedRef = React.useRef(false)
   const [latestRatings, setLatestRatings] = React.useState<Map<string, 0 | 3 | 4 | 5>>(new Map())
@@ -86,6 +105,7 @@ export function useFlashcardSession({
   const canSaveSrs = !!userId && !!deckId
   const restoredKeyRef = React.useRef<string | null>(null)
   const restoreDoneRef = React.useRef(false)
+  const restoringSessionRef = React.useRef(false)
 
   const [fullDeckIds, setFullDeckIds] = React.useState<string[]>([])
   const fullDeckIdsRef = React.useRef(fullDeckIds)
@@ -105,10 +125,17 @@ export function useFlashcardSession({
       if (saved) {
         const parsed = JSON.parse(saved)
         const hoursDiff = (Date.now() - (parsed.timestamp || Date.now())) / (1000 * 60 * 60)
-        if (hoursDiff < 24) {
+        const maxResumeHours = storageKey?.startsWith("review-") ? 24 * 7 : 24
+        if (hoursDiff < maxResumeHours) {
+          restoringSessionRef.current = true
           const loadedReviews = parsed.sessionReviews ?? []
-          const validReviews = loadedReviews.filter((r: { state?: SrsState }) => r.state != null)
+          const restoredReviews = new Map<string, typeof loadedReviews[number]>()
+          for (const review of loadedReviews) {
+            if (review?.state != null && typeof review.cardId === "string") restoredReviews.set(review.cardId, review)
+          }
+          const validReviews = [...restoredReviews.values()]
           setSessionReviews(validReviews)
+          recordedCardIdsRef.current = new Set(validReviews.map(review => review.cardId))
 
           const loadedRatings = parsed.latestRatings ?? []
           const validRatings = new Map<string, 0 | 3 | 4 | 5>()
@@ -130,6 +157,14 @@ export function useFlashcardSession({
           setLapsedCardIds(validLapsedIds)
 
           const loadedRepeatQueueIds = parsed.repeatQueueIds ?? []
+          const loadedOrderedIds = parsed.orderedCardIds
+          if (Array.isArray(loadedOrderedIds)) {
+            restoredOrderIdsRef.current = loadedOrderedIds.filter((id: unknown): id is string => typeof id === "string")
+            const cardsById = new Map(cards.map(c => [String(c.id), c] as [string, SwipeFlashcard]))
+            const ordered = restoredOrderIdsRef.current.map(id => cardsById.get(id)).filter((item): item is SwipeFlashcard => Boolean(item))
+            const orderedIds = new Set(ordered.map(c => String(c.id)))
+            setOrderedCards([...ordered, ...cards.filter(c => !orderedIds.has(String(c.id)))])
+          }
           const validRepeatQueue: SwipeFlashcard[] = []
           const seenRepeatIds = new Set<string>()
           const cardsById = new Map(cards.map(c => [String(c.id), c] as [string, SwipeFlashcard]))
@@ -153,6 +188,12 @@ export function useFlashcardSession({
       }
     } catch {}
   }, [sessionStorageKey, cards])
+
+  React.useEffect(() => {
+    if (restoringSessionRef.current && orderedCards.length > 0) {
+      restoringSessionRef.current = false
+    }
+  }, [orderedCards])
 
   const [repeatQueue, setRepeatQueue] = React.useState<SwipeFlashcard[]>([])
 
@@ -197,21 +238,27 @@ export function useFlashcardSession({
   React.useEffect(() => {
     if (!done || cards.length === 0 || scoreSavedRef.current) return
     scoreSavedRef.current = true
-    const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
-    localStorage.removeItem(key)
+    const key = sessionStorageKey
+    setCompletionSaveStatus("saving")
+    void (async () => {
+      try {
+        const failedReviews = sessionReviews.filter(r => failedCardIdsRef.current.has(r.cardId))
+        if (failedReviews.length > 0 && canSaveSrs) {
+          await recordSrsReviewBatch(supa, userId, failedReviews, sessionId)
+        }
 
-    const failedReviews = sessionReviews.filter(r => failedCardIdsRef.current.has(r.cardId))
-    if (failedReviews.length > 0 && canSaveSrs) {
-      recordSrsReviewBatch(supa, userId, failedReviews, sessionId)
-        .catch((error: unknown) => {
-          console.error("Gagal menyimpan progress SRS yang gagal sebelumnya:", error)
-          toast.error("Gagal menyimpan progress SRS")
-        })
-    }
-
-    const sessionStats = computeSessionStats(latestRatings, lapsedCardIds)
-    onComplete?.({ mudah: sessionStats.mudah, lupa: sessionStats.lupa, sulit: sessionStats.sulit, ingat: sessionStats.ingat }, sessionReviews)
-  }, [done, cards.length, latestRatings, lapsedCardIds, onComplete, sessionReviews, userId, deckCardIds, supa, sessionId, canSaveSrs])
+        const sessionStats = computeSessionStats(latestRatings, lapsedCardIds)
+        await onComplete?.({ mudah: sessionStats.mudah, lupa: sessionStats.lupa, sulit: sessionStats.sulit, ingat: sessionStats.ingat }, sessionReviews)
+        if (typeof window !== "undefined") localStorage.removeItem(key)
+        setCompletionSaveStatus("saved")
+      } catch (error) {
+        scoreSavedRef.current = false
+        console.error("Gagal menyimpan hasil sesi flashcard:", error)
+        setCompletionSaveStatus("error")
+        toast.error("Hasil sesi belum tersimpan. Coba simpan lagi.")
+      }
+    })()
+  }, [done, cards.length, latestRatings, lapsedCardIds, onComplete, sessionReviews, userId, deckCardIds, supa, sessionId, canSaveSrs, completionRetryToken, sessionStorageKey])
 
   React.useEffect(() => {
     if (!done || cards.length === 0) {
@@ -240,12 +287,13 @@ export function useFlashcardSession({
   }, [done, cards.length, latestRatings, lapsedCardIds])
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || done || skipPersistRef.current) return
+    if (typeof window === "undefined" || done || skipPersistRef.current || restoringSessionRef.current) return
     if (!restoreDoneRef.current) return
     try {
-      const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+      const key = sessionStorageKey
       localStorage.setItem(key, JSON.stringify({
         savedIdx: idx,
+        orderedCardIds: orderedCards.map(c => String(c.id)),
         sessionReviews,
         latestRatings: Array.from(latestRatings.entries()),
         repeatQueueIds: repeatQueue.map(c => String(c.id)),
@@ -254,7 +302,7 @@ export function useFlashcardSession({
       }))
     } catch {
     }
-  }, [idx, sessionReviews, latestRatings, repeatQueue, lapsedCardIds, done, userId, deckCardIds])
+  }, [idx, orderedCards, sessionReviews, latestRatings, repeatQueue, lapsedCardIds, done, userId, deckCardIds, storageKey, sessionStorageKey])
 
   React.useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -665,7 +713,7 @@ export function useFlashcardSession({
 
       skipPersistRef.current = true
 
-      const key = `flashcard_session_${userId}_${deckCardIds?.join('_')}`
+      const key = sessionStorageKey
       localStorage.removeItem(key)
 
       setSessionReviews([])
@@ -704,6 +752,8 @@ export function useFlashcardSession({
     cardRef, handleCardClick, onPointerDown, onPointerMove, onPointerCancel, onPointerUp,
     card, progress, currentTotal,
     headerStats, resultRingValue,
+    completionSaveStatus,
+    retryCompletionSave: () => setCompletionRetryToken(token => token + 1),
     selectedRating, advance, goToPrevious, hideAnswer, skipCard,
     isRecording, toggleListen, feedback,
     sessionStats

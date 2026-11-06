@@ -11,6 +11,7 @@ export type DueFlashcard = {
   srsLevel: number
   intervalDays?: number
   easeFactor?: number
+  nextReview?: string | null
   deckTitle?: string
   deckHskLevel?: number
   exampleSentence?: string
@@ -28,6 +29,7 @@ export type SrsState = {
 export const DEFAULT_EASE_FACTOR = 2.5
 export const MIN_EASE_FACTOR = 1.3
 export const MAX_INTERVAL_DAYS = 365
+export const SRS_REVIEW_BATCH_SIZE = 100
 
 export function countSwipeMastered(
   ratings: Map<string, 0 | 3 | 4 | 5>,
@@ -255,6 +257,7 @@ export async function fetchDueFlashcards(
       .eq("user_id", userId)
       .lte("next_review", today)
       .order("next_review", { ascending: true })
+      .order("card_id", { ascending: true })
       .range(from, from + pageSize - 1)
     if (error) throw error
     if (!data) break
@@ -264,13 +267,14 @@ export async function fetchDueFlashcards(
 
   if (!progressRows?.length) return []
 
-  const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number }>()
+  const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null }>()
   for (const row of progressRows) {
     if (!row.card_id) continue
     progressByCard.set(String(row.card_id), { 
       srs_level: row.srs_level ?? 0,
       interval_days: row.interval_days ?? 1,
       ease_factor: row.ease_factor ?? DEFAULT_EASE_FACTOR,
+      next_review: row.next_review,
     })
   }
 
@@ -285,7 +289,9 @@ export async function fetchDueFlashcards(
       .select("id, hanzi, pinyin, arti, catatan, set_id, word_class")
       .in("id", chunk)
   ))
+  const dueOrder = new Map(cardIds.map((id, index) => [id, index]))
   const cardRows = cardResults.flatMap(result => result.data ?? [])
+    .sort((a, b) => (dueOrder.get(String(a.id)) ?? Number.MAX_SAFE_INTEGER) - (dueOrder.get(String(b.id)) ?? Number.MAX_SAFE_INTEGER))
   const uniqueSetIds = [...new Set(cardRows.map(card => card.set_id).filter(Boolean))]
   const hanziList = [...new Set(cardRows.map(card => card.hanzi).filter(Boolean))]
 
@@ -344,6 +350,7 @@ export async function fetchDueFlashcards(
       srsLevel: progress?.srs_level ?? 0,
       intervalDays: progress?.interval_days ?? 1,
       easeFactor: progress?.ease_factor ?? DEFAULT_EASE_FACTOR,
+      nextReview: progress?.next_review ?? null,
       deckTitle: deckInfo?.title,
       deckHskLevel: deckInfo?.hsk_level,
       wordClass: card.word_class ?? undefined,
