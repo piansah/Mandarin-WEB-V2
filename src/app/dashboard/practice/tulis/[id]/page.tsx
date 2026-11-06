@@ -23,6 +23,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
+import { ResultWatermark } from "@/components/result-watermark"
 import { saveUserScore } from "@/lib/user-scores"
 import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 import styles from "./page.module.css"
@@ -506,13 +507,7 @@ export default function TulisHanziPage() {
                   sendiri, sejalan dengan pattern watermark 完 (Flashcard)
                   dan 调 (Nada), biar konsisten tanpa niru mentah-mentah.
                 */}
-                <div
-                  aria-hidden="true"
-                  className="tulis-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-                  style={{ fontSize: "16rem", lineHeight: 1, top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-                >
-                  写
-                </div>
+                <ResultWatermark pattern={["写", "字", "筆", "写", "学"]} className="tulis-result-watermark" />
 
                 <div className="tulis-result-title flex flex-col items-center gap-1 relative z-10">
                   <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>

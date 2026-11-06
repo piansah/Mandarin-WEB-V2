@@ -13,6 +13,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PracticeHeader } from "@/components/practice-header"
+import { ResultWatermark } from "@/components/result-watermark"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -294,19 +295,7 @@ export default function SpeakingPracticePage() {
               Signature: watermark hanzi besar di belakang ring, gaya
               sama persis dengan watermark yang muncul di flashcard session.
             */}
-            <div
-              aria-hidden="true"
-              className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-              style={{
-                fontSize: "16rem",
-                lineHeight: 1,
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-              }}
-            >
-              完
-            </div>
+            <ResultWatermark />
 
             <div className="flex flex-col items-center gap-1 relative z-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>

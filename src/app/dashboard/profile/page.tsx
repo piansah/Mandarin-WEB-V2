@@ -269,12 +269,12 @@ export default function ProfilePage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Kata Dihafal</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Kata Dipelajari</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-blue-500" />
-              <span className="text-2xl font-bold">{profile.wordsMastered}</span>
+              <span className="text-2xl font-bold">{profile.wordsLearned}</span>
             </div>
           </CardContent>
         </Card>

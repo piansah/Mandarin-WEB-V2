@@ -13,6 +13,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
+import { ResultWatermark } from "@/components/result-watermark"
 import { saveUserScore } from "@/lib/user-scores"
 import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 import styles from "./page.module.css"
@@ -555,13 +556,7 @@ export default function NadaPracticePage() {
                   dari pattern watermark 完 yang dipakai flashcard, biar
                   nggak sekadar niru mentah-mentah.
                 */}
-                <div
-                  aria-hidden="true"
-                  className="nada-result-watermark absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-                  style={{ fontSize: "16rem", lineHeight: 1, top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-                >
-                  调
-                </div>
+                <ResultWatermark pattern={["调", "音", "声", "調", "学"]} className="nada-result-watermark" />
 
                 <div className="nada-result-title flex flex-col items-center gap-1 relative z-10">
                   <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Latihan Selesai!</h2>

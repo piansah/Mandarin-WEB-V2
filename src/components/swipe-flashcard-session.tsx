@@ -77,7 +77,9 @@ export function SwipeFlashcardSession({
     return (
       <div className={styles.page}>
         <FlashcardSessionSummary
-          isEmpty={cards.length === 0}
+          // If this session has completed, keep its result visible even if the
+          // parent refreshes the due-card list and the active cards disappear.
+          isEmpty={cards.length === 0 && !session.done}
           emptyEmoji={emptyEmoji}
           emptyTitle={emptyTitle}
           mudah={session.sessionStats.mudah}

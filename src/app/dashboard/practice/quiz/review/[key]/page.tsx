@@ -12,6 +12,7 @@ import { speakMandarin } from "@/lib/tts"
 import { deleteUserScore, saveUserScore } from "@/lib/user-scores"
 import { shuffle } from "@/lib/array-utils"
 import { PracticeHeader } from "@/components/practice-header"
+import { ResultWatermark } from "@/components/result-watermark"
 import { FullscreenLoader } from "@/components/page-loader"
 import { Button } from "@/components/ui/button"
 import {
@@ -614,19 +615,7 @@ export default function CumulativeQuizPracticePage() {
     return (
       <div className={styles.page}>
         <div className="flashcard-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
-          <div
-            aria-hidden="true"
-            className="absolute select-none pointer-events-none font-hanzi text-foreground/[0.05] dark:text-foreground/[0.07]"
-            style={{
-              fontSize: "16rem",
-              lineHeight: 1,
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-          >
-            完
-          </div>
+          <ResultWatermark />
 
           <div className="flex flex-col items-center gap-1 relative z-10 text-center px-2">
             <h2 className="text-2xl sm:text-3xl font-bold text-foreground text-center">Sesi Selesai!</h2>

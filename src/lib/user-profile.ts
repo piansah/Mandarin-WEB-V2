@@ -15,6 +15,7 @@
 import { createClient } from "@/lib/supabase/browser"
 import { localDateString, shiftDateString } from "@/lib/local-date"
 import { TIER_ORDER, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
+import { fetchHskVocabularyProgress } from "@/lib/hsk-vocabulary-progress"
 
 export const TITLES = {
   pemula: [
@@ -86,6 +87,7 @@ export interface UserProfile {
   streak: number
   bestStreak: number
   wordsMastered: number
+  wordsLearned: number
   quizCompleted: number
 }
 
@@ -167,12 +169,13 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   } = await supa.auth.getUser()
   if (!user) return null
 
-  const [profileRes, statsRpcRes, streakRes, progressRes, quizCountRes, unlockedTiers] =
+  const [profileRes, statsRpcRes, streakRes, progressRes, hskProgress, quizCountRes, unlockedTiers] =
     await Promise.all([
       supa.from("user_profile").select("display_name, selected_avatar, custom_avatar_url").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
       supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", shiftDateString(localDateString(), -400)),
-      supa.from("user_card_progress").select("srs_level, last_quality").eq("user_id", user.id),
+      supa.from("user_card_progress").select("card_id, srs_level, last_quality", { count: "exact" }).eq("user_id", user.id),
+      fetchHskVocabularyProgress(supa, user.id),
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       fetchUnlockedTiers(),
     ])
@@ -219,6 +222,8 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       ? c.last_quality === 4 || c.last_quality === 5
       : c.srs_level >= 1
   ).length
+  // Count only HSK cards with a saved rating, matching the four rating totals.
+  const wordsLearned = hskProgress.learned
   const quizCompleted = quizCountRes.count ?? 0
 
   return {
@@ -235,6 +240,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     streak,
     bestStreak,
     wordsMastered,
+    wordsLearned,
     quizCompleted,
   }
 }

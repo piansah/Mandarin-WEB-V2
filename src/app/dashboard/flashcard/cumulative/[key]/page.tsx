@@ -14,6 +14,7 @@ import { TonePinyin } from "@/components/tone-pinyin"
 import { ReportModal } from "@/components/report-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { PracticeHeader } from "@/components/practice-header"
+import { ResultWatermark } from "@/components/result-watermark"
 import {
   Drawer,
   DrawerClose,
@@ -369,19 +370,7 @@ export default function CumulativeFlashcardSessionPage() {
                     Signature: watermark emoji besar di belakang ring, gaya
                     sama persis dengan watermark yang muncul di flashcard session.
                   */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07]"
-                    style={{
-                      fontSize: "12rem",
-                      lineHeight: 1,
-                      top: "50%",
-                      left: "50%",
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    完
-                  </div>
+                  <ResultWatermark />
 
                   <div className="flex flex-col items-center gap-1 relative z-10 text-center">
                     <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Semua kalimat telah dibaca!</h2>

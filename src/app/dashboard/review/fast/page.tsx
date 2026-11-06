@@ -68,7 +68,7 @@ export default function FastReviewPage() {
     return `/dashboard/flashcard/${card.setId}/word/${card.id}`
   }, [])
 
-  const totalSessions = Math.ceil(cards.length / SRS_REVIEW_BATCH_SIZE)
+  const totalSessions = Math.max(1, Math.ceil(cards.length / SRS_REVIEW_BATCH_SIZE))
   const batchStart = batchIndex * SRS_REVIEW_BATCH_SIZE
   const activeCards = cards.slice(batchStart, batchStart + SRS_REVIEW_BATCH_SIZE)
   const remainingCount = Math.max(0, cards.length - batchStart - activeCards.length)

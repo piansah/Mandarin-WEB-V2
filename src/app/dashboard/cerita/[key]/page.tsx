@@ -6,6 +6,7 @@
 
 import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
+import { ResultWatermark } from "@/components/result-watermark"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
@@ -1052,26 +1053,13 @@ function QuizResult({
   const pct = Math.round((correct / total) * 100)
   const wrong = total - correct
   const emoji = pct >= 80 ? "🎉" : pct >= 60 ? "💪" : "📚"
-  const hanziWatermark = "完"
   const title = pct >= 80 ? "Hebat!" : pct >= 60 ? "Lumayan!" : "Terus Berlatih!"
 
   return (
     <Card className="w-full border-border/50 bg-card/50 backdrop-blur-sm shadow-lg mb-6">
       <CardContent className="flex flex-col items-center gap-6 p-8 relative overflow-hidden">
         {/* Watermark */}
-        <div
-          aria-hidden="true"
-          className="absolute select-none pointer-events-none text-foreground/[0.05] dark:text-foreground/[0.07] font-hanzi"
-          style={{
-            fontSize: "12rem",
-            lineHeight: 1,
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          {hanziWatermark}
-        </div>
+        <ResultWatermark />
 
         {/* Header */}
         <div className="flex flex-col items-center gap-1 relative z-10 text-center">
