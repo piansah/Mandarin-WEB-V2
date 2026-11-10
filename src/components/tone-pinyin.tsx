@@ -14,9 +14,11 @@ function splitPinyin(word: string) {
 }
 
 export function TonePinyin({ text, className }: { text: string; className?: string }) {
-  const parts = text.split(/(\s+|[,!.?·。，！？、；：()]+)/)
+  // Keep every Unicode punctuation mark from the stored pinyin, including
+  // quote marks, dashes, ellipses, and dialogue separators.
+  const parts = text.split(/(\s+|[\p{P}\p{S}]+)/u)
   const attachedPunctuation = parts.reduce<string[]>((result, part) => {
-    if (/^[,!.?·。，！？、；：()]+$/.test(part) && result.length > 0 && !/^\s+$/.test(result[result.length - 1])) {
+    if (/^[\p{P}\p{S}]+$/u.test(part) && result.length > 0 && !/^\s+$/u.test(result[result.length - 1])) {
       result[result.length - 1] += part
     } else {
       result.push(part)
@@ -27,8 +29,8 @@ export function TonePinyin({ text, className }: { text: string; className?: stri
   return (
     <span className={`inline leading-none tracking-normal ${className ?? ""}`}>
       {attachedPunctuation.map((part, index) => {
-        if (!part || /^\s+$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
-        const punctuation = part.match(/([,!.?·。，！？、；：()]+)$/)?.[0] ?? ""
+        if (!part || /^\s+$/u.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
+        const punctuation = part.match(/([\p{P}\p{S}]+)$/u)?.[0] ?? ""
         const word = punctuation ? part.slice(0, -punctuation.length) : part
         if (!word) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
         return splitPinyin(word).map((syllable, syllableIndex, syllables) => {

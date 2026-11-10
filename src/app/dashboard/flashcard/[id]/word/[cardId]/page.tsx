@@ -7,6 +7,7 @@
 
 import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
+import { TonePinyin } from "@/components/tone-pinyin"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Flag, Heart, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
@@ -16,7 +17,7 @@ import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
-import { getTone, isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts, splitPinyin, TONE_CLASS } from "@/lib/hanzi-utils"
+import { isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts } from "@/lib/hanzi-utils"
 import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
@@ -37,16 +38,6 @@ type ContentReportState = {
 
 function getDetailTab(value: string | null): DetailTab {
   return value === "stroke" || value === "karakter" || value === "kata" ? value : "kalimat"
-}
-
-function ColorPinyin({ text }: { text: string }) {
-  return <>{text.split(/(\s+|[,!.?·。，！？、；：()]+)/).map((part, index) => {
-    if (!part || /^(\s+|[,!.?·。，！？、；：()]+)$/.test(part)) return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
-    return splitPinyin(part).map((syllable, syllableIndex) => {
-      const tone = [...syllable].map(getTone).find(Boolean)
-      return <span key={`${syllable}-${syllableIndex}`} className={tone ? styles[`tone${tone}` as "tone1" | "tone2" | "tone3" | "tone4"] : styles.tone0}>{syllable}</span>
-    })
-  })}</>
 }
 
 function useLongPress(onTap: () => void, onLongPress: () => void) {
@@ -411,7 +402,7 @@ export default function WordDetailPage() {
 function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   const badge = heroBadgeLabel(card)
-  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><ColorPinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><TonePinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
 }
 
 function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
@@ -511,7 +502,7 @@ function SentenceCard({ example, cacheReady, onWordOpen, onReport }: { example: 
               : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
             : sentence}
         </div>
-        {example.pinyin && <div className={styles.sentencePinyin}><ColorPinyin text={example.pinyin} /></div>}
+        {example.pinyin && <div className={styles.sentencePinyin}><TonePinyin text={example.pinyin} /></div>}
         {example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}
       </article>
     </SwipeToReport>
@@ -554,7 +545,7 @@ function WordRow({ word, onOpen }: { word: CompoundWord; onOpen: (word: Compound
       <button type="button" className={styles.wordRowLink} onClick={() => onOpen(word)} aria-label={`Buka detail kosakata ${word.hanzi}`}>
         <span className={styles.wordHanzi}>{word.hanzi}</span>
         <span className={styles.wordInfo}>
-          <span className={styles.wordPinyin}><ColorPinyin text={word.pinyin ?? ""} /></span>
+          <span className={styles.wordPinyin}><TonePinyin text={word.pinyin ?? ""} /></span>
           <span className={styles.wordMeaning}>{word.arti}</span>
         </span>
       </button>
@@ -570,10 +561,10 @@ function WordRow({ word, onOpen }: { word: CompoundWord; onOpen: (word: Compound
 
 function CharBreakdown({ char, dictionary }: { char: string; dictionary: DictionaryMap | null }) {
   const entry = dictionary?.[char]; const { ids, label, parts } = decompParts(entry)
-  return <section className={styles.charBlock}><div className={styles.charMain}><div className={styles.charHeader}><CharSpeaker char={char} className={styles.charHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : <div className="text-sm text-slate-500">Pinyin belum tersedia</div>}<div className={styles.charDefinition}>{entry?.definition || "Data karakter belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}</div>{parts.length > 0 ? <><div className={styles.componentLabel}>↓ komponen</div><div className={styles.componentGrid}>{parts.map(part => <CharComponent key={part} char={part} entry={dictionary?.[part]} />)}</div></> : <p className="py-3 text-center text-sm text-slate-500">Tidak ada data komponen.</p>}</section>
+  return <section className={styles.charBlock}><div className={styles.charMain}><div className={styles.charHeader}><CharSpeaker char={char} className={styles.charHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><TonePinyin text={entry.pinyin.join(", ")} /></div> : <div className="text-sm text-slate-500">Pinyin belum tersedia</div>}<div className={styles.charDefinition}>{entry?.definition || "Data karakter belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}</div>{parts.length > 0 ? <><div className={styles.componentLabel}>↓ komponen</div><div className={styles.componentGrid}>{parts.map(part => <CharComponent key={part} char={part} entry={dictionary?.[part]} />)}</div></> : <p className="py-3 text-center text-sm text-slate-500">Tidak ada data komponen.</p>}</section>
 }
 function CharSpeaker({ char, className }: { char: string; className: string }) { const gesture = useLongPress(() => speakMandarin(char), () => speakMandarin(char)); return <button type="button" aria-label={`Dengarkan ${char}`} className={className} {...gesture}>{char}</button> }
-function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry }) { const { ids, label, parts } = decompParts(entry); return <article className={styles.componentCard}><div className={styles.componentHeader}><CharSpeaker char={char} className={styles.componentHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><ColorPinyin text={entry.pinyin.join(", ")} /></div> : null}<div className={styles.charDefinition}>{entry?.definition || "Data komponen belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}{parts.length > 0 && <p className={styles.componentSub}>Komponen: {parts.join(" · ")}</p>}</article> }
+function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry }) { const { ids, label, parts } = decompParts(entry); return <article className={styles.componentCard}><div className={styles.componentHeader}><CharSpeaker char={char} className={styles.componentHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><TonePinyin text={entry.pinyin.join(", ")} /></div> : null}<div className={styles.charDefinition}>{entry?.definition || "Data komponen belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}{parts.length > 0 && <p className={styles.componentSub}>Komponen: {parts.join(" · ")}</p>}</article> }
 
 function StrokePreview({ char }: { char: string }) {
   const targetRef = React.useRef<HTMLDivElement>(null); const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
