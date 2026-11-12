@@ -229,9 +229,9 @@ export default function DashboardPage() {
         .order("hsk_level", { ascending: true })
         .order("id", { ascending: true })
 
-      let completedDeckCount = 0
       let hasCompletedDeckToday = false
       let todayCompletedDeckId: number | null = null
+      const quizScoreByDeck = new Map<number, number>()
 
       // Start of today in user's local timezone (pukul 00:00:00 waktu lokal)
       const now = new Date()
@@ -262,7 +262,6 @@ export default function DashboardPage() {
           .eq("user_id", user.id)
           .eq("type", "quiz")
 
-        const quizScoreByDeck = new Map<number, number>()
         if (allQuizScores) {
           allQuizScores.forEach((qs) => {
             const deckId = Number(qs.key)
@@ -327,8 +326,6 @@ export default function DashboardPage() {
             break
           }
 
-          // Count completed decks
-          completedDeckCount++
         }
 
         // Tentukan HSK level yang sedang berjalan sesuai progress deck
@@ -453,8 +450,6 @@ export default function DashboardPage() {
         }
       }
 
-      // completedDeckCount is used locally for estafet unlock logic
-
       // Load next module dari skema `modul` (lihat src/lib/modul.ts)
       fetchModulOverview()
         .then((overview) => {
@@ -463,6 +458,7 @@ export default function DashboardPage() {
         .catch(() => setNextModule(null))
 
       // Load next estafet (cumulative flashcard)
+      setNextEstafet(null)
       const { data: estafetSets } = await supa
         .from("hanzi_sets")
         .select("key, title, unlock_after")
@@ -513,8 +509,12 @@ export default function DashboardPage() {
         for (let i = 0; i < estafetSets.length; i++) {
           const set = estafetSets[i]
 
-          // Check if estafet is unlocked based on completed deck count
-          if (set.unlock_after > completedDeckCount) {
+          // `unlock_after` stores the required flashcard deck ID, not a count.
+          // Keep this consistent with the Estafet list: that deck's quiz must
+          // have a passing score before the set is available.
+          const isUnlockedByQuiz = set.unlock_after === 0
+            || (quizScoreByDeck.get(set.unlock_after) ?? 0) >= 80
+          if (!isUnlockedByQuiz) {
             continue
           }
 
