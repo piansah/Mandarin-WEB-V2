@@ -5,26 +5,33 @@
    page.tsx -- Dashboard - Scores, Stats, Progress, Activity List */
 
 import * as React from "react"
+import Link from "next/link"
+import Image from "next/image"
 import { PageLoader } from "@/components/page-loader"
 import {
   RotateCcw,
   CheckCircle2,
   Languages,
+  Search,
+  MessageCircle,
   Flame,
   ClipboardList,
   FolderOpen,
+  BookMarked,
+  PenLine,
+  Gamepad2,
   BookText,
   SquareStack,
   Zap,
-  Play,
-  RefreshCw,
   Sun,
   Moon,
   Sunrise,
   Sunset,
   ChevronDown,
+  Network,
+  type LucideIcon,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -83,6 +90,58 @@ type ActiveDeckHero = {
   watermarkList: string[]
   actionUrl: string
   isCompletedToday: boolean
+}
+
+function DashboardImageCard({
+  href,
+  image,
+  title,
+  description,
+  icon: Icon,
+  tone,
+}: {
+  href?: string
+  image: string
+  title: string
+  description: string
+  icon: LucideIcon
+  tone: "primary" | "amber" | "blue" | "violet"
+}) {
+  const toneClass = {
+    primary: "bg-primary/15 text-primary",
+    amber: "bg-amber-500/15 text-amber-500",
+    blue: "bg-blue-500/15 text-blue-500",
+    violet: "bg-violet-500/15 text-violet-500",
+  }[tone]
+
+  const content = (
+    <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all hover:border-primary/40 hover:shadow-md">
+      <div className="relative overflow-hidden">
+        <Image
+          src={image}
+          alt=""
+          width={800}
+          height={500}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 30vw"
+          className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+        />
+      </div>
+      <div className="flex min-h-44 flex-1 flex-col p-4">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-sm font-bold leading-snug text-foreground sm:text-base">{title}</h3>
+        </div>
+        <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        <span className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
+          {href ? "Buka" : "Belum tersedia"}
+        </span>
+      </div>
+    </div>
+  )
+
+  return href ? <a href={href} className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl">{content}</a> : content
 }
 
 export default function DashboardPage() {
@@ -590,7 +649,7 @@ export default function DashboardPage() {
   const activeSrsDue = activeSrsData?.due ?? 0
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-6 flex flex-col gap-6">
+    <div className="mx-auto w-full max-w-7xl px-6 py-6 flex flex-col gap-6">
       <style dangerouslySetInnerHTML={{
         __html: `
         @keyframes flame-pop {
@@ -629,12 +688,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Grid Atas: Lanjutkan Belajar (Deck Hero) & Streak (60/40) */}
-      <div className="grid gap-4 lg:grid-cols-[6fr_4fr] relative">
+      <div className="grid gap-4 lg:gap-y-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.9fr)] lg:items-stretch">
+      {/* Konten utama + kolom samping. `lg:contents` menempatkan hero dan streak
+          langsung di grid besar tanpa mengubah urutan satu kolom di mobile. */}
+      <div className="grid gap-4 lg:contents relative">
+        <section className="flex flex-col gap-2 lg:col-start-1 lg:row-start-1">
+        <h2 className="text-xl font-semibold tracking-tight">Lanjutkan belajar</h2>
         {/* Lanjutkan Belajar (Deck Hero) */}
-        <Card className="border-emerald-500/20 dark:border-emerald-500/30 bg-card backdrop-blur-md shadow-sm overflow-hidden relative group flex flex-col justify-center">
-          {/* Ambient soft green shadow & gradient exclusively on the right side behind Hanzi */}
-          <div className="absolute right-0 top-0 bottom-0 w-2/3 sm:w-1/2 bg-gradient-to-l from-emerald-100/50 via-emerald-50/20 to-transparent dark:from-emerald-950/25 dark:via-emerald-950/8 dark:to-transparent pointer-events-none rounded-r-xl" />
+        <Card className="lg:flex-1 border-emerald-500/20 dark:border-emerald-500/30 bg-card shadow-sm overflow-hidden relative group flex flex-col justify-center isolate">
           <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-emerald-400/12 dark:bg-emerald-500/8 rounded-full blur-2xl sm:blur-3xl pointer-events-none" />
 
           {/* Watermark Hanzi in background (Tap area khusus untuk ganti kata dari deck ini) */}
@@ -670,9 +731,6 @@ export default function DashboardPage() {
           <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-center h-full pointer-events-none">
             <div className="space-y-2 max-w-[260px] sm:max-w-md pointer-events-auto">
               <div>
-                <span className="text-[11px] sm:text-xs font-semibold text-emerald-600 dark:text-emerald-400 tracking-wide">
-                  Lanjutkan belajar
-                </span>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight mt-0.5">
                   {activeDeckHero?.title || "Mulai Belajar Deck"}
                 </h2>
@@ -708,9 +766,11 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+        </section>
 
+        <section className="flex flex-col gap-2 lg:col-start-2 lg:row-start-1 lg:pt-9">
         {/* Streak Widget */}
-        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
+        <Card className="lg:flex-1 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
             <Flame className="w-24 h-24 text-primary" />
           </div>
@@ -719,9 +779,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex justify-between items-start mb-2.5 w-full">
                 <div>
-                  <p className="text-xs font-semibold text-muted-foreground mb-0.5">
-                    Streak belajar
-                  </p>
+                  <h2 className="text-base font-semibold tracking-tight mb-0.5">Streak belajar</h2>
                   <div className="flex items-baseline gap-1.5">
                     <span className="text-2xl sm:text-3xl font-bold text-primary">{stats.streak}</span>
                     <span className="text-xs text-muted-foreground">hari beruntun</span>
@@ -776,154 +834,107 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+        </section>
       </div>
 
-      {/* Sesi Hari Ini - Full Width */}
-      <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-500/15 text-red-500">
-                <Zap className="h-4 w-4 fill-current" />
-              </div>
-              <div>
-                <CardTitle className="text-base font-bold">Sesi hari ini</CardTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Pas dengan target harianmu</p>
-              </div>
+      {/* Latihan hari ini */}
+      <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">Latihan hari ini</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:pb-3">
+          <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <DashboardImageCard
+              href={nextModule ? "/dashboard/modul" : undefined}
+              image="/image-c.jpg"
+              title={nextModule?.title ?? "Modul Pembelajaran"}
+              description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Tidak ada modul tersedia saat ini"}
+              icon={FolderOpen}
+              tone="primary"
+            />
+          </div>
+          {nextDeck && (
+            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+              <DashboardImageCard
+                href={`/dashboard/flashcard/${nextDeck.id}`}
+                image="/image-e.jpg"
+                title={nextDeck.title}
+                description={`Flashcard & quiz · HSK ${nextDeck.hsk_level}`}
+                icon={Languages}
+                tone="amber"
+              />
             </div>
+          )}
+          {activeSrsDue > 0 && (
+            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+              <DashboardImageCard
+                href={`/dashboard/review?hsk=${activeSrsLevel}`}
+                image="/image-d.jpg"
+                title={`Review ${activeSrsDue} Kosakata`}
+                description="Kosakata siap direview · Perkuat memori jangka panjang"
+                icon={SquareStack}
+                tone="blue"
+              />
+            </div>
+          )}
+          {nextEstafet && (
+            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+              <DashboardImageCard
+                href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
+                image="/image-a.jpg"
+                title={nextEstafet.title}
+                description="Baca kalimat berurutan untuk melatih pemahaman"
+                icon={BookText}
+                tone="violet"
+              />
+            </div>
+          )}
+        </div>
+        <section aria-labelledby="learning-tools-title" className="mt-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 id="learning-tools-title" className="text-lg font-semibold tracking-tight">
+              Alat belajar
+            </h2>
           </div>
-        </CardHeader>
-        <div className="mx-6 h-px bg-border/50 mb-4" />
-        <CardContent>
-          <div className="space-y-3">
-            {/* Modul Card */}
-            {nextModule ? (
-              <a href={`/dashboard/modul`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-primary/50 transition-all">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <FolderOpen className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextModule.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Lanjutan jalur kamu · bagian pertama dari modul</p>
-                  </div>
-                </div>
-              </a>
-            ) : (
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-muted/30">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground">
-                  <FolderOpen className="h-4 w-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-muted-foreground text-sm sm:text-base truncate tracking-tight">Modul Pembelajaran</h3>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Tidak ada modul tersedia saat ini</p>
-                </div>
-              </div>
-            )}
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 xl:grid-cols-6">
+            {[
+              { title: "Cari Kosakata", href: "/dashboard/flashcard?tab=search", icon: Search },
+              { title: "Baca Hanzi", href: "/dashboard/cerita", icon: BookMarked },
+              { title: "Tulis Hanzi", href: "/dashboard/tulis-hanzi", icon: PenLine },
+              { title: "Peta Hanzi", href: "/dashboard/peta-hanzi", icon: Network },
+              { title: "Dialog Percakapan", upcoming: true, icon: MessageCircle },
+              { title: "Mini Games", href: "/dashboard/games", icon: Gamepad2 },
+            ].map(({ title, href, icon: Icon, upcoming }) => {
+              const content = (
+                <>
+                  {upcoming && (
+                    <span className="absolute right-2 top-2 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      Segera hadir
+                    </span>
+                  )}
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary">
+                    <Icon className="h-6 w-6" aria-hidden="true" />
+                  </span>
+                  <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{title}</span>
+                </>
+              )
 
-            {/* Daftar Kata Card */}
-            {nextDeck ? (
-              <a href={`/dashboard/flashcard/${nextDeck.id}`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-amber-500/50 transition-all">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                    <Languages className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextDeck.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Flashcard & quiz · HSK {nextDeck.hsk_level}</p>
-                  </div>
-                </div>
-              </a>
-            ) : null}
+              const className = `relative flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-2xl border border-border/60 bg-card/50 px-2 py-4 text-center transition-colors ${upcoming ? "cursor-not-allowed opacity-65" : "hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"}`
 
-            {/* Review Kosakata mengikuti level HSK yang dipilih pada ringkasan */}
-            {activeSrsDue > 0 ? <a href={`/dashboard/review?hsk=${activeSrsLevel}`} className="block group">
-              <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-blue-500/50 hover:bg-blue-500/5 transition-all">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20 transition-colors">
-                  <SquareStack className="h-4 w-4" />
+              return href ? (
+                <Link key={title} href={href} className={className}>
+                  {content}
+                </Link>
+              ) : (
+                <div key={title} aria-disabled="true" className={className}>
+                  {content}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">
-                      Review {activeSrsDue} Kosakata
-                    </h3>
-                  </div>
-                  <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">
-                    {`${activeSrsDue} kosakata siap direview · Perkuat memori jangka panjang`}
-                  </p>
-                </div>
-                <Badge variant="outline" className="border-amber-500/30 text-amber-500 text-xs shrink-0 hidden sm:inline-flex">
-                  Siap review
-                </Badge>
-              </div>
-            </a> : null}
-
-            {/* Estafet Card */}
-            {nextEstafet ? (
-              <a href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`} className="block">
-                <div className="flex items-center gap-4 p-4 rounded-lg border border-border/50 bg-card hover:border-blue-500/50 transition-all">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                    <BookText className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground text-sm sm:text-base truncate tracking-tight">{nextEstafet.title}</h3>
-                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate tracking-tighter sm:tracking-normal">Baca kalimat berurutan untuk melatih pemahaman</p>
-                  </div>
-                </div>
-              </a>
-            ) : null}
+              )
+            })}
           </div>
-
-          {/* Mulai Sesi CTA */}
-          {(() => {
-            // Tentukan URL sesi pertama yang tersedia
-            const firstSessionUrl = nextModule
-              ? `/dashboard/modul/${nextModule.slug}`
-              : nextDeck
-                ? `/dashboard/flashcard/${nextDeck.id}`
-                : (activeSrsDue > 0)
-                  ? `/dashboard/review?hsk=${activeSrsLevel}`
-                  : nextEstafet
-                    ? `/dashboard/flashcard/cumulative/${nextEstafet.key}`
-                    : null
-
-            return (
-              <div className="mt-8 space-y-5">
-                {firstSessionUrl ? (
-                  <Button
-                    className="w-full bg-foreground text-background hover:bg-white rounded-full h-14 gap-2 text-base font-semibold transition-all duration-300 hover:scale-[1.01] active:scale-[0.98] group relative overflow-hidden"
-                    onClick={() => router.push(firstSessionUrl)}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-                    <Play className="h-5 w-5 fill-current transition-transform group-hover:scale-110" /> Mulai sesi
-                  </Button>
-                ) : (
-                  <Button
-                    disabled
-                    className="w-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-full h-14 gap-2 text-base font-semibold cursor-not-allowed opacity-90"
-                  >
-                    <CheckCircle2 className="h-5 w-5" /> Target Hari Ini Selesai · Sesi Baru Besok Pukul 00:00
-                  </Button>
-                )}
-                <div className="flex flex-col items-center gap-1.5 text-[10px] sm:text-xs tracking-tight sm:tracking-normal text-foreground/80 text-center overflow-hidden w-full">
-                  <p className="whitespace-nowrap">
-                    {firstSessionUrl
-                      ? "Bisa dilanjut kapan aja lewat menu Sesi Hari Ini"
-                      : "Semua target hari ini sudah beres · Istirahat sejenak"}
-                  </p>
-                  <p className="flex items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap">
-                    <RefreshCw className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
-                    <span>Besok komposisinya beda — nyesuaiin ke progresmu</span>
-                  </p>
-                </div>
-              </div>
-            )
-          })()}
-        </CardContent>
-      </Card>
+        </section>
+      </section>
 
       {/* Grid Bawah: Review Kosakata (SRS Stats) & Aktivitas Terbaru */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:col-start-2 lg:row-start-2 lg:grid-cols-1 lg:self-start">
         {/* Review Kosakata (SRS) — new design */}
         <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
           {(() => {
@@ -938,7 +949,7 @@ export default function DashboardPage() {
                         <SquareStack className="h-4 w-4" />
                       </div>
                       <div>
-                        <CardTitle className="text-base font-bold">Kosakata HSK</CardTitle>
+                        <h2 className="text-base font-semibold tracking-tight">Kosakata HSK</h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Kondisi hafalanmu<span className="hidden sm:inline"> di level yang sedang dipelajari</span>
                         </p>
@@ -1102,7 +1113,7 @@ export default function DashboardPage() {
                 <ClipboardList className="h-4 w-4" />
               </div>
               <div>
-                <CardTitle className="text-base font-bold">Aktivitas Terbaru</CardTitle>
+                <h2 className="text-base font-semibold tracking-tight">Aktivitas Terbaru</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Rekap sesi belajar terakhirmu</p>
               </div>
             </div>
@@ -1139,6 +1150,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )

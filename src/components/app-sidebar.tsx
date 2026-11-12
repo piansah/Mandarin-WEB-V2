@@ -8,7 +8,6 @@ import {
   BookOpen,
   Languages,
   Layers,
-  BookMarked,
   Star,
   Settings,
   User,
@@ -20,10 +19,7 @@ import {
   ClipboardList,
   FolderOpen,
   Shield,
-  Gamepad2,
   MoreHorizontal,
-  Network,
-  PenLine,
 } from "lucide-react"
 import {
   Sidebar,
@@ -102,43 +98,19 @@ const belajarItems = [
     icon: Layers,
   },
   {
-    title: "Peta Hanzi",
-    subtitle: "Jelajahi karakter dan komponennya",
-    url: "/dashboard/peta-hanzi",
-    icon: Network,
-  },
-  {
-    title: "Mini Games",
-    subtitle: "Belajar lewat permainan",
-    url: "/dashboard/games",
-    icon: Gamepad2,
-  },
-]
-
-const learningPathItems = [
-  {
     title: "Tata Bahasa",
     subtitle: "Pola dan aturan bahasa Mandarin",
     url: "/dashboard/grammar",
     icon: BookOpen,
   },
+]
+
+const learningPathItems = [
   {
     title: "Simulasi Ujian HSK",
     subtitle: "Latihan dengan format ujian HSK",
     url: "/dashboard/simulasi-hsk",
     icon: ClipboardList,
-  },
-  {
-    title: "Baca",
-    subtitle: "Baca cerita Mandarin",
-    url: "/dashboard/cerita",
-    icon: BookMarked,
-  },
-  {
-    title: "Tulis Hanzi",
-    subtitle: "Latihan menulis karakter Mandarin",
-    url: "/dashboard/tulis-hanzi",
-    icon: PenLine,
   },
 ]
 
