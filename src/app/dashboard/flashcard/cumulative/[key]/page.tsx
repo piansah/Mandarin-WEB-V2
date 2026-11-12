@@ -28,7 +28,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakParagraph } from "@/lib/tts"
 import { segmentSentenceByPinyin } from "@/lib/hanzi-segmentation"
-import { saveUserScore, getEstafetPracticeScores, getHanziReadProgress, saveHanziReadProgress } from "@/lib/user-scores"
+import { saveUserScore, getEstafetPracticeScores, getHanziReadProgressBySet, saveHanziReadProgress, deleteUserScore } from "@/lib/user-scores"
 import { checkUserContentReports } from "@/lib/bug-reports"
 import styles from "./page.module.css"
 
@@ -187,32 +187,29 @@ export default function CumulativeFlashcardSessionPage() {
 
       if (cancelled) return
 
-      // Gabungkan progres dari localStorage + Supabase (union) agar cross-device
+      // Saat query Supabase berhasil, database adalah sumber utama. Cache lokal
+      // hanya menjadi fallback ketika sesi/query tidak tersedia; meng-union
+      // keduanya membuat data lama hidup kembali setelah row database dihapus.
       const localSaved = window.localStorage.getItem(`hanzi_read_progress:${key}`)
       const localIds: number[] = localSaved ? (JSON.parse(localSaved) as number[]) : []
-      const dbIds = await getHanziReadProgress(key)
-      const mergedIds = Array.from(new Set([...localIds, ...dbIds]))
+      const progressResult = await getHanziReadProgressBySet()
+      const dbRecord = progressResult.bySet[key]
+      const itemIds = (itemsResult.data ?? []).map((item) => item.id)
+      const restoredIds = progressResult.synced
+        ? dbRecord?.score === 100
+          ? itemIds
+          : dbRecord?.readIds ?? []
+        : localIds
 
-      // Simpan merged ke localStorage supaya konsisten
-      if (mergedIds.length > localIds.length) {
-        window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(mergedIds))
-      }
-
-      // Backfill: jika localStorage punya data tapi DB kosong (data lama sebelum fitur sync),
-      // upload sekarang agar device lain bisa mengambilnya.
-      if (localIds.length > 0 && dbIds.length === 0) {
-        const allItemIds = (itemsResult.data ?? []).map((i) => i.id)
-        const isAllDone = allItemIds.length > 0 && localIds.length === allItemIds.length
-        if (isAllDone) {
-          // Sudah selesai semua — simpan score 100 + read_ids
-          saveUserScore("hanzi", key, 100, { read_ids: localIds }).catch(() => { })
+      if (progressResult.synced) {
+        if (restoredIds.length > 0) {
+          window.localStorage.setItem(`hanzi_read_progress:${key}`, JSON.stringify(restoredIds))
         } else {
-          // Sebagian selesai — simpan read_ids tanpa mengubah score
-          saveHanziReadProgress(key, localIds).catch(() => { })
+          window.localStorage.removeItem(`hanzi_read_progress:${key}`)
         }
       }
 
-      const restored = Object.fromEntries(mergedIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
+      const restored = Object.fromEntries(restoredIds.map((id) => [id, 2])) as Record<number, 0 | 1 | 2>
 
       setSet(setResult.data)
       setItems(itemsResult.data ?? [])
@@ -279,8 +276,9 @@ export default function CumulativeFlashcardSessionPage() {
     try {
       // The database progress is merged back on page load, so clear it too.
       // This only resets reading progress; the separate quiz score is preserved.
-      await saveHanziReadProgress(key, [])
-      window.localStorage.setItem(`hanzi_read_progress:${key}`, "[]")
+      const result = await deleteUserScore("hanzi", key)
+      if (result.error) throw new Error(result.error)
+      window.localStorage.removeItem(`hanzi_read_progress:${key}`)
       setStateById({})
       window.scrollTo({ top: 0, behavior: "smooth" })
     } catch {

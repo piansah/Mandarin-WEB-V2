@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { HskLevelFilter } from "@/components/hsk-level-filter";
 import { useUnlockedHSK, clampToUnlockedLevel, lockedLevelMessage } from "@/lib/tier-unlock";
-import { getHanziReadProgress, getUserScoresByType } from "@/lib/user-scores";
+import { getHanziReadProgressBySet, getUserScoresByType } from "@/lib/user-scores";
 import { toast } from "sonner";
 
 export type CumulativeFlashcardSet = {
@@ -46,49 +46,15 @@ export function CumulativeFlashcardSetList({
     async function loadProgress() {
       const counts: Record<string, number> = {};
 
-      // Ambil semua scores type "hanzi" dan "quiz" sekaligus untuk efisiensi
-      const [hanziScores, quizScoresData] = await Promise.all([
-        getUserScoresByType("hanzi"),
+      // Database menjadi sumber utama saat online. Cache lokal hanya dipakai
+      // jika query tidak bisa dilakukan, agar data yang sengaja dihapus tidak
+      // muncul kembali dari localStorage.
+      const [hanziProgress, quizScoresData] = await Promise.all([
+        getHanziReadProgressBySet(),
         getUserScoresByType("quiz"),
       ]);
 
       setQuizScores(quizScoresData);
-
-      // Parse read_ids dari meta hanzi scores untuk semua set sekaligus
-      const dbReadIdsBySet: Record<string, number[]> = {};
-      for (const [key, score] of Object.entries(hanziScores)) {
-        if (score === 100) {
-          // Jika score 100, berarti semua selesai, tidak perlu query
-          dbReadIdsBySet[key] = [];
-        }
-      }
-
-      // Hanya query untuk set yang score-nya bukan 100
-      const keysToQuery = sets
-        .filter(set => hanziScores[set.key] !== 100)
-        .map(set => set.key);
-
-      if (keysToQuery.length > 0) {
-        const supa = (await import("@/lib/supabase/browser")).createClient();
-        const { data: userResult } = await supa.auth.getUser();
-        if (userResult?.user) {
-          const { data } = await supa
-            .from("user_scores")
-            .select("key, meta")
-            .eq("user_id", userResult.user.id)
-            .eq("type", "hanzi")
-            .in("key", keysToQuery);
-
-          if (data) {
-            data.forEach(row => {
-              const meta = row.meta as { read_ids?: number[] } | null;
-              dbReadIdsBySet[row.key] = Array.isArray(meta?.read_ids) ? meta.read_ids : [];
-            });
-          }
-        }
-      }
-
-      // Gabungkan local + DB untuk setiap set
       sets.forEach(set => {
         let localIds: number[] = [];
         try {
@@ -98,20 +64,24 @@ export function CumulativeFlashcardSetList({
           localIds = [];
         }
 
-        const dbIds = dbReadIdsBySet[set.key] ?? [];
-        const mergedIds = Array.from(new Set([...localIds, ...dbIds]));
+        const dbRecord = hanziProgress.bySet[set.key];
+        const progressIds = hanziProgress.synced
+          ? (dbRecord?.readIds ?? [])
+          : localIds;
 
-        // Fallback: jika score 100 tapi read_ids kosong, anggap semua selesai
-        const isScoreComplete = hanziScores[set.key] === 100;
-        if (isScoreComplete && mergedIds.length === 0 && set.itemCount > 0) {
+        // Score 100 menandai semua kalimat selesai dibaca.
+        if (hanziProgress.synced && dbRecord?.score === 100 && set.itemCount > 0) {
           counts[set.key] = set.itemCount;
         } else {
-          // Update localStorage jika ada data baru dari DB
-          if (mergedIds.length > localIds.length) {
-            window.localStorage.setItem(`hanzi_read_progress:${set.key}`, JSON.stringify(mergedIds));
-          }
+          counts[set.key] = progressIds.length;
+        }
 
-          counts[set.key] = mergedIds.length;
+        if (hanziProgress.synced) {
+          if (progressIds.length > 0) {
+            window.localStorage.setItem(`hanzi_read_progress:${set.key}`, JSON.stringify(progressIds));
+          } else {
+            window.localStorage.removeItem(`hanzi_read_progress:${set.key}`);
+          }
         }
       });
 

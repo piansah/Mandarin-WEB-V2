@@ -161,6 +161,43 @@ export type EstafetPracticeScores = {
   speakingScore: number | null
 }
 
+export type HanziReadProgressRecord = {
+  score: number
+  readIds: number[]
+}
+
+/** Load all Estafet reading progress in one query. `synced` distinguishes an
+ * empty database result from an unavailable session/query so callers do not
+ * resurrect stale local data after a deliberate database reset. */
+export async function getHanziReadProgressBySet(): Promise<{
+  synced: boolean
+  bySet: Record<string, HanziReadProgressRecord>
+}> {
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) return { synced: false, bySet: {} }
+
+  const { data, error } = await supa
+    .from("user_scores")
+    .select("key, score, meta")
+    .eq("user_id", user.id)
+    .eq("type", "hanzi")
+
+  if (error || !data) return { synced: false, bySet: {} }
+
+  const bySet: Record<string, HanziReadProgressRecord> = {}
+  for (const row of data) {
+    const meta = row.meta as { read_ids?: number[] } | null
+    bySet[row.key] = {
+      score: row.score,
+      readIds: Array.isArray(meta?.read_ids) ? meta.read_ids : [],
+    }
+  }
+  return { synced: true, bySet }
+}
+
 /**
  * Ambil status selesai & skor untuk latihan pada set estafet (kal = Quiz Kalimat, speaking_session = Latihan Speaking).
  */
@@ -204,23 +241,8 @@ export async function getEstafetPracticeScores(setKey: string): Promise<EstafetP
  * Data disimpan di user_scores sebagai type="hanzi_read", key=setKey, meta={ ids: number[] }.
  */
 export async function getHanziReadProgress(setKey: string): Promise<number[]> {
-  const supa = createClient()
-  const {
-    data: { user },
-  } = await supa.auth.getUser()
-  if (!user) return []
-
-  const { data } = await supa
-    .from("user_scores")
-    .select("meta")
-    .eq("user_id", user.id)
-    .eq("type", "hanzi")
-    .eq("key", setKey)
-    .maybeSingle()
-
-  if (!data?.meta) return []
-  const meta = data.meta as { read_ids?: number[] }
-  return Array.isArray(meta.read_ids) ? meta.read_ids : []
+  const progress = await getHanziReadProgressBySet()
+  return progress.bySet[setKey]?.readIds ?? []
 }
 
 /**
