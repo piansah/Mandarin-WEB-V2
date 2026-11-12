@@ -39,6 +39,7 @@ import { fetchModulOverview } from "@/lib/modul"
 import { useSupabase } from "@/hooks/use-supabase"
 import { useRouter } from "next/navigation"
 import { speakMandarin } from "@/lib/tts"
+import { getHanziReadProgressBySet } from "@/lib/user-scores"
 
 type LevelBreakdown = {
   mudah: number
@@ -483,12 +484,29 @@ export default function DashboardPage() {
           })
         }
 
-        // Get read counts for all estafet sets
+        // Database is authoritative when available; localStorage is only an
+        // offline fallback. Otherwise deleted/old local progress can hide the
+        // Estafet item from today's session.
         const readCounts: Record<string, number> = {}
+        const readProgress = await getHanziReadProgressBySet()
         for (const set of estafetSets) {
-          const saved = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
-          const completedIds = saved ? (JSON.parse(saved) as number[]) : []
-          readCounts[set.key] = Array.isArray(completedIds) ? completedIds.length : 0
+          const record = readProgress.bySet[set.key]
+          if (readProgress.synced) {
+            const completedIds = record?.readIds ?? []
+            readCounts[set.key] = record?.score === 100
+              ? itemCounts[set.key] ?? 0
+              : completedIds.length
+
+            if (record?.score !== 100 && completedIds.length > 0) {
+              window.localStorage.setItem(`hanzi_read_progress:${set.key}`, JSON.stringify(completedIds))
+            } else {
+              window.localStorage.removeItem(`hanzi_read_progress:${set.key}`)
+            }
+          } else {
+            const saved = window.localStorage.getItem(`hanzi_read_progress:${set.key}`)
+            const completedIds = saved ? (JSON.parse(saved) as number[]) : []
+            readCounts[set.key] = Array.isArray(completedIds) ? completedIds.length : 0
+          }
         }
 
         // Find first unlocked and incomplete estafet
