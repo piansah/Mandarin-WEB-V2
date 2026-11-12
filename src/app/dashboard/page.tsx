@@ -461,24 +461,15 @@ export default function DashboardPage() {
       setNextEstafet(null)
       const { data: estafetSets } = await supa
         .from("hanzi_sets")
-        .select("key, title, unlock_after")
+        .select("key, title, unlock_after, hanzi_items(count)")
         .order("hsk_level", { ascending: true })
         .order("sort_order", { ascending: true })
 
       if (estafetSets && estafetSets.length > 0) {
-        // BATCH OPTIMIZATION: Get all item counts at once
-        const setKeys = estafetSets.map(s => s.key)
-        const { data: allItems } = await supa
-          .from("hanzi_items")
-          .select("hanzi_key")
-          .in("hanzi_key", setKeys)
-
         const itemCounts: Record<string, number> = {}
-        if (allItems) {
-          allItems.forEach(item => {
-            itemCounts[item.hanzi_key] = (itemCounts[item.hanzi_key] || 0) + 1
-          })
-        }
+        estafetSets.forEach(set => {
+          itemCounts[set.key] = set.hanzi_items?.[0]?.count ?? 0
+        })
 
         // Database is authoritative when available; localStorage is only an
         // offline fallback. Otherwise deleted/old local progress can hide the
@@ -505,7 +496,8 @@ export default function DashboardPage() {
           }
         }
 
-        // Find first unlocked and incomplete estafet
+        // Show the first Estafet set that the Estafet page itself considers
+        // unlocked and that still has unread items.
         for (let i = 0; i < estafetSets.length; i++) {
           const set = estafetSets[i]
 
@@ -518,26 +510,16 @@ export default function DashboardPage() {
             continue
           }
 
-          // Check if previous level is complete
+          // Estafet tetap berurutan: level berikutnya baru masuk sesi setelah
+          // semua kalimat di level sebelumnya selesai dibaca.
           const prevSet = i > 0 ? estafetSets[i - 1] : null
           const prevDone = prevSet
             ? readCounts[prevSet.key] >= itemCounts[prevSet.key] && itemCounts[prevSet.key] > 0
             : true
 
-          // If this level is unlocked and incomplete, show it
-          if (prevDone && readCounts[set.key] < itemCounts[set.key]) {
+          if (prevDone && readCounts[set.key] < itemCounts[set.key] && itemCounts[set.key] > 0) {
             setNextEstafet(set)
             break
-          }
-
-          // If this level is unlocked and complete, check next level
-          if (prevDone && readCounts[set.key] >= itemCounts[set.key] && itemCounts[set.key] > 0) {
-            continue
-          }
-
-          // If this level is locked, check next level
-          if (!prevDone) {
-            continue
           }
         }
       }
