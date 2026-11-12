@@ -83,6 +83,7 @@ export default function PlacementPage() {
   const [dailyGoal, setDailyGoal] = React.useState<PlacementDailyGoal | null>(null)
   const [goal, setGoal] = React.useState<PlacementGoal | null>(null)
   const [saving, setSaving] = React.useState(false)
+  const [saveError, setSaveError] = React.useState<string | null>(null)
 
   const introIndex = step.startsWith("intro-") ? Number(step.split("-")[1]) : -1
   const introProgressPct = introIndex >= 0 ? Math.round(((introIndex + 1) / INTRO_STEPS.length) * 100) : 0
@@ -101,12 +102,21 @@ export default function PlacementPage() {
   }, [step])
 
   async function handleFinish() {
-    if (level === null || dailyGoal === null || goal === null) return
+    if (saving || level === null || dailyGoal === null || goal === null) return
     setSaving(true)
-    await submitPlacement({ level, dailyGoal, goal })
-    setSaving(false)
-    router.push("/dashboard")
-    router.refresh()
+    setSaveError(null)
+    try {
+      await submitPlacement({ level, dailyGoal, goal })
+      // replace menghindari tombol Back membawa user kembali ke hasil setup.
+      // Navigasi ini sudah meminta payload dashboard; refresh terpisah hanya
+      // membuat satu request lagi dan bisa menambah kesan macet.
+      router.replace("/dashboard")
+    } catch (error) {
+      console.error("[placement] Gagal menyelesaikan setup:", error)
+      setSaveError("Belum berhasil menyimpan akses belajar. Periksa koneksi lalu coba lagi.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -324,6 +334,7 @@ export default function PlacementPage() {
                 </div>
               ))}
             </div>
+            {saveError && <p role="alert" className="text-xs text-destructive">{saveError}</p>}
             <Button className="w-full" disabled={saving} onClick={handleFinish}>
               {saving ? "Menyimpan..." : "Mulai Belajar"}
             </Button>

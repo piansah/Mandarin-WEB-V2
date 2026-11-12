@@ -134,13 +134,16 @@ export async function unlockFirstNTiers(unlockCount: number): Promise<Tier[]> {
   const {
     data: { user },
   } = await supa.auth.getUser()
-  if (!user) return tierKeys
+  if (!user) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.")
 
   const { error } = await supa.from("user_profile").upsert(
     { user_id: user.id, unlocked_tiers: tierKeys, has_seen_onboarding: true },
     { onConflict: "user_id" },
   )
-  if (error) console.warn("[tier-unlock] Gagal menyimpan unlocked_tiers:", error.message)
+  if (error) {
+    console.warn("[tier-unlock] Gagal menyimpan unlocked_tiers:", error.message)
+    throw error
+  }
 
   return tierKeys
 }

@@ -87,37 +87,44 @@ export type PlacementResult = {
  * dibuat, unlock tier tetap jalan normal.
  */
 export async function submitPlacement(result: PlacementResult): Promise<{ unlockedTiers: Tier[] }> {
+  // Unlock adalah syarat agar middleware mengizinkan dashboard. Kalau gagal,
+  // jangan lanjut seolah-olah placement sudah selesai.
   const unlockedTiers = await unlockFirstNTiers(unlockCountForLevel(result.level))
 
-  try {
-    const supa = createClient()
-    const {
-      data: { user },
-    } = await supa.auth.getUser()
-    if (user) {
-      const { error: profileError } = await supa
-        .from("user_profile")
-        .upsert(
-          { user_id: user.id, daily_goal_minutes: result.dailyGoal },
-          { onConflict: "user_id" },
-        )
-      if (profileError) console.warn("[placement] Gagal menyimpan target harian:", profileError.message)
+  const supa = createClient()
+  const {
+    data: { user },
+  } = await supa.auth.getUser()
+  if (!user) throw new Error("Sesi login tidak ditemukan. Silakan login kembali.")
 
-      const { error } = await supa.from("user_placement").upsert(
-        {
-          user_id: user.id,
-          level: result.level,
-          goal: result.goal,
-          hanzi_mode: 0,
-          unlocked_count: unlockCountForLevel(result.level),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      )
-      if (error) console.warn("[placement] Tabel user_placement belum tersedia:", error.message)
-    }
-  } catch (e) {
-    console.warn("[placement] Gagal mencatat detail placement:", e)
+  // Target harian bersifat opsional; kegagalannya tidak boleh menahan akses.
+  try {
+    const { error } = await supa
+      .from("user_profile")
+      .update({ daily_goal_minutes: result.dailyGoal })
+      .eq("user_id", user.id)
+    if (error) console.warn("[placement] Gagal menyimpan target harian:", error.message)
+  } catch (error) {
+    console.warn("[placement] Gagal menyimpan target harian:", error)
+  }
+
+  // Rekam detail placement terpisah supaya kegagalannya tidak membatalkan
+  // unlock utama yang sudah berhasil.
+  try {
+    const { error } = await supa.from("user_placement").upsert(
+      {
+        user_id: user.id,
+        level: result.level,
+        goal: result.goal,
+        hanzi_mode: 0,
+        unlocked_count: unlockCountForLevel(result.level),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    )
+    if (error) console.warn("[placement] Gagal mencatat detail placement:", error.message)
+  } catch (error) {
+    console.warn("[placement] Gagal mencatat detail placement:", error)
   }
 
   return { unlockedTiers }
