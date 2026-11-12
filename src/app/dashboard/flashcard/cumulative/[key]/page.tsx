@@ -75,6 +75,7 @@ export default function CumulativeFlashcardSessionPage() {
   const [quizKey, setQuizKey] = React.useState<string | null>(null)
   const [quizScore, setQuizScore] = React.useState<number | null>(null)
   const [speakingDone, setSpeakingDone] = React.useState(false)
+  const [resettingProgress, setResettingProgress] = React.useState(false)
   const [activePlayback, setActivePlayback] = React.useState<{ itemId: number; segmentIndex: number } | null>(null)
   const playbackId = React.useRef(0)
   const segmentedItems = React.useMemo(
@@ -271,10 +272,22 @@ export default function CumulativeFlashcardSessionPage() {
     })
   }
 
-  function resetProgress() {
-    window.localStorage.removeItem(`hanzi_read_progress:${key}`)
-    setStateById({})
-    window.scrollTo({ top: 0, behavior: "smooth" })
+  async function resetProgress() {
+    if (resettingProgress) return
+    setResettingProgress(true)
+    setError(null)
+    try {
+      // The database progress is merged back on page load, so clear it too.
+      // This only resets reading progress; the separate quiz score is preserved.
+      await saveHanziReadProgress(key, [])
+      window.localStorage.setItem(`hanzi_read_progress:${key}`, "[]")
+      setStateById({})
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    } catch {
+      setError("Gagal menghapus progres Estafet. Coba lagi.")
+    } finally {
+      setResettingProgress(false)
+    }
   }
 
   function navigateToSpeakingPractice() {
@@ -417,7 +430,9 @@ export default function CumulativeFlashcardSessionPage() {
                   </div>
 
                   <div className="flex gap-3 w-full max-w-xs relative z-10">
-                    <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress}><RotateCcw className="h-4 w-4 mr-2" />Ulangi dari awal</Button>
+                    <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress} disabled={resettingProgress}>
+                      <RotateCcw className="h-4 w-4 mr-2" />{resettingProgress ? "Mengulang..." : "Ulangi dari awal"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
