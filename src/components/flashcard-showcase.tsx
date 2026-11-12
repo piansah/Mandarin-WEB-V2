@@ -362,27 +362,27 @@ export const FlashcardShowcase = ({
       </div>
 
       {/* Sebelumnya / Sembunyi / Lewati */}
-      <div className="grid w-full max-w-[320px] grid-cols-[1.2fr_1fr_1fr] gap-2 px-2 sm:px-0">
+      <div className="grid w-full grid-cols-3 gap-2 px-2 sm:px-0">
         <button
           type="button"
           onClick={goPrev}
-          className="flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1.5 py-2 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11.5px]"
+          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >
           <ChevronLeft className="h-3.5 w-3.5 shrink-0" /> Sebelumnya
         </button>
         <button
           type="button"
           onClick={hideAnswer}
-          className="flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1.5 py-2 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11.5px]"
+          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >
           <EyeOff className="h-3.5 w-3.5 shrink-0" /> Sembunyi
         </button>
         <button
           type="button"
           onClick={skip}
-          className="flex min-w-0 items-center justify-center gap-1 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1.5 py-2 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11.5px]"
+          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >
-          Lewati <SkipForward className="h-3.5 w-3.5 shrink-0" />
+          <SkipForward className="h-3.5 w-3.5 shrink-0" /> Lewati
         </button>
       </div>
 
