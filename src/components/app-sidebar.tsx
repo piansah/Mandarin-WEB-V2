@@ -466,7 +466,7 @@ export function AppSidebar({
 
       {/* Logout Confirm Dialog */}
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent showCloseButton={false} className="max-w-sm">
+        <DialogContent showCloseButton={false} className="w-[calc(100%-3rem)] max-w-sm">
           <DialogHeader>
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-500/10 mb-1">
               <LogOut className="h-5 w-5 text-red-500" />
