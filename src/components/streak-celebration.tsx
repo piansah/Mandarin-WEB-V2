@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Flame } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -21,13 +22,25 @@ const CONFETTI = Array.from({ length: 34 }, (_, index) => ({
 }))
 
 export function StreakCelebration() {
-  const [streak, setStreak] = React.useState<number | null>(null)
-  const open = streak !== null
+  const [celebration, setCelebration] = React.useState<{ streak: number; phase: "ignite" | "reveal" } | null>(null)
+  const open = celebration !== null
+  const streak = celebration?.streak ?? 0
+  const isRevealing = celebration?.phase === "reveal"
+
+  React.useEffect(() => {
+    if (!celebration || celebration.phase !== "ignite") return
+    const timer = window.setTimeout(() => {
+      setCelebration(current => current ? { ...current, phase: "reveal" } : null)
+    }, 950)
+    return () => window.clearTimeout(timer)
+  }, [celebration])
 
   React.useEffect(() => {
     const handleCelebration = (event: Event) => {
       const detail = (event as CustomEvent<{ streak?: number }>).detail
-      if (typeof detail?.streak === "number" && detail.streak > 0) setStreak(detail.streak)
+      if (typeof detail?.streak === "number" && detail.streak > 0) {
+        setCelebration({ streak: detail.streak, phase: "ignite" })
+      }
     }
 
     window.addEventListener("mandarin:streak-celebration", handleCelebration)
@@ -35,19 +48,19 @@ export function StreakCelebration() {
   }, [])
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) setStreak(null) }}>
+    <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) setCelebration(null) }}>
       <DialogContent
         showCloseButton={false}
-        className="!fixed !inset-0 !left-0 !top-0 !z-[100] !grid !h-dvh !w-screen !max-w-none !-translate-x-0 !-translate-y-0 !gap-0 !overflow-hidden !rounded-none !border-0 !bg-[#100e0d] !p-0 !text-white !ring-0 !duration-300"
+        overlayClassName={isRevealing ? styles.revealBackdrop : styles.igniteBackdrop}
+        className={`!fixed !inset-0 !left-0 !top-0 !z-[100] !grid !h-dvh !w-screen !max-w-none !-translate-x-0 !-translate-y-0 !gap-0 !overflow-hidden !rounded-none !border-0 !bg-transparent !p-0 !text-foreground !ring-0 !duration-300 ${isRevealing ? styles.revealPopup : styles.ignitePopup}`}
       >
         <DialogTitle className="sr-only">Streak belajar bertambah</DialogTitle>
         <DialogDescription className="sr-only">
           Kamu sudah belajar {streak ?? 0} hari berturut-turut.
         </DialogDescription>
 
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(130,70,12,0.3)_0%,rgba(16,14,13,0)_48%)]" />
-          {CONFETTI.map((piece, index) => (
+        <div aria-hidden="true" className={`pointer-events-none absolute inset-0 overflow-hidden ${isRevealing ? styles.revealGlow : ""}`}>
+          {isRevealing && CONFETTI.map((piece, index) => (
             <span
               key={index}
               className={styles.confetti}
@@ -63,27 +76,34 @@ export function StreakCelebration() {
           ))}
         </div>
 
-        <div className="relative z-10 flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-          <div className="mb-4 text-5xl leading-none" aria-hidden="true">🔥</div>
-          <p className="font-heading text-7xl font-bold leading-none text-[#ff963f] sm:text-8xl">
-            {streak}
-          </p>
-          <h2 className="mt-3 font-heading text-2xl font-bold text-[#ff963f] sm:text-3xl">
-            hari beruntun!
-          </h2>
-          <p className="mt-4 max-w-sm text-sm leading-6 text-[#b6a49d] sm:text-base">
-            {streak === 1
-              ? "Api pertamamu menyala. Belajar lagi besok supaya terus menyala."
-              : "Kebiasaan belajarmu terus menyala. Belajar lagi besok untuk menjaga streak ini."}
-          </p>
-          <Button
-            onClick={() => setStreak(null)}
-            className="mt-8 h-14 w-full max-w-sm rounded-2xl bg-[#ffb4b1] text-base font-semibold text-[#351b19] shadow-[0_4px_0_#c9817e] hover:bg-[#ffc3c0] active:translate-y-0.5 active:shadow-[0_2px_0_#c9817e]"
-          >
-            Lanjutkan
-          </Button>
-          <div className="sr-only" aria-live="polite">Streak kamu sekarang {streak} hari.</div>
-        </div>
+        {!isRevealing ? (
+          <div className="relative z-10 flex min-h-dvh items-center justify-center">
+            <Flame aria-hidden="true" className={`h-16 w-16 text-primary ${styles.igniteFlame}`} strokeWidth={1.8} />
+            <span className="sr-only">Streak belajar bertambah</span>
+          </div>
+        ) : (
+          <div className={`relative z-10 flex min-h-dvh flex-col items-center justify-center px-6 text-center ${styles.revealContent}`}>
+            <Flame aria-hidden="true" className={`mb-4 h-14 w-14 text-primary ${styles.flameSettle}`} strokeWidth={1.8} />
+            <p className="font-heading text-7xl font-bold leading-none text-amber-600 dark:text-[#ff963f] sm:text-8xl">
+              {streak}
+            </p>
+            <h2 className="mt-3 font-heading text-2xl font-bold text-amber-600 dark:text-[#ff963f] sm:text-3xl">
+              hari beruntun!
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground sm:text-base">
+              {streak === 1
+                ? "Api pertamamu menyala. Belajar lagi besok supaya terus menyala."
+                : "Kebiasaan belajarmu terus menyala. Belajar lagi besok untuk menjaga streak ini."}
+            </p>
+            <Button
+              onClick={() => setCelebration(null)}
+              className="mt-8 h-14 w-full max-w-sm rounded-2xl bg-gradient-to-r from-[#f04432] to-[#ff982f] text-base font-semibold text-white shadow-[0_4px_0_#bd3825] hover:brightness-110 active:translate-y-0.5 active:shadow-[0_2px_0_#bd3825]"
+            >
+              Lanjutkan
+            </Button>
+            <div className="sr-only" aria-live="polite">Streak kamu sekarang {streak} hari.</div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

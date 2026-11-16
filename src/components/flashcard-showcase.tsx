@@ -362,7 +362,7 @@ export const FlashcardShowcase = ({
       </div>
 
       {/* Sebelumnya / Sembunyi / Lewati */}
-      <div className="grid w-full grid-cols-3 gap-2 px-2 sm:px-0">
+      <div className="mx-auto grid w-full max-w-[300px] grid-cols-3 gap-2">
         <button
           type="button"
           onClick={goPrev}

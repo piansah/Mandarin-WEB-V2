@@ -1,3 +1,43 @@
+.igniteBackdrop,
+.revealBackdrop {
+  transition: background-color 700ms ease, backdrop-filter 700ms ease !important;
+}
+
+.igniteBackdrop {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+}
+
+.revealBackdrop {
+  background-color: color-mix(in srgb, var(--background) 90%, transparent) !important;
+  backdrop-filter: blur(3px) !important;
+}
+
+.ignitePopup,
+.revealPopup {
+  animation: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.igniteFlame {
+  filter: drop-shadow(0 0 24px rgb(255 139 40 / 45%));
+  animation: flame-ignite 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.revealGlow {
+  background: radial-gradient(ellipse at center, rgb(255 153 52 / 10%), transparent 50%);
+}
+
+.revealContent {
+  animation: celebration-fade-in 650ms ease-out both;
+}
+
+.flameSettle {
+  filter: drop-shadow(0 0 18px rgb(255 139 40 / 30%));
+  animation: flame-settle 450ms ease-out both;
+}
+
 .confetti {
   position: absolute;
   width: 8px;
@@ -7,6 +47,60 @@
   animation-name: streak-confetti-fall;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
+}
+
+@keyframes flame-ignite {
+  0% {
+    opacity: 0;
+    scale: 0.25;
+    rotate: -18deg;
+    filter: drop-shadow(0 0 0 rgb(255 139 40 / 0%));
+  }
+
+  55% {
+    opacity: 1;
+    scale: 1.3;
+    rotate: 8deg;
+    filter: drop-shadow(0 0 30px rgb(255 139 40 / 70%));
+  }
+
+  78% {
+    scale: 0.94;
+    rotate: -4deg;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+    rotate: 0;
+    filter: drop-shadow(0 0 24px rgb(255 139 40 / 45%));
+  }
+}
+
+@keyframes flame-settle {
+  from {
+    opacity: 0;
+    scale: 0.65;
+    translate: 0 10px;
+  }
+
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes celebration-fade-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
 
 @keyframes streak-confetti-fall {
@@ -30,6 +124,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .igniteFlame,
+  .flameSettle,
+  .revealContent {
+    animation: none;
+  }
+
   .confetti {
     animation: none;
     opacity: 0.85;

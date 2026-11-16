@@ -7,9 +7,11 @@
 import { useState } from "react"
 import { LoginForm } from "@/components/login-form"
 import { FlashcardShowcase } from "@/components/flashcard-showcase"
+import { speakMandarin } from "@/lib/tts"
 
 export function LoginClient() {
   const [showLoginOnMobile, setShowLoginOnMobile] = useState(false)
+  const [activePronunciation, setActivePronunciation] = useState("好")
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] bg-[#05070A]">
@@ -97,16 +99,24 @@ export function LoginClient() {
 
           <div className="flex gap-2.5 justify-center">
             {["你", "好", "吗"].map((c, i) => (
-              <div
+              <button
+                type="button"
                 key={c}
-                className={`w-11 h-11 rounded-xl border flex items-center justify-center text-[21px] ${i === 1
+                onClick={() => {
+                  setActivePronunciation(c)
+                  speakMandarin(c)
+                }}
+                aria-label={`Dengarkan pelafalan ${c}`}
+                title={`Dengarkan ${c}`}
+                aria-pressed={activePronunciation === c}
+                className={`w-11 h-11 rounded-xl border flex items-center justify-center text-[21px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4FDDA5] ${activePronunciation === c
                     ? "bg-[#123328] border-[#17A673]/40 text-[#4FDDA5]"
                     : "bg-[#10161D] border-white/10 text-[#9AA7B5]"
                   }`}
                 style={{ fontFamily: "'Noto Serif SC', serif" }}
               >
                 {c}
-              </div>
+              </button>
             ))}
           </div>
 
