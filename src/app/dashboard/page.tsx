@@ -99,6 +99,7 @@ function DashboardImageCard({
   description,
   icon: Icon,
   tone,
+  compact = false,
 }: {
   href?: string
   image: string
@@ -106,6 +107,7 @@ function DashboardImageCard({
   description: string
   icon: LucideIcon
   tone: "primary" | "amber" | "blue" | "violet"
+  compact?: boolean
 }) {
   const toneClass = {
     primary: "bg-primary/15 text-primary",
@@ -114,17 +116,53 @@ function DashboardImageCard({
     violet: "bg-violet-500/15 text-violet-500",
   }[tone]
 
-  const content = (
+  const imageProps = {
+    src: image,
+    alt: "",
+    width: 800,
+    height: 500,
+    sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 30vw",
+  }
+
+  const content = compact ? (
+    <div className="group relative h-[124px] min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-primary/40 lg:h-full">
+      <div className="absolute inset-0 lg:hidden">
+        <Image {...imageProps} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/50 to-slate-950/15" />
+      </div>
+      <div className="relative z-10 flex h-full flex-col justify-between p-3 lg:hidden">
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-white">{title}</h3>
+        </div>
+        <span className={`w-fit text-xs font-semibold ${href ? "text-primary" : "text-muted-foreground"}`}>
+          {href ? "Buka →" : "Belum tersedia"}
+        </span>
+      </div>
+      <div className="hidden h-full flex-col overflow-hidden lg:flex">
+        <div className="relative overflow-hidden">
+          <Image
+            {...imageProps}
+            className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col p-3 lg:min-h-44 lg:p-4">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
+              <Icon className="h-4 w-4" />
+            </div>
+            <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-base font-bold leading-snug text-foreground">{title}</h3>
+          </div>
+          <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
+          <span className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
+            {href ? "Buka" : "Belum tersedia"}
+          </span>
+        </div>
+      </div>
+    </div>
+  ) : (
     <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all hover:border-primary/40 hover:shadow-md">
       <div className="relative overflow-hidden">
-        <Image
-          src={image}
-          alt=""
-          width={800}
-          height={500}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 30vw"
-          className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
+        <Image {...imageProps} className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
       </div>
       <div className="flex min-h-44 flex-1 flex-col p-4">
         <div className="flex min-w-0 items-start gap-2.5">
@@ -840,8 +878,8 @@ export default function DashboardPage() {
       {/* Latihan hari ini */}
       <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
         <h2 className="mb-4 text-xl font-semibold tracking-tight">Latihan hari ini</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:pb-3">
-          <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:pb-3">
+          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
             <DashboardImageCard
               href={nextModule ? "/dashboard/modul" : undefined}
               image="/image-c.jpg"
@@ -849,10 +887,11 @@ export default function DashboardPage() {
               description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Tidak ada modul tersedia saat ini"}
               icon={FolderOpen}
               tone="primary"
+              compact
             />
           </div>
           {nextDeck && (
-            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
               <DashboardImageCard
                 href={`/dashboard/flashcard/${nextDeck.id}`}
                 image="/image-e.jpg"
@@ -860,11 +899,12 @@ export default function DashboardPage() {
                 description={`Flashcard & quiz · HSK ${nextDeck.hsk_level}`}
                 icon={Languages}
                 tone="amber"
+                compact
               />
             </div>
           )}
           {activeSrsDue > 0 && (
-            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
               <DashboardImageCard
                 href={`/dashboard/review?hsk=${activeSrsLevel}`}
                 image="/image-d.jpg"
@@ -872,11 +912,12 @@ export default function DashboardPage() {
                 description="Kosakata siap direview · Perkuat memori jangka panjang"
                 icon={SquareStack}
                 tone="blue"
+                compact
               />
             </div>
           )}
           {nextEstafet && (
-            <div className="lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
               <DashboardImageCard
                 href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
                 image="/image-a.jpg"
@@ -884,6 +925,7 @@ export default function DashboardPage() {
                 description="Baca kalimat berurutan untuk melatih pemahaman"
                 icon={BookText}
                 tone="violet"
+                compact
               />
             </div>
           )}
