@@ -21,6 +21,15 @@ const CONFETTI = Array.from({ length: 34 }, (_, index) => ({
   rotation: `${(index * 31) % 180}deg`,
 }))
 
+function LayeredFlame({ className = "", size = "large" }: { className?: string; size?: "large" | "small" }) {
+  return (
+    <span role="img" aria-label="Api streak" className={`relative block shrink-0 ${size === "large" ? "h-20 w-20" : "h-16 w-16"} ${className}`}>
+      <Flame aria-hidden="true" className="absolute inset-0 h-full w-full text-[#ed4936]" strokeWidth={2.2} />
+      <Flame aria-hidden="true" className="absolute left-[9%] top-[5%] h-[82%] w-[82%] text-[#ff7a2f]" strokeWidth={2.2} />
+    </span>
+  )
+}
+
 export function StreakCelebration() {
   const [celebration, setCelebration] = React.useState<{ streak: number; phase: "ignite" | "reveal" } | null>(null)
   const open = celebration !== null
@@ -78,12 +87,12 @@ export function StreakCelebration() {
 
         {!isRevealing ? (
           <div className="relative z-10 flex min-h-dvh items-center justify-center">
-            <Flame aria-hidden="true" className={`h-16 w-16 text-primary ${styles.igniteFlame}`} strokeWidth={1.8} />
+            <LayeredFlame className={styles.igniteFlame} />
             <span className="sr-only">Streak belajar bertambah</span>
           </div>
         ) : (
           <div className={`relative z-10 flex min-h-dvh flex-col items-center justify-center px-6 text-center ${styles.revealContent}`}>
-            <Flame aria-hidden="true" className={`mb-4 h-14 w-14 text-primary ${styles.flameSettle}`} strokeWidth={1.8} />
+            <LayeredFlame size="small" className={`mb-4 ${styles.flameSettle}`} />
             <p className="font-heading text-7xl font-bold leading-none text-amber-600 dark:text-[#ff963f] sm:text-8xl">
               {streak}
             </p>
