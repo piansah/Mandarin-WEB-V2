@@ -8,6 +8,8 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { isMobileBottomNavHidden, MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { PWAInstall } from "@/components/pwa-install"
+import { ActiveStudyTimeTracker } from "@/components/active-study-time-tracker"
+import { StreakCelebration } from "@/components/streak-celebration"
 // Registrasi window.openBugReportModal — HARUS di-import dari sini (Client
 // Component), bukan dari dashboard/layout.tsx (Server Component), supaya
 // beneran jalan di browser. Lihat komentar di lib/global-bug-report.ts.
@@ -98,6 +100,8 @@ export function DashboardLayoutClient({
 
   return (
     <SidebarProvider defaultOpen={true} defaultPinned={defaultPinned}>
+      <ActiveStudyTimeTracker pathname={pathname} />
+      <StreakCelebration />
       <SidebarHoverTrigger />
       <AppSidebar user={sidebarUser} />
       <SidebarInset className="flex h-svh flex-col overflow-hidden">

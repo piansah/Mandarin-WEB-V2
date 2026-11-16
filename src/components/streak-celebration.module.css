@@ -1,0 +1,37 @@
+.confetti {
+  position: absolute;
+  width: 8px;
+  height: 13px;
+  border-radius: 1px;
+  opacity: 0;
+  animation-name: streak-confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes streak-confetti-fall {
+  0% {
+    opacity: 0;
+    translate: 0 -18vh;
+  }
+
+  8% {
+    opacity: 0.95;
+  }
+
+  92% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    translate: 12px 30vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .confetti {
+    animation: none;
+    opacity: 0.85;
+  }
+}

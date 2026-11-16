@@ -462,6 +462,9 @@ export default function DashboardPage() {
           setDeckQuotaMet(true)
           setNextDeck(null)
         }
+        // The practice cards that depend on the deck list and quiz scores can
+        // render now. Hero progress and Estafet progress continue separately.
+        setNextContentLoading(false)
 
         // Determine target hero deck for "Lanjutkan belajar" (menyesuaikan ke deck baru jika dikerjakan)
         const targetHeroDeck = (hasCompletedDeckToday && !isWorkingOnNewerDeck && todayCompletedDeckId
@@ -557,6 +560,7 @@ export default function DashboardPage() {
           })
         }
       }
+      if (!decks?.length) setNextContentLoading(false)
 
       // Load next estafet (cumulative flashcard)
       setNextEstafet(null)

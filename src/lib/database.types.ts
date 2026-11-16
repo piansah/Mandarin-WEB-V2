@@ -292,14 +292,17 @@ export type Database = {
       }
       daily_streaks: {
         Row: {
+          celebrated_at: string | null
           date: string
           user_id: string
         }
         Insert: {
+          celebrated_at?: string | null
           date: string
           user_id: string
         }
         Update: {
+          celebrated_at?: string | null
           date?: string
           user_id?: string
         }
@@ -1230,6 +1233,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_study_time: {
+        Row: {
+          active_seconds: number
+          study_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active_seconds?: number
+          study_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active_seconds?: number
+          study_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_scores: {
         Row: {
           id: string
@@ -1367,6 +1391,14 @@ export type Database = {
         }[]
       }
       get_user_stats: { Args: never; Returns: Json }
+      claim_daily_streak_celebration: {
+        Args: { p_study_date: string }
+        Returns: number | null
+      }
+      record_study_time: {
+        Args: { p_seconds: number; p_study_date: string }
+        Returns: number
+      }
       get_users_for_regular_admin: {
         Args: never
         Returns: {

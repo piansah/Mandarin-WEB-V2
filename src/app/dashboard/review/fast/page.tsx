@@ -7,6 +7,7 @@
 import * as React from "react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { fetchDueFlashcards, recordSrsReviewBatch, SRS_REVIEW_BATCH_SIZE, type DueFlashcard, type SrsState } from "@/lib/srs"
+import { recordCompletedStudySession } from "@/lib/user-scores"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 
 export default function FastReviewPage() {
@@ -60,6 +61,7 @@ export default function FastReviewPage() {
 
     if (reviews.length > 0) {
       await recordSrsReviewBatch(supa, user.id, reviews)
+      await recordCompletedStudySession(supa)
     }
   }, [supa])
 

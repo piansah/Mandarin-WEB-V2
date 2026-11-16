@@ -104,7 +104,7 @@ export default function StatistikPage() {
         <StatCard icon={Flame} label="Streak Saat Ini" value={`${data.streak} hari`} sub={`Rekor: ${data.bestStreak} hari`} color="bg-orange-500" />
         <StatCard icon={Brain} label="Kata Dipelajari" value={data.totalWordsLearned.toString()} sub={`dari total ${data.totalCards ?? 0} kosakata`} color="bg-violet-500" />
         <StatCard icon={Target} label="Akurasi" value={`${avgAccuracy}%`} sub="Dari semua sesi" color="bg-emerald-500" />
-        <StatCard icon={Clock} label="Total Belajar" value={`${totalHours}j ${totalMins}m`} sub={`Bulan ini: ${monthlyHours}j ${monthlyMins}m`} color="bg-blue-500" />
+        <StatCard icon={Clock} label="Total Belajar" value={`${totalHours}j ${totalMins}m`} sub={`Waktu aktif · Bulan ini: ${monthlyHours}j ${monthlyMins}m`} color="bg-blue-500" />
       </div>
 
       {/* Main grid */}
@@ -116,7 +116,7 @@ export default function StatistikPage() {
             <CardTitle className="text-base flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" /> Aktivitas 7 Hari Terakhir
             </CardTitle>
-            <p className="text-xs text-muted-foreground">Menit belajar per hari</p>
+            <p className="text-xs text-muted-foreground">Menit aktif saat aplikasi terlihat dan digunakan</p>
           </CardHeader>
           <CardContent>
             <div className="flex items-end justify-between gap-2 h-40 mt-2">

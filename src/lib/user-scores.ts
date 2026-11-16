@@ -23,6 +23,24 @@ export type ScoreType =
 
 type SaveResult = { error: string | null; skipped?: boolean }
 
+const STREAK_CELEBRATION_EVENT = "mandarin:streak-celebration"
+
+/** Mark a successfully completed session and announce the first completion of the local day. */
+export async function recordCompletedStudySession(
+  supa: ReturnType<typeof createClient>
+): Promise<void> {
+  const { data: streak, error } = await supa.rpc("claim_daily_streak_celebration", {
+    p_study_date: localDateString(),
+  })
+  if (error) {
+    console.error("Gagal memeriksa perayaan streak:", error)
+    return
+  }
+  if (streak != null && typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(STREAK_CELEBRATION_EVENT, { detail: { streak } }))
+  }
+}
+
 /**
  * Simpan skor task ke tabel `user_scores`.
  * - Kalau user belum punya skor untuk (type, key) ini → insert.
@@ -46,19 +64,11 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
 
   if (readErr) return { error: readErr.message }
 
-  // Rekam streak karena user sudah mengerjakan task hari ini
-  const today = localDateString()
-  
-  const { error: streakErr } = await supa.from("daily_streaks").upsert(
-    { user_id: user.id, date: today },
-    { onConflict: "user_id,date", ignoreDuplicates: true }
-  )
-  if (streakErr) {
-    console.error("Gagal merekam daily streak:", streakErr)
-  }
-
   // Skip jika skor existing lebih tinggi/sama DAN tidak ada meta yang perlu diperbarui
-  if (existing && existing.score >= score && !meta) return { error: null, skipped: true }
+  if (existing && existing.score >= score && !meta) {
+    await recordCompletedStudySession(supa)
+    return { error: null, skipped: true }
+  }
   // Kalau skor lama lebih tinggi tapi ada meta baru, tetap lanjut upsert (update meta saja, skor tetap pakai yang lama)
   const finalScore = existing && existing.score > score ? existing.score : score
 
@@ -66,7 +76,9 @@ export async function saveUserScore(type: ScoreType, key: string, score: number,
     .from("user_scores")
     .upsert({ user_id: user.id, type, key, score: finalScore, ...(meta && { meta: meta as unknown }) } as any, { onConflict: "user_id,type,key" }) // eslint-disable-line @typescript-eslint/no-explicit-any
 
-  return { error: error?.message ?? null }
+  if (error) return { error: error.message }
+  await recordCompletedStudySession(supa)
+  return { error: null }
 }
 
 /** Hapus skor tersimpan milik user sebelum user memulai ulang latihan. */

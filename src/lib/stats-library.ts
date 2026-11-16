@@ -10,7 +10,7 @@
  */
 
 import { createClient } from "@/lib/supabase/browser"
-import { localDateStartIso, localDateString, shiftDateString } from "@/lib/local-date"
+import { localDateString, shiftDateString } from "@/lib/local-date"
 import { fetchHskVocabularyProgress, type HskVocabularyProgress } from "@/lib/hsk-vocabulary-progress"
 
 type SupabaseClient = ReturnType<typeof createClient>
@@ -98,10 +98,15 @@ export function calcBestStreak(dates: Set<string>): number {
 
 /**
  * Ambil aktivitas mingguan (7 hari terakhir)
- * - minutes: total menit belajar (dari user_scores)
+ * - minutes: waktu aktif belajar yang direkam per hari
  * - words: kata baru dipelajari (dari user_card_progress)
  */
-async function fetchWeeklyActivity(supa: SupabaseClient, userId: string, totalHskWordsLearned: number): Promise<WeeklyActivity[]> {
+async function fetchWeeklyActivity(
+  supa: SupabaseClient,
+  userId: string,
+  totalHskWordsLearned: number,
+  studyTimeRows: { study_date: string; active_seconds: number }[],
+): Promise<WeeklyActivity[]> {
   const DAY_LABEL = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
   const today = new Date()
   const dayOfWeek = today.getDay() // 0 = Min
@@ -112,21 +117,18 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string, totalHs
   const weekStartKey = localDateString(monday)
   const weekEndKey = localDateString(weekEnd)
 
-  // Ambil satu rentang minggu; sebelumnya tiga query diulang berurutan untuk
-  // tiap hari (21 request total).
-  const [sessionsRes, streakRes] = await Promise.all([
-    supa.from("user_scores").select("updated_at").eq("user_id", userId)
-      .gte("updated_at", localDateStartIso(weekStartKey)).lt("updated_at", localDateStartIso(weekEndKey)),
-    supa.from("daily_streaks").select("date").eq("user_id", userId).lte("date", weekEndKey),
-  ])
+  const { data: streakRes } = await supa
+    .from("daily_streaks")
+    .select("date")
+    .eq("user_id", userId)
+    .lte("date", weekEndKey)
 
-  const sessionsByDate = new Map<string, number>()
-  sessionsRes.data?.forEach((row) => {
-    if (!row.updated_at) return
-    const dateKey = localDateString(new Date(row.updated_at))
-    sessionsByDate.set(dateKey, (sessionsByDate.get(dateKey) ?? 0) + 1)
+  const secondsByDate = new Map<string, number>()
+  studyTimeRows.forEach((row) => {
+    if (row.study_date < weekStartKey || row.study_date >= weekEndKey) return
+    secondsByDate.set(row.study_date, (secondsByDate.get(row.study_date) ?? 0) + row.active_seconds)
   })
-  const streakDates = (streakRes.data ?? []).map((row) => row.date as string)
+  const streakDates = (streakRes ?? []).map((row) => row.date as string)
   const totalWords = totalHskWordsLearned
 
   return Array.from({ length: 7 }, (_, index) => {
@@ -137,7 +139,7 @@ async function fetchWeeklyActivity(supa: SupabaseClient, userId: string, totalHs
     const wordsPerDay = Math.round(totalWords / totalDays)
     return {
       day: DAY_LABEL[index],
-      minutes: (sessionsByDate.get(dateKey) ?? 0) * 5,
+      minutes: Math.round((secondsByDate.get(dateKey) ?? 0) / 60),
       words: index === 6 ? totalWords : Math.round(wordsPerDay / 7),
     }
   })
@@ -321,11 +323,9 @@ export async function fetchStatsData(): Promise<StatsData | null> {
   const monthStart = new Date()
   monthStart.setDate(1)
   const monthStartStr = localDateString(monthStart)
-  const [streakRes, sessionsRes, monthlySessionsRes, hskProgressResult] = await Promise.all([
+  const [streakRes, studyTimeRes, hskProgressResult] = await Promise.all([
     supa.from("daily_streaks").select("date").eq("user_id", user.id).gte("date", since),
-    supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-    supa.from("user_scores").select("id", { count: "exact", head: true })
-      .eq("user_id", user.id).gte("updated_at", localDateStartIso(monthStartStr)),
+    supa.from("user_study_time").select("study_date, active_seconds").eq("user_id", user.id),
     fetchHskProgress(supa, user.id),
   ])
 
@@ -334,14 +334,20 @@ export async function fetchStatsData(): Promise<StatsData | null> {
   const streak = calcCurrentStreak(dates)
   const bestStreak = calcBestStreak(dates)
 
-  // Total menit belajar (estimasi dari total sesi)
-  const totalStudyMinutes = (sessionsRes.count ?? 0) * 5
-  const monthlyStudyMinutes = (monthlySessionsRes.count ?? 0) * 5
+  // Durasi aktif baru mulai tercatat setelah tracker tersedia; data skor lama
+  // tidak bisa dipakai untuk merekonstruksi durasi sesi secara akurat.
+  const studyTimeRows = studyTimeRes.data ?? []
+  const totalStudySeconds = studyTimeRows.reduce((sum, row) => sum + row.active_seconds, 0)
+  const monthlyStudySeconds = studyTimeRows
+    .filter((row) => row.study_date >= monthStartStr)
+    .reduce((sum, row) => sum + row.active_seconds, 0)
+  const totalStudyMinutes = Math.floor(totalStudySeconds / 60)
+  const monthlyStudyMinutes = Math.floor(monthlyStudySeconds / 60)
 
   // Ambil semua data statistik secara paralel
   const [weeklyActivity, accuracyData, difficultWords, achievements] =
     await Promise.all([
-      fetchWeeklyActivity(supa, user.id, hskProgressResult.summary.learned),
+      fetchWeeklyActivity(supa, user.id, hskProgressResult.summary.learned, studyTimeRows),
       fetchAccuracyData(supa, user.id),
       fetchDifficultWords(supa, user.id),
       fetchAchievements(supa, user.id, hskProgressResult.summary.learned),
