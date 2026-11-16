@@ -40,7 +40,7 @@ export function StreakCelebration() {
     if (!celebration || celebration.phase !== "ignite") return
     const timer = window.setTimeout(() => {
       setCelebration(current => current ? { ...current, phase: "reveal" } : null)
-    }, 950)
+    }, 1300)
     return () => window.clearTimeout(timer)
   }, [celebration])
 

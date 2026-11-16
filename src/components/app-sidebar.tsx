@@ -250,7 +250,7 @@ export function AppSidebar({
 
       <SidebarContent>
         {/* Dashboard & Modul */}
-        <div className="hidden px-3 md:block">
+        <div className="px-3">
           <div className="mb-2 px-2 pt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
             MENU UTAMA
           </div>
@@ -439,12 +439,10 @@ export function AppSidebar({
                 sideOffset={4}
               >
                 <DropdownMenuGroup>
-                  {!isMobile && (
-                    <DropdownMenuItem onClick={handleProfileClick}>
-                      <User className="h-4 w-4" />
-                      Profil
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem onClick={handleProfileClick}>
+                    <User className="h-4 w-4" />
+                    Profil
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSettingsClick}>
                     <Settings className="h-4 w-4" />
                     Pengaturan
