@@ -145,8 +145,9 @@ export async function fetchModulOverview(
 ): Promise<ModulOverview> {
   const supa = client ?? createClient()
   const {
-    data: { user },
-  } = await supa.auth.getUser()
+    data: { session },
+  } = await supa.auth.getSession()
+  const user = session?.user
 
   const [levelsRes, modulesRes, tagsRes, progressRes] = await Promise.all([
     supa.from("modul_levels").select("id, code, label, description, order_index").order("order_index"),

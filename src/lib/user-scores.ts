@@ -175,8 +175,9 @@ export async function getHanziReadProgressBySet(): Promise<{
 }> {
   const supa = createClient()
   const {
-    data: { user },
-  } = await supa.auth.getUser()
+    data: { session },
+  } = await supa.auth.getSession()
+  const user = session?.user
   if (!user) return { synced: false, bySet: {} }
 
   const { data, error } = await supa

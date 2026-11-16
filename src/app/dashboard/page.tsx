@@ -190,6 +190,8 @@ export default function DashboardPage() {
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
   const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
   const [activeDeckHero, setActiveDeckHero] = React.useState<ActiveDeckHero | null>(null)
+  const [nextContentLoading, setNextContentLoading] = React.useState(true)
+  const [nextContentError, setNextContentError] = React.useState(false)
   const [watermarkIndex, setWatermarkIndex] = React.useState(0)
   const [isWatermarkPopping, setIsWatermarkPopping] = React.useState(false)
   const [nextModule, setNextModule] = React.useState<{ slug: string; title: string } | null>(null)
@@ -206,17 +208,24 @@ export default function DashboardPage() {
 
   const loadSrsStats = React.useCallback(async () => {
     try {
-      const { data: { user } } = await supa.auth.getUser()
+      const { data: { session } } = await supa.auth.getSession()
+      const user = session?.user
       if (!user) return
 
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
 
       // Fetch sets (for hsk_level and card counts)
-      const { data: sets } = await supa
-        .from("flashcard_sets")
-        .select("id, hsk_level, flashcard_cards(count)")
-        .eq("is_default", true)
+      const [{ data: sets }, { data: progress }] = await Promise.all([
+        supa
+          .from("flashcard_sets")
+          .select("id, hsk_level, flashcard_cards(count)")
+          .eq("is_default", true),
+        supa
+          .from("user_card_progress")
+          .select("card_id, srs_level, next_review, last_reviewed, last_quality")
+          .eq("user_id", user.id),
+      ])
 
       // Total cards per level & setLevelMap
       const setLevelMap = new Map<number, number>()
@@ -231,11 +240,6 @@ export default function DashboardPage() {
           grandTotalCards += cnt
         })
       }
-
-      const { data: progress } = await supa
-        .from("user_card_progress")
-        .select("card_id, srs_level, next_review, last_reviewed, last_quality")
-        .eq("user_id", user.id)
 
       if (!progress) return
 
@@ -255,17 +259,20 @@ export default function DashboardPage() {
       const cardLevelMap = new Map<string, number>()
       const reviewedCardIds = reviewed.map((r) => r.card_id).filter(Boolean)
       if (reviewedCardIds.length > 0) {
-        const { data: studiedCards } = await supa
-          .from("flashcard_cards")
-          .select("id, set_id")
-          .in("id", reviewedCardIds)
+        // Keep REST query URLs bounded when an account has reviewed many cards.
+        const cardIdBatches = Array.from({ length: Math.ceil(reviewedCardIds.length / 250) }, (_, index) =>
+          reviewedCardIds.slice(index * 250, (index + 1) * 250),
+        )
+        const studiedCardBatches = await Promise.all(cardIdBatches.map((cardIds) =>
+          supa.from("flashcard_cards").select("id, set_id").in("id", cardIds),
+        ))
 
-        if (studiedCards) {
-          studiedCards.forEach((c) => {
+        studiedCardBatches.forEach(({ data: studiedCards }) => {
+          studiedCards?.forEach((c) => {
             const lvl = setLevelMap.get(c.set_id)
             if (lvl !== undefined) cardLevelMap.set(c.id, lvl)
           })
-        }
+        })
       }
 
       const todayCards = reviewed.filter((r) => r.last_reviewed === today)
@@ -315,16 +322,42 @@ export default function DashboardPage() {
 
   const loadNextContent = React.useCallback(async () => {
     try {
-      const { data: { user } } = await supa.auth.getUser()
+      const { data: { session } } = await supa.auth.getSession()
+      const user = session?.user
       if (!user) return
 
-      // Load next deck (flashcard)
-      const { data: decks } = await supa
-        .from("flashcard_sets")
-        .select("id, title, hsk_level")
-        .eq("is_default", true)
-        .order("hsk_level", { ascending: true })
-        .order("id", { ascending: true })
+      // Fetch independent dashboard data together. Previously this waited on
+      // several serial requests (decks -> today's quiz -> all quizzes -> cards
+      // -> progress) before the practice cards could render.
+      const estafetDataPromise = Promise.all([
+        supa
+          .from("hanzi_sets")
+          .select("key, title, unlock_after, hanzi_items(count)")
+          .order("hsk_level", { ascending: true })
+          .order("sort_order", { ascending: true }),
+        getHanziReadProgressBySet(),
+      ])
+      fetchModulOverview()
+        .then((overview) => {
+          setNextModule(overview.nextStep ? { slug: overview.nextStep.slug, title: overview.nextStep.title } : null)
+        })
+        .catch(() => setNextModule(null))
+
+      const [decksResult, allQuizScoresResult] = await Promise.all([
+        supa
+          .from("flashcard_sets")
+          .select("id, title, hsk_level")
+          .eq("is_default", true)
+          .order("hsk_level", { ascending: true })
+          .order("id", { ascending: true }),
+        supa
+          .from("user_scores")
+          .select("key, score, updated_at")
+          .eq("user_id", user.id)
+          .eq("type", "quiz"),
+      ])
+      const decks = decksResult.data
+      const allQuizScores = allQuizScoresResult.data
 
       let hasCompletedDeckToday = false
       let todayCompletedDeckId: number | null = null
@@ -335,78 +368,23 @@ export default function DashboardPage() {
       const localStartOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
       const localStartOfTodayISO = localStartOfToday.toISOString()
 
-      // Cek apakah user sudah menyelesaikan setidaknya 1 deck HARI INI (syarat lulus: Quiz bernilai >= 80% sejak pukul 00:00 waktu lokal)
-      const { data: quizToday } = await supa
-        .from("user_scores")
-        .select("id, key, score, updated_at")
-        .eq("user_id", user.id)
-        .eq("type", "quiz")
-        .gte("score", 80)
-        .gte("updated_at", localStartOfTodayISO)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-
-      if (quizToday && quizToday.length > 0) {
+      // Derive today's passed deck from the already-fetched quiz scores.
+      const quizToday = (allQuizScores ?? [])
+        .filter((score) => (score.score ?? 0) >= 80 && score.updated_at && score.updated_at >= localStartOfTodayISO)
+        .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""))[0]
+      if (quizToday) {
         hasCompletedDeckToday = true
-        todayCompletedDeckId = Number(quizToday[0].key)
+        todayCompletedDeckId = Number(quizToday.key)
       }
 
       if (decks && decks.length > 0) {
         // Ambil semua skor quiz user untuk mengecek deck yang sudah tuntas (skor >= 80%)
-        const { data: allQuizScores } = await supa
-          .from("user_scores")
-          .select("key, score")
-          .eq("user_id", user.id)
-          .eq("type", "quiz")
-
         if (allQuizScores) {
           allQuizScores.forEach((qs) => {
             const deckId = Number(qs.key)
             const prev = quizScoreByDeck.get(deckId) ?? 0
             if ((qs.score ?? 0) > prev) {
               quizScoreByDeck.set(deckId, qs.score ?? 0)
-            }
-          })
-        }
-
-        // BATCH OPTIMIZATION: Get all card IDs and progress in single queries
-        const deckIds = decks.map(d => d.id)
-
-        // Get all card IDs and hanzi for all decks at once
-        const allDeckCards: { id: string; set_id: number; hanzi: string | null }[] = []
-        const cardPageSize = 1000
-        for (let from = 0; ; from += cardPageSize) {
-          const { data, error } = await supa
-            .from("flashcard_cards")
-            .select("id, set_id, hanzi")
-            .in("set_id", deckIds)
-            .order("id", { ascending: true })
-            .range(from, from + cardPageSize - 1)
-          if (error) throw error
-          allDeckCards.push(...(data ?? []))
-          if (!data || data.length < cardPageSize) break
-        }
-
-        // Group cards by deck
-        const cardsByDeck = new Map<number, { id: string; hanzi: string }[]>()
-        allDeckCards.forEach(card => {
-          const existing = cardsByDeck.get(card.set_id) || []
-          existing.push({ id: card.id, hanzi: card.hanzi ?? "" })
-          cardsByDeck.set(card.set_id, existing)
-        })
-
-        // Get all progress for user at once
-        const { data: allProgress } = await supa
-          .from("user_card_progress")
-          .select("card_id, srs_level")
-          .eq("user_id", user.id)
-
-        // Group progress by card
-        const progressByCard = new Map<string, { srs_level: number }>()
-        if (allProgress) {
-          allProgress.forEach(p => {
-            if (p.card_id) {
-              progressByCard.set(p.card_id, { srs_level: p.srs_level })
             }
           })
         }
@@ -425,6 +403,32 @@ export default function DashboardPage() {
 
         }
 
+        // Only fetch cards for the deck shown on the dashboard. The old code
+        // downloaded every card from every HSK deck just to calculate one
+        // progress percentage and watermark list.
+        const loadDeckCards = async (deckId: number) => {
+          const { data, error } = await supa
+            .from("flashcard_cards")
+            .select("id, hanzi")
+            .eq("set_id", deckId)
+            .order("id", { ascending: true })
+          if (error) throw error
+          return data ?? []
+        }
+        const loadProgressForCards = async (cardIds: string[]) => {
+          if (cardIds.length === 0) return new Map<string, number>()
+          const { data, error } = await supa
+            .from("user_card_progress")
+            .select("card_id, srs_level")
+            .eq("user_id", user.id)
+            .in("card_id", cardIds)
+          if (error) throw error
+          return new Map((data ?? []).map((row) => [row.card_id, row.srs_level]))
+        }
+
+        let quotaCheckCards: { id: string; hanzi: string }[] = []
+        let quotaCheckProgress = new Map<string, number>()
+
         // Tentukan HSK level yang sedang berjalan sesuai progress deck
         const runningHsk = firstIncompleteDeck
           ? firstIncompleteDeck.hsk_level
@@ -437,11 +441,9 @@ export default function DashboardPage() {
         // Cek apakah user melanjutkan mengerjakan deck berikutnya hari ini
         let isWorkingOnNewerDeck = false
         if (hasCompletedDeckToday && firstIncompleteDeck && firstIncompleteDeck.id !== todayCompletedDeckId) {
-          const targetCards = cardsByDeck.get(firstIncompleteDeck.id) || []
-          const hasCardProgress = targetCards.some(c => {
-            const p = progressByCard.get(c.id)
-            return p && p.srs_level >= 1
-          })
+          quotaCheckCards = await loadDeckCards(firstIncompleteDeck.id)
+          quotaCheckProgress = await loadProgressForCards(quotaCheckCards.map((card) => card.id))
+          const hasCardProgress = quotaCheckCards.some((card) => (quotaCheckProgress.get(card.id) ?? 0) >= 1)
           const hasQuizAttempt = quizScoreByDeck.has(firstIncompleteDeck.id)
 
           if (hasCardProgress || hasQuizAttempt) {
@@ -467,12 +469,23 @@ export default function DashboardPage() {
           : null) || firstIncompleteDeck || decks[0]
 
         if (targetHeroDeck) {
-          const { data: heroScores } = await supa
-            .from("user_scores")
-            .select("type, score")
-            .eq("user_id", user.id)
-            .eq("key", String(targetHeroDeck.id))
-            .in("type", ["fc_session", "quiz"])
+          const [heroScoresResult, targetCards] = await Promise.all([
+            supa
+              .from("user_scores")
+              .select("type, score")
+              .eq("user_id", user.id)
+              .eq("key", String(targetHeroDeck.id))
+              .in("type", ["fc_session", "quiz"]),
+            targetHeroDeck.id === firstIncompleteDeck?.id && quotaCheckCards.length > 0
+              ? Promise.resolve({ data: quotaCheckCards, error: null })
+              : loadDeckCards(targetHeroDeck.id).then((data) => ({ data, error: null })),
+          ])
+          if (heroScoresResult.error) throw heroScoresResult.error
+          const heroScores = heroScoresResult.data
+          const cards = targetCards.data ?? []
+          const progressByCard = targetHeroDeck.id === firstIncompleteDeck?.id
+            ? quotaCheckProgress
+            : await loadProgressForCards(cards.map((card) => card.id))
 
           const fcDone = heroScores?.some(s => s.type === "fc_session") ?? false
           const maxQuizScore = heroScores
@@ -500,11 +513,10 @@ export default function DashboardPage() {
             actionUrl = `/dashboard/flashcard/${targetHeroDeck.id}`
           }
 
-          const targetCards = cardsByDeck.get(targetHeroDeck.id) || []
           const watermarkList: string[] = []
 
           // Sertakan semua kosakata unik dari deck, termasuk kata satu karakter.
-          targetCards.forEach((c) => {
+          cards.forEach((c) => {
             const h = c.hanzi?.trim()
             if (h && !watermarkList.includes(h)) {
               watermarkList.push(h)
@@ -523,11 +535,10 @@ export default function DashboardPage() {
           } else if (fcDone) {
             percent = 50
           } else {
-            const cardDoneCount = targetCards.filter(c => {
-              const p = progressByCard.get(c.id)
-              return p && p.srs_level >= 1
+            const cardDoneCount = cards.filter(c => {
+              return (progressByCard.get(c.id) ?? 0) >= 1
             }).length
-            const cardRatio = targetCards.length > 0 ? cardDoneCount / targetCards.length : 0
+            const cardRatio = cards.length > 0 ? cardDoneCount / cards.length : 0
             percent = Math.min(45, Math.round(cardRatio * 50))
           }
 
@@ -547,21 +558,10 @@ export default function DashboardPage() {
         }
       }
 
-      // Load next module dari skema `modul` (lihat src/lib/modul.ts)
-      fetchModulOverview()
-        .then((overview) => {
-          setNextModule(overview.nextStep ? { slug: overview.nextStep.slug, title: overview.nextStep.title } : null)
-        })
-        .catch(() => setNextModule(null))
-
       // Load next estafet (cumulative flashcard)
       setNextEstafet(null)
-      const { data: estafetSets } = await supa
-        .from("hanzi_sets")
-        .select("key, title, unlock_after, hanzi_items(count)")
-        .order("hsk_level", { ascending: true })
-        .order("sort_order", { ascending: true })
-
+      const [estafetSetsResult, readProgress] = await estafetDataPromise
+      const estafetSets = estafetSetsResult.data
       if (estafetSets && estafetSets.length > 0) {
         const itemCounts: Record<string, number> = {}
         estafetSets.forEach(set => {
@@ -572,7 +572,6 @@ export default function DashboardPage() {
         // offline fallback. Otherwise deleted/old local progress can hide the
         // Estafet item from today's session.
         const readCounts: Record<string, number> = {}
-        const readProgress = await getHanziReadProgressBySet()
         for (const set of estafetSets) {
           const record = readProgress.bySet[set.key]
           if (readProgress.synced) {
@@ -622,16 +621,32 @@ export default function DashboardPage() {
       }
     } catch (e) {
       console.error(e)
+      setNextContentError(true)
+    } finally {
+      setNextContentLoading(false)
     }
   }, [supa])
 
   React.useEffect(() => {
-    fetchDashboardStats().then((s) => {
-      setStats(s)
-      setLoading(false)
-    })
+    let active = true
+    fetchDashboardStats()
+      .then((s) => {
+        if (active) setStats(s)
+      })
+      .catch((error) => {
+        console.error("Gagal memuat statistik dashboard:", error)
+        if (active) setStats(null)
+      })
+      .finally(() => {
+        // Jangan biarkan route terjebak di PageLoader saat salah satu request
+        // gagal atau koneksi Supabase bermasalah.
+        if (active) setLoading(false)
+      })
     loadSrsStats()
     loadNextContent()
+    return () => {
+      active = false
+    }
   }, [supa, loadSrsStats, loadNextContent])
 
   const hour = new Date().getHours()
@@ -675,7 +690,7 @@ export default function DashboardPage() {
   if (!stats) {
     return (
       <div className="mx-auto w-full max-w-6xl px-6 py-6">
-        <p className="text-sm text-muted-foreground">Kamu belum login.</p>
+        <p className="text-sm text-muted-foreground">Data dashboard belum dapat dimuat. Periksa koneksi lalu segarkan halaman.</p>
       </div>
     )
   }
@@ -878,6 +893,15 @@ export default function DashboardPage() {
       {/* Latihan hari ini */}
       <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
         <h2 className="mb-4 text-xl font-semibold tracking-tight">Latihan hari ini</h2>
+        {nextContentLoading ? (
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3" aria-label="Memuat latihan" aria-busy="true">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-72" />
+            ))}
+          </div>
+        ) : (
+        <>
+        {nextContentError && <p className="mb-3 text-xs text-muted-foreground">Sebagian latihan gagal dimuat. Coba segarkan halaman.</p>}
         <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:pb-3">
           <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
             <DashboardImageCard
@@ -973,6 +997,8 @@ export default function DashboardPage() {
             })}
           </div>
         </section>
+        </>
+        )}
       </section>
 
       {/* Grid Bawah: Review Kosakata (SRS Stats) & Aktivitas Terbaru */}
