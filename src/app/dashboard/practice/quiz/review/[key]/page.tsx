@@ -6,7 +6,7 @@
 
 import * as React from "react"
 import { useParams, useRouter } from "next/navigation"
-import { CheckCircle2, RotateCcw, SkipForward } from "lucide-react"
+import { CheckCircle2, RotateCcw, SkipForward, Volume2 } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { deleteUserScore, saveUserScore } from "@/lib/user-scores"
@@ -44,6 +44,7 @@ type QuizQuestion = {
   opts: string[]
   ans: number
   selectedIdx?: number
+  answerDetail?: { value: string; kind: "pinyin" | "hanzi" | "arti" }
 }
 
 type Answered = Record<number, boolean>
@@ -259,7 +260,40 @@ function buildKalimatQuiz(items: HanziItem[]): QuizQuestion[] {
     })
   }
 
-  return all
+  return hydrateKalimatQuizDetails(all, items)
+}
+
+function hydrateKalimatQuizDetails(questions: QuizQuestion[], items: HanziItem[]): QuizQuestion[] {
+  return questions.map(question => {
+    if (question.answerDetail) return question
+
+    const correct = question.opts[question.ans]
+    const item = items.find(candidate => {
+      if (question.si === 0) return candidate.hanzi === question.q && candidate.arti === correct
+      if (question.si === 1) return candidate.pinyin === question.q && candidate.arti === correct
+      if (question.si === 2) return candidate.hanzi === question.q && candidate.pinyin === correct
+      return false
+    })
+    if (!item) return question
+
+    const answerDetail = question.si === 0
+      ? { value: item.pinyin, kind: "pinyin" as const }
+      : question.si === 1
+        ? { value: item.hanzi, kind: "hanzi" as const }
+        : { value: item.arti, kind: "arti" as const }
+
+    return { ...question, answerDetail }
+  })
+}
+
+function getKalimatQuizSpeech(question: QuizQuestion): string {
+  if (question.si === 1 && question.answerDetail?.kind === "hanzi") {
+    return question.answerDetail.value
+  }
+
+  let speech = question.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
+  if (question.si === 3) speech = speech.replace(/_{4,}/g, question.opts[question.ans])
+  return speech
 }
 
 function getGrade(pct: number, title: string) {
@@ -354,7 +388,7 @@ export default function CumulativeQuizPracticePage() {
         if (!cancelled) {
           setQuizTitle(metaRes.data.title)
           setQuizSub(metaRes.data.sub)
-          setAllQ(savedQ)
+          setAllQ(hydrateKalimatQuizDetails(savedQ, items))
           setAnswered(savedAnswered)
           setSubmitted(false)
           setLoading(false)
@@ -382,7 +416,7 @@ export default function CumulativeQuizPracticePage() {
 
         if (state?.submitted && Array.isArray(savedQ) && savedQ.length > 0) {
           // Ada detail jawaban lokal -> tampilkan dengan detail
-          setAllQ(savedQ)
+          setAllQ(hydrateKalimatQuizDetails(savedQ, items))
           setAnswered(savedAnswered)
           setSubmitted(true)
           setLoading(false)
@@ -435,20 +469,13 @@ export default function CumulativeQuizPracticePage() {
       localStorage.setItem("hsk_kal_state", JSON.stringify(saved))
     }
 
-    const q = allQ[gi]
-    if (q.si !== 1) {
-      let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-      if (q.si === 3) speech = speech.replace(/_{4,}/g, q.opts[cor])
-      speakMandarin(speech)
-    }
+    speakMandarin(getKalimatQuizSpeech(updatedQ[gi]))
   }
 
   function replayQuestion(gi: number) {
     const q = allQ[gi]
-    if (!q || answered[gi] === undefined || q.si === 1) return
-    let speech = q.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-    if (q.si === 3) speech = speech.replace(/_{4,}/g, q.opts[q.ans])
-    speakMandarin(speech)
+    if (!q || answered[gi] === undefined) return
+    speakMandarin(getKalimatQuizSpeech(q))
   }
 
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
@@ -877,7 +904,7 @@ function QuizCard({
   const cardClass = !isAnswered ? styles.qCard : isCorrect ? `${styles.qCard} ${styles.qCardCorrect}` : `${styles.qCard} ${styles.qCardWrong}`
 
   return (
-    <div id={`card-${q.gi}`} className={`${cardClass} ${isHighlighted ? styles.qCardHighlight : ""} ${isAnswered && q.si !== 1 ? styles.qCardReplay : ""}`} onClick={isAnswered && q.si !== 1 ? onReplay : undefined}>
+    <div id={`card-${q.gi}`} className={`${cardClass} ${isHighlighted ? styles.qCardHighlight : ""} ${isAnswered ? styles.qCardReplay : ""}`} onClick={isAnswered ? onReplay : undefined}>
       <div className={styles.qTop}>
         <span className={styles.qNum}>{num}</span>
         <div className={styles.qText}>
@@ -892,6 +919,16 @@ function QuizCard({
             </span>
           )}
         </div>
+        {isAnswered && (
+          <button
+            type="button"
+            className={styles.replayBtn}
+            onClick={(event) => { event.stopPropagation(); onReplay() }}
+            aria-label="Putar lafal jawaban"
+          >
+            <Volume2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
       <div className={styles.options}>
@@ -907,7 +944,18 @@ function QuizCard({
           return (
             <button key={i} id={`opt-${q.gi}-${i}`} className={optClass} disabled={isAnswered} onClick={(event) => { event.stopPropagation(); onSelect(i) }}>
               <span className={styles.optLbl}>{labs[i]}</span>
-              <span>{optContent}</span>
+              <span className={styles.optContent}>
+                <span>{optContent}</span>
+                {isAnswered && i === q.ans && q.answerDetail && (
+                  <span className={styles.optDetail}>
+                    {q.answerDetail.kind === "pinyin"
+                      ? <ColorPy text={q.answerDetail.value} />
+                      : q.answerDetail.kind === "hanzi"
+                        ? <span className={styles.optDetailHanzi}>{q.answerDetail.value}</span>
+                        : q.answerDetail.value}
+                  </span>
+                )}
+              </span>
             </button>
           )
         })}

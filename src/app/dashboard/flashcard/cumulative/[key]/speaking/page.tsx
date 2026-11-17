@@ -7,7 +7,7 @@
 import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Mic, Volume2, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Mic, Check, RotateCcw, SkipForward, CheckCircle2, Star, AlertTriangle } from "lucide-react"
 import { shuffle } from "@/lib/array-utils"
 import { useSidebar } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
@@ -212,12 +212,6 @@ export default function SpeakingPracticePage() {
     setIsRecording(false)
   }
 
-  function handleRecordAgain() {
-    setResult(null)
-    setInterimTranscript(null)
-    setMicError(null)
-  }
-
   function handleNext() {
     setCompletedCount((prev) => prev + 1)
     if (result) {
@@ -367,37 +361,31 @@ export default function SpeakingPracticePage() {
         />
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col items-center justify-center gap-4 p-6 overflow-x-hidden overflow-y-auto pb-24">
+        <main className="flex-1 flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 overflow-x-hidden overflow-y-auto pb-24">
           {/* Card: kalimat contoh - bisa di tap untuk TTS */}
           <Card
             className="w-full max-w-2xl cursor-pointer hover:border-primary/40 transition-all duration-300 active:scale-95"
+            role="button"
+            tabIndex={0}
+            aria-label="Ketuk untuk mendengarkan kalimat Mandarin"
             onClick={() => speakMandarin(currentItem?.hanzi || "")}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault()
+                speakMandarin(currentItem?.hanzi || "")
+              }
+            }}
           >
-            <CardContent className="p-8 space-y-6">
-              {/* Sentence Display with Speaker Button */}
-              <div className="flex items-center justify-center gap-4">
-                <div className="text-center space-y-4 flex-1">
-                  <div className="font-hanzi text-4xl font-bold leading-relaxed">
-                    {currentItem?.hanzi}
-                  </div>
-                  <TonePinyin text={currentItem?.pinyin || ""} className="text-xl" />
-                  <div className="text-lg text-muted-foreground">
-                    {currentItem?.arti}
-                  </div>
+            <CardContent className="p-5 sm:p-8 space-y-4 sm:space-y-6">
+              {/* Tap kartu untuk memutar TTS */}
+              <div className="text-center space-y-3 sm:space-y-4">
+                <div className="font-hanzi text-2xl sm:text-4xl font-bold leading-relaxed">
+                  {currentItem?.hanzi}
                 </div>
-
-                {/* Speaker Button - icon only, centered beside text */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    speakMandarin(currentItem?.hanzi || "")
-                  }}
-                  className="p-3 rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
-                  title="Dengarkan contoh"
-                >
-                  <Volume2 className="h-6 w-6" />
-                </button>
+                <TonePinyin text={currentItem?.pinyin || ""} className="text-base sm:text-xl" />
+                <div className="text-base sm:text-lg text-muted-foreground">
+                  {currentItem?.arti}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -405,13 +393,17 @@ export default function SpeakingPracticePage() {
           {/* Speaking Section - OUTSIDE card */}
           <div className="w-full max-w-2xl space-y-4">
             <div className="text-center text-sm text-muted-foreground">
-              {isRecording ? "Silakan bacakan kalimat di atas..." : "Tekan tombol mikrofon dan bacalah kalimat di atas"}
+              {isRecording
+                ? "Silakan bacakan kalimat di atas..."
+                : result
+                  ? "Tekan mikrofon untuk merekam ulang."
+                  : "Tekan tombol mikrofon dan bacalah kalimat di atas"}
             </div>
             <div className="flex justify-center">
               <Button
                 size="lg"
                 onClick={isRecording ? stopRecording : startRecording}
-                disabled={!!result}
+                aria-label={isRecording ? "Hentikan rekaman" : result ? "Rekam ulang" : "Mulai merekam"}
                 className={`h-16 w-16 rounded-full ${isRecording ? "bg-red-500 hover:bg-red-600" : ""}`}
               >
                 <Mic className={`h-8 w-8 ${isRecording ? "animate-pulse" : ""}`} />
@@ -475,12 +467,6 @@ export default function SpeakingPracticePage() {
                   {verdict.tip}
                 </p>
 
-                <div className="flex justify-center">
-                  <Button variant="outline" onClick={handleRecordAgain}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Rekam Ulang
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
