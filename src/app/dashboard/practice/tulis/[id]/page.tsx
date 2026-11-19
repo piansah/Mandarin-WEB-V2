@@ -46,6 +46,8 @@ type HanziWriterLike = {
     onComplete?: (summaryData?: { totalMistakes?: number }) => void
   }) => void
   animateCharacter: (options?: { onComplete?: () => void }) => void
+  cancelQuiz: () => void
+  destroy: () => void
 }
 
 // Badge hasil SVG (bukan emoji) — dipakai di layar akhir & state kosong,
@@ -138,6 +140,7 @@ export default function TulisHanziPage() {
   const charMistakesRef = React.useRef(0)   // total mistake sepanjang karakter INI SAJA (buat cek "bersih" per karakter)
   const wordMistakesRef = React.useRef(0)   // akumulasi mistake sepanjang KOSAKATA ini (semua karakternya)
   const cancelledRef = React.useRef(false)
+  const writerInitIdRef = React.useRef(0)
   const idxRef = React.useRef(0)
   const charIdxRef = React.useRef(0)
   const totalRef = React.useRef(0)
@@ -254,8 +257,8 @@ export default function TulisHanziPage() {
   // penyusun kosakata itu, bukan per karakter.
   const WORD_MISTAKE_TOLERANCE = 3
 
-  function startQuiz(writer: HanziWriterLike, currentCard: Card, chIdx: number) {
-    if (!writer) return
+  function startQuiz(writer: HanziWriterLike, currentCard: Card, chIdx: number, initId: number) {
+    if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
     mistakeRef.current = 0
     charMistakesRef.current = 0
     setMistakeCount(0)
@@ -263,6 +266,7 @@ export default function TulisHanziPage() {
 
     writer.quiz({
       onMistake: (strokeData) => {
+        if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
         const currentStrokeMistakes = mistakeRef.current + 1
         mistakeRef.current = currentStrokeMistakes
         charMistakesRef.current += 1
@@ -275,12 +279,13 @@ export default function TulisHanziPage() {
         }
       },
       onCorrectStroke: () => {
+        if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
         mistakeRef.current = 0
         setMistakeCount(0)
         setStrokeProgress(p => p + 1)
       },
       onComplete: () => {
-        if (cancelledRef.current) return
+        if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
 
         const isLastChar = chIdx >= currentCard.chars.length - 1
 
@@ -290,7 +295,7 @@ export default function TulisHanziPage() {
           // unit utuh sampai semua karakternya selesai ditulis.
           wordMistakesRef.current += charMistakesRef.current
           setTimeout(() => {
-            if (cancelledRef.current) return
+            if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
             setCharIdx(chIdx + 1)
           }, 500)
           return
@@ -311,7 +316,7 @@ export default function TulisHanziPage() {
         }
 
         setTimeout(() => {
-          if (cancelledRef.current) return
+          if (writerRef.current !== writer || writerInitIdRef.current !== initId || cancelledRef.current) return
           const nextIdx = idxRef.current + 1
           if (nextIdx >= totalRef.current) {
             setDone(true)
@@ -327,6 +332,11 @@ export default function TulisHanziPage() {
   function initWriter(currentCard: Card, chIdx: number) {
     const char = currentCard.chars[chIdx]
     if (!containerRef.current || !char) return
+    const initId = ++writerInitIdRef.current
+    const previousWriter = writerRef.current
+    writerRef.current = null
+    previousWriter?.cancelQuiz()
+    previousWriter?.destroy()
     setWriterReady(false)
     setHintPlaying(false)
     setStrokeCount(null)
@@ -341,7 +351,11 @@ export default function TulisHanziPage() {
     containerRef.current.appendChild(targetDiv)
 
     import("hanzi-writer").then(({ default: HanziWriter }) => {
-      if (cancelledRef.current || !containerRef.current) return
+      if (
+        cancelledRef.current ||
+        writerInitIdRef.current !== initId ||
+        !containerRef.current?.contains(targetDiv)
+      ) return
 
       const writer = HanziWriter.create(targetDiv, char, {
         width: 260,
@@ -365,13 +379,13 @@ export default function TulisHanziPage() {
       // kalau gagal dimuat), jadi di-guard dulu sebelum diakses.
       HanziWriter.loadCharacterData(char)
         .then((charData: void | { strokes: string[] }) => {
-          if (!cancelledRef.current && charData && Array.isArray(charData.strokes)) {
+          if (writerInitIdRef.current === initId && !cancelledRef.current && charData && Array.isArray(charData.strokes)) {
             setStrokeCount(charData.strokes.length)
           }
         })
         .catch(() => { /* badge goresan opsional, aman kalau gagal dimuat */ })
 
-      startQuiz(writer, currentCard, chIdx)
+      startQuiz(writer, currentCard, chIdx, initId)
     })
   }
 
@@ -382,7 +396,14 @@ export default function TulisHanziPage() {
     if (!currentCard?.chars[charIdx] || !containerRef.current || loading) return
     cancelledRef.current = false
     initWriter(currentCard, charIdx)
-    return () => { cancelledRef.current = true }
+    return () => {
+      cancelledRef.current = true
+      writerInitIdRef.current += 1
+      const activeWriter = writerRef.current
+      writerRef.current = null
+      activeWriter?.cancelQuiz()
+      activeWriter?.destroy()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards, idx, charIdx, loading])
 
@@ -393,11 +414,14 @@ export default function TulisHanziPage() {
 
   function handleHint() {
     if (!writerRef.current || hintPlaying || !card) return
+    const activeWriter = writerRef.current
+    const initId = writerInitIdRef.current
     setHintPlaying(true)
-    writerRef.current.animateCharacter({
+    activeWriter.animateCharacter({
       onComplete: () => {
+        if (writerRef.current !== activeWriter || writerInitIdRef.current !== initId || cancelledRef.current) return
         setHintPlaying(false)
-        if (writerRef.current) startQuiz(writerRef.current, card, charIdx)
+        startQuiz(activeWriter, card, charIdx, initId)
       },
     })
   }

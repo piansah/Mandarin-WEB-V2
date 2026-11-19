@@ -20,6 +20,7 @@ function SpeakerButton({ text, className = "" }: { text: string; className?: str
   return (
     <button
       type="button"
+      data-bottom-accent="off"
       aria-label={`Dengarkan ${text}`}
       title="Dengarkan"
       onClick={() => speakMandarin(text)}
@@ -96,6 +97,7 @@ export function HanziMapDetail({
       <CardHeader className="relative p-0 border-b">
         <button
           type="button"
+          data-bottom-accent="off"
           className="flex items-center gap-4 pl-5 pr-16 py-4 text-left hover:bg-muted/30 active:bg-muted/50 transition-colors cursor-pointer w-full"
           onClick={() => speakMandarin(selectedWord.hanzi)}
           title="Ketuk untuk mendengar"
@@ -138,6 +140,7 @@ export function HanziMapDetail({
               <div key={String(example.id)} className="relative">
                 <button
                   type="button"
+                  data-bottom-accent="off"
                   className="w-full text-left rounded-xl border border-border/50 bg-muted/20 pl-4 pr-14 py-3 transition-colors hover:bg-muted/40 active:bg-muted/60 cursor-pointer"
                   onClick={() => speakMandarin(example.hanzi)}
                   title="Ketuk untuk mendengar"

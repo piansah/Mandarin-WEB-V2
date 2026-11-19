@@ -9,12 +9,13 @@ import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { Flag, Heart, Plus, Volume2, X, ArrowLeft } from "lucide-react"
+import { BookOpen, Flag, Heart, MoreHorizontal, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
 import { fetchCharacterDictionary, type CharacterDictionary, type CharacterDictionaryEntry } from "@/lib/character-dictionary"
 import { speakMandarin, speakParagraph } from "@/lib/tts"
-import { toggleFavorite, checkFavorite } from "@/lib/personal-decks"
+import { toggleFavorite, checkFavorite, listFavorites } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts } from "@/lib/hanzi-utils"
@@ -75,12 +76,15 @@ export default function WordDetailPage() {
   const [card, setCard] = React.useState<Card | null>(null)
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
+  const [favoriteWords, setFavoriteWords] = React.useState<Set<string>>(new Set())
   const [cacheReady, setCacheReady] = React.useState(false)
   const [wordPopover, setWordPopover] = React.useState<WordPopoverState | null>(null)
   const [dictionary, setDictionary] = React.useState<CharacterDictionary | null>(null)
   const [dictionaryKey, setDictionaryKey] = React.useState("")
   const [loading, setLoading] = React.useState(true)
   const [tabLoading, setTabLoading] = React.useState(false)
+  const [isScrolling, setIsScrolling] = React.useState(false)
+  const contentRef = React.useRef<HTMLDivElement>(null)
   const [favorited, setFavorited] = React.useState(false)
   const [reportModal, setReportModal] = React.useState<ContentReportState>({
     isOpen: false,
@@ -97,6 +101,24 @@ export default function WordDetailPage() {
   React.useEffect(() => {
     setTab(getDetailTab(searchParams.get("tab")))
   }, [searchParams])
+
+  React.useEffect(() => {
+    const scrollContainer = contentRef.current?.closest(".overflow-auto")
+    if (!scrollContainer) return
+
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const handleScroll = () => {
+      setIsScrolling(true)
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => setIsScrolling(false), 700)
+    }
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true })
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll)
+      if (idleTimer) clearTimeout(idleTimer)
+    }
+  }, [loading])
 
   function handleTabChange(nextTab: DetailTab) {
     setTab(nextTab)
@@ -173,6 +195,14 @@ export default function WordDetailPage() {
     if (!card) return
     checkFavorite(card.hanzi).then(setFavorited)
   }, [card])
+
+  React.useEffect(() => {
+    let cancelled = false
+    listFavorites().then(favorites => {
+      if (!cancelled) setFavoriteWords(new Set(favorites.map(favorite => favorite.hanzi)))
+    })
+    return () => { cancelled = true }
+  }, [])
 
   React.useEffect(() => {
     if (!card) return
@@ -314,6 +344,49 @@ export default function WordDetailPage() {
     })
   }
 
+  function openRelatedWordReportModal(word: CompoundWord) {
+    setReportModal({
+      isOpen: true,
+      contentType: "kosakata",
+      contentId: word.id ?? word.hanzi,
+      contentLabel: word.hanzi,
+    })
+  }
+
+  async function handleRelatedWordFavorite(word: CompoundWord) {
+    const wasFavorited = favoriteWords.has(word.hanzi)
+    setFavoriteWords(current => {
+      const next = new Set(current)
+      if (wasFavorited) next.delete(word.hanzi)
+      else next.add(word.hanzi)
+      return next
+    })
+
+    const sourceId = word.id == null ? null : Number(word.id)
+    const result = await toggleFavorite({
+      hanzi: word.hanzi,
+      pinyin: word.pinyin ?? "",
+      arti: word.arti ?? "",
+      source: word.source ?? "compound",
+      source_id: sourceId != null && Number.isFinite(sourceId) ? sourceId : null,
+    })
+    if (result.error) {
+      setFavoriteWords(current => {
+        const next = new Set(current)
+        if (wasFavorited) next.add(word.hanzi)
+        else next.delete(word.hanzi)
+        return next
+      })
+    } else {
+      setFavoriteWords(current => {
+        const next = new Set(current)
+        if (result.isFavorited) next.add(word.hanzi)
+        else next.delete(word.hanzi)
+        return next
+      })
+    }
+  }
+
   function closeReportModal() {
     setReportModal(current => ({ ...current, isOpen: false, contentLabel: "" }))
   }
@@ -343,7 +416,7 @@ export default function WordDetailPage() {
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => handleTabChange(item.id)}>{item.label}</button>)}</nav>
     <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
-    <div className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} onReport={openSentenceReportModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} />}</div>
+    <div ref={contentRef} className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} onReport={openSentenceReportModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} favoriteWords={favoriteWords} isScrolling={isScrolling} onSpeak={hanzi => speakMandarin(hanzi)} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} onReport={openRelatedWordReportModal} onFavorite={handleRelatedWordFavorite} />}</div>
 
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
     {wordPopover && (
@@ -534,16 +607,16 @@ function getVocabularyBadge(badge?: string | null) {
   return { label: badge ?? "Native", tone: "wordBadgeNative" }
 }
 
-function WordTab({ compounds, onOpen }: { compounds: CompoundWord[]; onOpen: (word: CompoundWord) => void }) {
+function WordTab({ compounds, favoriteWords, isScrolling, onSpeak, onOpen, onReport, onFavorite }: { compounds: CompoundWord[]; favoriteWords: Set<string>; isScrolling: boolean; onSpeak: (hanzi: string) => void; onOpen: (word: CompoundWord) => void; onReport: (word: CompoundWord) => void; onFavorite: (word: CompoundWord) => void }) {
   if (compounds.length === 0) return <EmptyLine label="Tidak ada kata gabungan ditemukan." />
-  return <div className={styles.wordList}>{compounds.map((word, index) => <WordRow key={`${word.hanzi}-${word.id ?? index}`} word={word} onOpen={onOpen} />)}</div>
+  return <div className={styles.wordList}>{compounds.map((word, index) => <SwipeToReport key={`${word.hanzi}-${word.id ?? index}`} onFavorite={() => onFavorite(word)} favorited={favoriteWords.has(word.hanzi)}><WordRow word={word} count={index + 1} isScrolling={isScrolling} onSpeak={onSpeak} onOpen={onOpen} onReport={onReport} /></SwipeToReport>)}</div>
 }
 
-function WordRow({ word, onOpen }: { word: CompoundWord; onOpen: (word: CompoundWord) => void }) {
+function WordRow({ word, count, isScrolling, onSpeak, onOpen, onReport }: { word: CompoundWord; count: number; isScrolling: boolean; onSpeak: (hanzi: string) => void; onOpen: (word: CompoundWord) => void; onReport: (word: CompoundWord) => void }) {
   const badge = getVocabularyBadge(word.badge)
   return (
     <div className={styles.wordRow}>
-      <button type="button" className={styles.wordRowLink} onClick={() => onOpen(word)} aria-label={`Buka detail kosakata ${word.hanzi}`}>
+      <button type="button" data-bottom-accent="off" className={styles.wordRowLink} onClick={() => onSpeak(word.hanzi)} aria-label={`Dengarkan ${word.hanzi}`}>
         <span className={styles.wordHanzi}>{word.hanzi}</span>
         <span className={styles.wordInfo}>
           <span className={styles.wordPinyin}><TonePinyin text={word.pinyin ?? ""} /></span>
@@ -552,9 +625,31 @@ function WordRow({ word, onOpen }: { word: CompoundWord; onOpen: (word: Compound
       </button>
       <div className={styles.wordActions}>
         <span className={`${styles.wordBadge} ${styles[badge.tone]}`}>{badge.label}</span>
-        <button type="button" className={styles.wordSpeaker} onClick={() => speakMandarin(word.hanzi)} aria-label={`Dengarkan ${word.hanzi}`} title="Dengarkan pelafalan">
-          <Volume2 className="h-4 w-4" />
-        </button>
+        {isScrolling ? (
+          <span className="grid h-9 min-w-9 shrink-0 place-items-center rounded-full px-1 text-[11px] font-medium tabular-nums text-muted-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none" aria-label={`Kosakata ${count}`}>
+            #{count}
+          </span>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button type="button" data-bottom-accent="off" className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" aria-label={`Menu kosakata ${word.hanzi}`} title="Menu kosakata" />
+              }
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="grid w-44 grid-cols-2 gap-1 sm:w-64">
+              <DropdownMenuItem onClick={() => onOpen(word)} className="min-h-16 flex-col justify-center gap-1 px-1.5 py-2 text-center text-xs sm:min-h-20 sm:gap-2 sm:px-2 sm:py-3 sm:text-sm">
+                <BookOpen aria-hidden="true" className="size-4 text-primary sm:size-5" />
+                <span>Detail</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onReport(word)} className="min-h-16 flex-col justify-center gap-1 px-1.5 py-2 text-center text-xs sm:min-h-20 sm:gap-2 sm:px-2 sm:py-3 sm:text-sm">
+                <Flag aria-hidden="true" className="size-4 text-destructive sm:size-5" />
+                <span>Laporkan</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   )
