@@ -90,7 +90,9 @@
   --border: oklch(0.9 0.02 250);
   --input: oklch(0.9 0.02 250);
   --ring: oklch(0.65 0.15 165);
-  --interactive-bottom-accent: color-mix(in oklch, var(--primary) 58%, var(--foreground) 42%);
+  --interactive-accent-mix: var(--foreground);
+  --interactive-accent-strength: 58%;
+  --interactive-bottom-accent: color-mix(in srgb, var(--primary) 58%, var(--foreground) 42%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -169,7 +171,9 @@
   --border: oklch(0.3 0.05 250);
   --input: oklch(0.3 0.05 250);
   --ring: oklch(0.8 0.15 165);
-  --interactive-bottom-accent: color-mix(in oklch, var(--primary) 28%, var(--background) 72%);
+  --interactive-accent-mix: var(--background);
+  --interactive-accent-strength: 68%;
+  --interactive-bottom-accent: color-mix(in srgb, var(--primary) 68%, var(--background) 32%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -217,10 +221,52 @@
     [data-slot="card"].cursor-pointer:not([data-bottom-accent="off"]),
     a[class*="border"]:not([data-bottom-accent="off"])
   ) {
-    --bottom-accent-color: var(--interactive-bottom-accent);
+    --bottom-accent-source: var(--primary);
+    --bottom-accent-color: color-mix(
+      in srgb,
+      var(--bottom-accent-source) var(--interactive-accent-strength),
+      var(--interactive-accent-mix) calc(100% - var(--interactive-accent-strength))
+    );
     box-shadow:
       inset 0 0 0 1px var(--bottom-accent-color),
       0 4px 0 var(--bottom-accent-color);
+  }
+
+  :where(button, [role="button"])[data-bottom-accent-tone="surface"] {
+    --bottom-accent-color: color-mix(in srgb, #10161d 82%, white 18%);
+  }
+
+  /* Let semantic button colors control the shared accent instead of forcing primary green. */
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"])[class*="orange-"] {
+    --bottom-accent-source: var(--color-orange-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"])[class*="amber-"] {
+    --bottom-accent-source: var(--color-amber-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"]):is([class*="red-"], [class*="bg-destructive"], [class*="text-destructive"]) {
+    --bottom-accent-source: var(--destructive);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"])[class*="rose-"] {
+    --bottom-accent-source: var(--color-rose-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"]):is([class*="violet-"], [class*="purple-"]) {
+    --bottom-accent-source: var(--color-violet-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"]):is([class*="blue-"], [class*="cyan-"]) {
+    --bottom-accent-source: var(--color-blue-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"]):is([class*="green-"], [class*="emerald-"]) {
+    --bottom-accent-source: var(--color-emerald-500);
+  }
+
+  :where(button, [role="button"], [role="option"], [role="radio"], [role="checkbox"], [role="tab"], [data-bottom-accent="on"], [data-slot="card"].cursor-pointer, a[class*="border"])[class*="yellow-"] {
+    --bottom-accent-source: var(--color-yellow-500);
   }
 }
 

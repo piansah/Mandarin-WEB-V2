@@ -225,11 +225,13 @@ export default function FlashcardDeckPage() {
 
   const practiceTileCount = 4 + estafetSets.length
   const practiceTileRemainder = practiceTileCount % 3
-  const practiceTileStyle = (index: number): React.CSSProperties | undefined => {
-    if (practiceTileRemainder === 1 && index === practiceTileCount - 1) return { gridColumnStart: 3 }
-    if (practiceTileRemainder === 2 && index === practiceTileCount - 2) return { gridColumnStart: 2 }
-    if (practiceTileRemainder === 2 && index === practiceTileCount - 1) return { gridColumnStart: 4 }
-    return undefined
+  const practiceTileClass = (index: number): string => {
+    if (practiceTileCount === 5 && index === 3) return "col-start-2 md:col-start-2"
+    if (practiceTileCount === 5 && index === 4) return "col-start-3 md:col-start-4"
+    if (practiceTileRemainder === 1 && index === practiceTileCount - 1) return "md:col-start-3"
+    if (practiceTileRemainder === 2 && index === practiceTileCount - 2) return "md:col-start-2"
+    if (practiceTileRemainder === 2 && index === practiceTileCount - 1) return "md:col-start-4"
+    return ""
   }
 
   function openDetail(card: Card) {
@@ -444,12 +446,11 @@ export default function FlashcardDeckPage() {
                     Pilih Latihan
                   </DrawerTitle>
                 </DrawerHeader>
-                <div className="grid grid-cols-6 gap-2.5 p-4">
+                <div className="flex flex-wrap justify-center gap-2 p-3 sm:gap-2.5 sm:p-4 md:grid md:grid-cols-6">
                   {/* Flashcard */}
                   <div
-                    style={practiceTileStyle(0)}
                     onClick={() => navigateToPractice("flashcard")}
-                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${flashcardDone
+                    className={`w-[calc((100%_-_1.5rem)/4)] flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-colors relative cursor-pointer md:col-span-2 md:w-auto md:gap-3 md:p-3 ${practiceTileClass(0)} ${flashcardDone
                         ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
                         : "border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10"
                       }`}
@@ -461,19 +462,18 @@ export default function FlashcardDeckPage() {
                     ) : (
                       <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary animate-pulse" />
                     )}
-                    <div className={`h-11 w-11 rounded-full flex items-center justify-center ${flashcardDone ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-full md:h-11 md:w-11 ${flashcardDone ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
                       }`}>
-                      <Layers className="h-5 w-5" />
+                      <Layers className="h-4 w-4 md:h-5 md:w-5" />
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Flashcard</span>
+                    <span className="text-center text-[10px] font-semibold leading-tight md:text-xs">Flashcard</span>
                   </div>
 
                   {/* Quiz — kebuka setelah Flashcard selesai */}
                   <div
-                    style={practiceTileStyle(1)}
                     onClick={() => { if (quizUnlocked) navigateToQuiz() }}
                     aria-disabled={!quizUnlocked}
-                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!quizUnlocked
+                    className={`w-[calc((100%_-_1.5rem)/4)] flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-colors relative md:col-span-2 md:w-auto md:gap-3 md:p-3 ${practiceTileClass(1)} ${!quizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : quizDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -487,10 +487,10 @@ export default function FlashcardDeckPage() {
                         </span>
                       </div>
                     )}
-                    <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                      <ListChecks className="h-5 w-5" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 md:h-11 md:w-11">
+                      <ListChecks className="h-4 w-4 md:h-5 md:w-5" />
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
+                    <span className="text-center text-[10px] font-semibold leading-tight md:text-xs">Quiz</span>
                   </div>
 
                   {estafetSets.map((set, index) => {
@@ -499,13 +499,12 @@ export default function FlashcardDeckPage() {
                     return (
                       <div
                         key={set.key}
-                        style={practiceTileStyle(index + 2)}
                         onClick={() => {
                           if (unlocked) router.push(`/dashboard/flashcard/cumulative/${set.key}`)
                           else toast.error(`Selesaikan quiz deck ini dengan nilai minimal 80% untuk membuka ${set.title}.`)
                         }}
                         aria-disabled={!unlocked}
-                        className={`col-span-2 relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border p-3 transition-colors ${unlocked
+                        className={`relative w-[calc((100%_-_1.5rem)/4)] flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-colors md:col-span-2 md:w-auto md:gap-3 md:p-3 ${practiceTileClass(index + 2)} ${unlocked
                           ? "border-violet-500/40 bg-violet-500/5 hover:bg-violet-500/10"
                           : "cursor-not-allowed border-border/30 bg-card/40 opacity-55"
                         }`}
@@ -517,20 +516,21 @@ export default function FlashcardDeckPage() {
                             </span>
                           </div>
                         )}
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-500/10 text-violet-500">
-                          <Layers className="h-5 w-5" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10 text-violet-500 md:h-11 md:w-11">
+                          <Layers className="h-4 w-4 md:h-5 md:w-5" />
                         </div>
-                        <span className="text-center text-xs font-semibold leading-tight">Estafet</span>
+                        <span className="text-center text-[10px] font-semibold leading-tight md:text-xs">Estafet</span>
                       </div>
                     )
                   })}
 
+                  {practiceTileCount === 5 && <div aria-hidden="true" className="h-0 basis-full md:hidden" />}
+
                   {/* Nada & Menulis — kebuka bareng setelah Quiz selesai */}
                   <div
-                    style={practiceTileStyle(estafetSets.length + 2)}
                     onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
                     aria-disabled={!postQuizUnlocked}
-                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                    className={`relative w-[calc((100%_-_1.5rem)/4)] flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-colors md:col-span-2 md:w-auto md:gap-3 md:p-3 ${practiceTileClass(estafetSets.length + 2)} ${!postQuizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : nadaDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -542,20 +542,19 @@ export default function FlashcardDeckPage() {
                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                       </div>
                     )}
-                    <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
-                      <Music className="h-5 w-5" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-500/10 text-violet-500 md:h-11 md:w-11">
+                      <Music className="h-4 w-4 md:h-5 md:w-5" />
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Latihan Nada</span>
+                    <span className="text-center text-[10px] font-semibold leading-tight md:text-xs">Latihan Nada</span>
                     {!postQuizUnlocked && (
                       <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
                     )}
                   </div>
 
                   <div
-                    style={practiceTileStyle(estafetSets.length + 3)}
                     onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
                     aria-disabled={!postQuizUnlocked}
-                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                    className={`relative w-[calc((100%_-_1.5rem)/4)] flex flex-col items-center justify-center gap-2 rounded-xl border p-2 transition-colors md:col-span-2 md:w-auto md:gap-3 md:p-3 ${practiceTileClass(estafetSets.length + 3)} ${!postQuizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : tulisDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -567,10 +566,10 @@ export default function FlashcardDeckPage() {
                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                       </div>
                     )}
-                    <div className="h-11 w-11 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">
-                      <Edit2 className="h-5 w-5" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500/10 text-orange-500 md:h-11 md:w-11">
+                      <Edit2 className="h-4 w-4 md:h-5 md:w-5" />
                     </div>
-                    <span className="text-xs font-semibold text-center leading-tight">Tulis Hanzi</span>
+                    <span className="text-center text-[10px] font-semibold leading-tight md:text-xs">Tulis Hanzi</span>
                     {!postQuizUnlocked && (
                       <span className="text-[10px] text-muted-foreground text-center leading-tight">Selesaikan Quiz</span>
                     )}

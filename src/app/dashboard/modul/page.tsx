@@ -11,7 +11,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { BookOpen, Video, Search, PlayCircle, ArrowRight, Lock, CheckCircle2, FlaskConical } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { BookOpen, Video, Search, PlayCircle, Lock, CheckCircle2, Map, ChevronUp } from "lucide-react"
 
 import { fetchModulOverview, type ModulOverview, type ModulModuleSummary } from "@/lib/modul"
 
@@ -23,6 +24,8 @@ export default function ModulPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [search, setSearch] = React.useState("")
   const [filter, setFilter] = React.useState<FilterKey>("active")
+  const [selectedHsk, setSelectedHsk] = React.useState("all")
+  const [showMobileRoadmap, setShowMobileRoadmap] = React.useState(false)
 
   React.useEffect(() => {
     fetchModulOverview()
@@ -68,11 +71,14 @@ export default function ModulPage() {
     return true
   }
 
-  const filteredModules = modules.filter((m) => bySearch(m) && byFilter(m))
+  const hskModules = selectedHsk === "all"
+    ? modules
+    : modules.filter((m) => m.level.code === selectedHsk)
+  const filteredModules = hskModules.filter((m) => bySearch(m) && byFilter(m))
 
-  const countActive = modules.filter((m) => m.status === "active").length
-  const countCompleted = modules.filter((m) => m.status === "completed").length
-  const countNotStarted = modules.filter((m) => m.status === "locked").length
+  const countActive = hskModules.filter((m) => m.status === "active").length
+  const countCompleted = hskModules.filter((m) => m.status === "completed").length
+  const countNotStarted = hskModules.filter((m) => m.status === "locked").length
 
   // Kelompokkan modul yang lolos filter per level, urut sesuai urutan level.
   const groupedByLevel = levels
@@ -85,17 +91,6 @@ export default function ModulPage() {
   return (
     <div className="flex flex-col p-6 gap-8 text-foreground">
 
-      {/* Banner Konsep */}
-      <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3.5">
-        <FlaskConical className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-semibold text-amber-400 mb-0.5">Masih dalam konsep</p>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Fitur modul ini masih bersifat konsep. Karena keterbatasan developer yang bukan ahli bahasa Mandarin, pembuatan konten modul secara penuh belum memungkinkan untuk saat ini. Terima kasih atas pengertiannya!
-          </p>
-        </div>
-      </div>
-
       {/* Banner Langkah Berikutnya */}
       {nextStep ? (
         <div className="bg-primary/10 border border-primary/20 rounded-xl p-4 flex flex-row items-center justify-between gap-4">
@@ -107,7 +102,6 @@ export default function ModulPage() {
             <Button variant="outline" className="bg-background rounded-full group h-9 sm:h-10 px-4 sm:px-6">
               <span className="hidden sm:inline">Ke sesi</span>
               <span className="sm:hidden">Mulai</span>
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
         </div>
@@ -131,8 +125,61 @@ export default function ModulPage() {
       {/* Main Layout Grid */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
 
+        {/* Roadmap ringkas di mobile, detail dibuka ke bawah */}
+        <div className="relative md:hidden">
+          <button
+            type="button"
+            aria-expanded={showMobileRoadmap}
+            onClick={() => setShowMobileRoadmap((open) => !open)}
+            className="flex w-full items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <Map className="h-5 w-5 shrink-0 text-primary" />
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold tracking-wide text-muted-foreground">ROADMAP</span>
+                <span className="block truncate text-sm font-semibold">
+                  {activeLevelCode
+                    ? `${levels.find((level) => level.code === activeLevelCode)?.label.split(" - ")[0]} · modul ${activeLevelIndex + 1}`
+                    : "Belum ada progres"}
+                </span>
+              </span>
+            </span>
+            <ChevronUp className={`h-4 w-4 shrink-0 rotate-180 text-muted-foreground transition-transform ${showMobileRoadmap ? "rotate-0" : ""}`} />
+          </button>
+
+          {showMobileRoadmap && (
+            <div className="absolute left-0 top-full z-40 mt-2 max-h-[60dvh] w-full overflow-y-auto rounded-xl border border-border bg-card p-4 shadow-xl">
+              <div className="mb-5">
+                <p className="text-xs font-bold tracking-widest text-muted-foreground">ROADMAP</p>
+                <p className="mt-2 text-sm font-bold">
+                  {activeLevelCode
+                    ? `Kamu di ${levels.find((level) => level.code === activeLevelCode)?.label.split(" - ")[0]} · modul ${activeLevelIndex + 1} dari ${levels.find((level) => level.code === activeLevelCode)?.totalModules ?? 0}`
+                    : "Belum ada progres"}
+                </p>
+              </div>
+              <div className="relative ml-4 space-y-6 border-l-2 border-muted pb-2">
+                {levels.map((level) => {
+                  const isActiveLevel = level.code === activeLevelCode
+                  return (
+                    <div key={level.id} className="relative pl-6">
+                      <div className={`absolute -left-[17px] top-0 flex h-8 w-8 items-center justify-center rounded-full border-4 text-[10px] font-bold ${isActiveLevel ? "border-background bg-primary text-primary-foreground shadow-[0_0_0_2px_hsl(var(--primary))]" : "border-background bg-muted text-muted-foreground"}`}>
+                        {level.code.replace("hsk", "").toUpperCase()}
+                      </div>
+                      <div>
+                        <p className={`text-sm font-bold ${isActiveLevel ? "text-foreground" : "text-muted-foreground"}`}>{level.label}</p>
+                        {level.description && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{level.description}</p>}
+                        <p className="mt-2 text-xs text-muted-foreground">{level.completedModules}/{level.totalModules} modul · Bahasa Mandarin</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Sidebar Roadmap */}
-        <div className="md:col-span-4 lg:col-span-3 border rounded-xl p-4 md:sticky md:top-4 bg-card">
+        <div className="hidden md:col-span-4 lg:col-span-3 border rounded-xl p-4 md:sticky md:top-4 bg-card md:block">
           <div className="text-xs font-bold tracking-widest text-muted-foreground mb-4">ROADMAP</div>
           <div className="mb-6">
             <h3 className="font-bold text-sm">
@@ -190,7 +237,56 @@ export default function ModulPage() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          {/* Filter status dan level: dropdown berdampingan pada mobile */}
+          <div className="grid grid-cols-2 gap-2 md:hidden">
+            <Select value={filter} onValueChange={(value) => setFilter(value as FilterKey)}>
+              <SelectTrigger aria-label="Filter status modul" className="min-w-0 w-full rounded-full bg-background px-3 text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Langkah berikutnya / aktif · {countActive}</SelectItem>
+                <SelectItem value="all">Semua modul · {hskModules.length}</SelectItem>
+                <SelectItem value="completed">Selesai · {countCompleted}</SelectItem>
+                <SelectItem value="not_started">Belum mulai · {countNotStarted}</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={selectedHsk}
+              onValueChange={(value) => { setSelectedHsk(value); setFilter("all") }}
+            >
+              <SelectTrigger aria-label="Filter level HSK" className="min-w-0 w-full rounded-full bg-background px-3 text-xs sm:text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Semua HSK</SelectItem>
+                {levels.map((level) => (
+                  <SelectItem key={level.id} value={level.code}>
+                    {level.code.replace("hsk", "HSK ").toUpperCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="hidden flex-wrap gap-2 md:flex" aria-label="Filter level HSK">
+            <button
+              type="button"
+              aria-pressed={selectedHsk === "all"}
+              onClick={() => { setSelectedHsk("all"); setFilter("all") }}
+              className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${selectedHsk === "all" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}
+            >Semua HSK</button>
+            {levels.map((level) => (
+              <button
+                key={level.id}
+                type="button"
+                aria-pressed={selectedHsk === level.code}
+                onClick={() => { setSelectedHsk(level.code); setFilter("all") }}
+                className={`rounded-full border px-4 py-1.5 text-sm transition-colors ${selectedHsk === level.code ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}
+              >{level.code.replace("hsk", "HSK ").toUpperCase()}</button>
+            ))}
+          </div>
+
+          <div className="hidden flex-wrap gap-2 md:flex">
             <Badge
               variant={filter === "active" ? "default" : "outline"}
               onClick={() => setFilter("active")}
@@ -203,7 +299,7 @@ export default function ModulPage() {
               onClick={() => setFilter("all")}
               className="rounded-full px-4 py-1.5 cursor-pointer hover:bg-muted font-normal"
             >
-              Semua modul · {modules.length}
+              Semua modul · {hskModules.length}
             </Badge>
             <Badge
               variant={filter === "completed" ? "default" : "outline"}
@@ -279,7 +375,11 @@ function ModuleCard({ module: mod }: { module: ModulModuleSummary }) {
         <Badge variant="secondary" className="bg-foreground text-background rounded-full hover:bg-foreground hover:text-background">
           {mod.level.code.replace("hsk", "").toUpperCase()}/{mod.orderIndex}
         </Badge>
-        {statusIcon}
+        {mod.status === "active" && mod.progressPercent > 0 ? (
+          <Badge variant="secondary" className="rounded-full bg-primary/10 text-primary hover:bg-primary/10">
+            {Math.round(mod.progressPercent)}%
+          </Badge>
+        ) : statusIcon}
       </div>
 
       <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors">{mod.title}</h3>
@@ -295,13 +395,7 @@ function ModuleCard({ module: mod }: { module: ModulModuleSummary }) {
         ))}
       </div>
 
-      <p className="text-sm text-muted-foreground mb-6 flex-grow leading-relaxed">{mod.description}</p>
-
-      {mod.status === "active" && mod.progressPercent > 0 && (
-        <div className="mt-auto flex justify-end text-xs text-muted-foreground">
-          <span className="text-primary font-medium">{Math.round(mod.progressPercent)}%</span>
-        </div>
-      )}
+      <p className="text-sm text-muted-foreground leading-relaxed">{mod.description}</p>
     </CardContent>
   )
 

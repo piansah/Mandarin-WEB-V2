@@ -286,28 +286,31 @@ export function AppSidebar({
         <div className="rounded-2xl border border-sidebar-border bg-sidebar-accent/30 p-2.5">
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={
-                    <SidebarMenuButton data-bottom-accent="off" size="lg" className="h-auto w-full rounded-xl p-2 hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent" />
-                  }
-                >
-                  <div className="flex w-full min-w-0 items-center gap-3">
-                    <Avatar className="h-11 w-11 shrink-0 border-2 border-primary/30 p-0.5">
-                      <AvatarImage src={user.avatar} alt={user.name} />
-                      <AvatarFallback className="text-sm bg-primary text-primary-foreground">
-                        {user.name.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="flex min-w-0 flex-1 flex-col items-start group-data-[collapsed=true]/sidebar:hidden">
-                      <span className="max-w-full truncate font-semibold">{user.name}</span>
-                      <span className="max-w-full truncate text-xs text-muted-foreground">{user.email}</span>
-                    </span>
-                    <Settings className="h-4 w-4 shrink-0 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
-                  </div>
-                </DropdownMenuTrigger>
+              <div className="flex w-full min-w-0 items-center gap-3 rounded-xl p-2">
+                <Avatar className="h-11 w-11 shrink-0 border-2 border-primary/30 p-0.5">
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="text-sm bg-primary text-primary-foreground">
+                    {user.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="flex min-w-0 flex-1 flex-col items-start group-data-[collapsed=true]/sidebar:hidden">
+                  <span className="max-w-full truncate font-semibold">{user.name}</span>
+                  <span className="max-w-full truncate text-xs text-muted-foreground">{user.email}</span>
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label="Buka menu profil"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[collapsed=true]/sidebar:hidden"
+                      />
+                    }
+                  >
+                    <Settings className="h-4 w-4" />
+                  </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
+                  className="min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
                   side="top"
                   align="end"
                   sideOffset={4}
@@ -332,7 +335,8 @@ export function AppSidebar({
                     Keluar
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>
+                </DropdownMenu>
+              </div>
             </SidebarMenuItem>
           </SidebarMenu>
         </div>

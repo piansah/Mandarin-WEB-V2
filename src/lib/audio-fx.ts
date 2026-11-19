@@ -35,6 +35,42 @@ export function playSuccessSound() {
   }
 }
 
+// Bright, upbeat fanfare for checked quiz answers. Pair matching keeps its short ping.
+export function playQuizCorrectSound() {
+  try {
+    const AudioContext = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext
+    if (!AudioContext) return
+    const ctx = new AudioContext()
+    const now = ctx.currentTime
+    const notes = [659.25, 783.99, 987.77, 1318.51]
+    let remaining = notes.length
+
+    notes.forEach((frequency, index) => {
+      const start = now + index * 0.075
+      const fadeEnd = start + 0.4
+      const stop = start + 0.52
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = "triangle"
+      osc.frequency.setValueAtTime(frequency, start)
+      gain.gain.setValueAtTime(0, start)
+      gain.gain.linearRampToValueAtTime(0.16, start + 0.012)
+      gain.gain.setValueAtTime(0.16, start + 0.08)
+      gain.gain.exponentialRampToValueAtTime(0.0001, fadeEnd)
+      osc.onended = () => {
+        remaining -= 1
+        if (remaining === 0) setTimeout(() => { void ctx.close() }, 140)
+      }
+      osc.start(start)
+      osc.stop(stop)
+    })
+  } catch (e) {
+    console.error("Quiz success sound failed", e)
+  }
+}
+
 export function playErrorSound() {
   try {
     const AudioContext = window.AudioContext || (window as WindowWithWebkit).webkitAudioContext

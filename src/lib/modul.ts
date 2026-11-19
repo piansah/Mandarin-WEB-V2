@@ -463,11 +463,17 @@ export type ModulQuizOption = {
   id: string
   text: string
   pinyin?: string
+  meaning?: string
 }
 
-export type ModulQuizType = "mcq" | "audio" | "speaking" | "fill_blank" | "word_order" | "sentence_choice" | "matching"
+export type ModulQuizType = "mcq" | "true_false" | "fill_blank" | "word_order" | "matching" | "speaking" | "audio" | "sentence_choice"
 
 export type ModulQuizPairItem = { id: string; text: string }
+export type ModulQuizFeedback = {
+  hanzi?: string | string[]
+  pinyin?: string | string[]
+  arti?: string | string[]
+}
 export type ModulQuizMatching = {
   left: ModulQuizPairItem[]
   right: ModulQuizPairItem[]
@@ -482,6 +488,9 @@ export type ModulQuizQuestion = {
   correctOptionId: string
   correctOrder?: string[]
   matching?: ModulQuizMatching
+  speakingTarget?: string
+  minimumAccuracy?: number
+  feedback?: ModulQuizFeedback
 }
 
 export type ModulQuiz = {
@@ -513,7 +522,7 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
   // 2. Ambil soal + pilihan jawaban (JSON)
   const { data: questions, error } = await supa
     .from("modul_quiz_questions")
-    .select("id, question_text, question_type, options, correct_option_id")
+    .select("id, question_text, question_type, options, correct_option_id, feedback")
     .eq("module_id", moduleRow.id)
     .order("order_index")
 
@@ -523,6 +532,31 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
   }
 
   if (!questions || questions.length === 0) return null
+
+  // Pinyin quiz words comes from the canonical vocabulary table, matched by Hanzi.
+  const quizHanzi = Array.from(new Set(questions.flatMap((question) => {
+    const raw = question.options
+    const object = raw && typeof raw === "object" && !Array.isArray(raw) ? raw as Record<string, unknown> : null
+    const list = Array.isArray(raw) ? raw : Array.isArray(object?.items) ? object.items : Array.isArray(object?.tokens) ? object.tokens : []
+    return list.flatMap((item) => {
+      if (!item || typeof item !== "object" || !("text" in item)) return []
+      const text = (item as { text?: unknown }).text
+      return typeof text === "string" && /[\u3400-\u9fff]/u.test(text) ? [text.trim()] : []
+    })
+  })))
+  const vocabularyRes = quizHanzi.length
+    ? await supa
+      .from("flashcard_cards")
+      .select("hanzi, pinyin, arti, set_id")
+      .in("hanzi", quizHanzi)
+      .order("set_id", { ascending: true })
+    : { data: [] }
+  const vocabularyByHanzi = new Map<string, { pinyin: string; meaning: string }>()
+  for (const card of vocabularyRes.data ?? []) {
+    if (!vocabularyByHanzi.has(card.hanzi)) {
+      vocabularyByHanzi.set(card.hanzi, { pinyin: card.pinyin, meaning: card.arti })
+    }
+  }
 
   return {
     moduleId: moduleRow.id,
@@ -536,16 +570,41 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
         : null
       const optionList = Array.isArray(rawOptions)
         ? rawOptions
-        : Array.isArray(optionObject?.tokens)
-          ? optionObject.tokens
-          : []
+        : Array.isArray(optionObject?.items)
+          ? optionObject.items
+          : Array.isArray(optionObject?.tokens)
+            ? optionObject.tokens
+            : []
       const opts = optionList.flatMap((option) => {
         if (typeof option !== "object" || option === null || !("id" in option)) return []
         const value = option as { id: unknown; text?: unknown; pinyin?: unknown }
-        return [{ id: String(value.id), text: String(value.text ?? ""), ...(value.pinyin ? { pinyin: String(value.pinyin) } : {}) }]
+        const text = String(value.text ?? "")
+        const vocabulary = vocabularyByHanzi.get(text.trim())
+        const pinyin = vocabulary?.pinyin
+          ?? (q.question_type !== "word_order" && value.pinyin ? String(value.pinyin) : undefined)
+        const meaning = q.question_type === "word_order" ? vocabulary?.meaning : undefined
+        return [{ id: String(value.id), text, ...(pinyin ? { pinyin } : {}), ...(meaning ? { meaning } : {}) }]
       })
       const rawOrder = optionObject?.correct_order
       const correctOrder = Array.isArray(rawOrder) ? rawOrder.map(String) : undefined
+      const speakingTarget = typeof optionObject?.target_hanzi === "string" ? optionObject.target_hanzi : undefined
+      const minimumAccuracyValue = Number(optionObject?.minimum_accuracy)
+      const minimumAccuracy = Number.isFinite(minimumAccuracyValue) && minimumAccuracyValue > 0
+        ? minimumAccuracyValue
+        : undefined
+      const rawFeedback = q.feedback && typeof q.feedback === "object" && !Array.isArray(q.feedback)
+        ? q.feedback as Record<string, unknown>
+        : null
+      const readFeedbackValue = (value: unknown): string | string[] | undefined => {
+        if (typeof value === "string") return value
+        if (Array.isArray(value)) return value.map(String)
+        return undefined
+      }
+      const feedback = rawFeedback ? {
+        ...(readFeedbackValue(rawFeedback.hanzi) !== undefined ? { hanzi: readFeedbackValue(rawFeedback.hanzi) } : {}),
+        ...(readFeedbackValue(rawFeedback.pinyin) !== undefined ? { pinyin: readFeedbackValue(rawFeedback.pinyin) } : {}),
+        ...(readFeedbackValue(rawFeedback.arti) !== undefined ? { arti: readFeedbackValue(rawFeedback.arti) } : {}),
+      } : undefined
       const rawMatching: { left: unknown[]; right: unknown[]; correct_pairs?: unknown } | null = optionObject && Array.isArray(optionObject.left) && Array.isArray(optionObject.right)
         ? { left: optionObject.left, right: optionObject.right, correct_pairs: optionObject.correct_pairs }
         : null
@@ -575,6 +634,9 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
         options: opts,
         ...(correctOrder ? { correctOrder } : {}),
         ...(matching ? { matching } : {}),
+        ...(speakingTarget ? { speakingTarget } : {}),
+        ...(minimumAccuracy ? { minimumAccuracy } : {}),
+        ...(feedback ? { feedback } : {}),
       }
     }),
   }

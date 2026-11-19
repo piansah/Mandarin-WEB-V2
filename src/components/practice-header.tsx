@@ -136,6 +136,7 @@ export function PracticeHeader({
             {isCollapsible ? (
               <div
                 role="button"
+                data-bottom-accent="off"
                 tabIndex={0}
                 aria-expanded={isExpanded}
                 aria-label={isExpanded ? "Perkecil tampilan statistik" : "Tampilkan semua statistik"}

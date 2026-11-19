@@ -7,6 +7,7 @@ import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { AppSidebar } from "@/components/app-sidebar"
 import { isMobileBottomNavHidden, MobileBottomNav } from "@/components/mobile-bottom-nav"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { NavigationProgress } from "@/components/navigation-progress"
 import { PWAInstall } from "@/components/pwa-install"
 import { ActiveStudyTimeTracker } from "@/components/active-study-time-tracker"
 import { StreakCelebration } from "@/components/streak-celebration"
@@ -102,6 +103,7 @@ export function DashboardLayoutClient({
     <SidebarProvider defaultOpen={true} defaultPinned={defaultPinned}>
       <ActiveStudyTimeTracker pathname={pathname} />
       <StreakCelebration />
+      <NavigationProgress />
       <SidebarHoverTrigger />
       <AppSidebar user={sidebarUser} />
       <SidebarInset className="flex h-svh flex-col overflow-hidden">

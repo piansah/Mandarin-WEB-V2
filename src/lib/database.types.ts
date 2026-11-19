@@ -779,6 +779,7 @@ export type Database = {
       modul_quiz_questions: {
         Row: {
           correct_option_id: string
+          feedback: Json
           id: string
           module_id: string
           options: Json
@@ -788,6 +789,7 @@ export type Database = {
         }
         Insert: {
           correct_option_id: string
+          feedback?: Json
           id?: string
           module_id: string
           options: Json
@@ -797,6 +799,7 @@ export type Database = {
         }
         Update: {
           correct_option_id?: string
+          feedback?: Json
           id?: string
           module_id?: string
           options?: Json

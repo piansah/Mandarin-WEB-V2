@@ -10,6 +10,8 @@ import { ArrowLeft, CheckCircle2, Mic, RotateCcw, Volume2, XCircle } from "lucid
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { TonePinyin } from "@/components/tone-pinyin"
+import { playErrorSound, playQuizCorrectSound, playSuccessSound } from "@/lib/audio-fx"
 import { fetchModuleQuiz, saveQuizResult, type ModulQuiz } from "@/lib/modul"
 import { speakMandarin } from "@/lib/tts"
 import { scorePronunciation } from "@/lib/pronunciation-scoring"
@@ -53,9 +55,21 @@ function answerIsCorrect(question: ModulQuiz["questions"][number], answer: strin
   }
   if (question.questionType === "speaking") {
     const result = parsedAnswer(answer)
-    return Boolean(result && typeof result === "object" && "accuracy" in result && Number(result.accuracy) >= 80)
+    const minimumAccuracy = question.minimumAccuracy ?? 80
+    return Boolean(result && typeof result === "object" && "accuracy" in result && Number(result.accuracy) >= minimumAccuracy)
   }
   return answer === question.correctOptionId
+}
+
+function playAnswerFeedback(correct: boolean, source: "answer" | "match" = "answer") {
+  if (correct) {
+    if (source === "match") playSuccessSound()
+    else playQuizCorrectSound()
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(32)
+  } else {
+    playErrorSound()
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.([45, 35, 45])
+  }
 }
 
 function readQuizState(): Record<string, SavedQuizState> {
@@ -79,10 +93,14 @@ export default function ModulKuisPage() {
   const [saving, setSaving] = React.useState(false)
   const [wordAnswer, setWordAnswer] = React.useState<string[]>([])
   const [matchingAnswer, setMatchingAnswer] = React.useState<Record<string, string>>({})
+  const [matchingWrongLeftIds, setMatchingWrongLeftIds] = React.useState<string[]>([])
+  const [matchingWrongRightIds, setMatchingWrongRightIds] = React.useState<string[]>([])
+  const matchingWrongTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [pendingMatchLeft, setPendingMatchLeft] = React.useState<string | null>(null)
   const [speechResult, setSpeechResult] = React.useState<{ transcript: string; accuracy: number } | null>(null)
   const [speechError, setSpeechError] = React.useState<string | null>(null)
   const [isRecording, setIsRecording] = React.useState(false)
+  const [feedbackDismissed, setFeedbackDismissed] = React.useState(false)
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
 
   React.useEffect(() => {
@@ -98,6 +116,7 @@ export default function ModulKuisPage() {
 
         const storageKey = `modul_quiz_${params.slug}`
         const existing = readQuizState()[storageKey]
+        setFeedbackDismissed(false)
         setQuiz(data)
         if (existing && !existing.finished) {
           setAnswers(existing.answers ?? {})
@@ -135,6 +154,8 @@ export default function ModulKuisPage() {
     setSelectedOptionId(typeof savedAnswer === "string" ? savedAnswer : null)
     setWordAnswer(currentQuestion.questionType === "word_order" && Array.isArray(savedAnswer) ? savedAnswer.map(String) : [])
     setMatchingAnswer(currentQuestion.questionType === "matching" && savedAnswer && typeof savedAnswer === "object" && !Array.isArray(savedAnswer) ? savedAnswer as Record<string, string> : {})
+    setMatchingWrongLeftIds([])
+    setMatchingWrongRightIds([])
     setSpeechResult(currentQuestion.questionType === "speaking" && savedAnswer && typeof savedAnswer === "object" && !Array.isArray(savedAnswer) && "transcript" in savedAnswer && "accuracy" in savedAnswer
       ? { transcript: String(savedAnswer.transcript), accuracy: Number(savedAnswer.accuracy) }
       : null)
@@ -142,7 +163,10 @@ export default function ModulKuisPage() {
     setSpeechError(null)
   }, [currentQuestion?.id, answers])
 
-  React.useEffect(() => () => recognitionRef.current?.stop(), [])
+  React.useEffect(() => () => {
+    recognitionRef.current?.stop()
+    if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+  }, [])
 
   const shuffledWordBank = React.useMemo(
     () => currentQuestion?.questionType === "word_order" ? shuffle(currentQuestion.options) : [],
@@ -168,6 +192,20 @@ export default function ModulKuisPage() {
       answerValue = JSON.stringify(wordAnswer)
     } else if (currentQuestion.questionType === "matching") {
       if (!currentQuestion.matching?.left.length || currentQuestion.matching.correctPairs.length !== currentQuestion.matching.left.length || Object.keys(matchingAnswer).length !== currentQuestion.matching.left.length) return
+      const wrongPairs = currentQuestion.matching.correctPairs.filter((pair) => matchingAnswer[pair.leftId] !== pair.rightId)
+      if (wrongPairs.length) {
+        setMatchingWrongLeftIds(wrongPairs.map((pair) => pair.leftId))
+        setMatchingWrongRightIds(wrongPairs.map((pair) => matchingAnswer[pair.leftId]).filter(Boolean))
+        if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+        matchingWrongTimeoutRef.current = setTimeout(() => {
+          setMatchingWrongLeftIds([])
+          setMatchingWrongRightIds([])
+          matchingWrongTimeoutRef.current = null
+        }, 1000)
+        return
+      }
+      setMatchingWrongLeftIds([])
+      setMatchingWrongRightIds([])
       answerValue = JSON.stringify(matchingAnswer)
     } else if (currentQuestion.questionType === "speaking") {
       if (!speechResult) return
@@ -177,7 +215,11 @@ export default function ModulKuisPage() {
       answerValue = selectedOptionId
     }
     const nextAnswers = { ...answers, [currentQuestion.id]: answerValue }
+    if (currentQuestion.questionType !== "matching") {
+      playAnswerFeedback(answerIsCorrect(currentQuestion, answerValue))
+    }
     setAnswers(nextAnswers)
+    setFeedbackDismissed(false)
     saveState(nextAnswers, currentIndex)
   }
 
@@ -190,7 +232,8 @@ export default function ModulKuisPage() {
       setSpeechError("Browser ini belum mendukung pengenalan suara. Coba gunakan Chrome terbaru.")
       return
     }
-    const target = currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text
+    const target = currentQuestion.speakingTarget
+      ?? currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text
     if (!target) {
       setSpeechError("Teks target speaking belum tersedia pada data soal.")
       return
@@ -217,11 +260,26 @@ export default function ModulKuisPage() {
 
   function chooseMatchRight(rightId: string) {
     if (!pendingMatchLeft) return
-    setMatchingAnswer((current) => {
-      const next = Object.fromEntries(Object.entries(current).filter(([leftId, currentRight]) => leftId !== pendingMatchLeft && currentRight !== rightId))
-      next[pendingMatchLeft] = rightId
-      return next
-    })
+    const correctPair = currentQuestion?.matching?.correctPairs.find((pair) => pair.leftId === pendingMatchLeft)
+    if (correctPair?.rightId !== rightId) {
+      playAnswerFeedback(false)
+      setMatchingWrongLeftIds([pendingMatchLeft])
+      setMatchingWrongRightIds([rightId])
+      if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+      matchingWrongTimeoutRef.current = setTimeout(() => {
+        setMatchingWrongLeftIds([])
+        setMatchingWrongRightIds([])
+        matchingWrongTimeoutRef.current = null
+      }, 1000)
+      return
+    }
+
+    playAnswerFeedback(true, "match")
+    if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+    matchingWrongTimeoutRef.current = null
+    setMatchingWrongLeftIds([])
+    setMatchingWrongRightIds([])
+    setMatchingAnswer((current) => ({ ...current, [pendingMatchLeft]: rightId }))
     setPendingMatchLeft(null)
   }
 
@@ -229,6 +287,7 @@ export default function ModulKuisPage() {
     if (!quiz || !currentQuestion || !isChecked) return
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1
+      setFeedbackDismissed(false)
       setCurrentIndex(nextIndex)
       setSelectedOptionId(answers[questions[nextIndex].id] ?? null)
       saveState(answers, nextIndex)
@@ -250,6 +309,7 @@ export default function ModulKuisPage() {
   function handlePrevious() {
     if (currentIndex <= 0) return
     const previousIndex = currentIndex - 1
+    setFeedbackDismissed(true)
     setCurrentIndex(previousIndex)
     setSelectedOptionId(answers[questions[previousIndex].id] ?? null)
     saveState(answers, previousIndex)
@@ -257,6 +317,7 @@ export default function ModulKuisPage() {
 
   function handleRetry() {
     setAnswers({})
+    setFeedbackDismissed(false)
     setSelectedOptionId(null)
     setCurrentIndex(0)
     setFinished(false)
@@ -316,7 +377,8 @@ export default function ModulKuisPage() {
   if (!currentQuestion) return null
 
   const typeLabels: Record<string, string> = {
-    mcq: "Pilih jawaban",
+    mcq: /baca|kalimat/i.test(currentQuestion.questionText) ? "Baca dan pilih jawaban" : "Pilihan ganda kosakata",
+    true_false: "Benar atau salah",
     audio: "Dengarkan",
     fill_blank: "Lengkapi kalimat",
     word_order: "Susun kalimat",
@@ -325,7 +387,25 @@ export default function ModulKuisPage() {
     speaking: "Latihan speaking",
   }
   const typeLabel = typeLabels[currentQuestion.questionType] ?? "Pilih jawaban"
-  const needsChoice = ["mcq", "audio", "fill_blank", "sentence_choice"].includes(currentQuestion.questionType)
+  const answersArePinyin = /\bpinyin\b/i.test(currentQuestion.questionText)
+  const correctAnswerText = currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text
+    ?? currentQuestion.speakingTarget
+    ?? ""
+  const feedbackValues = (value: string | string[] | undefined) =>
+    value === undefined ? [] : Array.isArray(value) ? value : [value]
+  const feedbackHanzi = feedbackValues(currentQuestion.feedback?.hanzi)
+  const feedbackPinyin = feedbackValues(currentQuestion.feedback?.pinyin)
+  const feedbackMeaning = feedbackValues(currentQuestion.feedback?.arti)
+  const feedbackRows = Array.from({ length: Math.max(feedbackHanzi.length, feedbackPinyin.length, feedbackMeaning.length) }, (_, index) => ({
+    hanzi: feedbackHanzi[index] ?? "",
+    pinyin: feedbackPinyin[index] ?? "",
+    meaning: feedbackMeaning[index] ?? "",
+  }))
+  const feedbackSpeechText = feedbackHanzi.filter(Boolean).join(" ")
+  const pinyinPromptParts = currentQuestion.questionType === "word_order"
+    ? currentQuestion.questionText.match(/^(.*?\bpinyin(?:\s+berikut)?\s*:\s*)(.+)$/i)
+    : null
+  const needsChoice = ["mcq", "true_false", "audio", "fill_blank", "sentence_choice"].includes(currentQuestion.questionType)
   const canCheckAnswer = currentQuestion.questionType === "word_order"
     ? Boolean(currentQuestion.correctOrder?.length && wordAnswer.length === currentQuestion.correctOrder.length)
     : currentQuestion.questionType === "matching"
@@ -355,17 +435,20 @@ export default function ModulKuisPage() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">{typeLabel} · Soal {currentIndex + 1}</p>
-              <h2 className="text-xl font-semibold leading-relaxed sm:text-2xl">
-                {currentQuestion.questionType === "fill_blank"
-                  ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block min-w-16 border-b-2 border-primary text-center text-primary">?</span> : <React.Fragment key={index}>{part}</React.Fragment>)
-                  : currentQuestion.questionText}
-              </h2>
+              {currentQuestion.questionType !== "matching" ? (
+                <h2 className="text-xl font-semibold leading-relaxed sm:text-2xl">
+                  {currentQuestion.questionType === "fill_blank"
+                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block min-w-16 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{part}</React.Fragment>)
+                    : pinyinPromptParts
+                      ? <>{pinyinPromptParts[1]}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
+                    : currentQuestion.questionText}
+                </h2>
+              ) : null}
             </div>
-            {currentQuestion.questionType !== "speaking" ? <button type="button" aria-label="Putar soal" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border/70 text-muted-foreground transition-colors hover:text-foreground" onClick={() => speakMandarin(currentQuestion.questionText)}><Volume2 className="h-5 w-5" /></button> : null}
           </div>
 
           {needsChoice ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-3">
               {currentQuestion.options.map((option, optionIndex) => {
                 const selected = selectedOptionId === option.id
                 const correctOption = option.id === currentQuestion.correctOptionId
@@ -375,10 +458,12 @@ export default function ModulKuisPage() {
                 return (
                   <button key={option.id} type="button" disabled={isChecked} aria-pressed={selected} className={`flex min-h-16 items-center gap-3 rounded-2xl border p-4 text-left transition-colors disabled:cursor-default ${stateClass}`} onClick={() => setSelectedOptionId(option.id)}>
                     <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{optionIndex + 1}</span>
-                    <span className="text-sm font-medium sm:text-base">{option.text}</span>
-                    {option.pinyin ? <span className="text-sm text-muted-foreground">{option.pinyin}</span> : null}
-                    {isChecked && correctOption ? <CheckCircle2 className="ml-auto h-5 w-5 shrink-0 text-emerald-500" /> : null}
-                    {isChecked && selected && !correctOption ? <XCircle className="ml-auto h-5 w-5 shrink-0 text-red-500" /> : null}
+                    {answersArePinyin
+                      ? <TonePinyin text={option.text} className="text-sm font-medium sm:text-base" />
+                      : <span className="text-sm font-medium sm:text-base">{option.text}</span>}
+                    {option.pinyin ? <TonePinyin text={option.pinyin} className="text-sm" /> : null}
+                    {isChecked && correctOption ? <CheckCircle2 className="ml-auto hidden h-5 w-5 shrink-0 text-emerald-500 md:block" /> : null}
+                    {isChecked && selected && !correctOption ? <XCircle className="ml-auto hidden h-5 w-5 shrink-0 text-red-500 md:block" /> : null}
                   </button>
                 )
               })}
@@ -390,29 +475,52 @@ export default function ModulKuisPage() {
               <div className="flex min-h-20 flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-background/60 p-4">
                 {wordAnswer.length ? wordAnswer.map((tokenId, index) => {
                   const token = currentQuestion.options.find((option) => option.id === tokenId)
-                  return <button key={`${tokenId}-${index}`} type="button" disabled={isChecked} onClick={() => setWordAnswer((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-base font-medium">{token?.text ?? tokenId}</button>
+                  return (
+                    <button key={`${tokenId}-${index}`} type="button" disabled={isChecked} onClick={() => setWordAnswer((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="flex flex-col items-center gap-1 rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-base font-medium">
+                      <span>{token?.text ?? tokenId}</span>
+                      {!answersArePinyin && token?.pinyin ? <TonePinyin text={token.pinyin} className="text-xs" /> : null}
+                    </button>
+                  )
                 }) : <span className="text-sm text-muted-foreground">Ketuk kata untuk menyusun kalimat...</span>}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
                 {shuffledWordBank.map((token) => {
                   const used = wordAnswer.includes(token.id)
-                  return <button key={token.id} type="button" disabled={isChecked || used} onClick={() => setWordAnswer((current) => [...current, token.id])} className="rounded-xl border border-border/70 bg-card px-4 py-3 text-lg font-medium transition-colors hover:border-primary/60 disabled:opacity-35">{token.text}</button>
+                  return (
+                    <button key={token.id} type="button" disabled={isChecked || used} onClick={() => { setWordAnswer((current) => [...current, token.id]); speakMandarin(token.text) }} className="flex flex-col items-center gap-1 rounded-xl border border-border/70 bg-card px-4 py-3 text-lg font-medium transition-colors hover:border-primary/60 disabled:opacity-35">
+                      <span>{token.text}</span>
+                      {!answersArePinyin && token.pinyin ? <TonePinyin text={token.pinyin} className="text-xs" /> : null}
+                    </button>
+                  )
                 })}
               </div>
             </div>
           ) : null}
 
           {currentQuestion.questionType === "matching" && currentQuestion.matching ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-5">
+            <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-5">
               {[currentQuestion.matching.left, shuffledMatchingRight].map((items, columnIndex) => (
-                <div key={columnIndex} className="flex flex-col gap-2">
+                <div key={columnIndex} className="grid auto-rows-fr gap-2">
                   {items.map((item) => {
-                    const selected = columnIndex === 0 ? pendingMatchLeft === item.id : Object.values(matchingAnswer).includes(item.id)
+                    const matched = columnIndex === 0
+                      ? matchingAnswer[item.id] !== undefined
+                      : Object.values(matchingAnswer).includes(item.id)
+                    const selected = columnIndex === 0 ? pendingMatchLeft === item.id : matched
                     const matchedRight = columnIndex === 0 ? matchingAnswer[item.id] : undefined
-                    const label = columnIndex === 0 && matchedRight
-                      ? `${item.text}  ↔  ${currentQuestion.matching?.right.find((right) => right.id === matchedRight)?.text ?? ""}`
-                      : item.text
-                    return <button key={item.id} type="button" disabled={isChecked} onClick={() => columnIndex === 0 ? setPendingMatchLeft(item.id) : chooseMatchRight(item.id)} className={`min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${selected ? "border-primary bg-primary/10" : matchedRight ? "border-emerald-500/60 bg-emerald-500/5" : "border-border/70 hover:border-primary/50"}`}>{label}</button>
+                    const isWrong = columnIndex === 0
+                      ? matchingWrongLeftIds.includes(item.id)
+                      : matchingWrongRightIds.includes(item.id)
+                    return <button key={item.id} type="button" disabled={isChecked || matched} onClick={() => {
+                      if (columnIndex === 0) {
+                        if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+                        matchingWrongTimeoutRef.current = null
+                        setMatchingWrongLeftIds([])
+                        setMatchingWrongRightIds([])
+                        setPendingMatchLeft(item.id)
+                      } else {
+                        chooseMatchRight(item.id)
+                      }
+                    }} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-primary/50"}`}>{item.text}</button>
                   })}
                 </div>
               ))}
@@ -421,7 +529,8 @@ export default function ModulKuisPage() {
 
           {currentQuestion.questionType === "speaking" ? (
             <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-background/50 p-5 text-center">
-              <p className="text-sm text-muted-foreground">Tekan mikrofon, lalu ucapkan kalimat Mandarin. Nilai minimal 80% dihitung benar.</p>
+              <p className="text-3xl font-bold tracking-wide text-foreground">{currentQuestion.speakingTarget ?? correctAnswerText}</p>
+              <p className="text-sm text-muted-foreground">Tekan mikrofon, lalu ucapkan Hanzi di atas. Nilai minimal {currentQuestion.minimumAccuracy ?? 80}% dihitung benar.</p>
               <button type="button" disabled={isChecked || isRecording} onClick={startSpeakingAttempt} className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"><Mic className="h-7 w-7" /></button>
               {isRecording ? <button type="button" onClick={() => recognitionRef.current?.stop()} className="text-sm font-medium text-red-500">Berhenti merekam</button> : null}
               {speechResult ? <div className="space-y-1 text-sm"><p>Hasil yang terdengar: <strong>{speechResult.transcript}</strong></p><p className={speechResult.accuracy >= 80 ? "font-semibold text-emerald-500" : "font-semibold text-red-500"}>Akurasi {speechResult.accuracy}% · target 80%</p></div> : null}
@@ -430,22 +539,71 @@ export default function ModulKuisPage() {
             </div>
           ) : null}
 
-          {isChecked && (
-            <div className={`rounded-2xl p-4 text-sm font-medium ${isCorrect ? "bg-emerald-500/10 text-emerald-500" : "bg-red-500/10 text-red-500"}`}>
-              {isCorrect ? <span className="flex items-center gap-2"><CheckCircle2 className="h-5 w-5" />Jawaban kamu benar!</span> : <span className="flex items-center gap-2"><XCircle className="h-5 w-5" />{currentQuestion.questionType === "speaking" ? `Akurasi belum mencapai 80%. Target: ${currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text ?? ""}` : currentQuestion.questionType === "word_order" ? `Urutan benar: ${(currentQuestion.correctOrder ?? []).map((id) => currentQuestion.options.find((option) => option.id === id)?.text ?? id).join(" ")}` : currentQuestion.questionType === "matching" ? "Masih ada pasangan yang tertukar." : `Belum tepat. Jawaban benar: ${currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text ?? ""}`}</span>}
-            </div>
-          )}
         </section>
 
-        <footer className="flex items-center justify-between gap-3 border-t border-border/70 pt-4">
-          <button type="button" disabled={currentIndex === 0} onClick={handlePrevious} className="h-11 rounded-xl px-4 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:invisible"><ArrowLeft className="mr-1.5 inline h-4 w-4" />Sebelumnya</button>
-          {!isChecked ? (
-            <button type="button" disabled={!canCheckAnswer || isRecording} onClick={handleCheckAnswer} className="h-11 min-w-32 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">Periksa</button>
+        {!isChecked || feedbackDismissed ? <footer className={`flex items-center gap-3 border-t border-border/70 pt-4 ${currentIndex === 0 ? "justify-center md:justify-between" : "justify-between"}`}>
+          <button type="button" disabled={currentIndex === 0} onClick={handlePrevious} className={`h-11 rounded-xl px-4 text-sm text-muted-foreground transition-colors hover:text-foreground ${currentIndex === 0 ? "hidden md:inline-flex md:invisible" : ""}`}><ArrowLeft className="mr-1.5 inline h-4 w-4" />Sebelumnya</button>
+          {isChecked ? (
+            <button type="button" disabled={saving} onClick={handleNext} className={`h-11 min-w-32 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60 ${currentIndex === 0 ? "w-full md:w-auto" : ""}`}>{saving ? "Menyimpan…" : currentIndex === questions.length - 1 ? "Lihat Hasil" : "Lanjut"}</button>
           ) : (
-            <button type="button" disabled={saving} onClick={handleNext} className="h-11 min-w-32 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60">{saving ? "Menyimpan…" : currentIndex === questions.length - 1 ? "Lihat Hasil" : "Lanjut"}</button>
+            <button type="button" disabled={!canCheckAnswer || isRecording} onClick={handleCheckAnswer} className="h-11 min-w-32 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50">Periksa</button>
           )}
-        </footer>
+        </footer> : null}
       </main>
+
+      {isChecked && !feedbackDismissed ? (
+        <aside className="fixed inset-x-0 bottom-0 z-30 px-3 md:left-[var(--sidebar-width)] md:px-6" aria-live="polite">
+          <div className={`mx-auto flex w-full max-w-3xl animate-in slide-in-from-bottom-6 fade-in flex-col gap-3 rounded-t-3xl border-2 px-5 pt-5 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(0,0,0,0.22)] duration-300 md:rounded-3xl md:pb-4 ${isCorrect ? "border-emerald-500/40 bg-emerald-950 text-emerald-300" : "border-red-500/40 bg-red-950 text-red-200"}`}>
+            <div className="flex items-center gap-2 font-semibold">
+              {isCorrect ? <CheckCircle2 className="hidden h-5 w-5 shrink-0 md:block" /> : <XCircle className="hidden h-5 w-5 shrink-0 md:block" />}
+              {isCorrect ? "Jawaban kamu benar!" : currentQuestion.questionType === "speaking" ? `Akurasi belum mencapai ${currentQuestion.minimumAccuracy ?? 80}%.` : "Belum tepat. Pelajari jawaban yang benar:"}
+            </div>
+
+            {feedbackRows.length && currentQuestion.questionType !== "matching" ? (
+              <div className="flex items-start gap-3">
+                <button
+                  type="button"
+                  data-bottom-accent="off"
+                  disabled={!feedbackSpeechText}
+                  aria-label="Putar pelafalan Hanzi"
+                  onClick={() => feedbackSpeechText && speakMandarin(feedbackSpeechText)}
+                  className="flex min-w-0 flex-1 flex-col items-start gap-2 text-left disabled:cursor-default"
+                >
+                  {feedbackRows.map((row, index) => (
+                    <span key={index} className="flex min-w-0 flex-col items-start gap-0.5">
+                      <span className="text-lg font-bold text-white">{row.hanzi}</span>
+                      {row.pinyin ? <span><TonePinyin text={row.pinyin} className="text-sm" /></span> : null}
+                      {row.meaning ? <span className="text-sm text-white/75">{row.meaning}</span> : null}
+                    </span>
+                  ))}
+                </button>
+                <button
+                  type="button"
+                  data-bottom-accent="off"
+                  disabled={!feedbackSpeechText}
+                  aria-label="Putar Hanzi"
+                  onClick={() => feedbackSpeechText && speakMandarin(feedbackSpeechText)}
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-current/80 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+                >
+                  <Volume2 className="h-5 w-5" />
+                </button>
+              </div>
+            ) : !isCorrect ? (
+              <p className="text-sm text-white/80">
+                {currentQuestion.questionType === "word_order"
+                  ? `Urutan benar: ${(currentQuestion.correctOrder ?? []).map((id) => currentQuestion.options.find((option) => option.id === id)?.text ?? id).join(" ")}`
+                  : currentQuestion.questionType === "matching"
+                    ? "Masih ada pasangan yang tertukar."
+                    : `Jawaban benar: ${correctAnswerText}`}
+              </p>
+            ) : null}
+
+            <button type="button" disabled={saving} onClick={handleNext} className={`h-11 w-full rounded-xl font-bold transition-colors disabled:opacity-60 ${isCorrect ? "bg-emerald-500 text-emerald-950 hover:bg-emerald-400" : "bg-red-500 text-red-950 hover:bg-red-400"}`}>
+              {saving ? "Menyimpan…" : currentIndex === questions.length - 1 ? "Lihat Hasil" : "Lanjut"}
+            </button>
+          </div>
+        </aside>
+      ) : null}
     </div>
   )
 }

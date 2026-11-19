@@ -660,7 +660,7 @@ export default function TulisHanziPage() {
 
             {/*
               Kanvas + kolom tombol dibungkus bareng kartu contoh dalam satu
-              wrapper yang lebarnya di desktop dipatok pas selebar konten
+              wrapper yang lebarnya di mobile mengikuti lebar kanvas, dan di desktop dipatok pas selebar konten
               kanvas+tombol (288px kanvas + 12px gap + 96px kolom tombol =
               396px) — supaya gap di antara kanvas & tombol tetap rapat
               (bukan melebar ikut sisa ruang), dan kartu contoh di bawahnya
@@ -709,7 +709,7 @@ export default function TulisHanziPage() {
                 </div>
 
                 {/* 3 tombol kontrol berlabel (Jiplak dihapus — redundan dgn Strict) */}
-                <div className="grid grid-cols-3 md:grid-cols-1 md:grid-rows-3 w-full md:w-24 gap-2">
+                <div className="grid w-full max-w-[288px] grid-cols-3 gap-2 mx-auto md:mx-0 md:max-w-none md:w-24 md:grid-cols-1 md:grid-rows-3">
                   <button
                     onClick={handleClear}
                     title="Ulangi karakter ini (R)"
@@ -751,7 +751,7 @@ export default function TulisHanziPage() {
 
               {/* Contoh penggunaan — di bawah tombol, cuma render kalau ada datanya */}
               {card.exampleSentence && (
-                <div className="w-full flex flex-col gap-1.5 p-4 rounded-2xl border border-border/50 bg-card/60">
+                <div className="mx-auto w-full max-w-[288px] flex flex-col gap-1.5 p-4 rounded-2xl border border-border/50 bg-card/60 md:max-w-none md:mx-0">
                   <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
                     Contoh · penggunaan
                   </div>

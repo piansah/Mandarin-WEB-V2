@@ -365,6 +365,7 @@ export const FlashcardShowcase = ({
       <div className="mx-auto grid w-full max-w-[300px] grid-cols-3 gap-2">
         <button
           type="button"
+          data-bottom-accent-tone="surface"
           onClick={goPrev}
           className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >
@@ -372,6 +373,7 @@ export const FlashcardShowcase = ({
         </button>
         <button
           type="button"
+          data-bottom-accent-tone="surface"
           onClick={hideAnswer}
           className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >
@@ -379,6 +381,7 @@ export const FlashcardShowcase = ({
         </button>
         <button
           type="button"
+          data-bottom-accent-tone="surface"
           onClick={skip}
           className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
         >

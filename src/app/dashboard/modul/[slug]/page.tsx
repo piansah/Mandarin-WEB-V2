@@ -34,6 +34,7 @@ export default function ModulDetailPage() {
   const [activePartIndex, setActivePartIndex] = React.useState(0)
   const [bookmarked, setBookmarked] = React.useState(false)
   const [savingBookmark, setSavingBookmark] = React.useState(false)
+  const pageTopRef = React.useRef<HTMLDivElement>(null)
 
   React.useEffect(() => {
     let active = true
@@ -88,6 +89,7 @@ export default function ModulDetailPage() {
 
   async function goToPart(index: number) {
     if (index < 0 || index >= parts.length) return
+    pageTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     setActivePartIndex(index)
     const isLast = index === parts.length - 1
     // Kalau modul ini punya kuis, jangan tandai "completed" hanya karena
@@ -123,7 +125,7 @@ export default function ModulDetailPage() {
   }
 
   return (
-    <div className="flex flex-col max-w-6xl mx-auto p-4 md:p-6 gap-8 text-foreground">
+    <div ref={pageTopRef} className="flex flex-col max-w-6xl mx-auto p-4 md:p-6 gap-8 text-foreground">
 
       {/* Top Bar: Breadcrumbs & Progress */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur pb-4 pt-4 md:pt-6 -mt-4 md:-mt-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-sm text-muted-foreground border-b mb-4">
@@ -200,7 +202,7 @@ export default function ModulDetailPage() {
                 ? detail.hasQuiz
                   ? "Lanjut ke kuis"
                   : "Selesaikan modul"
-                : `Lanjut ke ${parts[activePartIndex + 1]?.title ?? "bagian berikutnya"}`}
+                : "Bagian selanjutnya"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
@@ -338,12 +340,12 @@ function PartContent({ part }: { part: ModulPart }) {
               <BookOpen className="w-5 h-5" />
               Kosakata
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-2 sm:gap-4">
               {part.vocabParts.map((v, i) => (
-                <div key={`vocab-${i}`} className="bg-card border rounded-xl p-4 hover:border-primary/50 transition-colors">
+                <div key={`vocab-${i}`} className="bg-card border rounded-xl p-3 sm:p-4 hover:border-primary/50 transition-colors">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold text-primary">{v.hanzi}</span>
+                      <span className="text-xl sm:text-2xl font-bold text-primary">{v.hanzi}</span>
                       <button
                         title="Dengarkan (TTS)"
                         onClick={() => {

@@ -133,6 +133,7 @@ export function SwipeFlashcardSession({
           </div>
           <button
             type="button"
+            data-bottom-accent="off"
             aria-label="Pengaturan sesi"
             onClick={() => session.setShowSettings(true)}
             className="shrink-0 h-7 w-7 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"

@@ -54,11 +54,11 @@ export function VocabularyTabs({ children }: { children: React.ReactNode }) {
   return (
     <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
       <TabsList className="grid w-full max-w-md grid-cols-2">
-        <TabsTrigger value="deck">
+        <TabsTrigger value="deck" data-bottom-accent="off">
           <BookOpen className="h-4 w-4 mr-2" />
           Deck
         </TabsTrigger>
-        <TabsTrigger value="search">
+        <TabsTrigger value="search" data-bottom-accent="off">
           <Search className="h-4 w-4 mr-2" />
           Cari Kosakata
         </TabsTrigger>
