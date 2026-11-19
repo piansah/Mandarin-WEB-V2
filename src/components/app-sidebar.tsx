@@ -6,15 +6,16 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
   Languages,
+  BookOpen,
   Settings,
   User,
   LogOut,
   Bug,
-  Target,
   BarChart3,
   ClipboardList,
   FolderOpen,
   Shield,
+  UserRound,
 } from "lucide-react"
 import {
   Sidebar,
@@ -60,12 +61,6 @@ const learningItems = [
     icon: LayoutDashboard,
   },
   {
-    title: "Peta Belajar",
-    subtitle: "Jalur belajar Mandarin kamu",
-    url: "/dashboard/path",
-    icon: Target,
-  },
-  {
     title: "Modul",
     subtitle: "Materi belajar terstruktur",
     url: "/dashboard/modul",
@@ -78,10 +73,22 @@ const learningItems = [
     icon: Languages,
   },
   {
+    title: "Membaca",
+    subtitle: "Cerita Mandarin dan pemahaman bacaan",
+    url: "/dashboard/cerita",
+    icon: BookOpen,
+  },
+  {
     title: "Statistik",
     subtitle: "Pantau progres dan pencapaian",
     url: "/dashboard/statistik",
     icon: BarChart3,
+  },
+  {
+    title: "Profil",
+    subtitle: "Profil dan pencapaianmu",
+    url: "/dashboard/profile",
+    icon: UserRound,
   },
   {
     title: "Simulasi Ujian HSK",

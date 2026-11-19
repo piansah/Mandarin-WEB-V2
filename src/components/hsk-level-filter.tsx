@@ -63,6 +63,7 @@ export function HskLevelFilter({
                 <button
                   key={level}
                   type="button"
+                  data-bottom-accent="off"
                   role="option"
                   aria-selected={selectedLevel === level}
                   aria-disabled={locked}

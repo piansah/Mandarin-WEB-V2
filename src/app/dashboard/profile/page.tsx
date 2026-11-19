@@ -24,6 +24,7 @@ import {
   BADGES,
   type UserProfile,
 } from "@/lib/user-profile"
+import { getHighestUnlockedTier } from "@/lib/tier-unlock"
 import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart } from "lucide-react"
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
@@ -141,12 +142,26 @@ export default function ProfilePage() {
 
   // Prioritas tampilan: preview lokal → custom upload → emoji fallback
   const displaySrc = previewUrl ?? profile.customAvatarUrl ?? undefined
+  const tierWatermarks = {
+    pemula: "学",
+    menengah: "中",
+    lanjut: "进",
+    master: "熟",
+    fasih: "通",
+  } as const
+  const profileWatermark = tierWatermarks[getHighestUnlockedTier(profile.unlockedTiers)]
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Profile Card */}
-      <Card>
-        <CardContent className="p-6">
+      <Card className="relative isolate overflow-hidden">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-10 -right-2 z-0 select-none font-hanzi text-[15rem] font-black leading-none text-primary/[0.045]"
+        >
+          {profileWatermark}
+        </span>
+        <CardContent className="relative z-10 p-6">
           <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
             {/* Avatar with upload button */}
             <div className="relative shrink-0">

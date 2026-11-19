@@ -29,6 +29,7 @@ import {
   Sunset,
   ChevronDown,
   Network,
+  Map as MapIcon,
   type LucideIcon,
 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -47,6 +48,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { useRouter } from "next/navigation"
 import { speakMandarin } from "@/lib/tts"
 import { getHanziReadProgressBySet } from "@/lib/user-scores"
+import { fetchLearningPath, type PathStep } from "@/lib/path"
 
 type LevelBreakdown = {
   mudah: number
@@ -194,6 +196,7 @@ export default function DashboardPage() {
   const supa = useSupabase()
   const router = useRouter()
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
+  const [learningPath, setLearningPath] = React.useState<PathStep[]>([])
   const [loading, setLoading] = React.useState(true)
   const [srsStats, setSrsStats] = React.useState<SrsStats | null>(null)
   const [nextDeck, setNextDeck] = React.useState<{ id: number; title: string; hsk_level: number } | null>(null)
@@ -654,6 +657,11 @@ export default function DashboardPage() {
         // gagal atau koneksi Supabase bermasalah.
         if (active) setLoading(false)
       })
+    fetchLearningPath()
+      .then((steps) => {
+        if (active) setLearningPath(steps)
+      })
+      .catch((error) => console.error("Gagal memuat ringkasan peta belajar:", error))
     loadSrsStats()
     loadNextContent()
     return () => {
@@ -752,6 +760,35 @@ export default function DashboardPage() {
           </Badge>
         </div>
       </div>
+
+      {(() => {
+        const activeStep = learningPath.find((step) => step.status === "active")
+        const currentStep = activeStep ?? learningPath.find((step) => step.status === "completed") ?? learningPath[0]
+        if (!currentStep) return null
+
+        return (
+          <Card className="overflow-hidden border-border/60 bg-card/60">
+            <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <MapIcon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-primary">Peta belajar · {currentStep.status === "active" ? "Tahap aktif" : "Progres terakhir"}</p>
+                  <h2 className="mt-1 truncate text-lg font-bold">{currentStep.title}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{currentStep.progressCompleted}/{currentStep.progressTotal} aktivitas selesai · {currentStep.progress}%</p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-3 sm:w-56">
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-primary/15" aria-label={`Progres ${currentStep.progress}%`}>
+                  <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${currentStep.progress}%` }} />
+                </div>
+                <Link href="/dashboard/path" className="text-sm font-semibold text-primary hover:underline">Lihat roadmap</Link>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       <div className="grid gap-4 lg:gap-y-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.9fr)] lg:items-stretch">
       {/* Konten utama + kolom samping. `lg:contents` menempatkan hero dan streak

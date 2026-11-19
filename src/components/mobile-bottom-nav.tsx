@@ -2,15 +2,15 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, BookOpen, Languages, LayoutDashboard, Map, UserRound } from "lucide-react"
+import { BarChart3, BookMarked, BookOpen, Languages, LayoutDashboard, UserRound } from "lucide-react"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
 const navigationItems = [
   { label: "Beranda", shortLabel: "Beranda", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Peta Belajar", shortLabel: "Peta Belajar", href: "/dashboard/path", icon: Map },
   { label: "Modul", shortLabel: "Modul", href: "/dashboard/modul", icon: BookOpen },
   { label: "Daftar Kata", shortLabel: "Daftar Kata", href: "/dashboard/flashcard", icon: Languages },
+  { label: "Membaca", shortLabel: "Membaca", href: "/dashboard/cerita", icon: BookMarked },
   { label: "Statistik", shortLabel: "Statistik", href: "/dashboard/statistik", icon: BarChart3 },
   { label: "Profil", shortLabel: "Profil", href: "/dashboard/profile", icon: UserRound },
 ]

@@ -28,7 +28,7 @@ export default async function PathPage() {
           <Map className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Peta Belajar</h1>
         </div>
-        <p className="text-sm text-muted-foreground">Persentase menghitung aktivitas tuntas: modul sampai lulus kuis, setiap deck dari kuisnya, dan setiap Estafet dari kuisnya.</p>
+        <p className="text-sm text-muted-foreground">Persentase menghitung aktivitas tuntas: modul sampai lulus kuis, setiap deck dari kuisnya, dan setiap bacaan dari kuis pemahamannya.</p>
       </div>
 
       <div className="relative mt-4">
@@ -96,8 +96,8 @@ export default async function PathPage() {
                             <span>{step.vocabCount} Kata ({step.deckCount} Deck)</span>
                           </Link>
                           <Link href="/dashboard/cerita" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
-                            <Map className="w-3.5 h-3.5" />
-                            <span>{step.estafetCount} Estafet</span>
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span>{step.readingCount} Membaca</span>
                           </Link>
                         </div>
                       </div>
