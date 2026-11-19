@@ -152,9 +152,10 @@ export default function ProfilePage() {
             <div className="relative shrink-0">
               <button
                 type="button"
+                data-bottom-accent="off"
                 onClick={handleAvatarClick}
                 disabled={uploading}
-                className="relative group focus:outline-none"
+                className="relative group rounded-full focus:outline-none"
                 title="Klik untuk ganti foto profil"
               >
                 <Avatar className="h-24 w-24 border-4 border-primary">
@@ -392,13 +393,15 @@ export default function ProfilePage() {
           <CardDescription>Atau pilih avatar emoji sebagai fallback saat tidak ada foto</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-5 md:grid-cols-10 gap-4">
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
             {AVATAR_OPTIONS.map((option) => (
               <button
                 key={option.id}
+                type="button"
+                data-bottom-accent="off"
                 onClick={() => handleSelectAvatar(option.id)}
                 disabled={saving}
-                className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all hover:border-primary/50 ${profile.avatar === option.emoji ? "border-primary bg-primary/10" : "border-border"
+                className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 transition-colors hover:border-primary/50 ${profile.avatar === option.emoji ? "border-primary bg-primary/10" : "border-border"
                   }`}
               >
                 <div className="text-3xl">{option.emoji}</div>
