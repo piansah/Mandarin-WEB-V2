@@ -3,6 +3,8 @@
 // memakai jarak Levenshtein, lalu menerjemahkan skor kemiripan itu jadi
 // label feedback yang mudah dipahami (Sempurna, Benar, dst).
 
+export const PRONUNCIATION_PASS_THRESHOLD = 80
+
 export function normalizeChinese(str: string) {
   return str
     .replace(/[，,、。．？?！!；;：:＂"＇'「」『』【】（）()〈〉《》〔〕［］｛｝·\s]/g, "")

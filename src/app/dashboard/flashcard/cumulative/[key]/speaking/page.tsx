@@ -21,6 +21,7 @@ import { saveUserScore } from "@/lib/user-scores"
 import {
   scorePronunciation,
   classifyPronunciation,
+  PRONUNCIATION_PASS_THRESHOLD,
   type PronunciationTone,
 } from "@/lib/pronunciation-scoring"
 import styles from "./page.module.css"
@@ -278,7 +279,7 @@ export default function SpeakingPracticePage() {
     const pct = scores.length ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0
     const circumference = 2 * Math.PI * 54
     const ringOffset = circumference - (pct / 100) * circumference
-    const pctColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
+    const pctColor = pct >= PRONUNCIATION_PASS_THRESHOLD ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
 
     return (
       <div className={styles.page}>
@@ -430,11 +431,11 @@ export default function SpeakingPracticePage() {
             <div className="mx-auto w-full max-w-6xl px-4 py-4">
               <Button
                 onClick={result ? handleNext : handleSkip}
-                disabled={result ? (result.score ?? 0) < 75 : true}
+                disabled={result ? (result.score ?? 0) < PRONUNCIATION_PASS_THRESHOLD : true}
                 className="w-full"
                 size="lg"
               >
-                {result && (result.score ?? 0) < 75 ? `Akurasi ${result.score}% - butuh 75%` : "Lanjutkan"}
+                {result && (result.score ?? 0) < PRONUNCIATION_PASS_THRESHOLD ? `Akurasi ${result.score}% - butuh ${PRONUNCIATION_PASS_THRESHOLD}%` : "Lanjutkan"}
               </Button>
             </div>
           </div>

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Mic, Bookmark, ChevronRight, CheckCircle2, BookOpen, ArrowLeft, ArrowRight, HelpCircle, MessageSquare, Volume2 } from "lucide-react"
+import { speakMandarin } from "@/lib/tts"
 
 import {
   fetchModuleDetail,
@@ -347,12 +348,10 @@ function PartContent({ part }: { part: ModulPart }) {
                     <div className="flex items-center justify-between">
                       <span className="text-xl sm:text-2xl font-bold text-primary">{v.hanzi}</span>
                       <button
+                        type="button"
+                        data-bottom-accent="off"
                         title="Dengarkan (TTS)"
-                        onClick={() => {
-                          const utterance = new SpeechSynthesisUtterance(v.hanzi)
-                          utterance.lang = "zh-CN"
-                          window.speechSynthesis.speak(utterance)
-                        }}
+                        onClick={() => speakMandarin(v.hanzi)}
                         className="text-muted-foreground hover:text-primary transition-colors"
                       >
                         <Volume2 className="w-5 h-5" />
@@ -395,12 +394,10 @@ function PartContent({ part }: { part: ModulPart }) {
                         <div className="flex items-center gap-2">
                           {k.hanzi}
                           <button
+                            type="button"
+                            data-bottom-accent="off"
                             title="Dengarkan (TTS)"
-                            onClick={() => {
-                              const utterance = new SpeechSynthesisUtterance(k.hanzi)
-                              utterance.lang = "zh-CN"
-                              window.speechSynthesis.speak(utterance)
-                            }}
+                            onClick={() => speakMandarin(k.hanzi)}
                             className="text-muted-foreground hover:text-primary transition-colors"
                           >
                             <Volume2 className="w-4 h-4" />

@@ -14,7 +14,7 @@ import { TonePinyin } from "@/components/tone-pinyin"
 import { playErrorSound, playQuizCorrectSound, playSuccessSound } from "@/lib/audio-fx"
 import { fetchModuleQuiz, saveQuizResult, type ModulQuiz } from "@/lib/modul"
 import { speakMandarin } from "@/lib/tts"
-import { scorePronunciation } from "@/lib/pronunciation-scoring"
+import { PRONUNCIATION_PASS_THRESHOLD, scorePronunciation } from "@/lib/pronunciation-scoring"
 import { shuffle } from "@/lib/array-utils"
 
 type SavedQuizState = {
@@ -40,6 +40,14 @@ function parsedAnswer(value: string | undefined): unknown {
   try { return JSON.parse(value) as unknown } catch { return value }
 }
 
+function renderReadableQuestionText(text: string) {
+  return text.split(/([\p{Script=Han}]+)/gu).map((part, index) =>
+    /\p{Script=Han}/u.test(part)
+      ? <span key={index} className="font-hanzi" style={{ fontWeight: 400, letterSpacing: "normal" }}>{part}</span>
+      : <React.Fragment key={index}>{part}</React.Fragment>
+  )
+}
+
 function answerIsCorrect(question: ModulQuiz["questions"][number], answer: string | undefined): boolean {
   if (answer === undefined) return false
   if (question.questionType === "word_order") {
@@ -55,7 +63,7 @@ function answerIsCorrect(question: ModulQuiz["questions"][number], answer: strin
   }
   if (question.questionType === "speaking") {
     const result = parsedAnswer(answer)
-    const minimumAccuracy = question.minimumAccuracy ?? 80
+    const minimumAccuracy = question.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD
     return Boolean(result && typeof result === "object" && "accuracy" in result && Number(result.accuracy) >= minimumAccuracy)
   }
   return answer === question.correctOptionId
@@ -66,10 +74,17 @@ function playAnswerFeedback(correct: boolean, source: "answer" | "match" = "answ
     if (source === "match") playSuccessSound()
     else playQuizCorrectSound()
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.(32)
+    return source === "match" ? 450 : 850
   } else {
     playErrorSound()
     if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.([45, 35, 45])
+    return 400
   }
+}
+
+function getFeedbackSpeechText(question: ModulQuiz["questions"][number]): string {
+  const hanzi = question.feedback?.hanzi
+  return (Array.isArray(hanzi) ? hanzi : [hanzi]).filter(Boolean).join(" ")
 }
 
 function readQuizState(): Record<string, SavedQuizState> {
@@ -102,6 +117,21 @@ export default function ModulKuisPage() {
   const [isRecording, setIsRecording] = React.useState(false)
   const [feedbackDismissed, setFeedbackDismissed] = React.useState(false)
   const recognitionRef = React.useRef<SpeechRecognitionLike | null>(null)
+  const feedbackTtsTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function cancelPendingFeedbackSpeech() {
+    if (feedbackTtsTimeoutRef.current) clearTimeout(feedbackTtsTimeoutRef.current)
+    feedbackTtsTimeoutRef.current = null
+  }
+
+  function queueFeedbackSpeech(text: string, delayMs: number) {
+    cancelPendingFeedbackSpeech()
+    if (!text) return
+    feedbackTtsTimeoutRef.current = setTimeout(() => {
+      feedbackTtsTimeoutRef.current = null
+      speakMandarin(text, { silent: true, rate: 0.8 })
+    }, delayMs)
+  }
 
   React.useEffect(() => {
     let active = true
@@ -143,9 +173,17 @@ export default function ModulKuisPage() {
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined
   const isChecked = currentAnswer !== undefined
   const isCorrect = Boolean(currentQuestion && answerIsCorrect(currentQuestion, currentAnswer))
+  const earnedAccuracy = questions.reduce((total, question) => {
+    const answer = answers[question.id]
+    if (question.questionType === "speaking") {
+      const result = parsedAnswer(answer)
+      return total + (result && typeof result === "object" && "accuracy" in result ? Math.max(0, Math.min(100, Number(result.accuracy) || 0)) : 0)
+    }
+    return total + (answerIsCorrect(question, answer) ? 100 : 0)
+  }, 0)
   const correctCount = questions.filter((question) => answerIsCorrect(question, answers[question.id])).length
   const progress = questions.length ? (currentIndex / questions.length) * 100 : 0
-  const scorePercent = questions.length ? Math.round((correctCount / questions.length) * 100) : 0
+  const scorePercent = questions.length ? Math.round(earnedAccuracy / questions.length) : 0
   const passed = Boolean(quiz && scorePercent >= quiz.passingScore)
 
   React.useEffect(() => {
@@ -166,6 +204,7 @@ export default function ModulKuisPage() {
   React.useEffect(() => () => {
     recognitionRef.current?.stop()
     if (matchingWrongTimeoutRef.current) clearTimeout(matchingWrongTimeoutRef.current)
+    if (feedbackTtsTimeoutRef.current) clearTimeout(feedbackTtsTimeoutRef.current)
   }, [])
 
   const shuffledWordBank = React.useMemo(
@@ -216,7 +255,9 @@ export default function ModulKuisPage() {
     }
     const nextAnswers = { ...answers, [currentQuestion.id]: answerValue }
     if (currentQuestion.questionType !== "matching") {
-      playAnswerFeedback(answerIsCorrect(currentQuestion, answerValue))
+      const correct = answerIsCorrect(currentQuestion, answerValue)
+      const soundDuration = playAnswerFeedback(correct)
+      queueFeedbackSpeech(getFeedbackSpeechText(currentQuestion), soundDuration)
     }
     setAnswers(nextAnswers)
     setFeedbackDismissed(false)
@@ -241,10 +282,12 @@ export default function ModulKuisPage() {
     setSpeechResult(null)
     const recognition = new Recognition()
     recognition.lang = "zh-CN"
-    recognition.interimResults = false
+    recognition.interimResults = true
     recognition.maxAlternatives = 1
     recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript.trim()
+      const spoken = event.results[0]
+      const transcript = spoken[0].transcript.trim()
+      if (!spoken.isFinal) return
       setSpeechResult({ transcript, accuracy: scorePronunciation(transcript, target) })
       setIsRecording(false)
     }
@@ -285,6 +328,7 @@ export default function ModulKuisPage() {
 
   async function handleNext() {
     if (!quiz || !currentQuestion || !isChecked) return
+    cancelPendingFeedbackSpeech()
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1
       setFeedbackDismissed(false)
@@ -308,6 +352,7 @@ export default function ModulKuisPage() {
 
   function handlePrevious() {
     if (currentIndex <= 0) return
+    cancelPendingFeedbackSpeech()
     const previousIndex = currentIndex - 1
     setFeedbackDismissed(true)
     setCurrentIndex(previousIndex)
@@ -316,6 +361,7 @@ export default function ModulKuisPage() {
   }
 
   function handleRetry() {
+    cancelPendingFeedbackSpeech()
     setAnswers({})
     setFeedbackDismissed(false)
     setSelectedOptionId(null)
@@ -384,7 +430,7 @@ export default function ModulKuisPage() {
     word_order: "Susun kalimat",
     sentence_choice: "Pilih kalimat",
     matching: "Cocokkan pasangan",
-    speaking: "Latihan speaking",
+    speaking: "Berbicara",
   }
   const typeLabel = typeLabels[currentQuestion.questionType] ?? "Pilih jawaban"
   const answersArePinyin = /\bpinyin\b/i.test(currentQuestion.questionText)
@@ -438,10 +484,10 @@ export default function ModulKuisPage() {
               {currentQuestion.questionType !== "matching" ? (
                 <h2 className="text-xl font-semibold leading-relaxed sm:text-2xl">
                   {currentQuestion.questionType === "fill_blank"
-                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block min-w-16 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{part}</React.Fragment>)
+                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block min-w-12 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{renderReadableQuestionText(part)}</React.Fragment>)
                     : pinyinPromptParts
-                      ? <>{pinyinPromptParts[1]}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
-                    : currentQuestion.questionText}
+                      ? <>{renderReadableQuestionText(pinyinPromptParts[1])}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
+                    : renderReadableQuestionText(currentQuestion.questionText)}
                 </h2>
               ) : null}
             </div>
@@ -487,7 +533,7 @@ export default function ModulKuisPage() {
                 {shuffledWordBank.map((token) => {
                   const used = wordAnswer.includes(token.id)
                   return (
-                    <button key={token.id} type="button" disabled={isChecked || used} onClick={() => { setWordAnswer((current) => [...current, token.id]); speakMandarin(token.text) }} className="flex flex-col items-center gap-1 rounded-xl border border-border/70 bg-card px-4 py-3 text-lg font-medium transition-colors hover:border-primary/60 disabled:opacity-35">
+                    <button key={token.id} type="button" disabled={isChecked || used} onClick={() => { setWordAnswer((current) => [...current, token.id]); if (!answersArePinyin) speakMandarin(token.text) }} className="flex flex-col items-center gap-1 rounded-xl border border-border/70 bg-card px-4 py-3 text-lg font-medium transition-colors hover:border-primary/60 disabled:opacity-35">
                       <span>{token.text}</span>
                       {!answersArePinyin && token.pinyin ? <TonePinyin text={token.pinyin} className="text-xs" /> : null}
                     </button>
@@ -520,7 +566,7 @@ export default function ModulKuisPage() {
                       } else {
                         chooseMatchRight(item.id)
                       }
-                    }} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-primary/50"}`}>{item.text}</button>
+                    }} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-border hover:bg-muted/40"}`}>{item.text}</button>
                   })}
                 </div>
               ))}
@@ -530,12 +576,12 @@ export default function ModulKuisPage() {
           {currentQuestion.questionType === "speaking" ? (
             <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-background/50 p-5 text-center">
               <p className="text-3xl font-bold tracking-wide text-foreground">{currentQuestion.speakingTarget ?? correctAnswerText}</p>
-              <p className="text-sm text-muted-foreground">Tekan mikrofon, lalu ucapkan Hanzi di atas. Nilai minimal {currentQuestion.minimumAccuracy ?? 80}% dihitung benar.</p>
+              <p className="text-sm text-muted-foreground">Tekan mikrofon, lalu ucapkan Hanzi di atas. Nilai minimal {currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD}% dihitung lulus.</p>
               <button type="button" disabled={isChecked || isRecording} onClick={startSpeakingAttempt} className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"><Mic className="h-7 w-7" /></button>
-              {isRecording ? <button type="button" onClick={() => recognitionRef.current?.stop()} className="text-sm font-medium text-red-500">Berhenti merekam</button> : null}
-              {speechResult ? <div className="space-y-1 text-sm"><p>Hasil yang terdengar: <strong>{speechResult.transcript}</strong></p><p className={speechResult.accuracy >= 80 ? "font-semibold text-emerald-500" : "font-semibold text-red-500"}>Akurasi {speechResult.accuracy}% · target 80%</p></div> : null}
+              {isRecording ? <button type="button" data-bottom-accent="off" onClick={() => recognitionRef.current?.stop()} className="text-sm font-medium text-red-500">Berhenti merekam</button> : null}
+              {speechResult ? <div className="space-y-1 text-sm"><p>Hasil yang terdengar: <strong>{speechResult.transcript}</strong></p><p className={speechResult.accuracy >= (currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD) ? "font-semibold text-emerald-500" : "font-semibold text-red-500"}>Akurasi {speechResult.accuracy}% · target {currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD}%</p></div> : null}
               {speechError ? <p className="text-sm text-red-500">{speechError}</p> : null}
-              {speechResult && !isChecked ? <button type="button" onClick={startSpeakingAttempt} className="text-sm text-primary hover:underline">Rekam ulang</button> : null}
+              {speechResult && !isChecked ? <button type="button" data-bottom-accent="off" onClick={startSpeakingAttempt} className="text-sm text-primary hover:underline">Rekam ulang</button> : null}
             </div>
           ) : null}
 
@@ -556,7 +602,7 @@ export default function ModulKuisPage() {
           <div className={`mx-auto flex w-full max-w-3xl animate-in slide-in-from-bottom-6 fade-in flex-col gap-3 rounded-t-3xl border-2 px-5 pt-5 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-12px_32px_rgba(0,0,0,0.22)] duration-300 md:rounded-3xl md:pb-4 ${isCorrect ? "border-emerald-500/40 bg-emerald-950 text-emerald-300" : "border-red-500/40 bg-red-950 text-red-200"}`}>
             <div className="flex items-center gap-2 font-semibold">
               {isCorrect ? <CheckCircle2 className="hidden h-5 w-5 shrink-0 md:block" /> : <XCircle className="hidden h-5 w-5 shrink-0 md:block" />}
-              {isCorrect ? "Jawaban kamu benar!" : currentQuestion.questionType === "speaking" ? `Akurasi belum mencapai ${currentQuestion.minimumAccuracy ?? 80}%.` : "Belum tepat. Pelajari jawaban yang benar:"}
+              {isCorrect ? "Jawaban kamu benar!" : currentQuestion.questionType === "speaking" ? `Akurasi belum mencapai ${currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD}%.` : "Belum tepat. Pelajari jawaban yang benar:"}
             </div>
 
             {feedbackRows.length && currentQuestion.questionType !== "matching" ? (
