@@ -471,6 +471,7 @@ export default function ModulKuisPage() {
   const correctAnswerText = currentQuestion.options.find((option) => option.id === currentQuestion.correctOptionId)?.text
     ?? currentQuestion.speakingTarget
     ?? ""
+  const questionHanziMark = currentQuestion.questionText.match(/[\u3400-\u9fff]/)?.[0] ?? "学"
   const feedbackValues = (value: string | string[] | undefined) =>
     value === undefined ? [] : Array.isArray(value) ? value : [value]
   const feedbackHanzi = feedbackValues(currentQuestion.feedback?.hanzi)
@@ -506,24 +507,26 @@ export default function ModulKuisPage() {
       />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-8">
-        <section className="flex flex-1 flex-col justify-center gap-5 rounded-3xl border border-border/70 bg-card p-5 sm:p-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">{typeLabel} · Soal {currentIndex + 1}</p>
-              {currentQuestion.questionType !== "matching" && currentQuestion.questionType !== "speaking" ? (
-                <h2 className="text-xl font-semibold leading-relaxed sm:text-2xl">
-                  {currentQuestion.questionType === "fill_blank"
-                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block w-8 min-w-0 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{renderReadableQuestionText(part)}</React.Fragment>)
-                    : pinyinPromptParts
-                      ? <>{renderReadableQuestionText(pinyinPromptParts[1])}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
-                    : renderReadableQuestionText(currentQuestion.questionText)}
-                </h2>
-              ) : null}
+        <section className="relative isolate flex flex-1 flex-col justify-center gap-5 overflow-hidden rounded-3xl border border-border/70 bg-card p-5 pt-14 sm:p-8 sm:pt-16">
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-12 -right-4 z-0 select-none font-hanzi text-[11rem] font-black leading-none text-primary/[0.045] sm:-bottom-16 sm:right-2 sm:text-[14rem]">{questionHanziMark}</span>
+          <span className="absolute right-5 top-5 z-10 rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-xs font-semibold tabular-nums text-muted-foreground sm:right-8 sm:top-8">{String(currentIndex + 1).padStart(2, "0")} / {String(questions.length).padStart(2, "0")}</span>
+          <div className="relative z-10">
+            <div className="mb-3 pr-20">
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-primary">{typeLabel}</span>
             </div>
+            {currentQuestion.questionType !== "matching" && currentQuestion.questionType !== "speaking" ? (
+              <h2 className="relative z-10 text-xl font-semibold leading-relaxed sm:text-2xl">
+                {currentQuestion.questionType === "fill_blank"
+                  ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block w-8 min-w-0 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{renderReadableQuestionText(part)}</React.Fragment>)
+                  : pinyinPromptParts
+                    ? <>{renderReadableQuestionText(pinyinPromptParts[1])}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
+                    : renderReadableQuestionText(currentQuestion.questionText)}
+              </h2>
+            ) : null}
           </div>
 
           {needsChoice ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="relative z-10 grid grid-cols-2 gap-3">
               {currentQuestion.options.map((option, optionIndex) => {
                 const selected = selectedOptionId === option.id
                 const correctOption = option.id === currentQuestion.correctOptionId
@@ -531,7 +534,7 @@ export default function ModulKuisPage() {
                   ? correctOption ? "border-emerald-500 bg-emerald-500/10 text-foreground" : selected ? "border-red-500 bg-red-500/10 text-foreground" : "border-border/50 opacity-55"
                   : selected ? "border-primary bg-primary/10 text-foreground" : "border-border/70 hover:border-primary/60 hover:bg-muted/40"
                 return (
-                  <button key={option.id} type="button" disabled={isChecked} aria-pressed={selected} className={`flex min-h-16 items-center gap-3 rounded-2xl border p-4 text-left transition-colors disabled:cursor-default ${stateClass}`} onClick={() => setSelectedOptionId(option.id)}>
+                  <button key={option.id} type="button" disabled={isChecked} aria-pressed={selected} className={`relative z-10 flex min-h-16 items-center gap-3 rounded-2xl border p-4 text-left transition-colors disabled:cursor-default ${selected && !isChecked ? "quiz-choice-selected" : ""} ${stateClass}`} onClick={() => setSelectedOptionId(option.id)}>
                     <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{optionIndex + 1}</span>
                     {answersArePinyin
                       ? <TonePinyin text={option.text} className="text-sm font-medium sm:text-base" />
@@ -546,12 +549,12 @@ export default function ModulKuisPage() {
           ) : null}
 
           {currentQuestion.questionType === "word_order" ? (
-            <div className="flex flex-col gap-5">
+            <div className="relative z-10 flex flex-col gap-5">
               <div className="flex min-h-20 flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-background/60 p-4">
                 {wordAnswer.length ? wordAnswer.map((tokenId, index) => {
                   const token = currentQuestion.options.find((option) => option.id === tokenId)
                   return (
-                    <button key={`${tokenId}-${index}`} type="button" disabled={isChecked} onClick={() => setWordAnswer((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="flex flex-col items-center gap-1 rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-base font-medium">
+                    <button key={`${tokenId}-${index}`} type="button" disabled={isChecked} onClick={() => setWordAnswer((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="quiz-choice-selected relative z-10 flex flex-col items-center gap-1 rounded-xl border border-primary/50 bg-primary/10 px-3 py-2 text-base font-medium">
                       <span>{token?.text ?? tokenId}</span>
                       {!answersArePinyin && token?.pinyin ? <TonePinyin text={token.pinyin} className="text-xs" /> : null}
                     </button>
@@ -573,7 +576,7 @@ export default function ModulKuisPage() {
           ) : null}
 
           {currentQuestion.questionType === "matching" && currentQuestion.matching ? (
-            <div className="grid grid-cols-2 items-stretch gap-3 sm:gap-5">
+            <div className="relative z-10 grid grid-cols-2 items-stretch gap-3 sm:gap-5">
               {[currentQuestion.matching.left, shuffledMatchingRight].map((items, columnIndex) => (
                 <div key={columnIndex} className="grid auto-rows-fr gap-2">
                   {items.map((item) => {
@@ -595,7 +598,7 @@ export default function ModulKuisPage() {
                       } else {
                         chooseMatchRight(item.id)
                       }
-                    }} data-bottom-accent={isWrong || matchedRight || (columnIndex === 1 && matched) || selected ? "on" : "off"} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-border hover:bg-muted/40"}`}>{item.text}</button>
+                    }} data-bottom-accent={isWrong || matchedRight || (columnIndex === 1 && matched) || selected ? "on" : "off"} className={`relative z-10 h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${selected && !isWrong ? "quiz-choice-selected" : ""} ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-border hover:bg-muted/40"}`}>{item.text}</button>
                   })}
                 </div>
               ))}
@@ -603,7 +606,7 @@ export default function ModulKuisPage() {
           ) : null}
 
           {currentQuestion.questionType === "speaking" ? (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-background/50 p-5 text-center">
+            <div className="relative z-10 flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-background/50 p-5 text-center">
               <p className="text-3xl font-bold tracking-wide text-foreground">{currentQuestion.speakingTarget ?? correctAnswerText}</p>
               <button type="button" disabled={isChecked || isRecording} onClick={startSpeakingAttempt} className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"><Mic className="h-7 w-7" /></button>
               {isRecording ? <button type="button" data-bottom-accent="off" onClick={() => recognitionRef.current?.stop()} className="text-sm font-medium text-red-500">Berhenti merekam</button> : null}
