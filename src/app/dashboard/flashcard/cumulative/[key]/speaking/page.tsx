@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
@@ -277,15 +278,13 @@ export default function SpeakingPracticePage() {
 
   if (practiceComplete) {
     const pct = scores.length ? Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0
-    const circumference = 2 * Math.PI * 54
-    const ringOffset = circumference - (pct / 100) * circumference
     const pctColor = pct >= PRONUNCIATION_PASS_THRESHOLD ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
 
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
           {/* Result Content */}
-          <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+          <ResultSequence className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             {/*
               Signature: watermark hanzi besar di belakang ring, gaya
               sama persis dengan watermark yang muncul di flashcard session.
@@ -298,24 +297,7 @@ export default function SpeakingPracticePage() {
             </div>
 
             {/* Ring akurasi rata-rata */}
-            <div className="relative z-10 flex items-center justify-center">
-              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                <circle
-                  cx="60" cy="60" r="54" fill="none"
-                  stroke={pctColor}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={ringOffset}
-                  style={{ transition: "stroke 400ms ease" }}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-              </div>
-            </div>
+            <ResultScoreRing value={pct} color={pctColor} />
 
             {/* Rincian penilaian */}
             <div className="flex flex-wrap justify-center gap-2 relative z-10">
@@ -341,7 +323,7 @@ export default function SpeakingPracticePage() {
                 Ulangi
               </button>
             </div>
-          </div>
+          </ResultSequence>
         </div>
       </div>
     )

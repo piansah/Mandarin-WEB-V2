@@ -14,6 +14,7 @@ import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import { saveUserScore } from "@/lib/user-scores"
 import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 import styles from "./page.module.css"
@@ -338,16 +339,6 @@ export default function NadaPracticePage() {
   // Benar beruntun (reset ke 0 begitu salah satu kali) — metrik yang lebih
   // relevan buat drilling nada dibanding stat SRS ala flashcard.
   const [streak, setStreak] = React.useState(0)
-  // Nilai yang dianimasikan naik ke akurasi final di layar "Latihan
-  // Selesai" (lihat effect animasi di bawah).
-  const [resultRingValue, setResultRingValue] = React.useState(0)
-  const prefersReducedMotionRef = React.useRef(false)
-
-  React.useEffect(() => {
-    prefersReducedMotionRef.current =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  }, [])
 
   React.useEffect(() => {
     async function load() {
@@ -501,33 +492,6 @@ export default function NadaPracticePage() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [q, done, showResult, choices, idx])
 
-  // Animasikan ring akurasi di layar "Latihan Selesai" begitu sesi tuntas.
-  React.useEffect(() => {
-    if (!done || total === 0) {
-      setResultRingValue(0)
-      return
-    }
-    const target = Math.round((correct / total) * 100)
-
-    if (prefersReducedMotionRef.current) {
-      setResultRingValue(target)
-      return
-    }
-
-    setResultRingValue(0)
-    let raf = 0
-    const start = performance.now()
-    const duration = 900
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / duration)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setResultRingValue(Math.round(eased * target))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
-    return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
-  }, [done, total, correct])
-
   if (loading) {
     return <PageLoader className={styles.page} />
   }
@@ -536,13 +500,11 @@ export default function NadaPracticePage() {
     const pct = total > 0 ? Math.round((correct / total) * 100) : 0
     const wrong = total - correct
     const ringColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
-    const circumference = 2 * Math.PI * 54
-    const ringOffset = circumference - (resultRingValue / 100) * circumference
 
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 relative z-10 min-h-0">
-          <div className="nada-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 overflow-hidden min-h-0">
+          <ResultSequence enabled={total > 0} className="nada-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 overflow-hidden min-h-0">
             {total === 0 ? (
               <>
                 <div className="text-6xl">📭</div>
@@ -563,24 +525,7 @@ export default function NadaPracticePage() {
                   <p className="text-sm text-muted-foreground">{total} soal dijawab</p>
                 </div>
 
-                <div className="nada-result-ring relative z-10 flex items-center justify-center">
-                  <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                    <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                    <circle
-                      cx="60" cy="60" r="54" fill="none"
-                      stroke={ringColor}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={ringOffset}
-                      style={{ transition: "stroke 400ms ease" }}
-                    />
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-                  </div>
-                </div>
+                <div className="nada-result-ring" data-result-score-ring><ResultScoreRing value={pct} color={ringColor} /></div>
 
                 {/*
                   Sengaja cuma 2 kategori (Benar/Salah), bukan 4 kayak
@@ -607,26 +552,8 @@ export default function NadaPracticePage() {
                 </div>
               </>
             )}
-          </div>
+          </ResultSequence>
 
-          <style dangerouslySetInnerHTML={{
-            __html: `
-            .nada-result { animation: nadaResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
-            .nada-result-watermark { animation: nadaWatermarkFade 900ms ease 80ms both; }
-            .nada-result-title { animation: nadaResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
-            .nada-result-ring { animation: nadaResultPop 620ms cubic-bezier(.2,1.4,.4,1) 200ms both; }
-            .nada-result-stats { animation: nadaResultRise 420ms cubic-bezier(.22,1,.36,1) 360ms both; }
-            .nada-result-actions { animation: nadaResultRise 420ms cubic-bezier(.22,1,.36,1) 460ms both; }
-            @keyframes nadaResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes nadaResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.8); } 70% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes nadaResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes nadaWatermarkFade { from { opacity: 0; } to { opacity: 1; } }
-            @media (prefers-reduced-motion: reduce) {
-              .nada-result, .nada-result-watermark, .nada-result-title, .nada-result-ring, .nada-result-stats, .nada-result-actions {
-                animation: none !important;
-              }
-            }
-          ` }} />
         </div>
       </div>
     )

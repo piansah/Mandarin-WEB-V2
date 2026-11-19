@@ -10,9 +10,10 @@ import { ArrowLeft, CheckCircle2, Mic, RotateCcw, Volume2, XCircle } from "lucid
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { playErrorSound, playQuizCorrectSound, playSuccessSound } from "@/lib/audio-fx"
-import { fetchModuleQuiz, saveQuizResult, type ModulQuiz } from "@/lib/modul"
+import { fetchModuleQuiz, fetchSavedModuleQuizResult, saveQuizResult, type ModulQuiz, type ModulQuizResult } from "@/lib/modul"
 import { speakMandarin } from "@/lib/tts"
 import { PRONUNCIATION_PASS_THRESHOLD, scorePronunciation } from "@/lib/pronunciation-scoring"
 import { shuffle } from "@/lib/array-utils"
@@ -99,6 +100,7 @@ export default function ModulKuisPage() {
   const params = useParams<{ slug: string }>()
   const router = useRouter()
   const [quiz, setQuiz] = React.useState<ModulQuiz | null>(null)
+  const [savedQuizResult, setSavedQuizResult] = React.useState<ModulQuizResult | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [answers, setAnswers] = React.useState<Record<string, string>>({})
@@ -106,6 +108,7 @@ export default function ModulKuisPage() {
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [finished, setFinished] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+  const [syncError, setSyncError] = React.useState<string | null>(null)
   const [wordAnswer, setWordAnswer] = React.useState<string[]>([])
   const [matchingAnswer, setMatchingAnswer] = React.useState<Record<string, string>>({})
   const [matchingWrongLeftIds, setMatchingWrongLeftIds] = React.useState<string[]>([])
@@ -137,7 +140,7 @@ export default function ModulKuisPage() {
     let active = true
     setLoading(true)
     fetchModuleQuiz(params.slug)
-      .then((data) => {
+      .then(async (data) => {
         if (!active) return
         if (!data || data.questions.length === 0) {
           setError("Kuis untuk modul ini belum tersedia.")
@@ -146,12 +149,23 @@ export default function ModulKuisPage() {
 
         const storageKey = `modul_quiz_${params.slug}`
         const existing = readQuizState()[storageKey]
+        const savedResult = await fetchSavedModuleQuizResult(data.moduleId)
+        if (!active) return
         setFeedbackDismissed(false)
         setQuiz(data)
         if (existing && !existing.finished) {
+          setSavedQuizResult(null)
+          setFinished(false)
           setAnswers(existing.answers ?? {})
           setCurrentIndex(Math.min(existing.currentIndex ?? 0, data.questions.length - 1))
+        } else if (savedResult) {
+          setSavedQuizResult(savedResult)
+          setFinished(true)
+          setAnswers({})
+          setCurrentIndex(0)
         } else {
+          setSavedQuizResult(null)
+          setFinished(false)
           setAnswers({})
           setCurrentIndex(0)
           const savedState = readQuizState()
@@ -181,10 +195,13 @@ export default function ModulKuisPage() {
     }
     return total + (answerIsCorrect(question, answer) ? 100 : 0)
   }, 0)
-  const correctCount = questions.filter((question) => answerIsCorrect(question, answers[question.id])).length
+  const computedCorrectCount = questions.filter((question) => answerIsCorrect(question, answers[question.id])).length
   const progress = questions.length ? (currentIndex / questions.length) * 100 : 0
-  const scorePercent = questions.length ? Math.round(earnedAccuracy / questions.length) : 0
-  const passed = Boolean(quiz && scorePercent >= quiz.passingScore)
+  const computedScorePercent = questions.length ? Math.round(earnedAccuracy / questions.length) : 0
+  const correctCount = savedQuizResult?.correctCount ?? computedCorrectCount
+  const resolvedWrongCount = savedQuizResult?.wrongCount ?? Math.max(0, questions.length - correctCount)
+  const scorePercent = savedQuizResult?.scorePercent ?? computedScorePercent
+  const passed = savedQuizResult?.passed ?? Boolean(quiz && scorePercent >= quiz.passingScore)
 
   React.useEffect(() => {
     if (!currentQuestion) return
@@ -254,9 +271,9 @@ export default function ModulKuisPage() {
       answerValue = selectedOptionId
     }
     const nextAnswers = { ...answers, [currentQuestion.id]: answerValue }
+    const correct = answerIsCorrect(currentQuestion, answerValue)
+    const soundDuration = playAnswerFeedback(correct)
     if (currentQuestion.questionType !== "matching") {
-      const correct = answerIsCorrect(currentQuestion, answerValue)
-      const soundDuration = playAnswerFeedback(correct)
       queueFeedbackSpeech(getFeedbackSpeechText(currentQuestion), soundDuration)
     }
     setAnswers(nextAnswers)
@@ -340,11 +357,22 @@ export default function ModulKuisPage() {
 
     setSaving(true)
     try {
-      await saveQuizResult(quiz.moduleId, scorePercent, passed)
+      const savedResult = await saveQuizResult(quiz.moduleId, scorePercent, passed, correctCount, questions.length)
+      setSavedQuizResult(savedResult)
+      setSyncError(null)
       saveState(answers, currentIndex, true)
       setFinished(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Skor kuis gagal disimpan.")
+      setSavedQuizResult({
+        scorePercent,
+        passed,
+        correctCount,
+        wrongCount: Math.max(0, questions.length - correctCount),
+        questionCount: questions.length,
+      })
+      setSyncError(err instanceof Error ? err.message : "Skor kuis gagal disinkronkan.")
+      saveState(answers, currentIndex, true)
+      setFinished(true)
     } finally {
       setSaving(false)
     }
@@ -363,6 +391,8 @@ export default function ModulKuisPage() {
   function handleRetry() {
     cancelPendingFeedbackSpeech()
     setAnswers({})
+    setSavedQuizResult(null)
+    setSyncError(null)
     setFeedbackDismissed(false)
     setSelectedOptionId(null)
     setCurrentIndex(0)
@@ -386,37 +416,41 @@ export default function ModulKuisPage() {
   }
 
   if (finished) {
-    const circumference = 2 * Math.PI * 54
-    const ringOffset = circumference - (scorePercent / 100) * circumference
     const scoreColor = passed ? "#34d399" : "#f87171"
     return (
-      <div className="relative flex min-h-[calc(100dvh-5rem)] flex-col items-center justify-center gap-7 overflow-hidden p-5 text-foreground sm:p-8">
+      <ResultSequence className="relative flex min-h-[calc(100dvh-5rem)] flex-col items-center justify-center gap-7 overflow-hidden p-5 text-foreground sm:p-8">
         <ResultWatermark />
         <div className="relative z-10 flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold sm:text-3xl">{passed ? "Kuis Selesai!" : "Perlu Mengulang"}</h1>
-          <p className="text-sm text-muted-foreground">{questions.length} soal dijawab · Batas lulus {quiz.passingScore}%</p>
+          <p className="text-sm text-muted-foreground">{savedQuizResult?.questionCount ?? questions.length} soal dijawab · Batas lulus {quiz.passingScore}%</p>
         </div>
 
-        <div className="relative z-10 flex items-center justify-center">
-          <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-            <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-            <circle cx="60" cy="60" r="54" fill="none" stroke={scoreColor} strokeWidth="10" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={ringOffset} />
-          </svg>
-          <div className="absolute flex flex-col items-center">
-            <span className="text-4xl font-bold tabular-nums">{scorePercent}%</span>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-          </div>
-        </div>
+        <ResultScoreRing value={scorePercent} color={scoreColor} />
 
         <div className="relative z-10 max-w-sm rounded-2xl border border-border/60 bg-background/75 p-4 text-center text-sm text-muted-foreground">
           {passed ? "Bagus! Modul ini berhasil diselesaikan." : `Skor kamu ${scorePercent}%. Coba ulangi kuis untuk mencapai nilai ${quiz.passingScore}%.`}
+        </div>
+
+        {syncError ? <p className="relative z-10 max-w-sm text-center text-xs text-amber-500">Nilai hanya tersedia di perangkat ini: {syncError}</p> : null}
+
+        <div className="relative z-10 flex flex-wrap justify-center gap-2">
+          <div className="flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 py-1.5 pl-2 pr-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500"><CheckCircle2 className="h-3.5 w-3.5" /></span>
+            <span className="text-sm font-semibold tabular-nums text-emerald-500">{correctCount}</span>
+            <span className="text-xs text-muted-foreground">Benar</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 py-1.5 pl-2 pr-3">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-500"><XCircle className="h-3.5 w-3.5" /></span>
+            <span className="text-sm font-semibold tabular-nums text-red-500">{resolvedWrongCount}</span>
+            <span className="text-xs text-muted-foreground">Salah</span>
+          </div>
         </div>
 
         <div className="relative z-10 flex w-full max-w-sm gap-3">
           <button type="button" className="h-12 flex-1 rounded-2xl border border-border/60 bg-background transition-colors hover:bg-muted/50" onClick={() => router.push(`/dashboard/modul/${params.slug}`)}>Kembali</button>
           {!passed && <button type="button" className="h-12 flex-1 rounded-2xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90" onClick={handleRetry}><RotateCcw className="mr-2 inline h-4 w-4" />Ulangi</button>}
         </div>
-      </div>
+      </ResultSequence>
     )
   }
 
@@ -472,19 +506,14 @@ export default function ModulKuisPage() {
       />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-8">
-        <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
-          <Link href={`/dashboard/modul/${params.slug}`} className="inline-flex items-center gap-1.5 hover:text-foreground"><ArrowLeft className="h-4 w-4" /> Keluar ke modul</Link>
-          <span>{quiz.levelLabel}</span>
-        </div>
-
         <section className="flex flex-1 flex-col justify-center gap-5 rounded-3xl border border-border/70 bg-card p-5 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-primary">{typeLabel} · Soal {currentIndex + 1}</p>
-              {currentQuestion.questionType !== "matching" ? (
+              {currentQuestion.questionType !== "matching" && currentQuestion.questionType !== "speaking" ? (
                 <h2 className="text-xl font-semibold leading-relaxed sm:text-2xl">
                   {currentQuestion.questionType === "fill_blank"
-                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block min-w-12 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{renderReadableQuestionText(part)}</React.Fragment>)
+                    ? promptParts.map((part, index) => /^_{2,}$/.test(part) ? <span key={index} className="mx-1 inline-block w-8 min-w-0 border-b-2 border-primary align-baseline" aria-label="Bagian kosong" /> : <React.Fragment key={index}>{renderReadableQuestionText(part)}</React.Fragment>)
                     : pinyinPromptParts
                       ? <>{renderReadableQuestionText(pinyinPromptParts[1])}<TonePinyin text={pinyinPromptParts[2]} className="font-semibold" /></>
                     : renderReadableQuestionText(currentQuestion.questionText)}
@@ -566,7 +595,7 @@ export default function ModulKuisPage() {
                       } else {
                         chooseMatchRight(item.id)
                       }
-                    }} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-border hover:bg-muted/40"}`}>{item.text}</button>
+                    }} data-bottom-accent={isWrong || matchedRight || (columnIndex === 1 && matched) || selected ? "on" : "off"} className={`h-full min-h-14 rounded-2xl border p-3 text-sm font-medium transition-colors sm:p-4 sm:text-base ${isWrong ? "border-red-500 bg-red-500/10 text-red-400" : matchedRight || (columnIndex === 1 && matched) ? "border-emerald-500/60 bg-emerald-500/5" : selected ? "border-primary bg-primary/10" : "border-border/70 hover:border-border hover:bg-muted/40"}`}>{item.text}</button>
                   })}
                 </div>
               ))}
@@ -576,7 +605,6 @@ export default function ModulKuisPage() {
           {currentQuestion.questionType === "speaking" ? (
             <div className="flex flex-col items-center gap-4 rounded-2xl border border-border/60 bg-background/50 p-5 text-center">
               <p className="text-3xl font-bold tracking-wide text-foreground">{currentQuestion.speakingTarget ?? correctAnswerText}</p>
-              <p className="text-sm text-muted-foreground">Tekan mikrofon, lalu ucapkan Hanzi di atas. Nilai minimal {currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD}% dihitung lulus.</p>
               <button type="button" disabled={isChecked || isRecording} onClick={startSpeakingAttempt} className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"><Mic className="h-7 w-7" /></button>
               {isRecording ? <button type="button" data-bottom-accent="off" onClick={() => recognitionRef.current?.stop()} className="text-sm font-medium text-red-500">Berhenti merekam</button> : null}
               {speechResult ? <div className="space-y-1 text-sm"><p>Hasil yang terdengar: <strong>{speechResult.transcript}</strong></p><p className={speechResult.accuracy >= (currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD) ? "font-semibold text-emerald-500" : "font-semibold text-red-500"}>Akurasi {speechResult.accuracy}% · target {currentQuestion.minimumAccuracy ?? PRONUNCIATION_PASS_THRESHOLD}%</p></div> : null}

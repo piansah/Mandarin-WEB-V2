@@ -24,6 +24,7 @@ import { speakMandarin } from "@/lib/tts"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import { saveUserScore } from "@/lib/user-scores"
 import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
 import styles from "./page.module.css"
@@ -130,8 +131,6 @@ export default function TulisHanziPage() {
   const [strokeCount, setStrokeCount] = React.useState<number | null>(null)
   const [strokeProgress, setStrokeProgress] = React.useState(0)
 
-  const [resultRingValue, setResultRingValue] = React.useState(0)
-  const prefersReducedMotionRef = React.useRef(false)
 
   const writerRef = React.useRef<HanziWriterLike | null>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -144,12 +143,6 @@ export default function TulisHanziPage() {
   const idxRef = React.useRef(0)
   const charIdxRef = React.useRef(0)
   const totalRef = React.useRef(0)
-
-  React.useEffect(() => {
-    prefersReducedMotionRef.current =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  }, [])
 
   React.useEffect(() => {
     async function load() {
@@ -469,12 +462,8 @@ export default function TulisHanziPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card, done, loading, hintPlaying, strictMode])
 
-  // Animasikan ring akurasi di layar akhir, sama persis pola di Nada.
   React.useEffect(() => {
-    if (!done || total === 0) {
-      setResultRingValue(0)
-      return
-    }
+    if (!done || total === 0) return
     const target = Math.round((cleanCount / total) * 100)
 
     // Save score when session completes (but not for personal decks)
@@ -482,23 +471,6 @@ export default function TulisHanziPage() {
       saveUserScore("tulis_session", String(deckId), target).catch(() => { })
     }
 
-    if (prefersReducedMotionRef.current) {
-      setResultRingValue(target)
-      return
-    }
-
-    setResultRingValue(0)
-    let raf = 0
-    const start = performance.now()
-    const duration = 900
-    function tick(now: number) {
-      const t = Math.min(1, (now - start) / duration)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setResultRingValue(Math.round(eased * target))
-      if (t < 1) raf = requestAnimationFrame(tick)
-    }
-    const delay = setTimeout(() => { raf = requestAnimationFrame(tick) }, 150)
-    return () => { clearTimeout(delay); if (raf) cancelAnimationFrame(raf) }
   }, [done, total, cleanCount])
 
   if (loading) {
@@ -509,13 +481,11 @@ export default function TulisHanziPage() {
     const pct = total > 0 ? Math.round((cleanCount / total) * 100) : 0
     const withMistakes = correct - cleanCount
     const ringColor = pct >= 80 ? "#34d399" : pct >= 50 ? "#f59e0b" : "#f87171"
-    const circumference = 2 * Math.PI * 54
-    const ringOffset = circumference - (resultRingValue / 100) * circumference
 
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 relative z-10 min-h-0">
-          <div className="tulis-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 overflow-hidden min-h-0">
+          <ResultSequence enabled={total > 0} className="tulis-result relative flex flex-col flex-1 items-center justify-center gap-7 p-8 overflow-hidden min-h-0">
             {total === 0 ? (
               <>
                 <div className="flex items-center justify-center h-16 w-16 rounded-full bg-muted/40 text-muted-foreground">
@@ -538,24 +508,7 @@ export default function TulisHanziPage() {
                   <p className="text-sm text-muted-foreground">{total} kosakata ditulis</p>
                 </div>
 
-                <div className="tulis-result-ring relative z-10 flex items-center justify-center">
-                  <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                    <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                    <circle
-                      cx="60" cy="60" r="54" fill="none"
-                      stroke={ringColor}
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={ringOffset}
-                      style={{ transition: "stroke 400ms ease" }}
-                    />
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="text-4xl font-bold text-foreground tabular-nums">{resultRingValue}%</span>
-                    <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi Bersih</span>
-                  </div>
-                </div>
+                <div className="tulis-result-ring" data-result-score-ring><ResultScoreRing value={pct} color={ringColor} label="Akurasi Bersih" /></div>
 
                 {/*
                   "Bersih" (selesai dalam batas toleransi kesalahan, lihat
@@ -583,26 +536,8 @@ export default function TulisHanziPage() {
                 </div>
               </>
             )}
-          </div>
+          </ResultSequence>
 
-          <style dangerouslySetInnerHTML={{
-            __html: `
-            .tulis-result { animation: tulisResultEnter 520ms cubic-bezier(.22,1,.36,1) both; }
-            .tulis-result-watermark { animation: tulisWatermarkFade 900ms ease 80ms both; }
-            .tulis-result-title { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 80ms both; }
-            .tulis-result-ring { animation: tulisResultPop 620ms cubic-bezier(.2,1.4,.4,1) 200ms both; }
-            .tulis-result-stats { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 360ms both; }
-            .tulis-result-actions { animation: tulisResultRise 420ms cubic-bezier(.22,1,.36,1) 460ms both; }
-            @keyframes tulisResultEnter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes tulisResultPop { 0% { opacity: 0; transform: translateY(10px) scale(.8); } 70% { opacity: 1; transform: translateY(0) scale(1.05); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-            @keyframes tulisResultRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-            @keyframes tulisWatermarkFade { from { opacity: 0; } to { opacity: 1; } }
-            @media (prefers-reduced-motion: reduce) {
-              .tulis-result, .tulis-result-watermark, .tulis-result-title, .tulis-result-ring, .tulis-result-stats, .tulis-result-actions {
-                animation: none !important;
-              }
-            }
-          ` }} />
         </div>
       </div>
     )

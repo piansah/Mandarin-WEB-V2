@@ -11,6 +11,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { speakMandarin } from "@/lib/tts"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import { PageLoader, FullscreenLoader } from "@/components/page-loader"
 import { deleteUserScore, saveUserScore } from "@/lib/user-scores"
 import { generateQuizFromCards, type QuizQuestion as GeneratedQuizQuestion, type Card } from "@/lib/quiz-generator"
@@ -550,13 +551,10 @@ export default function QuizPage() {
       : totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0
     const { grade, msg } = getGrade(pct, quizTitle)
     const pctColor = pct >= 80 ? "#4ade80" : pct >= 60 ? "#e8d23e" : "#f87171"
-    const circumference = 2 * Math.PI * 54
-    const ringOffset = circumference - (pct / 100) * circumference
-
     return (
       <div className={styles.page}>
         <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
-          <div className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
+          <ResultSequence className="relative flex flex-col flex-1 items-center justify-center gap-7 p-8 bg-background overflow-hidden min-h-0">
             <ResultWatermark />
 
             <div className="flex flex-col items-center gap-1 relative z-10 text-center px-2">
@@ -564,24 +562,7 @@ export default function QuizPage() {
               <p className="text-sm text-muted-foreground text-center">{msg}</p>
             </div>
 
-            <div className="relative z-10 flex items-center justify-center">
-              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                <circle
-                  cx="60" cy="60" r="54" fill="none"
-                  stroke={pctColor}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={ringOffset}
-                  style={{ transition: "stroke 400ms ease" }}
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
-                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-              </div>
-            </div>
+            <ResultScoreRing value={pct} color={pctColor} />
 
             {!isDbOnly && (
               <div className="flex flex-wrap justify-center gap-2 relative z-10">
@@ -613,7 +594,7 @@ export default function QuizPage() {
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
               <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => setRepeatConfirmAction("retry")}>Ulangi</button>
             </div>
-          </div>
+          </ResultSequence>
         </div>
         <Dialog open={repeatConfirmAction === "retry"} onOpenChange={open => { if (!open) setRepeatConfirmAction(null) }}>
           <DialogContent className="sm:max-w-[420px]">

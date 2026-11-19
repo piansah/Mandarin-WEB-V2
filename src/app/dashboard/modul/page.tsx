@@ -244,10 +244,10 @@ export default function ModulPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Langkah berikutnya / aktif · {countActive}</SelectItem>
-                <SelectItem value="all">Semua modul · {hskModules.length}</SelectItem>
-                <SelectItem value="completed">Selesai · {countCompleted}</SelectItem>
-                <SelectItem value="not_started">Belum mulai · {countNotStarted}</SelectItem>
+                <SelectItem data-bottom-accent="off" value="active">Langkah berikutnya / aktif · {countActive}</SelectItem>
+                <SelectItem data-bottom-accent="off" value="all">Semua modul · {hskModules.length}</SelectItem>
+                <SelectItem data-bottom-accent="off" value="completed">Selesai · {countCompleted}</SelectItem>
+                <SelectItem data-bottom-accent="off" value="not_started">Belum mulai · {countNotStarted}</SelectItem>
               </SelectContent>
             </Select>
             <Select
@@ -258,9 +258,9 @@ export default function ModulPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua HSK</SelectItem>
+                <SelectItem data-bottom-accent="off" value="all">Semua HSK</SelectItem>
                 {levels.map((level) => (
-                  <SelectItem key={level.id} value={level.code}>
+                  <SelectItem data-bottom-accent="off" key={level.id} value={level.code}>
                     {level.code.replace("hsk", "HSK ").toUpperCase()}
                   </SelectItem>
                 ))}

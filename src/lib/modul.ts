@@ -501,6 +501,45 @@ export type ModulQuiz = {
   questions: ModulQuizQuestion[]
 }
 
+export type ModulQuizResult = {
+  scorePercent: number
+  passed: boolean
+  correctCount: number
+  wrongCount: number
+  questionCount: number
+}
+
+/** Ambil hasil kuis modul terakhir milik pengguna agar bisa dipulihkan lintas perangkat. */
+export async function fetchSavedModuleQuizResult(moduleId: string): Promise<ModulQuizResult | null> {
+  const supa = createClient()
+  const { data: { user } } = await supa.auth.getUser()
+  if (!user) return null
+
+  const { data, error } = await supa
+    .from("user_scores")
+    .select("score, meta")
+    .eq("user_id", user.id)
+    .eq("type", "quiz")
+    .eq("key", `module:${moduleId}`)
+    .maybeSingle()
+
+  if (error) {
+    console.warn("[modul] Gagal memuat hasil kuis tersimpan:", error.message)
+    return null
+  }
+
+  const meta = data?.meta as Record<string, unknown> | null
+  if (!meta || meta.module_quiz !== true) return null
+
+  return {
+    scorePercent: Number(meta.latest_score ?? data?.score) || 0,
+    passed: meta.passed === true,
+    correctCount: Number(meta.correct_count) || 0,
+    wrongCount: Number(meta.wrong_count) || 0,
+    questionCount: Number(meta.question_count) || 0,
+  }
+}
+
 /** Ambil soal kuis untuk modul berdasarkan slug.
  *  Tabel: modul_quiz_questions.
  *  JSONB options menyimpan pilihan, bank kata, atau pasangan sesuai question_type. */
@@ -647,12 +686,25 @@ export async function saveQuizResult(
   moduleId: string,
   scorePercent: number,
   passed: boolean,
-): Promise<void> {
+  correctCount: number,
+  questionCount: number,
+): Promise<ModulQuizResult> {
   const supa = createClient()
   const {
     data: { user },
   } = await supa.auth.getUser()
-  if (!user) return
+  if (!user) throw new Error("Sesi pengguna tidak ditemukan; hasil kuis tidak dapat disimpan.")
+
+  const wrongCount = Math.max(0, questionCount - correctCount)
+  const { error: quizScoreError } = await saveUserScore("quiz", `module:${moduleId}`, scorePercent, {
+    module_quiz: true,
+    latest_score: scorePercent,
+    passed,
+    correct_count: correctCount,
+    wrong_count: wrongCount,
+    question_count: questionCount,
+  })
+  if (quizScoreError) throw new Error(`Hasil kuis gagal disimpan: ${quizScoreError}`)
 
   if (passed) {
     // Tandai modul selesai di modul_user_module_progress
@@ -672,4 +724,6 @@ export async function saveQuizResult(
     const { error: scoreError } = await saveUserScore("modul", `module:${moduleId}`, 100)
     if (scoreError) console.warn("[modul] Gagal menyimpan skor kuis modul:", scoreError)
   }
+
+  return { scorePercent, passed, correctCount, wrongCount, questionCount }
 }

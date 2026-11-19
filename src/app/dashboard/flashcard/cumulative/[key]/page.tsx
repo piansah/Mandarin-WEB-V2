@@ -15,6 +15,7 @@ import { ReportModal } from "@/components/report-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { PracticeHeader } from "@/components/practice-header"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import {
   Drawer,
   DrawerClose,
@@ -376,7 +377,8 @@ export default function CumulativeFlashcardSessionPage() {
           {completedCount === items.length && items.length > 0 && (
             <div className="grid gap-3 md:grid-cols-2">
               <Card className="w-full border-border/50 bg-card/50 backdrop-blur-sm shadow-lg md:col-span-2">
-                <CardContent className="flex flex-col items-center gap-6 p-8 relative overflow-hidden">
+                <CardContent className="relative overflow-hidden p-0">
+                <ResultSequence className="flex flex-col items-center gap-6 p-8">
                   {/*
                     Signature: watermark emoji besar di belakang ring, gaya
                     sama persis dengan watermark yang muncul di flashcard session.
@@ -389,29 +391,7 @@ export default function CumulativeFlashcardSessionPage() {
                   </div>
 
                   {/* Ring akurasi */}
-                  <div className="relative z-10 flex items-center justify-center">
-                    {(() => {
-                      const circumference = 2 * Math.PI * 54
-                      return (
-                        <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                          <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                          <circle
-                            cx="60" cy="60" r="54" fill="none"
-                            stroke="#34d399"
-                            strokeWidth="10"
-                            strokeLinecap="round"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={0}
-                            style={{ transition: "stroke 400ms ease" }}
-                          />
-                        </svg>
-                      )
-                    })()}
-                    <div className="absolute flex flex-col items-center">
-                      <span className="text-4xl font-bold text-foreground tabular-nums">100%</span>
-                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Akurasi</span>
-                    </div>
-                  </div>
+                  <ResultScoreRing value={100} color="#34d399" />
 
                   {/* Rincian penilaian */}
                   <div className="flex flex-wrap justify-center gap-2 relative z-10">
@@ -432,6 +412,7 @@ export default function CumulativeFlashcardSessionPage() {
                       <RotateCcw className="h-4 w-4 mr-2" />{resettingProgress ? "Mengulang..." : "Ulangi dari awal"}
                     </Button>
                   </div>
+                </ResultSequence>
                 </CardContent>
               </Card>
             </div>

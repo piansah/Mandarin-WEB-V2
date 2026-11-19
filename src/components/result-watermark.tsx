@@ -13,6 +13,7 @@ export function ResultWatermark({ pattern = DEFAULT_PATTERN, className = "" }: R
   return (
     <div
       aria-hidden="true"
+      data-result-watermark
       className={`absolute inset-0 grid grid-cols-3 grid-rows-4 place-items-center overflow-hidden select-none pointer-events-none font-hanzi text-foreground/[0.055] dark:text-foreground/[0.075] lg:grid-cols-6 lg:grid-rows-5 ${className}`}
     >
       {Array.from({ length: WATERMARK_COUNT }, (_, index) => (

@@ -7,6 +7,7 @@
 import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
 import { ResultWatermark } from "@/components/result-watermark"
+import { ResultScoreRing, ResultSequence } from "@/components/result-sequence"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
@@ -1057,7 +1058,8 @@ function QuizResult({
 
   return (
     <Card className="w-full border-border/50 bg-card/50 backdrop-blur-sm shadow-lg mb-6">
-      <CardContent className="flex flex-col items-center gap-6 p-8 relative overflow-hidden">
+      <CardContent className="relative overflow-hidden p-0">
+      <ResultSequence className="flex flex-col items-center gap-6 p-8">
         {/* Watermark */}
         <ResultWatermark />
 
@@ -1068,29 +1070,7 @@ function QuizResult({
         </div>
 
         {/* Ring akurasi */}
-        <div className="relative z-10 flex items-center justify-center">
-          {(() => {
-            const circumference = 2 * Math.PI * 54
-            return (
-              <svg width="152" height="152" viewBox="0 0 120 120" className="-rotate-90">
-                <circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" strokeWidth="10" className="text-muted/60" />
-                <circle
-                  cx="60" cy="60" r="54" fill="none"
-                  stroke={pct >= 80 ? "#34d399" : pct >= 60 ? "#fbbf24" : "#f87171"}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference - (pct / 100) * circumference}
-                  style={{ transition: "stroke 400ms ease" }}
-                />
-              </svg>
-            )
-          })()}
-          <div className="absolute flex flex-col items-center">
-            <span className="text-4xl font-bold text-foreground tabular-nums">{pct}%</span>
-            <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Skor</span>
-          </div>
-        </div>
+        <ResultScoreRing value={pct} color={pct >= 80 ? "#34d399" : pct >= 60 ? "#fbbf24" : "#f87171"} label="Skor" />
 
         {/* Rincian penilaian */}
         <div className="flex flex-wrap justify-center gap-2 relative z-10">
@@ -1111,6 +1091,7 @@ function QuizResult({
           <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={onRetry}><RotateCcw className="h-4 w-4 mr-2" />Coba Lagi</Button>
           <Button variant="secondary" className="flex-1 rounded-2xl h-11" onClick={onClose}>Tutup</Button>
         </div>
+      </ResultSequence>
       </CardContent>
     </Card>
   )

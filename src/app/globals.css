@@ -319,3 +319,39 @@
     transition-duration: 0.01ms;
   }
 }
+
+/* Staged reveal shared by quiz, practice, and flashcard result screens. */
+.result-sequence-scope [data-result-watermark] {
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+
+.result-sequence-scope[data-result-sequence="background"] [data-result-watermark],
+.result-sequence-scope[data-result-sequence="revealing"] [data-result-watermark] {
+  opacity: 1;
+}
+
+.result-sequence-scope[data-result-sequence="counting"] > :not([data-result-watermark]):not([data-result-score-ring]),
+.result-sequence-scope[data-result-sequence="background"] > :not([data-result-watermark]):not([data-result-score-ring]) {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.result-sequence-scope[data-result-sequence="revealing"] > :not([data-result-watermark]):not([data-result-score-ring]) {
+  animation: result-sequence-enter 520ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@keyframes result-sequence-enter {
+  0% { opacity: 0; transform: translateY(10px); }
+  65% { opacity: 1; }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-sequence-scope [data-result-watermark] { opacity: 1; transition: none; }
+  .result-sequence-scope[data-result-sequence] > :not([data-result-watermark]):not([data-result-score-ring]) {
+    opacity: 1;
+    visibility: visible;
+    animation: none;
+  }
+}
