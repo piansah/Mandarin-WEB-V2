@@ -302,6 +302,7 @@ export function AppSidebar({
                     render={
                       <button
                         type="button"
+                        data-bottom-accent="off"
                         aria-label="Buka menu profil"
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-data-[collapsed=true]/sidebar:hidden"
                       />
@@ -310,7 +311,7 @@ export function AppSidebar({
                     <Settings className="h-4 w-4" />
                   </DropdownMenuTrigger>
                 <DropdownMenuContent
-                  className="min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
+                  className="w-56 min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
                   side="top"
                   align="end"
                   sideOffset={4}
