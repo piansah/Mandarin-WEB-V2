@@ -48,7 +48,7 @@ type HanziWriterLike = {
   }) => void
   animateCharacter: (options?: { onComplete?: () => void }) => void
   cancelQuiz: () => void
-  destroy: () => void
+  destroy?: () => void
 }
 
 // Badge hasil SVG (bukan emoji) — dipakai di layar akhir & state kosong,
@@ -329,7 +329,7 @@ export default function TulisHanziPage() {
     const previousWriter = writerRef.current
     writerRef.current = null
     previousWriter?.cancelQuiz()
-    previousWriter?.destroy()
+    previousWriter?.destroy?.()
     setWriterReady(false)
     setHintPlaying(false)
     setStrokeCount(null)
@@ -395,7 +395,7 @@ export default function TulisHanziPage() {
       const activeWriter = writerRef.current
       writerRef.current = null
       activeWriter?.cancelQuiz()
-      activeWriter?.destroy()
+      activeWriter?.destroy?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards, idx, charIdx, loading])

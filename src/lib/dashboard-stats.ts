@@ -259,7 +259,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         else if (r.type === "hanzi" || r.type === "kal") hanziKeys.push(r.key)
         else if (r.type === "grammar") grammarKeys.push(r.key)
         else if (r.type === "cerita" || r.type === "cerita_quiz") ceritaKeys.push(r.key)
-        else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
+        else if ((r.type === "modul" || r.type === "lesson" || r.type === "quiz") && r.key.startsWith("module:")) {
           moduleIds.push(r.key.slice("module:".length))
         }
       }
@@ -314,7 +314,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
           resolvedTitle = [gameName, hskLevel, stageNum].filter(Boolean).join(" ")
         } else if (FLASHCARD_TYPES.has(r.type) && /^\d+$/.test(r.key)) {
           resolvedTitle = deckMap[Number(r.key)] ?? `Deck #${r.key}`
-        } else if ((r.type === "modul" || r.type === "lesson") && r.key.startsWith("module:")) {
+        } else if ((r.type === "modul" || r.type === "lesson" || r.type === "quiz") && r.key.startsWith("module:")) {
           const modId = r.key.slice("module:".length)
           resolvedTitle = moduleMap[modId] ?? "Modul Pembelajaran"
         } else if (keyTitleMap[r.key]) {
@@ -330,7 +330,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         const isMinigame = r.type.startsWith("minigame_")
         return {
           key: resolvedTitle,
-          typeLabel: TYPE_LABEL[r.type] ?? r.type,
+          typeLabel: r.type === "quiz" && r.key.startsWith("module:") ? "Kuis Modul" : TYPE_LABEL[r.type] ?? r.type,
           score: r.score,
           xp: isMinigame ? null : xp, // No XP for minigames
           timeAgo: timeAgo(r.updated_at ?? new Date().toISOString()),
