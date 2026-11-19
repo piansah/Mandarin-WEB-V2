@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react"
  * (dueToday/totalCards/accuracy/mastered/rated) sehingga tiap halaman yang
  * butuh statistik lain (mis. "Beruntun", "Sisa Soal" di practice/nada &
  * practice/tulis) terpaksa nulis ulang seluruh markup header secara manual.
- * Sekarang stat cell dibuat generik supaya semua pemakai — quiz, grammar,
+ * Sekarang stat cell dibuat generik supaya semua pemakai — quiz,
  * flashcard biasa, flashcard kumulatif, nada, tulis — bisa pakai komponen
  * yang sama persis.
  */

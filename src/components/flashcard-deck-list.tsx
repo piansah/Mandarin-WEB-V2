@@ -97,9 +97,13 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
                   <div className="mt-auto">
                     <Button
                       size="sm"
-                      variant="secondary"
+                      variant="default"
+                      data-bottom-accent="on"
                       disabled={isLocked}
-                      className="h-7 w-full border-0 bg-primary/15 text-xs text-primary hover:bg-primary/25 disabled:opacity-100"
+                      className={`h-7 w-full border-0 text-xs disabled:opacity-100 ${isLocked
+                        ? "bg-muted text-muted-foreground shadow-[0_4px_0_color-mix(in_oklch,var(--muted-foreground)_35%,var(--background))]"
+                        : "bg-primary text-primary-foreground shadow-[0_4px_0_color-mix(in_oklch,var(--primary)_45%,black_55%)] hover:bg-primary/90"
+                      }`}
                     >
                       {isLocked ? "Terkunci" : "Buka"}
                     </Button>
@@ -108,41 +112,31 @@ export function FlashcardDeckList({ sets, vocabCountByLevel }: { sets: Flashcard
               </Card>
             )
 
-            if (isLocked) {
-              return (
-                <div
-                  key={deck.id}
-                  className="block cursor-pointer"
-                  onClick={() => {
-                    const prevDeck = index > 0 ? decks[index - 1] : null
-                    if (prevDeck) {
-                      const prevScore = quizScores[String(prevDeck.id)]
-                      if (prevScore !== undefined && prevScore < 80) {
-                        toast.error(
-                          <>
-                            Selesaikan <strong>"{prevDeck.title}"</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini. Nilai Anda: {prevScore}%
-                          </>
-                        )
-                      } else {
-                        toast.error(
-                          <>
-                            Selesaikan <strong>"{prevDeck.title}"</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini.
-                          </>
-                        )
-                      }
-                    }
-                  }}
-                >
-                  {cardInner}
-                </div>
-              )
-            }
-
-            return (
+            const deckCard = isLocked ? (
+              <div
+                key={deck.id}
+                className="block cursor-pointer"
+                onClick={() => {
+                  const prevDeck = index > 0 ? decks[index - 1] : null
+                  if (prevDeck) {
+                    const prevScore = quizScores[String(prevDeck.id)]
+                    toast.error(
+                      prevScore !== undefined && prevScore < 80
+                        ? <>Selesaikan <strong>“{prevDeck.title}”</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini. Nilai kamu: {prevScore}%.</>
+                        : <>Selesaikan <strong>“{prevDeck.title}”</strong> dengan nilai <strong>minimal 80%</strong> untuk membuka deck ini.</>,
+                    )
+                  }
+                }}
+              >
+                {cardInner}
+              </div>
+            ) : (
               <Link href={`/dashboard/flashcard/${deck.id}`} key={deck.id} className="group block">
                 {cardInner}
               </Link>
             )
+
+            return deckCard
           })}
         </div>
       )}

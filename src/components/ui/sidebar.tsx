@@ -318,6 +318,7 @@ function SidebarTrigger({
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
+      data-bottom-accent="off"
       variant="ghost"
       size="icon-sm"
       className={cn(className)}

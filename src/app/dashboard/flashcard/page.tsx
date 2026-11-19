@@ -40,7 +40,7 @@ export default async function FlashcardPage() {
           <Languages className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Daftar Kata</h1>
         </div>
-        <p className="text-sm text-muted-foreground">Pilih deck untuk mulai belajar</p>
+        <p className="text-sm text-muted-foreground">Pilih deck untuk mulai belajar dengan flashcard, quiz, latihan nada, dan menulis.</p>
       </div>
 
       <FlashcardDeckList

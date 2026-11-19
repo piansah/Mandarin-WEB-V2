@@ -29,7 +29,7 @@ export default function AdminDatabasePage() {
       const tables = [
         "modul_levels", "modul_modules", "modul_module_parts", "modul_quizzes", "modul_quiz_questions",
         "modul_vocab_cards", "modul_tags", "flashcard_sets", "flashcard_cards", "word_compounds",
-        "word_examples", "grammar_patterns", "grammar_questions", "hanzi_sets", "hanzi_items"
+        "word_examples", "hanzi_sets", "hanzi_items"
       ]
       const countPromises = tables.map(async (table) => {
         try {
@@ -91,12 +91,6 @@ export default function AdminDatabasePage() {
         break
       case "word_examples":
         router.push("/dashboard/admin/database/word-examples")
-        break
-      case "grammar_patterns":
-        router.push("/dashboard/admin/database/grammar-patterns")
-        break
-      case "grammar_questions":
-        router.push("/dashboard/admin/database/grammar-questions")
         break
       case "hanzi_sets":
         router.push("/dashboard/admin/database/hanzi-sets")
@@ -194,29 +188,6 @@ export default function AdminDatabasePage() {
           description: "Kelola contoh kalimat",
           icon: MessageSquare,
           table: "word_examples",
-          count: 0,
-        },
-      ]
-    },
-    {
-      id: "tata-bahasa",
-      title: "Tata Bahasa",
-      description: "Kelola grammar patterns dan soal",
-      icon: Layers,
-      color: "bg-purple-500",
-      sections: [
-        {
-          title: "Grammar Patterns",
-          description: "Kelola deck grammar patterns",
-          icon: BookOpen,
-          table: "grammar_patterns",
-          count: 0,
-        },
-        {
-          title: "Grammar Questions",
-          description: "Kelola soal grammar",
-          icon: Layers,
-          table: "grammar_questions",
           count: 0,
         },
       ]
@@ -461,8 +432,8 @@ export default function AdminDatabasePage() {
           <p className="text-sm text-muted-foreground">
             Klik tombol <strong>&quot;Kelola&quot;</strong> untuk mengelola data secara langsung di web.
             CRUD interface sudah tersedia untuk <strong>Flashcard Sets</strong>, <strong>Flashcard Cards</strong>,
-            <strong>Word Compounds</strong>, <strong>Word Examples</strong>, <strong>Grammar Patterns</strong>,
-            <strong>Grammar Questions</strong>, <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.
+            <strong>Word Compounds</strong>, <strong>Word Examples</strong>,
+            <strong>Hanzi Sets</strong>, dan <strong>Hanzi Items</strong>.
           </p>
         </CardContent>
       </Card>

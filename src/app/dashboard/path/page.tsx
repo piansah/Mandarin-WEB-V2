@@ -5,7 +5,7 @@
 import * as React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Map, CheckCircle2, Lock, Milestone, Library, BookOpen, PenTool } from "lucide-react"
+import { Map, CheckCircle2, Lock, Milestone, Library, BookOpen } from "lucide-react"
 import Link from "next/link"
 
 import { fetchLearningPath } from "@/lib/path"
@@ -28,7 +28,7 @@ export default async function PathPage() {
           <Map className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Peta Belajar</h1>
         </div>
-        <p className="text-sm text-muted-foreground">Persentase menghitung aktivitas tuntas: modul sampai lulus kuis, setiap deck dari kuisnya, setiap tata bahasa dari latihan selesai, dan setiap Estafet dari kuisnya.</p>
+        <p className="text-sm text-muted-foreground">Persentase menghitung aktivitas tuntas: modul sampai lulus kuis, setiap deck dari kuisnya, dan setiap Estafet dari kuisnya.</p>
       </div>
 
       <div className="relative mt-4">
@@ -94,10 +94,6 @@ export default async function PathPage() {
                           <Link href="/dashboard/flashcard" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <BookOpen className="w-3.5 h-3.5" />
                             <span>{step.vocabCount} Kata ({step.deckCount} Deck)</span>
-                          </Link>
-                          <Link href="/dashboard/grammar" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
-                            <PenTool className="w-3.5 h-3.5" />
-                            <span>{step.grammarCount} Tata Bahasa</span>
                           </Link>
                           <Link href="/dashboard/cerita" className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/50 px-3 py-1.5 rounded-md transition-none hover:bg-emerald-500/20 hover:text-emerald-400 active:bg-emerald-500/30 active:text-emerald-300 cursor-pointer">
                             <Map className="w-3.5 h-3.5" />

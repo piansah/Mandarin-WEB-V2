@@ -45,7 +45,6 @@ interface ModulModule {
   description: string | null
   summary: string | null
   order_index: number
-  duration_minutes: number
   part_count: number
   has_quiz: boolean
   is_published: boolean
@@ -65,7 +64,7 @@ export default function ModulModulesPage() {
 
   const EMPTY_FORM = {
     level_id: "", title: "", slug: "", description: "", summary: "",
-    order_index: 0, duration_minutes: 0, part_count: 0, has_quiz: false, is_published: true
+    order_index: 0, part_count: 0, has_quiz: false, is_published: true
   }
   const [searchQuery, setSearchQuery] = React.useState("")
   const [debouncedSearch, setDebouncedSearch] = React.useState("")
@@ -119,7 +118,7 @@ export default function ModulModulesPage() {
       const { error } = await supa.from("modul_modules").insert({
         level_id: formData.level_id, title: formData.title, slug: formData.slug,
         description: formData.description || null, summary: formData.summary || null,
-        order_index: formData.order_index, duration_minutes: formData.duration_minutes,
+        order_index: formData.order_index,
         part_count: formData.part_count, has_quiz: formData.has_quiz, is_published: formData.is_published
       })
       if (error) throw error
@@ -147,7 +146,7 @@ export default function ModulModulesPage() {
       const { error } = await supa.from("modul_modules").update({
         level_id: formData.level_id, title: formData.title, slug: formData.slug,
         description: formData.description || null, summary: formData.summary || null,
-        order_index: formData.order_index, duration_minutes: formData.duration_minutes,
+        order_index: formData.order_index,
         part_count: formData.part_count, has_quiz: formData.has_quiz, is_published: formData.is_published
       }).eq("id", editingModule.id)
       if (error) throw error
@@ -209,7 +208,7 @@ export default function ModulModulesPage() {
     setFormData({
       level_id: module.level_id, title: module.title, slug: module.slug,
       description: module.description || "", summary: module.summary || "",
-      order_index: module.order_index, duration_minutes: module.duration_minutes,
+      order_index: module.order_index,
       part_count: module.part_count, has_quiz: module.has_quiz, is_published: module.is_published
     })
     setShowAddModal(true)
@@ -275,7 +274,6 @@ export default function ModulModulesPage() {
                 <TableHead>Title</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Level</TableHead>
-                <TableHead>Duration</TableHead>
                 <TableHead>Parts</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -302,7 +300,6 @@ export default function ModulModulesPage() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>{module.duration_minutes} min</TableCell>
                       <TableCell>{module.part_count}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
@@ -437,17 +434,6 @@ export default function ModulModulesPage() {
                       }}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Duration (minutes)</label>
-                    <Input
-                      type="number"
-                      value={formData.duration_minutes}
-                      onChange={(e) => {
-                        const parsed = parseInt(e.target.value, 10)
-                        setFormData({ ...formData, duration_minutes: Number.isNaN(parsed) ? 0 : parsed })
-                      }}
-                    />
-                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -488,7 +474,7 @@ export default function ModulModulesPage() {
                   <Button onClick={editingModule ? handleEdit : handleAdd} className="flex-1">
                     {editingModule ? "Update" : "Tambah"}
                   </Button>
-                  <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingModule(null); setFormData({ level_id: "", title: "", slug: "", description: "", summary: "", order_index: 0, duration_minutes: 0, part_count: 0, has_quiz: false, is_published: true }) }}>
+                  <Button variant="outline" onClick={() => { setShowAddModal(false); setEditingModule(null); setFormData(EMPTY_FORM) }}>
                     Batal
                   </Button>
                 </div>

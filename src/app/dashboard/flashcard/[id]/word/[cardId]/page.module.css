@@ -32,6 +32,10 @@
   font-family: var(--font-poppins), Arial, sans-serif;
 }
 
+.page :global(button:not([data-bottom-accent="on"])) {
+  box-shadow: none;
+}
+
 .tabs {
   position: sticky;
   top: 0;

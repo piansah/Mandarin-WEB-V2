@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { PageLoader } from "@/components/page-loader"
 
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,7 @@ import {
   BADGES,
   type UserProfile,
 } from "@/lib/user-profile"
-import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2 } from "lucide-react"
+import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart } from "lucide-react"
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -291,6 +292,42 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Koleksi pribadi */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Koleksi pribadi</CardTitle>
+          <CardDescription>Akses kosakata dan deck yang kamu simpan.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/dashboard/favorit"
+            data-bottom-accent="off"
+            className="flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+              <Star className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold">Favorit</span>
+              <span className="block truncate text-sm text-muted-foreground">Kosakata yang kamu simpan</span>
+            </span>
+          </Link>
+          <Link
+            href="/dashboard/personal-cards"
+            data-bottom-accent="off"
+            className="flex min-h-16 items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <FolderHeart className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-semibold">Deck Saya</span>
+              <span className="block truncate text-sm text-muted-foreground">Deck kosakata buatanmu</span>
+            </span>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Unlocked Tiers */}
       <Card>

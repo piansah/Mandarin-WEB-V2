@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Flag } from "lucide-react"
+import { Flag, Heart } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Lebar area tombol report yang tersembunyi di belakang card. Diseret ke
@@ -12,14 +12,20 @@ const OPEN_THRESHOLD = REVEAL_WIDTH / 2
 
 type SwipeToReportProps = {
   children: React.ReactNode
-  onReport: () => void
+  onReport?: () => void
+  onFavorite?: () => void
+  favorited?: boolean
   /** Kalau true, kartu sudah pernah di-report — tombol report disembunyikan & swipe dimatikan. */
   reported?: boolean
   className?: string
   reportLabel?: string
 }
 
-export function SwipeToReport({ children, onReport, reported = false, className, reportLabel = "Laporkan kalimat" }: SwipeToReportProps) {
+export function SwipeToReport({ children, onReport, onFavorite, favorited = false, reported = false, className, reportLabel = "Laporkan kalimat" }: SwipeToReportProps) {
+  const actionMode = onFavorite ? "favorite" : "report"
+  const actionLabel = actionMode === "favorite"
+    ? favorited ? "Hapus dari favorit" : "Tambah ke favorit"
+    : reportLabel
   const [dragX, setDragX] = React.useState(0)
   const [open, setOpen] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -120,7 +126,8 @@ export function SwipeToReport({ children, onReport, reported = false, className,
 
   function handleReportClick(e: React.MouseEvent) {
     e.stopPropagation()
-    onReport()
+    if (actionMode === "favorite") onFavorite?.()
+    else onReport?.()
     close()
   }
 
@@ -129,10 +136,11 @@ export function SwipeToReport({ children, onReport, reported = false, className,
       {!reported && (
         <button
           type="button"
+          data-bottom-accent="off"
           onClick={handleReportClick}
-          aria-label={reportLabel}
-          title={reportLabel}
-          className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 rounded-r-xl bg-orange-500/15 text-orange-500 hover:bg-orange-500/25 transition-colors"
+          aria-label={actionLabel}
+          title={actionLabel}
+          className={`absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 rounded-r-xl transition-colors ${actionMode === "favorite" ? "bg-rose-500/15 text-rose-500 hover:bg-rose-500/25" : "bg-orange-500/15 text-orange-500 hover:bg-orange-500/25"}`}
           // z-index cuma dinaikkan pas kartu lagi/sudah kebuka, supaya tombol
           // menang hit-test dari kartu yang masih animasi geser (200ms) atau
           // ada overlap 1px akibat pembulatan subpixel. Pas kartu ketutup,
@@ -140,8 +148,8 @@ export function SwipeToReport({ children, onReport, reported = false, className,
           // sepenuhnya secara visual — nggak nembus/transparan lagi.
           style={{ width: REVEAL_WIDTH, zIndex: open ? 10 : 0 }}
         >
-          <Flag className="h-4 w-4" />
-          <span className="text-[10px] font-medium">Report</span>
+          {actionMode === "favorite" ? <Heart className="h-4 w-4" fill={favorited ? "currentColor" : "none"} /> : <Flag className="h-4 w-4" />}
+          <span className="text-[10px] font-medium">{actionMode === "favorite" ? favorited ? "Disukai" : "Suka" : "Report"}</span>
         </button>
       )}
       <div

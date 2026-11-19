@@ -9,5 +9,5 @@ import { redirect } from "next/navigation"
 // set di Estafet (menggunakan hanzi_sets yang sama). Route ini dipertahankan
 // sebagai redirect saja supaya bookmark/link lama tidak 404.
 export default function QuizKumulatifRedirectPage() {
-  redirect("/dashboard/flashcard/cumulative")
+  redirect("/dashboard/flashcard")
 }

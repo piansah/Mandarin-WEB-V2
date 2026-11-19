@@ -3,7 +3,6 @@
    layout.tsx -- Root Layout */
 
 import type { Metadata } from "next";
-import { Noto_Sans_SC, Poppins, Noto_Serif_SC, Ma_Shan_Zheng, Long_Cang } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,44 +10,6 @@ import { ServiceWorkerProvider } from "@/components/service-worker-provider"
 import { HanziFontProvider } from "@/components/hanzi-font-provider";
 import { ReactQueryProvider } from "@/components/query-provider";
 import Script from "next/script";
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-});
-
-const notoSansSC = Noto_Sans_SC({
-  variable: "--font-noto-sans-sc",
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  display: "swap",
-  adjustFontFallback: false,
-});
-
-const notoSerifSC = Noto_Serif_SC({
-  variable: "--font-noto-serif-sc",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  adjustFontFallback: false,
-});
-
-const maShanZheng = Ma_Shan_Zheng({
-  variable: "--font-ma-shan-zheng",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  adjustFontFallback: false,
-});
-
-const longCang = Long_Cang({
-  variable: "--font-long-cang",
-  subsets: ["latin"],
-  weight: ["400"],
-  display: "swap",
-  adjustFontFallback: false,
-});
 
 export const metadata: Metadata = {
   title: "Journey Learning - Belajar Bahasa Selangkah Demi Selangkah",
@@ -76,6 +37,12 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Long+Cang&family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500&family=Noto+Serif+SC:wght@400&family=Poppins:wght@300;400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
         <Script id="initial-theme" strategy="beforeInteractive">
           {`try {
             var theme = localStorage.getItem("theme") || "system";
@@ -88,7 +55,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${poppins.variable} ${notoSansSC.variable} ${notoSerifSC.variable} ${maShanZheng.variable} ${longCang.variable} antialiased min-h-screen bg-background font-sans overflow-x-hidden`}
+        className="antialiased min-h-screen bg-background font-sans overflow-x-hidden"
         suppressHydrationWarning
       >
         <ThemeProvider

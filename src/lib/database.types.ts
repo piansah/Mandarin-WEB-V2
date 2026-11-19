@@ -456,6 +456,7 @@ export type Database = {
           alt_orders: Json | null
           correct_order: Json
           created_at: string | null
+          exercise_data: Json
           explanation: string | null
           id: number
           pattern_id: number
@@ -469,6 +470,7 @@ export type Database = {
           alt_orders?: Json | null
           correct_order: Json
           created_at?: string | null
+          exercise_data?: Json
           explanation?: string | null
           id?: number
           pattern_id: number
@@ -482,6 +484,7 @@ export type Database = {
           alt_orders?: Json | null
           correct_order?: Json
           created_at?: string | null
+          exercise_data?: Json
           explanation?: string | null
           id?: number
           pattern_id?: number
@@ -724,7 +727,6 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
-          duration_minutes: number
           has_quiz: boolean
           id: string
           is_published: boolean
@@ -739,7 +741,6 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
-          duration_minutes?: number
           has_quiz?: boolean
           id?: string
           is_published?: boolean
@@ -754,7 +755,6 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
-          duration_minutes?: number
           has_quiz?: boolean
           id?: string
           is_published?: boolean

@@ -412,6 +412,7 @@ function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
         <button
           type="button"
+          data-bottom-accent="on"
           onClick={onAddSentence}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors text-sm"
         >
@@ -569,7 +570,7 @@ function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry 
 function StrokePreview({ char }: { char: string }) {
   const targetRef = React.useRef<HTMLDivElement>(null); const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
   React.useEffect(() => { let cancelled = false; const target = targetRef.current; if (!target) return; target.innerHTML = ""; import("hanzi-writer").then(({ default: HanziWriter }) => { if (cancelled || !targetRef.current) return; writerRef.current = HanziWriter.create(targetRef.current, char, { width: 260, height: 260, padding: 20, strokeColor: "#edf6ff", outlineColor: "#1b4965", drawingColor: "#42d6a4", showOutline: true, showCharacter: false }) }); return () => { cancelled = true; target.innerHTML = "" } }, [char])
-  return <button type="button" aria-label={`Putar animasi stroke ${char}`} className="flex w-full cursor-pointer flex-col items-center rounded-xl border border-border/60 bg-card/70 px-5 pb-6 pt-7 transition-colors hover:border-primary/55" onClick={() => writerRef.current?.animateCharacter()}><div ref={targetRef} className="h-[260px] w-[260px]" /></button>
+  return <button type="button" data-bottom-accent="on" aria-label={`Putar animasi stroke ${char}`} className="flex w-full cursor-pointer flex-col items-center rounded-xl border border-border/60 bg-card/70 px-5 pb-6 pt-7 transition-colors hover:border-primary/55" onClick={() => writerRef.current?.animateCharacter()}><div ref={targetRef} className="h-[260px] w-[260px]" /></button>
 }
 function LoadingLine({ label }: { label: string }) { return <div className="flex justify-center py-12 text-sm text-slate-400">{label}</div> }
 function EmptyLine({ label }: { label: string }) { return <div className="py-12 text-center text-sm text-slate-400">{label}</div> }

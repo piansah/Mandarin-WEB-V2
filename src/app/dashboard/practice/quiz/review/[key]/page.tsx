@@ -700,7 +700,7 @@ export default function CumulativeQuizPracticePage() {
             </div>
             <div className="flex gap-3">
               <button className="flex-1 rounded-2xl h-11 border border-border/60 bg-background hover:bg-muted/50 transition-colors" onClick={() => router.back()}>Kembali</button>
-              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors" onClick={() => setRepeatConfirmAction("retry")}>Ulangi</button>
+              <button className="flex-1 rounded-2xl h-11 bg-primary text-primary-foreground shadow-[0_3px_0_var(--interactive-bottom-accent)] hover:bg-primary/90 transition-colors" onClick={() => setRepeatConfirmAction("retry")}>Ulangi</button>
             </div>
           </div>
         </div>

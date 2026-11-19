@@ -2,15 +2,17 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, LayoutDashboard, Map, UserRound } from "lucide-react"
+import { BarChart3, BookOpen, Languages, LayoutDashboard, Map, UserRound } from "lucide-react"
 import { useSidebar } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 
 const navigationItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Peta Belajar", href: "/dashboard/path", icon: Map },
-  { label: "Statistik", href: "/dashboard/statistik", icon: BarChart3 },
-  { label: "Profil", href: "/dashboard/profile", icon: UserRound },
+  { label: "Beranda", shortLabel: "Beranda", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Peta Belajar", shortLabel: "Peta Belajar", href: "/dashboard/path", icon: Map },
+  { label: "Modul", shortLabel: "Modul", href: "/dashboard/modul", icon: BookOpen },
+  { label: "Daftar Kata", shortLabel: "Daftar Kata", href: "/dashboard/flashcard", icon: Languages },
+  { label: "Statistik", shortLabel: "Statistik", href: "/dashboard/statistik", icon: BarChart3 },
+  { label: "Profil", shortLabel: "Profil", href: "/dashboard/profile", icon: UserRound },
 ]
 
 // Bottom navigation stays on section/list pages, then yields the viewport to
@@ -40,12 +42,12 @@ export function MobileBottomNav() {
     <nav
       aria-label="Navigasi utama"
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-border bg-background/95 px-1 pt-2 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md",
+        "fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-border bg-background/95 px-1 pt-1.5 shadow-[0_-8px_24px_rgba(0,0,0,0.12)] backdrop-blur-md",
         "pb-[calc(0.5rem+env(safe-area-inset-bottom))]",
         "[.mobile-search-active_&]:hidden",
       )}
     >
-      {navigationItems.map(({ label, href, icon: Icon }) => {
+      {navigationItems.map(({ label, shortLabel, href, icon: Icon }) => {
         const active = href === "/dashboard"
           ? pathname === href
           : pathname === href || pathname.startsWith(`${href}/`)
@@ -58,11 +60,12 @@ export function MobileBottomNav() {
             aria-label={label}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex min-h-12 items-center justify-center rounded-lg px-1 transition-colors duration-200 hover:text-foreground active:scale-95 motion-reduce:transition-none",
+              "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 transition-colors duration-200 hover:text-foreground active:scale-95 motion-reduce:transition-none",
               active ? "text-primary" : "text-muted-foreground",
             )}
           >
             <Icon className="h-5 w-5" aria-hidden="true" />
+            <span className="max-w-full whitespace-nowrap text-[8px] font-medium leading-none" aria-hidden="true">{shortLabel}</span>
           </Link>
         )
       })}

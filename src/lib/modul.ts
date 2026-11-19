@@ -40,7 +40,6 @@ export type ModulModuleSummary = {
   title: string
   description: string | null
   orderIndex: number
-  durationMinutes: number
   partCount: number
   hasQuiz: boolean
   tags: string[]
@@ -70,7 +69,6 @@ export type ModulDetail = {
   title: string
   description: string | null
   summary: string | null
-  durationMinutes: number
   hasQuiz: boolean
   tags: string[]
   level: { code: string; label: string }
@@ -90,7 +88,6 @@ type RawModuleRow = {
   title: string
   description: string | null
   order_index: number
-  duration_minutes: number
   part_count: number
   has_quiz: boolean
 }
@@ -153,7 +150,7 @@ export async function fetchModulOverview(
     supa.from("modul_levels").select("id, code, label, description, order_index").order("order_index"),
     supa
       .from("modul_modules")
-      .select("id, level_id, slug, title, description, order_index, duration_minutes, part_count, has_quiz")
+      .select("id, level_id, slug, title, description, order_index, part_count, has_quiz")
       .eq("is_published", true)
       .order("order_index"),
     supa.from("modul_module_tags").select("module_id, modul_tags(name)"),
@@ -205,7 +202,6 @@ export async function fetchModulOverview(
       title: m.title,
       description: m.description,
       orderIndex: m.order_index,
-      durationMinutes: m.duration_minutes,
       partCount: m.part_count,
       hasQuiz: m.has_quiz,
       tags: tagsByModule.get(m.id) ?? [],
@@ -249,7 +245,7 @@ export async function fetchModuleDetail(slug: string): Promise<ModulDetail | nul
 
   const { data: moduleRow, error } = await supa
     .from("modul_modules")
-    .select("id, slug, title, description, summary, duration_minutes, has_quiz, level:modul_levels(code, label)")
+    .select("id, slug, title, description, summary, has_quiz, level:modul_levels(code, label)")
     .eq("slug", slug)
     .eq("is_published", true)
     .maybeSingle()
@@ -285,24 +281,61 @@ export async function fetchModuleDetail(slug: string): Promise<ModulDetail | nul
       : Promise.resolve({ data: null }),
   ])
 
+  // Module parts menentukan kosakata apa yang ditampilkan lewat Hanzi saja.
+  // Pinyin dan arti selalu diambil dari sumber kosakata utama.
+  const rawParts = partsRes.data ?? []
+  const vocabHanzi = Array.from(new Set(rawParts.flatMap((part) => {
+    const vocabParts = part.vocab_parts as { cards?: unknown } | null
+    if (!Array.isArray(vocabParts?.cards)) return []
+    return vocabParts.cards.flatMap((card) => {
+      if (!card || typeof card !== "object") return []
+      const hanzi = (card as { hanzi?: unknown }).hanzi
+      return typeof hanzi === "string" && hanzi.trim() ? [hanzi.trim()] : []
+    })
+  })))
+
+  const vocabRes = vocabHanzi.length > 0
+    ? await supa
+      .from("flashcard_cards")
+      .select("hanzi, pinyin, arti, set_id")
+      .in("hanzi", vocabHanzi)
+      .order("set_id", { ascending: true })
+    : { data: [] }
+
+  // Hanzi bisa muncul di beberapa deck; pilih record pertama secara
+  // deterministik setelah diurutkan berdasarkan set_id.
+  const vocabByHanzi = new Map<string, { pinyin: string; arti: string }>()
+  for (const card of vocabRes.data ?? []) {
+    if (!vocabByHanzi.has(card.hanzi)) {
+      vocabByHanzi.set(card.hanzi, { pinyin: card.pinyin, arti: card.arti })
+    }
+  }
+
   return {
     id: moduleRow.id,
     slug: moduleRow.slug,
     title: moduleRow.title,
     description: moduleRow.description,
     summary: moduleRow.summary,
-    durationMinutes: moduleRow.duration_minutes,
     hasQuiz: moduleRow.has_quiz,
     tags: (tagsRes.data ?? [])
       .map((t) => extractTagName((t as { modul_tags: unknown }).modul_tags))
       .filter((n): n is string => Boolean(n)),
     level: level ? { code: level.code, label: level.label } : { code: "", label: "" },
-    parts: (partsRes.data ?? []).map((p) => {
+    parts: rawParts.map((p) => {
       // Extract vocab from vocab_parts JSON
       const vocabParts = p.vocab_parts as { cards?: unknown } | null
       const vocabCards = Array.isArray(vocabParts?.cards)
         ? (vocabParts.cards as Array<{ hanzi: string; pinyin: string; translation: string | null; order_index: number }>)
-          .map((v, i) => ({ ...v, id: `${p.id}-vocab-${i}` }))
+          .map((v, i) => {
+            const source = vocabByHanzi.get(v.hanzi)
+            return {
+              ...v,
+              pinyin: source?.pinyin ?? "",
+              translation: source?.arti ?? null,
+              id: `${p.id}-vocab-${i}`,
+            }
+          })
         : []
 
       // Extract kalimat from kalimat_parts JSON
@@ -429,13 +462,26 @@ export async function setModuleBookmark(moduleId: string, bookmarked: boolean): 
 export type ModulQuizOption = {
   id: string
   text: string
+  pinyin?: string
+}
+
+export type ModulQuizType = "mcq" | "audio" | "speaking" | "fill_blank" | "word_order" | "sentence_choice" | "matching"
+
+export type ModulQuizPairItem = { id: string; text: string }
+export type ModulQuizMatching = {
+  left: ModulQuizPairItem[]
+  right: ModulQuizPairItem[]
+  correctPairs: { leftId: string; rightId: string }[]
 }
 
 export type ModulQuizQuestion = {
   id: string
   questionText: string
+  questionType: ModulQuizType
   options: ModulQuizOption[]
   correctOptionId: string
+  correctOrder?: string[]
+  matching?: ModulQuizMatching
 }
 
 export type ModulQuiz = {
@@ -448,7 +494,7 @@ export type ModulQuiz = {
 
 /** Ambil soal kuis untuk modul berdasarkan slug.
  *  Tabel: modul_quiz_questions.
- *  Asumsi: pilihan ganda disimpan dalam kolom `options` (JSONB) dan kunci jawaban di `correct_option_id`. */
+ *  JSONB options menyimpan pilihan, bank kata, atau pasangan sesuai question_type. */
 export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
   const supa = createClient()
 
@@ -467,7 +513,7 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
   // 2. Ambil soal + pilihan jawaban (JSON)
   const { data: questions, error } = await supa
     .from("modul_quiz_questions")
-    .select("id, question_text, options, correct_option_id")
+    .select("id, question_text, question_type, options, correct_option_id")
     .eq("module_id", moduleRow.id)
     .order("order_index")
 
@@ -484,21 +530,51 @@ export async function fetchModuleQuiz(slug: string): Promise<ModulQuiz | null> {
     levelLabel: level?.label ?? "",
     passingScore: 70,
     questions: questions.map((q) => {
-      // options bisa berupa array JSON [{ id: "A", text: "..." }]
-      const opts = Array.isArray(q.options) ? q.options : []
+      const rawOptions = q.options
+      const optionObject = rawOptions && typeof rawOptions === "object" && !Array.isArray(rawOptions)
+        ? rawOptions as Record<string, unknown>
+        : null
+      const optionList = Array.isArray(rawOptions)
+        ? rawOptions
+        : Array.isArray(optionObject?.tokens)
+          ? optionObject.tokens
+          : []
+      const opts = optionList.flatMap((option) => {
+        if (typeof option !== "object" || option === null || !("id" in option)) return []
+        const value = option as { id: unknown; text?: unknown; pinyin?: unknown }
+        return [{ id: String(value.id), text: String(value.text ?? ""), ...(value.pinyin ? { pinyin: String(value.pinyin) } : {}) }]
+      })
+      const rawOrder = optionObject?.correct_order
+      const correctOrder = Array.isArray(rawOrder) ? rawOrder.map(String) : undefined
+      const rawMatching: { left: unknown[]; right: unknown[]; correct_pairs?: unknown } | null = optionObject && Array.isArray(optionObject.left) && Array.isArray(optionObject.right)
+        ? { left: optionObject.left, right: optionObject.right, correct_pairs: optionObject.correct_pairs }
+        : null
+      const matching = rawMatching ? {
+        left: rawMatching.left.flatMap((item) => {
+          if (typeof item !== "object" || item === null || !("id" in item)) return []
+          const value = item as { id: unknown; text?: unknown }
+          return [{ id: String(value.id), text: String(value.text ?? "") }]
+        }),
+        right: rawMatching.right.flatMap((item) => {
+          if (typeof item !== "object" || item === null || !("id" in item)) return []
+          const value = item as { id: unknown; text?: unknown }
+          return [{ id: String(value.id), text: String(value.text ?? "") }]
+        }),
+        correctPairs: Array.isArray(rawMatching.correct_pairs) ? rawMatching.correct_pairs.flatMap((pair) => {
+          if (typeof pair !== "object" || pair === null) return []
+          const value = pair as { left_id?: unknown; right_id?: unknown }
+          if (value.left_id === undefined || value.right_id === undefined) return []
+          return [{ leftId: String(value.left_id), rightId: String(value.right_id) }]
+        }) : [],
+      } : undefined
       return {
         id: q.id,
         questionText: q.question_text,
+        questionType: q.question_type as ModulQuizQuestion["questionType"],
         correctOptionId: q.correct_option_id,
-        options: opts.map((o) => {
-          if (typeof o === "object" && o !== null && "id" in o) {
-            return {
-              id: String(o.id),
-              text: (o as { text?: string; option_text?: string }).text ?? (o as { option_text?: string }).option_text ?? "",
-            }
-          }
-          return { id: "", text: "" }
-        }),
+        options: opts,
+        ...(correctOrder ? { correctOrder } : {}),
+        ...(matching ? { matching } : {}),
       }
     }),
   }

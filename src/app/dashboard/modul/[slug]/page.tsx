@@ -160,7 +160,7 @@ export default function ModulDetailPage() {
               ))}
               <Badge variant="secondary" className="bg-primary/10 text-primary font-normal">{detail.level.label.split(" - ")[0]}</Badge>
               <span className="text-sm text-muted-foreground ml-2">
-                {detail.durationMinutes} mnt · {parts.length} bagian{detail.hasQuiz ? " · 1 kuis" : ""}
+                {parts.length} bagian{detail.hasQuiz ? " · 1 kuis" : ""}
               </span>
             </div>
           </div>
@@ -218,11 +218,11 @@ export default function ModulDetailPage() {
                   key={part.id}
                   onClick={() => goToPart(i)}
                   className={`flex items-start gap-3 p-3 rounded-lg text-left transition-colors ${i === activePartIndex
-                      ? "bg-primary/10 text-primary font-medium"
+                      ? "bg-primary text-white font-medium"
                       : "hover:bg-muted text-muted-foreground"
                     }`}
                 >
-                  <span className={`shrink-0 w-5 text-sm ${i === activePartIndex ? "text-primary font-bold" : ""}`}>
+                  <span className={`shrink-0 w-5 text-sm ${i === activePartIndex ? "text-white font-bold" : ""}`}>
                     {i + 1}
                   </span>
                   <span className="text-sm leading-tight line-clamp-2">{part.title}</span>
@@ -231,7 +231,7 @@ export default function ModulDetailPage() {
               {detail.hasQuiz && (
                 <Link
                   href={`/dashboard/modul/${detail.slug}/kuis`}
-                  className="flex items-start gap-3 p-3 rounded-lg text-left transition-colors hover:bg-muted text-muted-foreground"
+                  className="flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 p-3 text-left text-muted-foreground transition-colors hover:bg-muted"
                 >
                   <span className="shrink-0 w-5 text-sm">
                     <HelpCircle className="w-4 h-4" />
@@ -372,8 +372,13 @@ function PartContent({ part }: { part: ModulPart }) {
               <MessageSquare className="w-5 h-5" />
               Contoh Kalimat
             </h4>
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
+            <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg border [touch-action:pan-x_pan-y]">
+              <table className="w-full min-w-[660px] table-fixed">
+                <colgroup>
+                  <col className="w-[200px]" />
+                  <col className="w-[210px]" />
+                  <col className="w-[250px]" />
+                </colgroup>
                 <thead className="bg-muted">
                   <tr>
                     <th className="text-left p-3 text-sm font-medium">Hanzi</th>

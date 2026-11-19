@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { Search, PanelLeft, BookOpen, FileText, X, Home, Layers, BookText, Star, User, Settings, Loader2, PenLine, Network, Gamepad2, Bell } from "lucide-react"
+import { Search, PanelLeft, BookOpen, ArrowRight, Home, Layers, BookText, Star, User, Settings, Loader2, PenLine, Network, Gamepad2, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,7 @@ import { useSidebar } from "@/components/ui/sidebar"
 import { useSupabase } from "@/hooks/use-supabase"
 
 type SearchResult = {
-  type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'grammar' | 'games'
+  type: 'page' | 'flashcard' | 'module' | 'quiz' | 'story' | 'games'
   title: string
   description?: string
   url: string
@@ -20,14 +20,13 @@ type SearchResult = {
 }
 
 const menuItems: SearchResult[] = [
-  { type: 'page', title: 'Dashboard', description: 'Halaman utama dashboard', url: '/dashboard', icon: <Home className="h-4 w-4" /> },
+  { type: 'page', title: 'Beranda', description: 'Halaman utama dashboard', url: '/dashboard', icon: <Home className="h-4 w-4" /> },
   { type: 'page', title: 'Modul', description: 'Daftar modul pembelajaran', url: '/dashboard/modul', icon: <BookOpen className="h-4 w-4" /> },
   { type: 'page', title: 'Daftar Kata', description: 'Flashcard kosakata, quiz, nada & tulis per deck', url: '/dashboard/flashcard', icon: <Layers className="h-4 w-4" /> },
   { type: 'page', title: 'Peta Hanzi', description: 'Eksplorasi koneksi antar karakter Hanzi', url: '/dashboard/peta-hanzi', icon: <Network className="h-4 w-4" /> },
   { type: 'page', title: 'Tulis Hanzi', description: 'Buat lembar latihan menulis Hanzi kustom', url: '/dashboard/tulis-hanzi', icon: <PenLine className="h-4 w-4" /> },
   { type: 'page', title: 'Mini Games', description: 'Permainan untuk belajar Mandarin', url: '/dashboard/games', icon: <Gamepad2 className="h-4 w-4" /> },
-  { type: 'page', title: 'Grammar', description: 'Materi tata bahasa Mandarin', url: '/dashboard/grammar', icon: <FileText className="h-4 w-4" /> },
-  { type: 'page', title: 'Estafet', description: 'Baca kalimat kumulatif, quiz kalimat & speaking per level', url: '/dashboard/flashcard/cumulative', icon: <BookText className="h-4 w-4" /> },
+  { type: 'page', title: 'Estafet', description: 'Latihan Estafet tersedia dari deck prasyarat di Daftar Kata', url: '/dashboard/flashcard', icon: <BookText className="h-4 w-4" /> },
   { type: 'page', title: 'Baca', description: 'Baca cerita Mandarin', url: '/dashboard/cerita', icon: <BookOpen className="h-4 w-4" /> },
   { type: 'page', title: 'Favorit', description: 'Kata favorit kamu', url: '/dashboard/favorit', icon: <Star className="h-4 w-4" /> },
   { type: 'page', title: 'Profile', description: 'Profil pengguna', url: '/dashboard/profile', icon: <User className="h-4 w-4" /> },
@@ -137,26 +136,6 @@ export function DashboardHeader() {
           })
         }
 
-        // Search grammar
-        const { data: grammarRules } = await supa
-          .from("grammar_patterns")
-          .select("slug, title")
-          .ilike("title", `%${query}%`)
-          .limit(5)
-
-        if (grammarRules && Array.isArray(grammarRules)) {
-          grammarRules.forEach((rule: { slug: string; title: string }) => {
-            results.push({
-              type: 'grammar',
-              title: rule.title,
-              description: '',
-              url: `/dashboard/practice/grammar/${rule.slug}`,
-              icon: <FileText className="h-4 w-4" />,
-              category: 'Grammar'
-            })
-          })
-        }
-
         setSearchResults([...filteredMenu, ...results])
       } catch (e) {
         console.error(e)
@@ -178,9 +157,10 @@ export function DashboardHeader() {
       {!mobileSearchActive && (
         <Button
           type="button"
+          data-bottom-accent="off"
           onClick={() => isMobile ? setOpenMobile(true) : togglePinned()}
           variant="ghost"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted"
+          className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-muted md:flex"
           aria-label={isMobile ? "Buka sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
           aria-pressed={isMobile ? undefined : pinned}
           title={isMobile ? "Buka sidebar" : pinned ? "Lepas kunci sidebar" : "Kunci sidebar tetap terbuka"}
@@ -189,11 +169,16 @@ export function DashboardHeader() {
         </Button>
       )}
 
-      <div className={`flex items-center gap-2 ${mobileSearchActive ? 'w-full' : ''}`} ref={searchRef}>
+      <div className={`flex items-center gap-2 ${mobileSearchActive ? 'w-full' : 'ml-auto'}`} ref={searchRef}>
         
         {/* Input Search - Hidden on mobile unless active */}
         <div className={`relative ${mobileSearchActive ? 'w-full flex-1' : 'hidden md:block'}`}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {mobileSearchActive && !searchQuery && (
+            <span aria-hidden="true" className="pointer-events-none absolute left-9 right-3 top-1/2 -translate-y-1/2 overflow-hidden text-ellipsis whitespace-nowrap text-base text-muted-foreground">
+              Cari Modul, Daftar Kata, Peta Hanzi
+            </span>
+          )}
           <Input
             type="search"
             placeholder="Cari Modul, Daftar Kata, Peta Hanzi..."
@@ -203,27 +188,15 @@ export function DashboardHeader() {
               setSearchOpen(true)
             }}
             onFocus={() => setSearchOpen(true)}
-            className={`pl-9 h-9 pr-16 ${mobileSearchActive ? 'w-full' : 'w-[450px]'}`}
+            data-bottom-accent={mobileSearchActive ? "on" : undefined}
+            className={`pl-9 h-9 ${mobileSearchActive ? `w-full pr-3 [&::-webkit-search-cancel-button]:hidden ${!searchQuery ? 'placeholder:text-transparent' : ''}` : 'w-[450px] pr-16'}`}
           />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery("")
-                setSearchResults([])
-                setSearchOpen(false)
-              }}
-              className="absolute right-10 top-1/2 -translate-y-1/2"
-            >
-              <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-            </button>
-          )}
           <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
             <span className="text-xs">⌘</span>K
           </kbd>
 
           {/* Search Results Dropdown */}
-          {searchOpen && (
+          {searchOpen && searchQuery.trim() && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-[70vh] overflow-auto">
               {isSearching ? (
                 <div className="p-4 text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
@@ -274,15 +247,15 @@ export function DashboardHeader() {
 
         {/* Mobile Search Trigger Icon */}
         {!mobileSearchActive && (
-          <Button variant="ghost" size="icon" className="h-9 w-9 md:hidden rounded-full shrink-0" onClick={() => setMobileSearchActive(true)}>
+          <Button variant="ghost" size="icon" data-bottom-accent="off" className="h-9 w-9 md:hidden rounded-full shrink-0" onClick={() => setMobileSearchActive(true)}>
             <Search className="h-4 w-4" />
           </Button>
         )}
 
         {/* Mobile Cancel Search */}
         {mobileSearchActive && (
-          <Button variant="ghost" size="sm" className="md:hidden shrink-0 px-2" onClick={() => { setMobileSearchActive(false); setSearchOpen(false); }}>
-            Batal
+          <Button type="button" variant="outline" size="icon" data-bottom-accent="on" aria-label="Tutup pencarian" className="md:hidden h-9 w-9 shrink-0 rounded-md" onClick={() => { setMobileSearchActive(false); setSearchOpen(false); }}>
+            <ArrowRight className="h-4 w-4" />
           </Button>
         )}
 

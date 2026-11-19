@@ -19,6 +19,7 @@ export function ThemeToggle() {
       <Button
         variant="ghost"
         size="icon"
+        data-bottom-accent="off"
         className="h-9 w-9 rounded-full"
       >
         <Sun className="h-4 w-4" />
@@ -30,6 +31,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
+      data-bottom-accent="off"
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       className="h-9 w-9 rounded-full"
     >

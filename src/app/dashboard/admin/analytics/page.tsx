@@ -53,7 +53,6 @@ function monthLabel(dateStr: string) {
 const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   quiz: "Quiz",
   kal: "Kalimat",
-  grammar: "Grammar",
   cerita: "Cerita",
   cerita_quiz: "Quiz Cerita",
   hanzi: "Hanzi",

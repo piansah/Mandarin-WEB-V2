@@ -53,7 +53,6 @@ export type DashboardStats = {
 const TYPE_LABEL: Record<string, string> = {
   quiz: "Quiz",
   kal: "Quiz Estafet",
-  grammar: "Grammar",
   cerita: "Cerita",
   cerita_quiz: "Quiz Cerita",
   hanzi: "Hanzi",
@@ -88,7 +87,7 @@ export function xpFromKalScore(score: number): number {
 export function calcXPForItem(type: string, score: number): number {
   switch (type) {
     case "quiz":
-    case "grammar":
+    case "grammar": // Keep XP for legacy grammar scores without showing the removed feature.
       return xpFromQuizScore(score);
     case "kal":
       return xpFromKalScore(score);
@@ -223,6 +222,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats | null> {
         .from("user_scores")
         .select("type, key, score, updated_at, meta")
         .eq("user_id", user.id)
+        .neq("type", "grammar")
         .order("updated_at", { ascending: false })
         .limit(4),
     ])

@@ -14,7 +14,6 @@ export type PathStep = {
   description: string
   vocabCount: number
   deckCount: number
-  grammarCount: number
   estafetCount: number
   status: "completed" | "active" | "locked"
   progress: number
@@ -32,10 +31,9 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
   // bersamaan agar halaman peta belajar tidak menunggu dua gelombang query.
   const hskLevels = [1, 2, 3, 4, 5, 6]
   
-  const [userRes, overview, grammarRes, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
+  const [userRes, overview, estafetRes, decksRes, ...cardCountsRes] = await Promise.all([
     supa.auth.getUser(),
     fetchModulOverview(supa),
-    supa.from("grammar_patterns").select("slug, hsk_level"),
     supa.from("hanzi_sets").select("key, hsk_level"),
     supa.from("flashcard_sets").select("id, hsk_level"),
     ...hskLevels.map(level =>
@@ -52,25 +50,20 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
       .from("user_scores")
       .select("type, key")
       .eq("user_id", userId)
-      .in("type", ["quiz", "grammar", "kal"])
+      .in("type", ["quiz", "kal"])
     : { data: [] as { type: string; key: string }[] }
   const completedActivities = new Set((scoresRes.data ?? []).map(row => `${row.type}:${row.key}`))
 
   // Inisialisasi counter per level
-  const counts: Record<number, { vocab: number, deck: number, grammar: number, estafet: number }> = {
-    1: { vocab: cardCountsRes[0].count || 0, deck: 0, grammar: 0, estafet: 0 },
-    2: { vocab: cardCountsRes[1].count || 0, deck: 0, grammar: 0, estafet: 0 },
-    3: { vocab: cardCountsRes[2].count || 0, deck: 0, grammar: 0, estafet: 0 },
-    4: { vocab: cardCountsRes[3].count || 0, deck: 0, grammar: 0, estafet: 0 },
-    5: { vocab: cardCountsRes[4].count || 0, deck: 0, grammar: 0, estafet: 0 },
-    6: { vocab: cardCountsRes[5].count || 0, deck: 0, grammar: 0, estafet: 0 },
+  const counts: Record<number, { vocab: number, deck: number, estafet: number }> = {
+    1: { vocab: cardCountsRes[0].count || 0, deck: 0, estafet: 0 },
+    2: { vocab: cardCountsRes[1].count || 0, deck: 0, estafet: 0 },
+    3: { vocab: cardCountsRes[2].count || 0, deck: 0, estafet: 0 },
+    4: { vocab: cardCountsRes[3].count || 0, deck: 0, estafet: 0 },
+    5: { vocab: cardCountsRes[4].count || 0, deck: 0, estafet: 0 },
+    6: { vocab: cardCountsRes[5].count || 0, deck: 0, estafet: 0 },
   }
 
-  // Hitung grammar
-  grammarRes.data?.forEach(g => { 
-    if (g.hsk_level && counts[g.hsk_level]) counts[g.hsk_level].grammar++ 
-  })
-  
   // Hitung estafet (hanzi_sets)
   estafetRes.data?.forEach(e => { 
     if (e.hsk_level && counts[e.hsk_level]) counts[e.hsk_level].estafet++ 
@@ -89,17 +82,14 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
     const modules = overview.modules.filter(m => m.level.code === levelCode)
     
     const levelDecks = (decksRes.data ?? []).filter(deck => deck.hsk_level === i)
-    const levelGrammar = (grammarRes.data ?? []).filter(pattern => pattern.hsk_level === i)
     const levelEstafet = (estafetRes.data ?? []).filter(set => set.hsk_level === i)
 
-    // Modul tuntas setelah lulus kuis; deck dan Estafet masing-masing satu
-    // aktivitas yang dihitung dari kuisnya; grammar selesai setelah latihan.
-    const progressTotal = modules.length + levelDecks.length + levelGrammar.length + levelEstafet.length
+    // Modul tuntas setelah lulus kuis; deck dan Estafet dihitung dari kuisnya.
+    const progressTotal = modules.length + levelDecks.length + levelEstafet.length
     const completedModules = modules.filter(module => module.status === "completed").length
     const completedDeckActivities = levelDecks.filter(deck => completedActivities.has(`quiz:${deck.id}`)).length
-    const completedGrammar = levelGrammar.filter(pattern => completedActivities.has(`grammar:${pattern.slug}`)).length
     const completedEstafet = levelEstafet.filter(set => completedActivities.has(`kal:${set.key}`)).length
-    const progressCompleted = completedModules + completedDeckActivities + completedGrammar + completedEstafet
+    const progressCompleted = completedModules + completedDeckActivities + completedEstafet
     const progress = progressTotal > 0 ? Math.round((progressCompleted / progressTotal) * 100) : 0
 
     let status: "completed" | "active" | "locked" = "locked"
@@ -128,7 +118,6 @@ export async function fetchLearningPath(client?: SupabaseClient): Promise<PathSt
       description: levelData?.description || getFallbackDesc(i),
       vocabCount: counts[i].vocab,
       deckCount: counts[i].deck,
-      grammarCount: counts[i].grammar,
       estafetCount: counts[i].estafet,
       status,
       progress,

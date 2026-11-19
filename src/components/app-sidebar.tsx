@@ -5,21 +5,16 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
-  BookOpen,
   Languages,
-  Layers,
-  Star,
   Settings,
   User,
   LogOut,
-  FolderHeart,
   Bug,
   Target,
   BarChart3,
   ClipboardList,
   FolderOpen,
   Shield,
-  MoreHorizontal,
 } from "lucide-react"
 import {
   Sidebar,
@@ -57,9 +52,9 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { BugReportDialog } from "@/components/bug-report-dialog"
 import { isAdmin } from "@/lib/auth-roles"
 
-const todayItems = [
+const learningItems = [
   {
-    title: "Dashboard",
+    title: "Beranda",
     subtitle: "Ringkasan progres belajarmu",
     url: "/dashboard",
     icon: LayoutDashboard,
@@ -70,15 +65,6 @@ const todayItems = [
     url: "/dashboard/path",
     icon: Target,
   },
-  {
-    title: "Statistik",
-    subtitle: "Pantau progres dan pencapaian",
-    url: "/dashboard/statistik",
-    icon: BarChart3,
-  },
-]
-
-const belajarItems = [
   {
     title: "Modul",
     subtitle: "Materi belajar terstruktur",
@@ -92,40 +78,16 @@ const belajarItems = [
     icon: Languages,
   },
   {
-    title: "Estafet",
-    subtitle: "Latihan memahami kalimat",
-    url: "/dashboard/flashcard/cumulative",
-    icon: Layers,
+    title: "Statistik",
+    subtitle: "Pantau progres dan pencapaian",
+    url: "/dashboard/statistik",
+    icon: BarChart3,
   },
-  {
-    title: "Tata Bahasa",
-    subtitle: "Pola dan aturan bahasa Mandarin",
-    url: "/dashboard/grammar",
-    icon: BookOpen,
-  },
-]
-
-const learningPathItems = [
   {
     title: "Simulasi Ujian HSK",
     subtitle: "Latihan dengan format ujian HSK",
     url: "/dashboard/simulasi-hsk",
     icon: ClipboardList,
-  },
-]
-
-const personalCollectionItems = [
-  {
-    title: "Favorit",
-    subtitle: "Kosakata yang kamu simpan",
-    url: "/dashboard/favorit",
-    icon: Star,
-  },
-  {
-    title: "Deck Saya",
-    subtitle: "Deck kosakata buatanmu",
-    url: "/dashboard/personal-cards",
-    icon: FolderHeart,
   },
 ]
 
@@ -146,7 +108,7 @@ export function AppSidebar({
   user: { name: string; email: string; avatar: string }
 }) {
   const pathname = usePathname()
-  const activeRoute = [...todayItems, ...belajarItems, ...learningPathItems, ...personalCollectionItems, ...adminItems]
+  const activeRoute = [...learningItems, ...adminItems]
     .filter((item) => pathname === item.url || (item.url !== "/dashboard" && pathname.startsWith(`${item.url}/`)))
     .sort((a, b) => b.url.length - a.url.length)[0]?.url
   const isActiveRoute = (url: string) => activeRoute === url
@@ -228,6 +190,8 @@ export function AppSidebar({
     router.push("/dashboard/settings")
   }
 
+  if (isMobile) return null
+
   return (
     <Sidebar
       collapsible="offcanvas"
@@ -237,8 +201,8 @@ export function AppSidebar({
       onMouseLeave={handleMouseLeave}
       {...props}
     >
-      <SidebarHeader>
-        <Link href="/dashboard" aria-label="Journey - Dashboard" onClick={closeMobileSidebar} className="px-2 py-1 flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <SidebarHeader className="pt-10 pb-2">
+        <Link href="/dashboard" aria-label="Journey - Beranda" onClick={closeMobileSidebar} className="px-2 py-1 flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="flex items-center justify-center w-8 h-8 rounded-[20%] bg-primary flex-shrink-0">
             <span className="font-hanzi text-xl font-bold text-white">木</span>
           </div>
@@ -249,13 +213,13 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {/* Dashboard & Modul */}
+        {/* Ruang belajarmu */}
         <div className="px-3">
-          <div className="mb-2 px-2 pt-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            MENU UTAMA
+          <div className="mb-4 px-2 pt-8 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+            RUANG BELAJARMU
           </div>
-          <SidebarMenu className="gap-1.5">
-            {todayItems.map((item) => (
+          <SidebarMenu className="gap-2.5">
+            {learningItems.map((item) => (
               <SidebarMenuItem key={item.title}>
                 {(() => {
                   const active = isActiveRoute(item.url)
@@ -263,104 +227,9 @@ export function AppSidebar({
                 <SidebarMenuButton
                   tooltip={item.title}
                   isActive={active}
+                  data-bottom-accent={active ? "on" : "off"}
                   render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-2"
-                >
-                  <div className="flex w-full min-w-0 items-center gap-2">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-                      <span className="font-medium">{item.title}</span>
-                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-                  )
-                })()}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
-
-        {/* BELAJAR */}
-        <div className="px-3 mt-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            BELAJAR
-          </div>
-          <SidebarMenu className="gap-1.5">
-            {belajarItems.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {(() => {
-                  const active = isActiveRoute(item.url)
-                  return (
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={active}
-                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-2"
-                >
-                  <div className="flex w-full min-w-0 items-center gap-2">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-                      <span className="font-medium">{item.title}</span>
-                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-                  )
-                })()}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
-
-        {/* LATIHAN */}
-        <div className="px-3 mt-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            LATIHAN
-          </div>
-          <SidebarMenu className="gap-1">
-            {learningPathItems.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {(() => {
-                  const active = isActiveRoute(item.url)
-                  return (
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={active}
-                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-2"
-                >
-                  <div className="flex w-full min-w-0 items-center gap-2">
-                    <item.icon className="h-4 w-4 flex-shrink-0" />
-                    <span className="flex min-w-0 flex-col group-data-[collapsed=true]/sidebar:hidden">
-                      <span className="font-medium">{item.title}</span>
-                      {active && <span className="text-[10px] leading-tight text-inherit opacity-80">{item.subtitle}</span>}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-                  )
-                })()}
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
-
-        {/* KOLEKSI PRIBADI */}
-        <div className="px-3 mt-3">
-          <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
-            KOLEKSI PRIBADI
-          </div>
-          <SidebarMenu className="gap-1">
-            {personalCollectionItems.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                {(() => {
-                  const active = isActiveRoute(item.url)
-                  return (
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={active}
-                  render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                  className="h-auto min-h-8 p-2"
+                  className="h-auto min-h-8 p-3"
                 >
                   <div className="flex w-full min-w-0 items-center gap-2">
                     <item.icon className="h-4 w-4 flex-shrink-0" />
@@ -379,11 +248,11 @@ export function AppSidebar({
 
         {/* ADMIN - hanya muncul untuk admin */}
         {isAdminUser && (
-          <div className="hidden px-3 mt-3 md:block">
-            <div className="mb-2 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
+          <div className="hidden px-3 mt-6 md:block">
+            <div className="mb-3 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider group-data-[collapsed=true]/sidebar:hidden">
               ADMIN
             </div>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu className="gap-2.5">
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   {(() => {
@@ -392,8 +261,9 @@ export function AppSidebar({
                   <SidebarMenuButton
                     tooltip={item.title}
                     isActive={active}
+                    data-bottom-accent={active ? "on" : "off"}
                     render={<Link href={item.url} onClick={closeMobileSidebar} />}
-                    className="h-auto min-h-8 p-2"
+                    className="h-auto min-h-8 p-3"
                   >
                     <div className="flex w-full min-w-0 items-center gap-2">
                       <item.icon className="h-4 w-4 shrink-0" />
@@ -412,55 +282,60 @@ export function AppSidebar({
         )}
       </SidebarContent>
 
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <SidebarMenuButton size="lg" className="aria-expanded:bg-muted p-3 h-auto flex-col items-start" />
-                }
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="text-sm bg-primary text-primary-foreground">
-                      {user.name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="font-medium flex-1 group-data-[collapsed=true]/sidebar:hidden">{user.name}</span>
-                  <MoreHorizontal className="h-4 w-4 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
-                side="top"
-                align="end"
-                sideOffset={4}
-              >
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={handleProfileClick}>
-                    <User className="h-4 w-4" />
-                    Profil
+      <SidebarFooter className="px-3 pb-4">
+        <div className="rounded-2xl border border-sidebar-border bg-sidebar-accent/30 p-2.5">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton data-bottom-accent="off" size="lg" className="h-auto w-full rounded-xl p-2 hover:bg-sidebar-accent aria-expanded:bg-sidebar-accent" />
+                  }
+                >
+                  <div className="flex w-full min-w-0 items-center gap-3">
+                    <Avatar className="h-11 w-11 shrink-0 border-2 border-primary/30 p-0.5">
+                      <AvatarImage src={user.avatar} alt={user.name} />
+                      <AvatarFallback className="text-sm bg-primary text-primary-foreground">
+                        {user.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="flex min-w-0 flex-1 flex-col items-start group-data-[collapsed=true]/sidebar:hidden">
+                      <span className="max-w-full truncate font-semibold">{user.name}</span>
+                      <span className="max-w-full truncate text-xs text-muted-foreground">{user.email}</span>
+                    </span>
+                    <Settings className="h-4 w-4 shrink-0 text-muted-foreground group-data-[collapsed=true]/sidebar:hidden" />
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg bg-sidebar border-sidebar-border shadow-lg"
+                  side="top"
+                  align="end"
+                  sideOffset={4}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem onClick={handleProfileClick}>
+                      <User className="h-4 w-4" />
+                      Profil
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSettingsClick}>
+                      <Settings className="h-4 w-4" />
+                      Pengaturan
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setBugReportOpen(true)}>
+                      <Bug className="h-4 w-4" />
+                      Lapor Bug
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setLogoutDialogOpen(true)} className="text-red-500 focus:text-red-500 focus:bg-red-500/10">
+                    <LogOut className="h-4 w-4" />
+                    Keluar
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSettingsClick}>
-                    <Settings className="h-4 w-4" />
-                    Pengaturan
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setBugReportOpen(true)}>
-                    <Bug className="h-4 w-4" />
-                    Lapor Bug
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLogoutDialogOpen(true)} className="text-red-500 focus:text-red-500 focus:bg-red-500/10">
-                  <LogOut className="h-4 w-4" />
-                  Keluar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
       </SidebarFooter>
       <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
 

@@ -9,7 +9,7 @@
  * `auth/callback/route.ts`, default `['pemula']` untuk user baru).
  *
  * Lapis item (sequential per-deck di dalam satu HSK level) tetap jadi urusan
- * masing-masing halaman (quiz/grammar/flashcard) seperti sebelumnya — modul
+ * masing-masing halaman (quiz/flashcard) seperti sebelumnya — modul
  * ini cuma menangani lapis tier yang sebelumnya hilang total di project baru.
  */
 

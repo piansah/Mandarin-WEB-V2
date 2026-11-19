@@ -504,7 +504,7 @@ export default function CumulativeFlashcardSessionPage() {
                   </div>
                   <DrawerFooter>
                     <DrawerClose render={<Button variant="outline" className="rounded-xl" />}>
-                      Batal
+                      Kembali
                     </DrawerClose>
                   </DrawerFooter>
                 </div>

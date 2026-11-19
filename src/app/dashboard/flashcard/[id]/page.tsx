@@ -8,12 +8,14 @@ import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
 import { createPortal } from "react-dom"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ChevronsLeft, Flag, Heart, Plus, Volume2 } from "lucide-react"
+import { BookOpen, ChevronsLeft, Flag, Heart, MoreHorizontal, Plus, Volume2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSupabase } from "@/hooks/use-supabase"
 import {
   Drawer,
+  DrawerClose,
   DrawerContent,
+  DrawerFooter,
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
@@ -29,10 +31,20 @@ import { ColorPinyin } from "./components"
 import { HskBadge } from "@/components/hsk-badge"
 import { ReportModal } from "@/components/report-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
-import { getDeckPracticeScores } from "@/lib/user-scores"
+import { getDeckPracticeScores, getEstafetPracticeScores } from "@/lib/user-scores"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 import { getWordDetailPath } from "@/lib/hanzi-segmentation"
 import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
+import { listFavorites, toggleFavorite } from "@/lib/personal-decks"
+import { toast } from "sonner"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+
+type EstafetPracticeSet = {
+  key: string
+  title: string
+  hsk_level: number
+  unlock_after: number
+}
 
 const idsLabels = IDS_LABELS
 
@@ -68,6 +80,7 @@ export default function FlashcardDeckPage() {
   const [compoundsLoading, setCompoundsLoading] = React.useState(false)
   const [isScrolling, setIsScrolling] = React.useState(false)
   const listRef = React.useRef<HTMLDivElement>(null)
+  const [favoriteHanZi, setFavoriteHanZi] = React.useState<Set<string>>(new Set())
 
   React.useEffect(() => {
     const scrollContainer = listRef.current?.closest(".overflow-auto")
@@ -104,6 +117,8 @@ export default function FlashcardDeckPage() {
   const [quizScore, setQuizScore] = React.useState<number | null>(null)
   const [nadaDone, setNadaDone] = React.useState(false)
   const [tulisDone, setTulisDone] = React.useState(false)
+  const [estafetSets, setEstafetSets] = React.useState<EstafetPracticeSet[]>([])
+  const [estafetScores, setEstafetScores] = React.useState<Record<string, number | null>>({})
 
   const quizDone = quizScore !== null
   const quizUnlocked = flashcardDone
@@ -111,12 +126,39 @@ export default function FlashcardDeckPage() {
 
   const refreshScores = React.useCallback(async () => {
     if (!deckId) return
-    const res = await getDeckPracticeScores(deckId)
+    const [res, estafetResults] = await Promise.all([
+      getDeckPracticeScores(deckId),
+      Promise.all(estafetSets.map(async (set) => [set.key, (await getEstafetPracticeScores(set.key)).quizScore] as const)),
+    ])
     setFlashcardDone(res.fcDone)
     setQuizScore(res.quizScore)
     setNadaDone(res.nadaDone)
     setTulisDone(res.tulisDone)
-  }, [deckId, supa, deck])
+    setEstafetScores(Object.fromEntries(estafetResults))
+  }, [deckId, estafetSets])
+
+  React.useEffect(() => {
+    let cancelled = false
+    listFavorites().then((favorites) => {
+      if (!cancelled) setFavoriteHanZi(new Set(favorites.map((favorite) => favorite.hanzi)))
+    }).catch(() => {
+      if (!cancelled) setFavoriteHanZi(new Set())
+    })
+    return () => { cancelled = true }
+  }, [deckId])
+
+  React.useEffect(() => {
+    let cancelled = false
+    supa
+      .from("hanzi_sets")
+      .select("key, title, hsk_level, unlock_after")
+      .eq("unlock_after", deckId)
+      .order("sort_order", { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) setEstafetSets((data ?? []) as EstafetPracticeSet[])
+      })
+    return () => { cancelled = true }
+  }, [deckId, supa])
 
   React.useEffect(() => {
     async function load() {
@@ -181,8 +223,51 @@ export default function FlashcardDeckPage() {
     router.push(`/dashboard/practice/quiz/${deckId}`)
   }
 
+  const practiceTileCount = 4 + estafetSets.length
+  const practiceTileRemainder = practiceTileCount % 3
+  const practiceTileStyle = (index: number): React.CSSProperties | undefined => {
+    if (practiceTileRemainder === 1 && index === practiceTileCount - 1) return { gridColumnStart: 3 }
+    if (practiceTileRemainder === 2 && index === practiceTileCount - 2) return { gridColumnStart: 2 }
+    if (practiceTileRemainder === 2 && index === practiceTileCount - 1) return { gridColumnStart: 4 }
+    return undefined
+  }
+
   function openDetail(card: Card) {
     router.push(`/dashboard/flashcard/${deckId}/word/${card.id}`)
+  }
+
+  async function handleToggleFavorite(card: Card) {
+    const wasFavorited = favoriteHanZi.has(card.hanzi)
+    const nextFavorites = new Set(favoriteHanZi)
+    if (wasFavorited) nextFavorites.delete(card.hanzi)
+    else nextFavorites.add(card.hanzi)
+    setFavoriteHanZi(nextFavorites)
+
+    try {
+      const result = await toggleFavorite({
+        hanzi: card.hanzi,
+        pinyin: card.pinyin,
+        arti: card.arti,
+        source: "hsk",
+        source_id: Number(card.id),
+      })
+      if (result.error) throw new Error(result.error)
+      setFavoriteHanZi((current) => {
+        const updated = new Set(current)
+        if (result.isFavorited) updated.add(card.hanzi)
+        else updated.delete(card.hanzi)
+        return updated
+      })
+      toast.success(result.isFavorited ? "Ditambahkan ke favorit" : "Dihapus dari favorit")
+    } catch (error) {
+      setFavoriteHanZi((current) => {
+        const updated = new Set(current)
+        if (wasFavorited) updated.add(card.hanzi)
+        else updated.delete(card.hanzi)
+        return updated
+      })
+      toast.error(error instanceof Error ? error.message : "Gagal memperbarui favorit")
+    }
   }
 
   function closeDetail() {
@@ -326,10 +411,17 @@ export default function FlashcardDeckPage() {
           {cards.map((card, index) => (
             <SwipeToReport
               key={card.id}
-              reportLabel={`Laporkan kosakata ${card.hanzi}`}
-              onReport={() => setReportCard(card)}
+              onFavorite={() => handleToggleFavorite(card)}
+              favorited={favoriteHanZi.has(card.hanzi)}
             >
-              <VocabularyRow card={card} count={index + 1} isScrolling={isScrolling} onOpen={openDetail} />
+              <VocabularyRow
+                card={card}
+                count={index + 1}
+                isScrolling={isScrolling}
+                onSpeak={() => speakMandarin(card.hanzi)}
+                onOpen={() => openDetail(card)}
+                onReport={() => setReportCard(card)}
+              />
             </SwipeToReport>
           ))}
         </div>
@@ -346,17 +438,18 @@ export default function FlashcardDeckPage() {
               Mulai Latihan
             </DrawerTrigger>
             <DrawerContent>
-              <div className="mx-auto w-full max-w-sm">
+              <div className="mx-auto w-full max-w-lg">
                 <DrawerHeader className="text-center pb-2">
                   <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
                     Pilih Latihan
                   </DrawerTitle>
                 </DrawerHeader>
-                <div className="p-4 grid grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-6 gap-2.5 p-4">
                   {/* Flashcard */}
                   <div
+                    style={practiceTileStyle(0)}
                     onClick={() => navigateToPractice("flashcard")}
-                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${flashcardDone
+                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative cursor-pointer ${flashcardDone
                         ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
                         : "border-primary/50 bg-primary/5 shadow-sm hover:bg-primary/10"
                       }`}
@@ -377,9 +470,10 @@ export default function FlashcardDeckPage() {
 
                   {/* Quiz — kebuka setelah Flashcard selesai */}
                   <div
+                    style={practiceTileStyle(1)}
                     onClick={() => { if (quizUnlocked) navigateToQuiz() }}
                     aria-disabled={!quizUnlocked}
-                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!quizUnlocked
+                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!quizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : quizDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -397,18 +491,46 @@ export default function FlashcardDeckPage() {
                       <ListChecks className="h-5 w-5" />
                     </div>
                     <span className="text-xs font-semibold text-center leading-tight">Quiz</span>
-                    {!quizUnlocked && (
-                      <span className="text-[10px] text-muted-foreground text-center leading-tight">
-                        Selesaikan Flashcard
-                      </span>
-                    )}
                   </div>
+
+                  {estafetSets.map((set, index) => {
+                    const unlocked = (quizScore ?? 0) >= 80
+                    const estafetScore = estafetScores[set.key]
+                    return (
+                      <div
+                        key={set.key}
+                        style={practiceTileStyle(index + 2)}
+                        onClick={() => {
+                          if (unlocked) router.push(`/dashboard/flashcard/cumulative/${set.key}`)
+                          else toast.error(`Selesaikan quiz deck ini dengan nilai minimal 80% untuk membuka ${set.title}.`)
+                        }}
+                        aria-disabled={!unlocked}
+                        className={`col-span-2 relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border p-3 transition-colors ${unlocked
+                          ? "border-violet-500/40 bg-violet-500/5 hover:bg-violet-500/10"
+                          : "cursor-not-allowed border-border/30 bg-card/40 opacity-55"
+                        }`}
+                      >
+                        {typeof estafetScore === "number" && (
+                          <div className="absolute right-2 top-2">
+                            <span className="rounded-full border border-violet-500/30 bg-violet-500/15 px-1.5 py-0.5 text-[10px] font-bold text-violet-400">
+                              {estafetScore}%
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-500/10 text-violet-500">
+                          <Layers className="h-5 w-5" />
+                        </div>
+                        <span className="text-center text-xs font-semibold leading-tight">Estafet</span>
+                      </div>
+                    )
+                  })}
 
                   {/* Nada & Menulis — kebuka bareng setelah Quiz selesai */}
                   <div
+                    style={practiceTileStyle(estafetSets.length + 2)}
                     onClick={() => { if (postQuizUnlocked) navigateToPractice("nada") }}
                     aria-disabled={!postQuizUnlocked}
-                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : nadaDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -430,9 +552,10 @@ export default function FlashcardDeckPage() {
                   </div>
 
                   <div
+                    style={practiceTileStyle(estafetSets.length + 3)}
                     onClick={() => { if (postQuizUnlocked) navigateToPractice("tulis") }}
                     aria-disabled={!postQuizUnlocked}
-                    className={`flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
+                    className={`col-span-2 flex flex-col items-center justify-center gap-3 p-3 rounded-xl border transition-colors relative ${!postQuizUnlocked
                         ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
                         : tulisDone
                           ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
@@ -453,6 +576,11 @@ export default function FlashcardDeckPage() {
                     )}
                   </div>
                 </div>
+                <DrawerFooter className="pt-0">
+                  <DrawerClose render={<Button variant="outline" className="w-full rounded-xl" />}>
+                    Kembali
+                  </DrawerClose>
+                </DrawerFooter>
               </div>
             </DrawerContent>
           </Drawer>
@@ -490,32 +618,70 @@ export default function FlashcardDeckPage() {
   )
 }
 
-function VocabularyRow({ card, count, isScrolling, onOpen }: { card: Card; count: number; isScrolling: boolean; onOpen: (card: Card) => void }) {
+function VocabularyRow({
+  card,
+  count,
+  isScrolling,
+  onSpeak,
+  onOpen,
+  onReport,
+}: {
+  card: Card
+  count: number
+  isScrolling: boolean
+  onSpeak: () => void
+  onOpen: () => void
+  onReport: () => void
+}) {
   return (
     <div
-      className="flex cursor-pointer items-center gap-4 rounded-xl border border-border/40 bg-card/40 p-4 transition-colors hover:bg-muted/30"
-      onClick={() => onOpen(card)}
+      className="flex items-center gap-3 rounded-xl border border-border/40 bg-card/40 p-3 transition-colors hover:bg-muted/30 sm:gap-4 sm:p-4"
     >
-      <div className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</div>
-      <div className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></div>
-      <div className="ml-1 flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        data-bottom-accent="off"
+        aria-label={`Dengarkan ${card.hanzi}, kosakata nomor ${count}`}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left sm:gap-4"
+        onClick={onSpeak}
+      >
+        <span className="font-hanzi min-w-[3.5rem] shrink-0 whitespace-nowrap text-3xl leading-tight text-foreground">{card.hanzi}</span>
+        <span className="flex min-w-0 flex-1 flex-col"><TonePinyin text={card.pinyin} className="text-sm font-medium" /><span className="truncate text-sm text-muted-foreground">{card.arti}</span></span>
         <HskBadge hskLevel={card.hsk_level} />
-        {isScrolling ? (
-          <span className="grid h-8 min-w-8 place-items-center rounded-full px-1 text-[11px] font-medium tabular-nums text-muted-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none" aria-label={`Kosakata ${count}`}>
-            #{count}
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={event => { event.stopPropagation(); speakMandarin(card.hanzi) }}
-            className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none"
-            aria-label={`Dengarkan ${card.hanzi}`}
-            title="Dengarkan pelafalan"
+      </button>
+      {isScrolling ? (
+        <span
+          className="grid h-9 min-w-9 shrink-0 place-items-center rounded-full px-1 text-[11px] font-medium tabular-nums text-muted-foreground animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none"
+          aria-label={`Kosakata ${count}`}
+        >
+          #{count}
+        </span>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                data-bottom-accent="off"
+                className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={`Menu kosakata ${card.hanzi}`}
+                title="Menu kosakata"
+              />
+            }
           >
-            <Volume2 className="h-4 w-4" />
-          </button>
-        )}
-      </div>
+            <MoreHorizontal className="h-5 w-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="grid w-44 grid-cols-2 gap-1 sm:w-64">
+            <DropdownMenuItem onClick={onOpen} className="min-h-16 flex-col justify-center gap-1 px-1.5 py-2 text-center text-xs sm:min-h-20 sm:gap-2 sm:px-2 sm:py-3 sm:text-sm">
+              <BookOpen aria-hidden="true" className="size-4 text-primary sm:size-5" />
+              <span>Detail</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onReport} className="min-h-16 flex-col justify-center gap-1 px-1.5 py-2 text-center text-xs sm:min-h-20 sm:gap-2 sm:px-2 sm:py-3 sm:text-sm">
+              <Flag aria-hidden="true" className="size-4 text-destructive sm:size-5" />
+              <span>Laporkan</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   )
 }

@@ -179,7 +179,6 @@ async function fetchAccuracyData(supa: SupabaseClient, userId: string): Promise<
   const typeMap: Record<string, { label: string; color: string }> = {
     fc_session: { label: "Flashcard", color: "bg-emerald-500" },
     quiz: { label: "Kuis Modul", color: "bg-blue-500" },
-    grammar: { label: "Grammar", color: "bg-violet-500" },
     kal: { label: "Estafet", color: "bg-orange-500" },
     nada_session: { label: "Nada", color: "bg-pink-500" },
     tulis_session: { label: "Tulis", color: "bg-cyan-500" },

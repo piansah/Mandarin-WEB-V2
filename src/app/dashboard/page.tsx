@@ -95,6 +95,7 @@ type ActiveDeckHero = {
 function DashboardImageCard({
   href,
   image,
+  category,
   title,
   description,
   icon: Icon,
@@ -103,6 +104,7 @@ function DashboardImageCard({
 }: {
   href?: string
   image: string
+  category: "Modul" | "Flashcard" | "Review" | "Estafet"
   title: string
   description: string
   icon: LucideIcon
@@ -125,16 +127,19 @@ function DashboardImageCard({
   }
 
   const content = compact ? (
-    <div className="group relative h-[124px] min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-primary/40 lg:h-full">
+    <div data-bottom-accent="off" className="group relative h-[124px] min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-primary/40 lg:h-full">
+      <span className="absolute left-2.5 top-2.5 z-20 rounded-full border border-white/15 bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm backdrop-blur-sm">
+        {category}
+      </span>
       <div className="absolute inset-0 lg:hidden">
         <Image {...imageProps} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]" />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/50 to-slate-950/15" />
       </div>
       <div className="relative z-10 flex h-full flex-col justify-between p-3 lg:hidden">
-        <div className="min-w-0">
+        <div className="min-w-0 pt-5">
           <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-white">{title}</h3>
         </div>
-        <span className={`w-fit text-xs font-semibold ${href ? "text-primary" : "text-muted-foreground"}`}>
+        <span data-bottom-accent="off" className={`inline-flex w-fit text-xs font-semibold ${href ? "text-primary" : "text-muted-foreground"}`}>
           {href ? "Buka →" : "Belum tersedia"}
         </span>
       </div>
@@ -153,14 +158,17 @@ function DashboardImageCard({
             <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-base font-bold leading-snug text-foreground">{title}</h3>
           </div>
           <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
-          <span className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
+          <span data-bottom-accent="on" className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
             {href ? "Buka" : "Belum tersedia"}
           </span>
         </div>
       </div>
     </div>
   ) : (
-    <div className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all hover:border-primary/40 hover:shadow-md">
+    <div data-bottom-accent="off" className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all hover:border-primary/40 hover:shadow-md">
+      <span className="absolute left-2.5 top-2.5 z-20 rounded-full border border-white/15 bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm backdrop-blur-sm">
+        {category}
+      </span>
       <div className="relative overflow-hidden">
         <Image {...imageProps} className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
       </div>
@@ -172,7 +180,7 @@ function DashboardImageCard({
           <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-sm font-bold leading-snug text-foreground sm:text-base">{title}</h3>
         </div>
         <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
-        <span className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
+        <span data-bottom-accent="on" className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
           {href ? "Buka" : "Belum tersedia"}
         </span>
       </div>
@@ -767,6 +775,7 @@ export default function DashboardPage() {
             return (
               <button
                 type="button"
+                data-bottom-accent="off"
                 title="Klik/tap untuk ganti kata Hanzi dari deck ini"
                 onClick={handleNextWatermark}
                 className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 flex items-center justify-end z-20 cursor-pointer bg-transparent border-0 outline-none group/hanzi select-none p-1"
@@ -894,9 +903,9 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {/* Latihan hari ini */}
+      {/* Sesi hari ini */}
       <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
-        <h2 className="mb-4 text-xl font-semibold tracking-tight">Latihan hari ini</h2>
+        <h2 className="mb-4 text-xl font-semibold tracking-tight">Sesi hari ini</h2>
         {nextContentLoading ? (
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3" aria-label="Memuat latihan" aria-busy="true">
             {[0, 1, 2].map((item) => (
@@ -911,6 +920,7 @@ export default function DashboardPage() {
             <DashboardImageCard
               href={nextModule ? "/dashboard/modul" : undefined}
               image="/image-c.jpg"
+              category="Modul"
               title={nextModule?.title ?? "Modul Pembelajaran"}
               description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Tidak ada modul tersedia saat ini"}
               icon={FolderOpen}
@@ -923,6 +933,7 @@ export default function DashboardPage() {
               <DashboardImageCard
                 href={`/dashboard/flashcard/${nextDeck.id}`}
                 image="/image-e.jpg"
+                category="Flashcard"
                 title={nextDeck.title}
                 description={`Flashcard & quiz · HSK ${nextDeck.hsk_level}`}
                 icon={Languages}
@@ -936,6 +947,7 @@ export default function DashboardPage() {
               <DashboardImageCard
                 href={`/dashboard/review?hsk=${activeSrsLevel}`}
                 image="/image-d.jpg"
+                category="Review"
                 title={`Review ${activeSrsDue} Kosakata`}
                 description="Kosakata siap direview · Perkuat memori jangka panjang"
                 icon={SquareStack}
@@ -949,6 +961,7 @@ export default function DashboardPage() {
               <DashboardImageCard
                 href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
                 image="/image-a.jpg"
+                category="Estafet"
                 title={nextEstafet.title}
                 description="Baca kalimat berurutan untuk melatih pemahaman"
                 icon={BookText}
@@ -990,7 +1003,7 @@ export default function DashboardPage() {
               const className = `relative flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-2xl border border-border/60 bg-card/50 px-2 py-4 text-center transition-colors ${upcoming ? "cursor-not-allowed opacity-65" : "hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"}`
 
               return href ? (
-                <Link key={title} href={href} className={className}>
+                <Link key={title} href={href} data-bottom-accent="off" className={className}>
                   {content}
                 </Link>
               ) : (
@@ -1155,15 +1168,7 @@ export default function DashboardPage() {
                           >
                             Mulai belajar kosakata
                           </Button>
-                        ) : (
-                          <Button
-                            className="w-full rounded-full h-11 text-sm bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            disabled
-                          >
-                            <span className="sm:hidden">Tidak ada review</span>
-                            <span className="hidden sm:inline">Tidak ada kosakata untuk direview</span>
-                          </Button>
-                        )}
+                        ) : null}
                       </div>
                     )
                   })() : (

@@ -339,7 +339,7 @@ function resolveSkeleton(pathname: string) {
   if (pathname === "/dashboard/flashcard" || pathname === "/dashboard/personal-cards" || pathname.startsWith("/dashboard/personal-cards/") || pathname === "/dashboard/favorit" || pathname === "/dashboard/flashcard/cumulative") return <DeckGridSkeleton />
   if (pathname.startsWith("/dashboard/flashcard/")) return <DeckDetailSkeleton />
   if (pathname.startsWith("/dashboard/modul/") || pathname.startsWith("/dashboard/cerita/")) return <ContentDetailSkeleton />
-  if (pathname.startsWith("/dashboard/modul") || pathname.startsWith("/dashboard/grammar") || pathname.startsWith("/dashboard/cerita") || pathname.startsWith("/dashboard/games") || pathname.startsWith("/dashboard/path") || pathname.startsWith("/dashboard/peta-hanzi")) return <ContentListSkeleton />
+  if (pathname.startsWith("/dashboard/modul") || pathname.startsWith("/dashboard/cerita") || pathname.startsWith("/dashboard/games") || pathname.startsWith("/dashboard/path") || pathname.startsWith("/dashboard/peta-hanzi")) return <ContentListSkeleton />
   if (pathname.startsWith("/dashboard/practice/") || pathname.startsWith("/dashboard/simulasi-hsk") || pathname.startsWith("/dashboard/quiz")) return <PracticeSkeleton />
   return <ContentListSkeleton />
 }

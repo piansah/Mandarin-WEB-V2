@@ -297,12 +297,11 @@ function ModuleCard({ module: mod }: { module: ModulModuleSummary }) {
 
       <p className="text-sm text-muted-foreground mb-6 flex-grow leading-relaxed">{mod.description}</p>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto">
-        <span className="flex items-center gap-1">⏱ {mod.durationMinutes} mnt</span>
-        {mod.status === "active" && mod.progressPercent > 0 && (
+      {mod.status === "active" && mod.progressPercent > 0 && (
+        <div className="mt-auto flex justify-end text-xs text-muted-foreground">
           <span className="text-primary font-medium">{Math.round(mod.progressPercent)}%</span>
-        )}
-      </div>
+        </div>
+      )}
     </CardContent>
   )
 

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { level_id, title, slug, description, summary, order_index, duration_minutes, part_count, has_quiz, is_published } = body
+    const { level_id, title, slug, description, summary, order_index, part_count, has_quiz, is_published } = body
 
     if (!level_id || !title || !slug) {
       return NextResponse.json(
@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
         description: description || null,
         summary: summary || null,
         order_index: order_index || 0,
-        duration_minutes: duration_minutes || 0,
         part_count: part_count || 0,
         has_quiz: has_quiz || false,
         is_published: is_published !== undefined ? is_published : true

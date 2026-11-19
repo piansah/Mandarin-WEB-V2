@@ -57,6 +57,11 @@
 }
 
 :root {
+  --font-poppins: "Poppins";
+  --font-noto-sans-sc: "Noto Sans SC";
+  --font-noto-serif-sc: "Noto Serif SC";
+  --font-ma-shan-zheng: "Ma Shan Zheng";
+  --font-long-cang: "Long Cang";
   --font-hanzi-family: var(--font-noto-sans-sc), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-hanzi: var(--font-hanzi-family);
   --font-hanzi-ma-shan: var(--font-ma-shan-zheng), "Ma Shan Zheng", "Noto Sans SC", sans-serif;
@@ -85,6 +90,7 @@
   --border: oklch(0.9 0.02 250);
   --input: oklch(0.9 0.02 250);
   --ring: oklch(0.65 0.15 165);
+  --interactive-bottom-accent: color-mix(in oklch, var(--primary) 58%, var(--foreground) 42%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -163,6 +169,7 @@
   --border: oklch(0.3 0.05 250);
   --input: oklch(0.3 0.05 250);
   --ring: oklch(0.8 0.15 165);
+  --interactive-bottom-accent: color-mix(in oklch, var(--primary) 28%, var(--background) 72%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -194,5 +201,75 @@
 
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Global accent outline with a thicker lower edge for interactive surfaces. */
+  :where(
+    button:not([data-bottom-accent="off"]),
+    [role="button"]:not([data-bottom-accent="off"]),
+    [role="option"]:not([data-bottom-accent="off"]),
+    [role="radio"]:not([data-bottom-accent="off"]),
+    [role="checkbox"]:not([data-bottom-accent="off"]),
+    [role="tab"]:not([data-bottom-accent="off"]),
+    [data-bottom-accent="on"],
+    [data-slot="card"].cursor-pointer:not([data-bottom-accent="off"]),
+    a[class*="border"]:not([data-bottom-accent="off"])
+  ) {
+    --bottom-accent-color: var(--interactive-bottom-accent);
+    box-shadow:
+      inset 0 0 0 1px var(--bottom-accent-color),
+      0 4px 0 var(--bottom-accent-color);
+  }
+}
+
+@layer utilities {
+  /* Speaker controls should stay visually quiet across every page. */
+  button:has(svg.lucide-volume-2) {
+    box-shadow: none !important;
+  }
+}
+
+/* Keep press feedback consistent across buttons, links, and other controls. */
+:where(
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="tab"],
+  a[href],
+  [data-bottom-accent="on"]
+) {
+  transition: all 120ms ease;
+}
+
+:where(
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="radio"],
+  [role="checkbox"],
+  [role="tab"],
+  a[href],
+  [data-bottom-accent="on"]
+):active {
+  scale: 0.98;
+  translate: 0 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    button,
+    [role="button"],
+    [role="option"],
+    [role="radio"],
+    [role="checkbox"],
+    [role="tab"],
+    a[href],
+    [data-bottom-accent="on"]
+  ) {
+    transition-duration: 0.01ms;
   }
 }
