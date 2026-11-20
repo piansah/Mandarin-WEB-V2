@@ -110,8 +110,8 @@ export function DashboardLayoutClient({
         <DashboardHeader />
 
         <div className={hideMobileBottomNav
-          ? "flex-1 min-h-0 overflow-auto px-4 sm:px-6 lg:px-[5%]"
-          : "flex-1 min-h-0 overflow-auto px-4 sm:px-6 lg:px-[5%] pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"}>
+          ? "flex-1 min-h-0 overflow-auto lg:px-[5%]"
+          : "flex-1 min-h-0 overflow-auto lg:px-[5%] pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"}>
           {children}
         </div>
       </SidebarInset>
