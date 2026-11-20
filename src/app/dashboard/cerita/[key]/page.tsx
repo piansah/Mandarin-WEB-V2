@@ -818,13 +818,14 @@ export default function CeritaReadPage() {
               {/* Per-paragraph speaker button */}
               <button
                 type="button"
+                data-bottom-accent="on"
                 onClick={() => togglePlayParagraph(pi)}
                 aria-label={isParaPlaying ? "Hentikan bacaan paragraf" : "Bacakan paragraf ini"}
                 title={isParaPlaying ? "Hentikan" : "Bacakan paragraf ini"}
                 className={`mt-1 flex-shrink-0 grid h-7 w-7 place-items-center rounded-full border transition-all ${
                   isParaPlaying
                     ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/30"
-                    : "border-border/50 bg-background/60 text-muted-foreground opacity-0 group-hover:opacity-100 hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
+                    : "border-border/60 bg-background/80 text-muted-foreground hover:border-primary/50 hover:bg-primary/10 hover:text-primary"
                 }`}
               >
                 {isParaPlaying

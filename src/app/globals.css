@@ -272,7 +272,7 @@
 
 @layer utilities {
   /* Speaker controls should stay visually quiet across every page. */
-  button:has(svg.lucide-volume-2) {
+  button:has(svg.lucide-volume-2):not([data-bottom-accent="on"]) {
     box-shadow: none !important;
   }
 }
