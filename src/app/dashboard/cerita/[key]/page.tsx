@@ -81,7 +81,7 @@ export default function CeritaReadPage() {
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  const [fontLevel, setFontLevel] = React.useState(2)
+  const [fontLevel, setFontLevel] = React.useState(0)
   const [pct, setPct] = React.useState(0)
   const [popover, setPopover] = React.useState<Popover | null>(null)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
