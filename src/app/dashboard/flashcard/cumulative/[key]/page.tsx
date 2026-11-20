@@ -345,8 +345,9 @@ export default function CumulativeFlashcardSessionPage() {
                       >
                         <button
                           type="button"
+                          data-bottom-accent={state === 0 ? "off" : undefined}
                           onClick={() => advance(item)}
-                          className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-orange-500/50 bg-orange-500/5" : "border-border/60 bg-card hover:border-primary/40"}`}
+                          className={`min-h-36 h-full w-full rounded-xl border p-4 text-left transition-colors ${state === 2 ? "border-emerald-500/40 bg-emerald-500/5" : state === 1 ? "border-orange-500/50 bg-orange-500/5" : "border-border/60 bg-card"}`}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="font-hanzi text-2xl leading-relaxed text-foreground">
