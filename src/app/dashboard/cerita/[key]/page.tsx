@@ -862,6 +862,7 @@ export default function CeritaReadPage() {
                     <button
                       key={si}
                       type="button"
+                      data-bottom-accent="off"
                       onClick={(e) => {
                         e.stopPropagation()
                         openWordPopover(seg, e)

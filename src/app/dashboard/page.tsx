@@ -799,7 +799,7 @@ export default function DashboardPage() {
       {/* Konten utama + kolom samping. `lg:contents` menempatkan hero dan streak
           langsung di grid besar tanpa mengubah urutan satu kolom di mobile. */}
       <div className="grid gap-4 lg:contents relative">
-        <section className="flex flex-col gap-2 lg:col-start-1 lg:row-start-1">
+        <section className="order-2 flex flex-col gap-2 lg:order-none lg:col-start-1 lg:row-start-1">
         {/* Lanjutkan Belajar (Deck Hero) */}
         <Card className="lg:flex-1 border-emerald-500/20 dark:border-emerald-500/30 bg-card shadow-sm overflow-hidden relative group flex flex-col justify-center isolate">
           <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-emerald-400/12 dark:bg-emerald-500/8 rounded-full blur-2xl sm:blur-3xl pointer-events-none" />
@@ -875,7 +875,7 @@ export default function DashboardPage() {
         </Card>
         </section>
 
-        <section className="flex flex-col gap-2 lg:col-start-2 lg:row-start-1">
+        <section className="order-1 flex flex-col gap-2 lg:order-none lg:col-start-2 lg:row-start-1">
         {/* Streak Widget */}
         <Card className="w-full pb-0 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
