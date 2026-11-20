@@ -103,6 +103,7 @@ function DashboardImageCard({
   icon: Icon,
   tone,
   compact = false,
+  unavailableText,
 }: {
   href?: string
   image: string
@@ -112,6 +113,7 @@ function DashboardImageCard({
   icon: LucideIcon
   tone: "primary" | "amber" | "blue" | "violet"
   compact?: boolean
+  unavailableText?: string
 }) {
   const toneClass = {
     primary: "bg-primary/15 text-primary",
@@ -127,9 +129,12 @@ function DashboardImageCard({
     height: 500,
     sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 30vw",
   }
+  const mobileActionText = href ? "Buka →" : unavailableText ?? "Belum tersedia"
+  const desktopActionText = href ? "Buka" : unavailableText ?? "Belum tersedia"
+  const unavailableClass = href ? "" : "cursor-not-allowed opacity-65"
 
   const content = compact ? (
-    <div data-bottom-accent="off" className="group relative h-[124px] min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors hover:border-primary/40 lg:h-full">
+    <div data-bottom-accent="off" aria-disabled={!href || undefined} className={`group relative h-[124px] min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card transition-colors lg:h-full ${unavailableClass} ${href ? "hover:border-primary/40" : ""}`}>
       <span className="absolute left-2.5 top-2.5 z-20 rounded-full border border-white/15 bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm backdrop-blur-sm">
         {category}
       </span>
@@ -142,7 +147,7 @@ function DashboardImageCard({
           <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-white">{title}</h3>
         </div>
         <span data-bottom-accent="off" className={`inline-flex w-fit text-xs font-semibold ${href ? "text-primary" : "text-muted-foreground"}`}>
-          {href ? "Buka →" : "Belum tersedia"}
+          {mobileActionText}
         </span>
       </div>
       <div className="hidden h-full flex-col overflow-hidden lg:flex">
@@ -160,14 +165,14 @@ function DashboardImageCard({
             <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-base font-bold leading-snug text-foreground">{title}</h3>
           </div>
           <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
-          <span data-bottom-accent="on" className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
-            {href ? "Buka" : "Belum tersedia"}
+          <span data-bottom-accent={href ? "on" : "off"} className={`mt-auto flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold ${href ? "bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90" : "bg-muted text-muted-foreground"}`}>
+            {desktopActionText}
           </span>
         </div>
       </div>
     </div>
   ) : (
-    <div data-bottom-accent="off" className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all hover:border-primary/40 hover:shadow-md">
+    <div data-bottom-accent="off" aria-disabled={!href || undefined} className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card transition-all ${unavailableClass} ${href ? "hover:border-primary/40 hover:shadow-md" : ""}`}>
       <span className="absolute left-2.5 top-2.5 z-20 rounded-full border border-white/15 bg-slate-950/75 px-2.5 py-1 text-[10px] font-semibold leading-none text-white shadow-sm backdrop-blur-sm">
         {category}
       </span>
@@ -182,8 +187,8 @@ function DashboardImageCard({
           <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-sm font-bold leading-snug text-foreground sm:text-base">{title}</h3>
         </div>
         <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
-        <span data-bottom-accent="on" className="mt-auto flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/90">
-          {href ? "Buka" : "Belum tersedia"}
+        <span data-bottom-accent={href ? "on" : "off"} className={`mt-auto flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold ${href ? "bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90" : "bg-muted text-muted-foreground"}`}>
+          {desktopActionText}
         </span>
       </div>
     </div>
@@ -962,55 +967,61 @@ export default function DashboardPage() {
               href={nextModule ? "/dashboard/modul" : undefined}
               image="/image-c.jpg"
               category="Modul"
-              title={nextModule?.title ?? "Modul Pembelajaran"}
-              description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Tidak ada modul tersedia saat ini"}
+              title={nextModule?.title ?? "Tidak ada modul aktif"}
+              description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Belum ada modul yang perlu dilanjutkan saat ini."}
               icon={FolderOpen}
               tone="primary"
+              unavailableText="Tidak ada modul"
               compact
             />
           </div>
-          {sessionDeck && (
-            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
-              <DashboardImageCard
-                href={`/dashboard/flashcard/${sessionDeck.id}`}
-                image="/image-e.jpg"
-                category="Flashcard"
-                title={sessionDeck.title}
-                description={`Flashcard & quiz · HSK ${sessionDeck.hsk_level}`}
-                icon={Languages}
-                tone="amber"
-                compact
-              />
-            </div>
-          )}
-          {activeSrsDue > 0 && (
-            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
-              <DashboardImageCard
-                href={`/dashboard/review?hsk=${activeSrsLevel}`}
-                image="/image-d.jpg"
-                category="Review"
-                title={`Review ${activeSrsDue} Kosakata`}
-                description="Kosakata siap direview · Perkuat memori jangka panjang"
-                icon={SquareStack}
-                tone="blue"
-                compact
-              />
-            </div>
-          )}
-          {nextEstafet && (
-            <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
-              <DashboardImageCard
-                href={`/dashboard/flashcard/cumulative/${nextEstafet.key}`}
-                image="/image-a.jpg"
-                category="Estafet"
-                title={nextEstafet.title}
-                description="Baca kalimat berurutan untuk melatih pemahaman"
-                icon={BookText}
-                tone="violet"
-                compact
-              />
-            </div>
-          )}
+          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <DashboardImageCard
+              href={sessionDeck ? `/dashboard/flashcard/${sessionDeck.id}` : undefined}
+              image="/image-e.jpg"
+              category="Flashcard"
+              title={sessionDeck?.title ?? (deckQuotaMet ? "Target flashcard selesai" : "Flashcard belum tersedia")}
+              description={sessionDeck
+                ? `Flashcard & quiz · HSK ${sessionDeck.hsk_level}`
+                : deckQuotaMet
+                  ? "Target flashcard hari ini sudah terpenuhi."
+                  : "Belum ada deck flashcard yang bisa dikerjakan saat ini."}
+              icon={Languages}
+              tone="amber"
+              unavailableText={deckQuotaMet ? "Selesai hari ini" : "Belum tersedia"}
+              compact
+            />
+          </div>
+          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <DashboardImageCard
+              href={activeSrsDue > 0 ? `/dashboard/review?hsk=${activeSrsLevel}` : undefined}
+              image="/image-d.jpg"
+              category="Review"
+              title={activeSrsDue > 0 ? `Review ${activeSrsDue} Kosakata` : "Belum ada review"}
+              description={activeSrsDue > 0
+                ? "Kosakata siap direview · Perkuat memori jangka panjang"
+                : "Belum ada kosakata yang perlu ditinjau hari ini."}
+              icon={SquareStack}
+              tone="blue"
+              unavailableText="Tidak ada review"
+              compact
+            />
+          </div>
+          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+            <DashboardImageCard
+              href={nextEstafet ? `/dashboard/flashcard/cumulative/${nextEstafet.key}` : undefined}
+              image="/image-a.jpg"
+              category="Estafet"
+              title={nextEstafet?.title ?? "Belum ada bacaan berikutnya"}
+              description={nextEstafet
+                ? "Baca kalimat berurutan untuk melatih pemahaman"
+                : "Selesaikan syarat belajar sebelumnya untuk membuka bacaan berikutnya."}
+              icon={BookText}
+              tone="violet"
+              unavailableText="Belum tersedia"
+              compact
+            />
+          </div>
         </div>
         <section aria-labelledby="learning-tools-title" className="mt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
