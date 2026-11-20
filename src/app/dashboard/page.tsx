@@ -465,7 +465,9 @@ export default function DashboardPage() {
         // Terapkan aturan 1 hari 1 deck untuk "Sesi Hari Ini" (reset tiap jam 12 malam waktu lokal)
         if (hasCompletedDeckToday && !isWorkingOnNewerDeck) {
           setDeckQuotaMet(true)
-          setNextDeck(null)
+          // Keep today's completed deck visible in "Sesi hari ini" so it
+          // matches the deck shown in "Lanjutkan belajar".
+          setNextDeck(decks.find((deck) => deck.id === todayCompletedDeckId) ?? null)
         } else if (firstIncompleteDeck) {
           setDeckQuotaMet(false)
           setNextDeck(firstIncompleteDeck)
@@ -720,6 +722,9 @@ export default function DashboardPage() {
     ? srsStats.byLevel[activeSrsLevel]
     : srsStats
   const activeSrsDue = activeSrsData?.due ?? 0
+  const sessionDeck = nextDeck ?? (activeDeckHero
+    ? { id: activeDeckHero.id, title: activeDeckHero.title, hsk_level: activeDeckHero.hsk_level }
+    : null)
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-6 flex flex-col gap-6">
@@ -795,7 +800,6 @@ export default function DashboardPage() {
           langsung di grid besar tanpa mengubah urutan satu kolom di mobile. */}
       <div className="grid gap-4 lg:contents relative">
         <section className="flex flex-col gap-2 lg:col-start-1 lg:row-start-1">
-        <h2 className="text-xl font-semibold tracking-tight">Lanjutkan belajar</h2>
         {/* Lanjutkan Belajar (Deck Hero) */}
         <Card className="lg:flex-1 border-emerald-500/20 dark:border-emerald-500/30 bg-card shadow-sm overflow-hidden relative group flex flex-col justify-center isolate">
           <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-emerald-400/12 dark:bg-emerald-500/8 rounded-full blur-2xl sm:blur-3xl pointer-events-none" />
@@ -831,7 +835,7 @@ export default function DashboardPage() {
             )
           })()}
 
-          <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-center h-full pointer-events-none">
+          <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-center pointer-events-none">
             <div className="space-y-2 max-w-[260px] sm:max-w-md pointer-events-auto">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight mt-0.5">
@@ -863,7 +867,7 @@ export default function DashboardPage() {
                   className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full px-5 py-2 h-9 text-xs sm:text-sm transition-all flex items-center gap-1.5 group/btn cursor-pointer"
                   onClick={() => router.push(activeDeckHero?.actionUrl || `/dashboard/flashcard`)}
                 >
-                  <span>{activeDeckHero?.isCompletedToday ? "Ulangi Pelajaran" : "Lanjutkan pelajaran"}</span>
+                  <span>{activeDeckHero?.isCompletedToday ? "Ulangi Flashcard" : "Lanjutkan Flashcard"}</span>
                 </Button>
               </div>
             </div>
@@ -871,14 +875,14 @@ export default function DashboardPage() {
         </Card>
         </section>
 
-        <section className="flex flex-col gap-2 lg:col-start-2 lg:row-start-1 lg:pt-9">
+        <section className="flex flex-col gap-2 lg:col-start-2 lg:row-start-1">
         {/* Streak Widget */}
-        <Card className="lg:flex-1 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
+        <Card className="w-full pb-0 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
           <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
             <Flame className="w-24 h-24 text-primary" />
           </div>
 
-          <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-between h-full">
+          <CardContent className="px-4 pt-4 pb-4 sm:px-5 sm:pt-5 sm:pb-4 relative z-10 flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-start mb-2.5 w-full">
                 <div>
@@ -965,14 +969,14 @@ export default function DashboardPage() {
               compact
             />
           </div>
-          {nextDeck && (
+          {sessionDeck && (
             <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
               <DashboardImageCard
-                href={`/dashboard/flashcard/${nextDeck.id}`}
+                href={`/dashboard/flashcard/${sessionDeck.id}`}
                 image="/image-e.jpg"
                 category="Flashcard"
-                title={nextDeck.title}
-                description={`Flashcard & quiz · HSK ${nextDeck.hsk_level}`}
+                title={sessionDeck.title}
+                description={`Flashcard & quiz · HSK ${sessionDeck.hsk_level}`}
                 icon={Languages}
                 tone="amber"
                 compact
@@ -1014,7 +1018,7 @@ export default function DashboardPage() {
               Alat belajar
             </h2>
           </div>
-          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 xl:grid-cols-6">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[
               { title: "Cari Kosakata", href: "/dashboard/flashcard?tab=search", icon: Search },
               { title: "Baca Hanzi", href: "/dashboard/cerita", icon: BookMarked },
