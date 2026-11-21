@@ -51,6 +51,9 @@ const RATINGS: {
     { key: "mudah", num: 4, label: "Mudah", days: demoDays(5), color: "#3ECF8E", bg: "rgba(62,207,142,0.08)", border: "rgba(62,207,142,0.28)" },
   ]
 
+const DEMO_NAV_BUTTON_CLASS = "flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
+const DEMO_NAV_BUTTON_STYLE = { "--bottom-accent-color": "color-mix(in srgb, #10161d 82%, white 18%)" } as React.CSSProperties
+
 const SWIPE_META: Record<RatingKey, { flyX: number; flyY: number; text: string }> = {
   lupa: { flyX: -420, flyY: 0, text: "LUPA ✕" },
   sulit: { flyX: 0, flyY: 420, text: "SULIT ?" },
@@ -366,24 +369,27 @@ export const FlashcardShowcase = ({
         <button
           type="button"
           data-bottom-accent-tone="surface"
+          style={DEMO_NAV_BUTTON_STYLE}
           onClick={goPrev}
-          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
+          className={DEMO_NAV_BUTTON_CLASS}
         >
           <ChevronLeft className="h-3.5 w-3.5 shrink-0" /> Sebelumnya
         </button>
         <button
           type="button"
           data-bottom-accent-tone="surface"
+          style={DEMO_NAV_BUTTON_STYLE}
           onClick={hideAnswer}
-          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
+          className={DEMO_NAV_BUTTON_CLASS}
         >
           <EyeOff className="h-3.5 w-3.5 shrink-0" /> Sembunyi
         </button>
         <button
           type="button"
           data-bottom-accent-tone="surface"
+          style={DEMO_NAV_BUTTON_STYLE}
           onClick={skip}
-          className="flex h-10 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-white/10 bg-[#10161D] px-1 text-[10px] font-medium text-[#9AA7B5] transition-colors hover:bg-white/[0.06] hover:text-white sm:px-2 sm:text-[11px]"
+          className={DEMO_NAV_BUTTON_CLASS}
         >
           <SkipForward className="h-3.5 w-3.5 shrink-0" /> Lewati
         </button>

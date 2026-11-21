@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Flame } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { playSuccessSound } from "@/lib/audio-fx"
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,7 @@ export function StreakCelebration() {
     const handleCelebration = (event: Event) => {
       const detail = (event as CustomEvent<{ streak?: number }>).detail
       if (typeof detail?.streak === "number" && detail.streak > 0) {
+        playSuccessSound()
         setCelebration({ streak: detail.streak, phase: "ignite" })
       }
     }

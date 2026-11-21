@@ -187,13 +187,13 @@ export function SwipeFlashcardSession({
 
           <div className="flex flex-col items-center gap-4 mt-2 h-auto w-full max-w-lg md:max-w-2xl lg:max-w-3xl">
             <div className="grid w-full grid-cols-[1.2fr_1fr_1fr] gap-2 px-2 sm:px-0">
-              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.goToPrevious} disabled={session.idx === 0}>
+              <Button variant="outline" data-bottom-accent="on" style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties} className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.goToPrevious} disabled={session.idx === 0}>
                 <ChevronLeft className="h-3.5 w-3.5 shrink-0" /> Sebelumnya
               </Button>
-              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.hideAnswer}>
+              <Button variant="outline" data-bottom-accent="on" style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties} className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.hideAnswer}>
                 <EyeOff className="h-3.5 w-3.5 shrink-0" /> Sembunyi
               </Button>
-              <Button variant="outline" className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.skipCard}>
+              <Button variant="outline" data-bottom-accent="on" style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties} className="min-w-0 whitespace-nowrap rounded-xl h-10 gap-1 px-1.5 text-[10px] font-medium sm:px-3 sm:text-xs" onClick={session.skipCard}>
                 <SkipForward className="h-3.5 w-3.5 shrink-0" />
                 {studyOnly ? (session.idx + 1 >= cards.length ? "Selesai" : "Berikutnya") : "Lewati"}
               </Button>
@@ -208,7 +208,9 @@ export function SwipeFlashcardSession({
             <div className="grid grid-cols-4 gap-2 w-full">
               <Button
                 variant="outline"
-                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 0 ? "bg-red-500/20 border-red-500/50 text-red-500 scale-105" : "bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30"}`}
+                data-bottom-accent="on"
+                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 0 ? "!bg-red-500/20 text-red-500 scale-105" : "!bg-red-500/10 text-red-400 hover:!bg-red-500/15"}`}
+                style={{ borderColor: session.selectedRating === 0 ? "rgb(239 68 68 / 70%)" : "rgb(239 68 68 / 45%)" }}
                 onClick={() => { session.advance(0) }}
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">1</span>
@@ -217,7 +219,9 @@ export function SwipeFlashcardSession({
               </Button>
               <Button
                 variant="outline"
-                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 3 ? "bg-amber-500/20 border-amber-500/50 text-amber-500 scale-105" : "bg-amber-500/5 border-amber-500/20 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30"}`}
+                data-bottom-accent="on"
+                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 3 ? "!bg-amber-500/20 text-amber-500 scale-105" : "!bg-amber-500/10 text-amber-400 hover:!bg-amber-500/15"}`}
+                style={{ borderColor: session.selectedRating === 3 ? "rgb(245 158 11 / 70%)" : "rgb(245 158 11 / 45%)" }}
                 onClick={() => { session.advance(3) }}
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">2</span>
@@ -226,7 +230,9 @@ export function SwipeFlashcardSession({
               </Button>
               <Button
                 variant="outline"
-                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 4 ? "bg-blue-500/20 border-blue-500/50 text-blue-500 scale-105" : "bg-blue-500/5 border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30"}`}
+                data-bottom-accent="on"
+                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 4 ? "!bg-blue-500/20 text-blue-500 scale-105" : "!bg-blue-500/10 text-blue-400 hover:!bg-blue-500/15"}`}
+                style={{ borderColor: session.selectedRating === 4 ? "rgb(59 130 246 / 70%)" : "rgb(59 130 246 / 45%)" }}
                 onClick={() => { session.advance(4) }}
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">3</span>
@@ -235,7 +241,9 @@ export function SwipeFlashcardSession({
               </Button>
               <Button
                 variant="outline"
-                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 5 ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-500 scale-105" : "bg-emerald-500/5 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30"}`}
+                data-bottom-accent="on"
+                className={`${styles.ratingButton} relative rounded-xl h-14 flex flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-all ${session.selectedRating === 5 ? "!bg-emerald-500/20 text-emerald-500 scale-105" : "!bg-emerald-500/10 text-emerald-400 hover:!bg-emerald-500/15"}`}
+                style={{ borderColor: session.selectedRating === 5 ? "rgb(16 185 129 / 70%)" : "rgb(16 185 129 / 45%)" }}
                 onClick={() => { session.advance(5) }}
               >
                 <span className="absolute top-1.5 right-1.5 flex items-center justify-center h-4 w-4 rounded-md bg-muted/70 text-[9px] font-semibold text-muted-foreground">4</span>

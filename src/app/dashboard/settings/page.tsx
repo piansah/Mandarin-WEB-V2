@@ -12,9 +12,10 @@ import { PageLoader } from "@/components/page-loader"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { BugReportDialog } from "@/components/bug-report-dialog"
 import { fetchUserSettings, updateDisplayName, updateHanziMode, updateHanziFont, signOut, type UserSettings } from "@/lib/user-settings"
 import type { HanziMode } from "@/lib/placement"
-import { User, Mic, LogOut, Save, Check, Type, Smartphone, Download, Share } from "lucide-react"
+import { User, Mic, LogOut, Save, Check, Type, Smartphone, Download, Share, Bug } from "lucide-react"
 import { usePwaInstall } from "@/hooks/use-pwa-install"
 export default function SettingsPage() {
   const router = useRouter()
@@ -26,6 +27,7 @@ export default function SettingsPage() {
   const [selectedHanziFont, setSelectedHanziFont] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
   const [saveSuccess, setSaveSuccess] = React.useState(false)
+  const [bugReportOpen, setBugReportOpen] = React.useState(false)
   const { status: pwaStatus, installing: pwaInstalling, installPwa } = usePwaInstall()
 
   React.useEffect(() => {
@@ -345,6 +347,19 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Laporkan Bug</CardTitle>
+          <CardDescription>Laporkan masalah atau kesalahan teknis.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" className="w-full justify-center sm:w-auto" onClick={() => setBugReportOpen(true)}>
+            <Bug className="h-4 w-4" />
+            Laporkan Bug
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Account Actions */}
       <Card>
         <CardHeader>
@@ -352,9 +367,9 @@ export default function SettingsPage() {
           <CardDescription>Tindakan terkait akun</CardDescription>
         </CardHeader>
         <CardContent>
-          <Button variant="destructive" onClick={handleSignOut}>
+          <Button variant="destructive" className="w-full justify-center sm:w-auto" onClick={handleSignOut}>
             <LogOut className="h-4 w-4 mr-2" />
-            Keluar
+            Keluar dari akun
           </Button>
         </CardContent>
       </Card>
@@ -366,6 +381,7 @@ export default function SettingsPage() {
           Perubahan disimpan
         </div>
       )}
+      <BugReportDialog open={bugReportOpen} onOpenChange={setBugReportOpen} />
     </div>
   )
 }

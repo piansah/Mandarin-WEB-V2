@@ -10,7 +10,7 @@
  *
  * Slide fitur di bawah ini sengaja dipetakan 1:1 ke menu utama di sidebar
  * (`app-sidebar.tsx`) — Daftar Kata, Flashcard, Modul Belajar, Quiz,
- * Estafet, Simulasi Ujian — supaya user baru langsung kenal nama fitur
+ * Estafet, Membaca — supaya user baru langsung kenal nama fitur
  * yang bakal mereka temui, bukan istilah generik yang beda dari UI asli.
  */
 
@@ -59,9 +59,9 @@ export const ONBOARDING_SLIDES: OnboardingSlide[] = [
     desc: "Latihan memahami kalimat utuh secara berantai — bukan cuma kata lepas, biar makin percaya diri berkomunikasi.",
   },
   {
-    emoji: "🏆",
-    pill: "Simulasi resmi",
-    title: "Simulasi Ujian",
-    desc: "Coba simulasi ujian sesuai format resmi untuk mengukur kesiapanmu sebelum ujian yang sesungguhnya.",
+    emoji: "📖",
+    pill: "Latihan membaca",
+    title: "Membaca",
+    desc: "Baca cerita Mandarin, pelajari pinyin dan arti, lalu pahami kosakata dalam konteks kalimat.",
   },
 ]

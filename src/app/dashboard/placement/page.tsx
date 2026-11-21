@@ -17,7 +17,7 @@ import {
   ModulDemo,
   QuizDemo,
   EstafetDemo,
-  SimulasiDemo,
+  MembacaDemo,
   WelcomeDemo,
   PreparingLessons,
 } from "@/components/onboarding-mini-demos"
@@ -46,7 +46,7 @@ const STEPS = [...INTRO_STEPS, "loading", ...PLACEMENT_STEPS] as const
 // Mini demo animasi untuk tiap slide intro (1-6). Index harus sinkron
 // dengan urutan di ONBOARDING_SLIDES (lib/onboarding.ts): 0 Selamat
 // datang, 1 Daftar Kata, 2 Flashcard, 3 Modul Belajar, 4 Quiz, 5 Estafet,
-// 6 Simulasi Ujian. Slide 0 (Selamat datang) ditangani terpisah lewat
+// 6 Membaca. Slide 0 (Selamat datang) ditangani terpisah lewat
 // <WelcomeDemo /> tanpa card pembungkus — lihat render di bawah. Ikon
 // emoji tetap dipertahankan sebagai fallback bila ada slide baru ditambah
 // tanpa demo maupun penanganan khusus.
@@ -56,7 +56,7 @@ const INTRO_DEMOS: Partial<Record<number, React.ComponentType>> = {
   3: ModulDemo,
   4: QuizDemo,
   5: EstafetDemo,
-  6: SimulasiDemo,
+  6: MembacaDemo,
 }
 type Step = (typeof STEPS)[number]
 
@@ -155,7 +155,14 @@ export default function PlacementPage() {
             <StepProgressBar pct={introProgressPct} />
             <div className="flex w-full items-center justify-between gap-3">
               {introIndex > 0 ? (
-                <Button variant="ghost" size="sm" onClick={() => setStep(INTRO_STEPS[introIndex - 1])}>
+                <Button
+                  data-bottom-accent="on"
+                  style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties}
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  onClick={() => setStep(INTRO_STEPS[introIndex - 1])}
+                >
                   Kembali
                 </Button>
               ) : (
@@ -199,16 +206,14 @@ export default function PlacementPage() {
                 <button
                   key={opt.value}
                   type="button"
+                  data-bottom-accent="off"
                   onClick={() => {
                     setLevel(opt.value)
                     setStep("time")
                   }}
                   className="text-left"
                 >
-                  <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm transition-all hover:border-primary/40 ${level === opt.value ? "border-primary/60 bg-primary/5" : ""
-                      }`}
-                  >
+                  <Card className="border-border/50 bg-card/50 backdrop-blur-sm transition-colors hover:border-border">
                     <CardContent className="flex items-center justify-between gap-3 p-3">
                       <div>
                         <p className="text-sm font-semibold">{opt.title}</p>
@@ -241,13 +246,14 @@ export default function PlacementPage() {
                 <button
                   key={opt.value}
                   type="button"
+                  data-bottom-accent="off"
                   onClick={() => {
                     setDailyGoal(opt.value)
                     setStep("goal")
                   }}
                 >
                   <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-border ${dailyGoal === opt.value ? "border-primary/60 bg-primary/5" : ""
                       }`}
                   >
                     <CardContent className="flex flex-col items-center gap-0.5 p-3">
@@ -258,7 +264,14 @@ export default function PlacementPage() {
                 </button>
               ))}
             </div>
-            <Button variant="ghost" size="sm" className="self-start" onClick={() => setStep("level")}>
+            <Button
+              data-bottom-accent="on"
+              style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties}
+              variant="ghost"
+              size="sm"
+              className="self-start h-9 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setStep("level")}
+            >
               Kembali
             </Button>
           </div>
@@ -280,13 +293,14 @@ export default function PlacementPage() {
                 <button
                   key={opt.value}
                   type="button"
+                  data-bottom-accent="off"
                   onClick={() => {
                     setGoal(opt.value)
                     setStep("result")
                   }}
                 >
                   <Card
-                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-primary/40 ${goal === opt.value ? "border-primary/60 bg-primary/5" : ""
+                    className={`border-border/50 bg-card/50 backdrop-blur-sm text-center transition-all hover:border-border ${goal === opt.value ? "border-primary/60 bg-primary/5" : ""
                       }`}
                   >
                     <CardContent className="p-3 text-sm font-semibold">{opt.title}</CardContent>
@@ -294,7 +308,14 @@ export default function PlacementPage() {
                 </button>
               ))}
             </div>
-            <Button variant="ghost" size="sm" className="self-start" onClick={() => setStep("time")}>
+            <Button
+              data-bottom-accent="on"
+              style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties}
+              variant="ghost"
+              size="sm"
+              className="self-start h-9 rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={() => setStep("time")}
+            >
               Kembali
             </Button>
           </div>

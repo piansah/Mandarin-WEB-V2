@@ -50,6 +50,7 @@ export function DashboardLayoutClient({
   const checkedPwaResume = React.useRef(false)
   const isChromeLess = CHROME_LESS_ROUTES.some((route) => pathname?.startsWith(route))
   const hideMobileBottomNav = isMobileBottomNavHidden(pathname)
+  const dashboardDesktopGutter = pathname === "/dashboard" ? "lg:px-[5%]" : ""
 
   React.useEffect(() => {
     if (!pathname) return
@@ -109,9 +110,9 @@ export function DashboardLayoutClient({
       <SidebarInset className="flex h-svh flex-col overflow-hidden">
         <DashboardHeader />
 
-        <div className={hideMobileBottomNav
-          ? "flex-1 min-h-0 overflow-auto lg:px-[5%]"
-          : "flex-1 min-h-0 overflow-auto lg:px-[5%] pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"}>
+        <div className={`flex-1 min-h-0 overflow-auto ${dashboardDesktopGutter} ${hideMobileBottomNav
+          ? ""
+          : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0"}`}>
           {children}
         </div>
       </SidebarInset>

@@ -58,7 +58,9 @@ export function LoginClient() {
 
           <button
             onClick={() => setShowLoginOnMobile(true)}
-            className="mt-12 lg:hidden w-full max-w-[320px] h-12 bg-white text-black font-semibold rounded-xl hover:bg-gray-200 transition-colors"
+            data-bottom-accent="on"
+            style={{ "--bottom-accent-color": "#ffffff" } as React.CSSProperties}
+            className="mt-12 lg:hidden w-full max-w-[320px] h-12 border border-[#cbd5e1] bg-white text-black font-semibold rounded-xl hover:bg-gray-200 transition-colors"
           >
             Lanjutkan
           </button>

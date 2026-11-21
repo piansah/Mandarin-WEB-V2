@@ -17,12 +17,12 @@
  * - Modul Belajar-> jalur/roadmap modul yang terbuka bertahap (fitur ini "segera hadir")
  * - Quiz         -> soal hanzi -> arti dengan 4 opsi, opsi benar ter-highlight
  * - Estafet      -> kartu kalimat, ketuk untuk ungkap pinyin lalu arti secara bertahap
- * - Simulasi Ujian -> soal & opsi jawaban berjalan otomatis dengan timer, lalu badge hasil
+ * - Membaca      -> contoh cerita Mandarin dengan pinyin dan terjemahan
  * - Preparing    -> layar transisi "menyiapkan pelajaran" antara intro & placement
  */
 
 import * as React from "react"
-import { Search, Check, CheckCircle2, Clock } from "lucide-react"
+import { Search, Check, CheckCircle2 } from "lucide-react"
 import { TonePinyin } from "@/components/tone-pinyin"
 import { HskBadge } from "@/components/hsk-badge"
 
@@ -311,81 +311,48 @@ export function EstafetDemo() {
 }
 
 /* ============================================================
-   6. SIMULASI UJIAN — soal & opsi berjalan otomatis dengan timer
+   6. MEMBACA — cerita Mandarin dengan pinyin dan terjemahan
    ============================================================ */
-const SIM_TOTAL_SOAL = 40
-const SIM_QUESTIONS = [
-    { hanzi: "猫", options: ["Kucing", "Anjing", "Ikan"], correct: 0 },
-    { hanzi: "书", options: ["Buku", "Meja", "Pintu"], correct: 0 },
-    { hanzi: "喝", options: ["Minum", "Makan", "Lari"], correct: 0 },
-]
+const READING_DEMO = {
+    words: ["今天", "早上", "，", "李明", "去", "学校", "。", "他", "今年", "七岁", "。", "他", "很", "高兴", "，", "因为", "他", "喜欢", "学习", "中文", "。"],
+}
+const READING_PUNCTUATION = new Set(["，", "。", "、", "！", "？", "：", "；", "“", "”", "‘", "’", "（", "）", "《", "》", "…"])
+const READING_WORD_INDICES = READING_DEMO.words.flatMap((word, index) => READING_PUNCTUATION.has(word) ? [] : [index])
 
-export function SimulasiDemo() {
-    // per soal: 0 tampil, 1 terjawab (jawaban benar ter-highlight)
-    const totalPairs = SIM_QUESTIONS.length * 2
-    const step = useStepLoop(totalPairs + 1, 700, 2000)
-    const showResult = step === totalPairs
-    const pairIdx = Math.min(step, totalPairs - 1)
-    const qIndex = Math.floor(pairIdx / 2)
-    const answered = pairIdx % 2 === 1
-    const question = SIM_QUESTIONS[qIndex]
+export function MembacaDemo() {
+    const [activeWord, setActiveWord] = React.useState(0)
 
-    const soalKe = showResult
-        ? SIM_TOTAL_SOAL
-        : Math.min(SIM_TOTAL_SOAL, Math.round(((qIndex + (answered ? 1 : 0.4)) / SIM_QUESTIONS.length) * SIM_TOTAL_SOAL))
-    const progressPct = (soalKe / SIM_TOTAL_SOAL) * 100
-    const secondsLeft = Math.max(45 * 60 - step * 95, 0)
-    const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0")
-    const ss = String(secondsLeft % 60).padStart(2, "0")
+    React.useEffect(() => {
+        const timer = window.setInterval(() => {
+            setActiveWord((current) => {
+                const currentPosition = READING_WORD_INDICES.indexOf(current)
+                return READING_WORD_INDICES[(currentPosition + 1) % READING_WORD_INDICES.length]
+            })
+        }, 420)
+        return () => window.clearInterval(timer)
+    }, [])
 
     return (
         <div className="flex w-full flex-col gap-3 rounded-2xl border border-border/50 bg-card/50 p-4 backdrop-blur-sm">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Soal {soalKe}/{SIM_TOTAL_SOAL}</span>
-                <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    {mm}:{ss}
-                </span>
+            <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">Cerita · HSK 1</span>
+                <span className="text-[10px] text-muted-foreground">Bacaan singkat</span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div
-                    className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${progressPct}%` }}
-                />
+            <div className="rounded-xl border border-border/50 bg-background/60 p-3">
+                <p className="font-hanzi text-base font-semibold leading-[1.9]">
+                    {READING_DEMO.words.map((word, index) => (
+                        <span
+                            key={`${word}-${index}`}
+                            className={`${READING_PUNCTUATION.has(word) ? "text-foreground" : `rounded px-0.5 transition-colors duration-300 ${index === activeWord ? "bg-primary/25 text-primary" : "text-foreground"}`}`}
+                        >
+                            {word}
+                        </span>
+                    ))}
+                </p>
             </div>
-
-            {!showResult ? (
-                <div
-                    key={qIndex}
-                    className="flex flex-col items-center gap-2 rounded-xl border border-border/50 bg-background/60 p-3 animate-in fade-in-0 duration-300"
-                >
-                    <span className="font-hanzi text-2xl font-bold">{question.hanzi}</span>
-                    <div className="grid w-full grid-cols-3 gap-1.5">
-                        {question.options.map((opt, i) => {
-                            const isCorrect = answered && i === question.correct
-                            return (
-                                <div
-                                    key={opt}
-                                    className={`rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium transition-colors duration-300 ${isCorrect
-                                            ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                            : "border-border/50 bg-card text-foreground"
-                                        }`}
-                                >
-                                    {opt}
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            ) : (
-                <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-3 animate-in zoom-in-95 fade-in-0 duration-300">
-                    <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">HSK 4 · Lulus</span>
-                </div>
-            )}
         </div>
     )
 }
-
 /* ============================================================
    PREPARING — transisi "menyiapkan pelajaran" antara slide intro dan
    pertanyaan placement. Brand mark yang berputar pelan + checklist yang

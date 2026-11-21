@@ -25,7 +25,7 @@ import {
   type UserProfile,
 } from "@/lib/user-profile"
 import { getHighestUnlockedTier } from "@/lib/tier-unlock"
-import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart } from "lucide-react"
+import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart, Settings } from "lucide-react"
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -426,6 +426,18 @@ export default function ProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex justify-end border-t border-border/50 pt-4">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-center sm:w-auto"
+          onClick={() => router.push("/dashboard/settings")}
+        >
+          <Settings className="h-4 w-4" aria-hidden="true" />
+          Pengaturan
+        </Button>
+      </div>
     </div>
   )
 }

@@ -159,9 +159,6 @@ function DashboardImageCard({
         </div>
         <div className="flex min-h-0 flex-1 flex-col p-3 lg:min-h-44 lg:p-4">
           <div className="flex min-w-0 items-start gap-2.5">
-            <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${toneClass}`}>
-              <Icon className="h-4 w-4" />
-            </div>
             <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-base font-bold leading-snug text-foreground">{title}</h3>
           </div>
           <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
@@ -954,15 +951,15 @@ export default function DashboardPage() {
         <h2 className="mb-4 text-xl font-semibold tracking-tight">Sesi hari ini</h2>
         {nextContentLoading ? (
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3" aria-label="Memuat latihan" aria-busy="true">
-            {[0, 1, 2].map((item) => (
+            {[0, 1, 2, 3].map((item) => (
               <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-72" />
             ))}
           </div>
         ) : (
         <>
         {nextContentError && <p className="mb-3 text-xs text-muted-foreground">Sebagian latihan gagal dimuat. Coba segarkan halaman.</p>}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:flex lg:snap-x lg:snap-mandatory lg:overflow-x-auto lg:pb-3">
-          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+          <div className="min-w-0">
             <DashboardImageCard
               href={nextModule ? "/dashboard/modul" : undefined}
               image="/image-c.jpg"
@@ -975,7 +972,7 @@ export default function DashboardPage() {
               compact
             />
           </div>
-          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+          <div className="min-w-0">
             <DashboardImageCard
               href={sessionDeck ? `/dashboard/flashcard/${sessionDeck.id}` : undefined}
               image="/image-e.jpg"
@@ -992,7 +989,7 @@ export default function DashboardPage() {
               compact
             />
           </div>
-          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+          <div className="min-w-0">
             <DashboardImageCard
               href={activeSrsDue > 0 ? `/dashboard/review?hsk=${activeSrsLevel}` : undefined}
               image="/image-d.jpg"
@@ -1007,7 +1004,7 @@ export default function DashboardPage() {
               compact
             />
           </div>
-          <div className="min-w-0 lg:w-[calc(33.333%_-_0.667rem)] lg:flex-none lg:snap-start">
+          <div className="min-w-0">
             <DashboardImageCard
               href={nextEstafet ? `/dashboard/flashcard/cumulative/${nextEstafet.key}` : undefined}
               image="/image-a.jpg"

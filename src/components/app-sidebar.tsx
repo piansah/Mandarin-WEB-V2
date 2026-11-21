@@ -366,6 +366,8 @@ export function AppSidebar({
           <DialogFooter>
             <button
               onClick={() => setLogoutDialogOpen(false)}
+              data-bottom-accent="on"
+              style={{ "--bottom-accent-color": "color-mix(in srgb, #102538 65%, #2d5873 35%)" } as React.CSSProperties}
               className="flex-1 sm:flex-none rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
             >
               Batal
