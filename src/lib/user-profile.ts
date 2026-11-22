@@ -14,7 +14,7 @@
 
 import { createClient } from "@/lib/supabase/browser"
 import { localDateString, shiftDateString } from "@/lib/local-date"
-import { TIER_ORDER, fetchUnlockedTiers, type Tier } from "@/lib/tier-unlock"
+import { TIER_ORDER, fetchUnlockedTiers, tierForHSK, type Tier } from "@/lib/tier-unlock"
 import { fetchHskVocabularyProgress } from "@/lib/hsk-vocabulary-progress"
 
 export const TITLES = {
@@ -89,29 +89,83 @@ export interface UserProfile {
   wordsMastered: number
   wordsLearned: number
   quizCompleted: number
+  unlockedAvatarIds: string[]
 }
 
 export interface AvatarOption {
   id: string
   emoji: string
   name: string
-  requiredLevel: number
-  unlockTitle: string
-  requiredTier?: Tier
+  title: string
+  watermark: string
+  tier: Tier
+  hskLevel: number
 }
 
 export const AVATAR_OPTIONS: AvatarOption[] = [
-  { id: "dragon", emoji: "🐉", name: "Naga", requiredLevel: 60, unlockTitle: "Legenda Abadi", requiredTier: "fasih" },
-  { id: "bear", emoji: "🐻", name: "Beruang", requiredLevel: 38, unlockTitle: "Legenda Streak", requiredTier: "master" },
-  { id: "panda", emoji: "🐼", name: "Panda", requiredLevel: 25, unlockTitle: "Master Pinyin", requiredTier: "lanjut" },
-  { id: "owl", emoji: "🦉", name: "Burung Hantu", requiredLevel: 18, unlockTitle: "Pendekar HSK", requiredTier: "menengah" },
-  { id: "fox", emoji: "🦊", name: "Rubah", requiredLevel: 13, unlockTitle: "Penguasa Kosakata", requiredTier: "menengah" },
-  { id: "dog", emoji: "🐶", name: "Anjing", requiredLevel: 10, unlockTitle: "Siap Lanjut" },
-  { id: "cat", emoji: "🐱", name: "Kucing", requiredLevel: 8, unlockTitle: "Siswa Setia" },
-  { id: "rabbit", emoji: "🐰", name: "Kelinci", requiredLevel: 5, unlockTitle: "Pecinta Kata" },
-  { id: "student", emoji: "🎓", name: "Pelajar", requiredLevel: 3, unlockTitle: "Penjelajah Hanzi" },
-  { id: "default", emoji: "👤", name: "Default", requiredLevel: 1, unlockTitle: "Pemula Mandarin" },
+  { id: "dragon", emoji: "🐉", name: "Naga", title: "Legenda Abadi", watermark: "永", tier: "fasih", hskLevel: 6 },
+  { id: "bear", emoji: "🐻", name: "Beruang", title: "Legenda Streak", watermark: "连", tier: "master", hskLevel: 5 },
+  { id: "panda", emoji: "🐼", name: "Panda", title: "Master Pinyin", watermark: "音", tier: "lanjut", hskLevel: 4 },
+  { id: "owl", emoji: "🦉", name: "Burung Hantu", title: "Pendekar HSK", watermark: "武", tier: "lanjut", hskLevel: 4 },
+  { id: "fox", emoji: "🦊", name: "Rubah", title: "Penguasa Kosakata", watermark: "词", tier: "menengah", hskLevel: 3 },
+  { id: "dog", emoji: "🐶", name: "Anjing", title: "Penjelajah Hanzi", watermark: "汉", tier: "menengah", hskLevel: 3 },
+  { id: "cat", emoji: "🐱", name: "Kucing", title: "Pecinta Kata", watermark: "爱", tier: "pemula", hskLevel: 2 },
+  { id: "rabbit", emoji: "🐰", name: "Kelinci", title: "Siswa Setia", watermark: "忠", tier: "pemula", hskLevel: 2 },
+  { id: "student", emoji: "🎓", name: "Pelajar", title: "Siswa Teladan", watermark: "进", tier: "pemula", hskLevel: 1 },
+  { id: "default", emoji: "👤", name: "Default", title: "Pemula Mandarin", watermark: "初", tier: "pemula", hskLevel: 1 },
 ]
+
+/**
+ * Gelar dibuka mengikuti HSK dan progres deck yang benar-benar tersedia.
+ * Untuk HSK 1–4, gelar pertama terbuka di tengah deck dan gelar kedua setelah
+ * semua deck level itu terbuka. HSK 5–6 memiliki satu gelar yang terbuka saat
+ * semua deck pada levelnya terbuka. HSK 2+ menunggu level sebelumnya selesai.
+ */
+export function getUnlockedAvatarIds(
+  decks: { id: number; hsk_level: number | null }[],
+  quizScores: { key: string; score: number | null }[],
+  unlockedTiers: Tier[],
+): string[] {
+  const passedDeckIds = new Set(
+    quizScores
+      .filter((score) => (score.score ?? 0) >= 80)
+      .map((score) => Number(score.key))
+      .filter(Number.isFinite),
+  )
+  const unlockedIds = new Set<string>()
+  let previousHskCompleted = true
+
+  for (let hsk = 1; hsk <= 6; hsk++) {
+    const levelDecks = decks
+      .filter((deck) => deck.hsk_level === hsk)
+      .sort((a, b) => a.id - b.id)
+    const tierUnlocked = unlockedTiers.includes(tierForHSK(hsk))
+    if (levelDecks.length === 0 || !tierUnlocked || !previousHskCompleted) {
+      previousHskCompleted = false
+      continue
+    }
+
+    let completedDecks = 0
+    for (const deck of levelDecks) {
+      if (!passedDeckIds.has(deck.id)) break
+      completedDecks++
+    }
+    const openDecks = Math.min(levelDecks.length, completedDecks + 1)
+    const levelAvatars = AVATAR_OPTIONS
+      .filter((option) => option.hskLevel === hsk)
+      .reverse()
+    const milestones = levelAvatars.length === 1
+      ? [levelDecks.length]
+      : [Math.ceil(levelDecks.length / 2), levelDecks.length]
+
+    levelAvatars.forEach((option, index) => {
+      if (openDecks >= milestones[index]) unlockedIds.add(option.id)
+    })
+    previousHskCompleted = completedDecks === levelDecks.length
+  }
+
+  return [...unlockedIds]
+}
 
 function calculateLevel(xp: number): number {
   if (xp < 1000) return Math.min(10, Math.floor(xp / 100) + 1)
@@ -172,7 +226,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   } = await supa.auth.getUser()
   if (!user) return null
 
-  const [profileRes, statsRpcRes, streakRes, progressRes, hskProgress, quizCountRes, unlockedTiers] =
+  const [profileRes, statsRpcRes, streakRes, progressRes, hskProgress, quizCountRes, unlockedTiers, deckRes, quizScoresRes] =
     await Promise.all([
       supa.from("user_profile").select("display_name, selected_avatar, custom_avatar_url").eq("user_id", user.id).maybeSingle(),
       supa.rpc("get_user_stats"),
@@ -181,6 +235,8 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
       fetchHskVocabularyProgress(supa, user.id),
       supa.from("user_scores").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("type", "quiz"),
       fetchUnlockedTiers(),
+      supa.from("flashcard_sets").select("id, hsk_level").eq("is_default", true).not("hsk_level", "is", null),
+      supa.from("user_scores").select("key, score").eq("user_id", user.id).eq("type", "quiz"),
     ])
 
   // Handle different response formats from Supabase RPC
@@ -228,6 +284,11 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
   // Count only HSK cards with a saved rating, matching the four rating totals.
   const wordsLearned = hskProgress.learned
   const quizCompleted = quizCountRes.count ?? 0
+  const unlockedAvatarIds = getUnlockedAvatarIds(
+    deckRes.data ?? [],
+    quizScoresRes.data ?? [],
+    unlockedTiers,
+  )
 
   return {
     userId: user.id,
@@ -245,6 +306,7 @@ export async function fetchUserProfile(): Promise<UserProfile | null> {
     wordsMastered,
     wordsLearned,
     quizCompleted,
+    unlockedAvatarIds,
   }
 }
 

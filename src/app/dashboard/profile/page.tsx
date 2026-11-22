@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import {
   fetchUserProfile,
   updateAvatar,
@@ -24,7 +25,6 @@ import {
   BADGES,
   type UserProfile,
 } from "@/lib/user-profile"
-import { getHighestUnlockedTier } from "@/lib/tier-unlock"
 import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart, Settings, ChevronDown, Check, LockKeyhole } from "lucide-react"
 
 async function compressAvatarImage(file: File): Promise<File> {
@@ -96,9 +96,18 @@ export default function ProfilePage() {
   const [saving, setSaving] = React.useState(false)
   const [uploading, setUploading] = React.useState(false)
   const [avatarPickerOpen, setAvatarPickerOpen] = React.useState(false)
+  const [isMobileViewport, setIsMobileViewport] = React.useState(false)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)")
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches)
+    updateViewport()
+    mediaQuery.addEventListener("change", updateViewport)
+    return () => mediaQuery.removeEventListener("change", updateViewport)
+  }, [])
 
   React.useEffect(() => {
     fetchUserProfile().then((p) => {
@@ -214,26 +223,18 @@ export default function ProfilePage() {
 
   // Prioritas tampilan: preview lokal → custom upload → emoji fallback
   const displaySrc = previewUrl ?? profile.customAvatarUrl ?? undefined
-  const tierWatermarks = {
-    pemula: "学",
-    menengah: "中",
-    lanjut: "进",
-    master: "熟",
-    fasih: "通",
-  } as const
-  const profileWatermark = tierWatermarks[getHighestUnlockedTier(profile.unlockedTiers)]
-  const isAvatarUnlocked = (option: (typeof AVATAR_OPTIONS)[number]) =>
-    profile.level >= option.requiredLevel && (!option.requiredTier || profile.unlockedTiers.includes(option.requiredTier))
+  const isAvatarUnlocked = (option: (typeof AVATAR_OPTIONS)[number]) => profile.unlockedAvatarIds.includes(option.id)
   const unlockedAvatarOptions = AVATAR_OPTIONS.filter(isAvatarUnlocked)
-  const selectedAvatar = unlockedAvatarOptions.find(option => option.emoji === profile.avatar) ?? unlockedAvatarOptions[0]
-  const sortedAvatarOptions = [...AVATAR_OPTIONS].sort((a, b) => Number(isAvatarUnlocked(b)) - Number(isAvatarUnlocked(a)))
+  const selectedAvatar = unlockedAvatarOptions.find(option => option.emoji === profile.avatar) ?? unlockedAvatarOptions[0] ?? AVATAR_OPTIONS.find(option => option.id === "default")
+  const sortedAvatarOptions = [...AVATAR_OPTIONS].reverse()
+  const profileWatermark = selectedAvatar?.watermark ?? "初"
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Profile Card */}
       <Card className={`relative isolate overflow-visible ${avatarPickerOpen ? "z-20" : ""}`}>
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
-          <span className="absolute -bottom-10 -right-2 select-none font-hanzi text-[15rem] font-black leading-none text-primary/[0.045]">
+          <span className="absolute -bottom-10 -right-2 select-none font-hanzi text-[15rem] font-black leading-none text-primary/[0.09] dark:text-primary/[0.045]">
             {profileWatermark}
           </span>
         </div>
@@ -313,7 +314,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">
                   <Award className="h-3 w-3 mr-1" />
-                  {selectedAvatar?.unlockTitle ?? profile.title}
+                  {selectedAvatar?.title ?? profile.title}
                 </Badge>
                 <div className="relative">
                   <button
@@ -327,13 +328,13 @@ export default function ProfilePage() {
                     <span className="text-base leading-none">{selectedAvatar?.emoji ?? "👤"}</span>
                     <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${avatarPickerOpen ? "rotate-180" : ""}`} />
                   </button>
-                  {avatarPickerOpen && (
-                    <div className="absolute left-1/2 top-full z-30 mt-2 max-h-[min(60vh,24rem)] w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 overflow-y-auto rounded-xl border border-border bg-card p-3 text-left shadow-xl md:left-0 md:translate-x-0">
+                  {avatarPickerOpen && !isMobileViewport && (
+                    <div className="absolute left-0 top-full z-30 mt-2 hidden max-h-[min(60vh,24rem)] w-[19rem] overflow-y-auto rounded-xl border border-border bg-card p-3 text-left shadow-xl sm:block">
                       <p className="mb-2 text-xs font-semibold text-muted-foreground">Avatar terbuka dari gelar</p>
                       <div className="grid grid-cols-2 gap-2">
                         {sortedAvatarOptions.map(option => {
                           const unlocked = isAvatarUnlocked(option)
-                          const selected = option.emoji === selectedAvatar?.emoji
+                          const selected = unlocked && option.emoji === selectedAvatar?.emoji
                           return (
                             <button
                               key={option.id}
@@ -341,15 +342,16 @@ export default function ProfilePage() {
                               data-bottom-accent="off"
                               disabled={!unlocked || saving}
                               onClick={() => handleSelectAvatar(option.id)}
-                              title={unlocked ? option.name : `Terbuka saat mendapat gelar ${option.unlockTitle}`}
+                              title={unlocked ? option.name : `Avatar ${option.name} belum terbuka`}
                               className={`flex min-w-0 items-center gap-2 rounded-lg border px-2 py-2 text-left transition-colors ${selected ? "border-primary/70 bg-primary/10" : "border-border/60 bg-background/50"} ${unlocked ? "hover:bg-muted/70" : "cursor-not-allowed opacity-45"}`}
                             >
-                              <span className="text-xl leading-none">{option.emoji}</span>
+                              <span className="shrink-0 text-xl leading-none">{option.emoji}</span>
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-medium">{option.name}</span>
-                                <span className="block truncate text-[10px] text-muted-foreground">
-                                  {unlocked ? option.unlockTitle : `Gelar: ${option.unlockTitle}`}
+                                <span className="flex min-w-0 items-center gap-1">
+                                  <span className="shrink-0 font-hanzi text-sm leading-none text-muted-foreground" aria-label={`Watermark ${option.watermark}`}>{option.watermark}</span>
+                                  <span className="truncate text-xs font-medium">{option.name}</span>
                                 </span>
+                                <span className="block truncate text-[10px] text-muted-foreground">{option.title}</span>
                               </span>
                               {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Dipilih" /> : !unlocked ? <LockKeyhole className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
                             </button>
@@ -360,6 +362,41 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+              <Sheet open={avatarPickerOpen && isMobileViewport} onOpenChange={setAvatarPickerOpen}>
+                <SheetContent side="bottom" showCloseButton={false} className="max-h-[75dvh] gap-3 rounded-t-2xl border-border bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-4 sm:hidden">
+                  <div className="mx-auto h-1 w-10 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+                  <SheetTitle className="text-sm">Avatar terbuka dari gelar</SheetTitle>
+                  <div className="grid min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pb-2">
+                    {sortedAvatarOptions.map(option => {
+                      const unlocked = isAvatarUnlocked(option)
+                      const selected = unlocked && option.emoji === selectedAvatar?.emoji
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          data-bottom-accent="off"
+                          disabled={!unlocked || saving}
+                          onClick={() => handleSelectAvatar(option.id)}
+                          title={unlocked ? option.name : `Avatar ${option.name} belum terbuka`}
+                          className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${selected ? "border-primary/70 bg-primary/10" : "border-border/60 bg-background/50"} ${unlocked ? "hover:bg-muted/70" : "cursor-not-allowed opacity-45"}`}
+                        >
+                          <span className="shrink-0 text-xl leading-none">{option.emoji}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex min-w-0 items-center gap-1">
+                              <span className="shrink-0 font-hanzi text-sm leading-none text-muted-foreground" aria-label={`Watermark ${option.watermark}`}>
+                                {option.watermark}
+                              </span>
+                              <span className="truncate text-xs font-medium">{option.name}</span>
+                            </span>
+                            <span className="block truncate text-[10px] text-muted-foreground">{option.title}</span>
+                          </span>
+                          {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Dipilih" /> : !unlocked ? <LockKeyhole className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </SheetContent>
+              </Sheet>
               {/* Upload hint */}
             </div>
           </div>
