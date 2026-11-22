@@ -101,16 +101,16 @@ export interface AvatarOption {
 }
 
 export const AVATAR_OPTIONS: AvatarOption[] = [
-  { id: "default", emoji: "👤", name: "Default", requiredLevel: 1, unlockTitle: "Pemula Mandarin" },
+  { id: "dragon", emoji: "🐉", name: "Naga", requiredLevel: 60, unlockTitle: "Legenda Abadi", requiredTier: "fasih" },
+  { id: "bear", emoji: "🐻", name: "Beruang", requiredLevel: 38, unlockTitle: "Legenda Streak", requiredTier: "master" },
+  { id: "panda", emoji: "🐼", name: "Panda", requiredLevel: 25, unlockTitle: "Master Pinyin", requiredTier: "lanjut" },
+  { id: "owl", emoji: "🦉", name: "Burung Hantu", requiredLevel: 18, unlockTitle: "Pendekar HSK", requiredTier: "menengah" },
+  { id: "fox", emoji: "🦊", name: "Rubah", requiredLevel: 13, unlockTitle: "Penguasa Kosakata", requiredTier: "menengah" },
+  { id: "dog", emoji: "🐶", name: "Anjing", requiredLevel: 10, unlockTitle: "Siap Lanjut" },
+  { id: "cat", emoji: "🐱", name: "Kucing", requiredLevel: 8, unlockTitle: "Siswa Setia" },
+  { id: "rabbit", emoji: "🐰", name: "Kelinci", requiredLevel: 5, unlockTitle: "Pecinta Kata" },
   { id: "student", emoji: "🎓", name: "Pelajar", requiredLevel: 3, unlockTitle: "Penjelajah Hanzi" },
-  { id: "panda", emoji: "🐼", name: "Panda", requiredLevel: 5, unlockTitle: "Pecinta Kata" },
-  { id: "dragon", emoji: "🐉", name: "Naga", requiredLevel: 8, unlockTitle: "Siswa Setia" },
-  { id: "cat", emoji: "🐱", name: "Kucing", requiredLevel: 10, unlockTitle: "Siap Lanjut" },
-  { id: "dog", emoji: "🐶", name: "Anjing", requiredLevel: 13, unlockTitle: "Penguasa Kosakata", requiredTier: "menengah" },
-  { id: "fox", emoji: "🦊", name: "Rubah", requiredLevel: 18, unlockTitle: "Pendekar HSK", requiredTier: "menengah" },
-  { id: "owl", emoji: "🦉", name: "Burung Hantu", requiredLevel: 25, unlockTitle: "Master Pinyin", requiredTier: "lanjut" },
-  { id: "rabbit", emoji: "🐰", name: "Kelinci", requiredLevel: 38, unlockTitle: "Legenda Streak", requiredTier: "master" },
-  { id: "bear", emoji: "🐻", name: "Beruang", requiredLevel: 60, unlockTitle: "Legenda Abadi", requiredTier: "fasih" },
+  { id: "default", emoji: "👤", name: "Default", requiredLevel: 1, unlockTitle: "Pemula Mandarin" },
 ]
 
 function calculateLevel(xp: number): number {

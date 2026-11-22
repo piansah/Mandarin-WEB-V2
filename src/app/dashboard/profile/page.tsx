@@ -122,14 +122,23 @@ export default function ProfilePage() {
   }
 
   const handleSelectAvatar = async (avatarId: string) => {
+    const option = AVATAR_OPTIONS.find(avatar => avatar.id === avatarId)
+    if (!option) return
+
+    const previousAvatar = profile?.avatar ?? null
+    // Update the badge immediately; wait for Supabase in the background and
+    // roll back only if the save fails.
+    setProfile(current => current ? { ...current, avatar: option.emoji } : current)
+    setAvatarPickerOpen(false)
     setSaving(true)
-    const result = await updateAvatar(avatarId)
-    setSaving(false)
-    if (!result.error) {
-      setAvatarPickerOpen(false)
-      fetchUserProfile().then(setProfile)
-    } else {
-      toast.error(result.error)
+    try {
+      const result = await updateAvatar(avatarId)
+      if (result.error) throw new Error(result.error)
+    } catch (error) {
+      setProfile(current => current ? { ...current, avatar: previousAvatar } : current)
+      toast.error(error instanceof Error ? error.message : "Gagal menyimpan avatar.")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -217,17 +226,17 @@ export default function ProfilePage() {
     profile.level >= option.requiredLevel && (!option.requiredTier || profile.unlockedTiers.includes(option.requiredTier))
   const unlockedAvatarOptions = AVATAR_OPTIONS.filter(isAvatarUnlocked)
   const selectedAvatar = unlockedAvatarOptions.find(option => option.emoji === profile.avatar) ?? unlockedAvatarOptions[0]
+  const sortedAvatarOptions = [...AVATAR_OPTIONS].sort((a, b) => Number(isAvatarUnlocked(b)) - Number(isAvatarUnlocked(a)))
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
       {/* Profile Card */}
-      <Card className="relative isolate overflow-hidden">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-10 -right-2 z-0 select-none font-hanzi text-[15rem] font-black leading-none text-primary/[0.045]"
-        >
-          {profileWatermark}
-        </span>
+      <Card className={`relative isolate overflow-visible ${avatarPickerOpen ? "z-20" : ""}`}>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]">
+          <span className="absolute -bottom-10 -right-2 select-none font-hanzi text-[15rem] font-black leading-none text-primary/[0.045]">
+            {profileWatermark}
+          </span>
+        </div>
         <CardContent className="relative z-10 p-6">
           <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
             {/* Avatar with upload button */}
@@ -304,7 +313,7 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2">
                 <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 dark:text-amber-400">
                   <Award className="h-3 w-3 mr-1" />
-                  {profile.title}
+                  {selectedAvatar?.unlockTitle ?? profile.title}
                 </Badge>
                 <div className="relative">
                   <button
@@ -319,10 +328,10 @@ export default function ProfilePage() {
                     <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${avatarPickerOpen ? "rotate-180" : ""}`} />
                   </button>
                   {avatarPickerOpen && (
-                    <div className="absolute left-1/2 top-full z-30 mt-2 w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-border bg-card p-3 text-left shadow-xl md:left-0 md:translate-x-0">
+                    <div className="absolute left-1/2 top-full z-30 mt-2 max-h-[min(60vh,24rem)] w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 overflow-y-auto rounded-xl border border-border bg-card p-3 text-left shadow-xl md:left-0 md:translate-x-0">
                       <p className="mb-2 text-xs font-semibold text-muted-foreground">Avatar terbuka dari gelar</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {AVATAR_OPTIONS.map(option => {
+                        {sortedAvatarOptions.map(option => {
                           const unlocked = isAvatarUnlocked(option)
                           const selected = option.emoji === selectedAvatar?.emoji
                           return (
