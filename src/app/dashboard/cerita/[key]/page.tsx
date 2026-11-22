@@ -1012,6 +1012,7 @@ function QuizQuestionCard({
             <button
               key={i}
               type="button"
+              data-bottom-accent="off"
               disabled={answered}
               onClick={() => onAnswer(i)}
               className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors disabled:cursor-not-allowed ${showState

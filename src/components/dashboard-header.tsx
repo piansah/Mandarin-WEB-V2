@@ -210,6 +210,7 @@ export function DashboardHeader() {
                       <button
                         key={i}
                         type="button"
+                        data-bottom-accent="off"
                         onClick={() => {
                           handleResultClick(result)
                           setMobileSearchActive(false)

@@ -73,6 +73,16 @@ export function DashboardLayoutClient({
   const popNavigationRef = React.useRef(false)
   const isChromeLess = CHROME_LESS_ROUTES.some((route) => pathname?.startsWith(route))
   const hideMobileBottomNav = isMobileBottomNavHidden(pathname)
+  const hideDashboardHeader = Boolean(pathname && (
+    pathname.startsWith("/dashboard/modul/") ||
+    pathname.startsWith("/dashboard/practice/") ||
+    pathname.startsWith("/dashboard/cerita/") ||
+    (pathname.startsWith("/dashboard/flashcard/") && pathname !== "/dashboard/flashcard/cumulative") ||
+    pathname.startsWith("/dashboard/personal-cards/latihan/sesi") ||
+    pathname.startsWith("/dashboard/quiz/") ||
+    pathname.startsWith("/dashboard/review/fast") ||
+    pathname.startsWith("/dashboard/games/")
+  ))
   const dashboardDesktopGutter = pathname === "/dashboard" ? "lg:px-[5%]" : ""
 
   React.useEffect(() => {
@@ -113,7 +123,9 @@ export function DashboardLayoutClient({
 
         const age = savedHistory ? Date.now() - savedHistory.savedAt : Number.POSITIVE_INFINITY
         const isRecent = age >= 0 && age <= DASHBOARD_ROUTE_RESUME_WINDOW_MS
-        if (isStandalone && pathname === "/dashboard" && savedHistory && isRecent) {
+        const savedCurrentRoute = savedHistory?.routes[savedHistory.cursor]
+        const openedAtSavedRoute = currentRoute === savedCurrentRoute
+        if (isStandalone && savedHistory && isRecent && (pathname === "/dashboard" || openedAtSavedRoute)) {
           routeRestorationRef.current = {
             routes: savedHistory.routes.slice(0, savedHistory.cursor + 1),
             nextIndex: 0,
@@ -245,7 +257,7 @@ export function DashboardLayoutClient({
       <SidebarHoverTrigger />
       <AppSidebar user={sidebarUser} />
       <SidebarInset className="flex h-svh flex-col overflow-hidden">
-        <DashboardHeader />
+        {!hideDashboardHeader && <DashboardHeader />}
 
         <div className={`flex-1 min-h-0 overflow-auto ${dashboardDesktopGutter} ${hideMobileBottomNav
           ? ""

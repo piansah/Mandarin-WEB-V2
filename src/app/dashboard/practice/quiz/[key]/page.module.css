@@ -323,7 +323,7 @@
   min-width: 56px;
   height: 2px;
   margin: 0 4px 4px;
-  background: rgba(66, 214, 164, .6);
+  background: transparent;
   border-radius: 2px;
   vertical-align: baseline;
 }
@@ -339,6 +339,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  box-shadow: none !important;
   width: 100%;
   padding: 10px 13px;
   border: 1.5px solid var(--c-opt-border);

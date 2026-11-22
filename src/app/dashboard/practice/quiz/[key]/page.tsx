@@ -725,6 +725,7 @@ export default function QuizPage() {
                           <div className={styles.qNum}>{idx + 1}</div>
                           <div className={styles.qText}>
                             <div
+                              data-bottom-accent="off"
                               className={canReplayQuestion ? styles.qCardReplay : undefined}
                               onClick={canReplayQuestion ? () => replayQuestion(q.gi) : undefined}
                               role={canReplayQuestion ? "button" : undefined}
@@ -767,6 +768,7 @@ export default function QuizPage() {
                               <button
                                 key={oi}
                                 type="button"
+                                data-bottom-accent="off"
                                 disabled={isAnswered}
                                 className={`${styles.opt} ${styles.optHanzi} ${optStateClass}`}
                                 onClick={() => selectAns(q.gi, oi, q.ans)}

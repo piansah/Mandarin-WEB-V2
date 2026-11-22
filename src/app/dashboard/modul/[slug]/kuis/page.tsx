@@ -534,7 +534,7 @@ export default function ModulKuisPage() {
                   ? correctOption ? "border-emerald-500 bg-emerald-500/10 text-foreground" : selected ? "border-red-500 bg-red-500/10 text-foreground" : "border-border/50 opacity-55"
                   : selected ? "border-primary bg-primary/10 text-foreground" : "border-border/70 hover:border-primary/60 hover:bg-muted/40"
                 return (
-                  <button key={option.id} type="button" disabled={isChecked} aria-pressed={selected} className={`relative z-10 flex min-h-16 items-center gap-3 rounded-2xl border p-4 text-left transition-colors disabled:cursor-default ${selected && !isChecked ? "quiz-choice-selected" : ""} ${stateClass}`} onClick={() => setSelectedOptionId(option.id)}>
+                  <button key={option.id} type="button" data-bottom-accent="off" disabled={isChecked} aria-pressed={selected} className={`relative z-10 flex min-h-16 items-center gap-3 rounded-2xl border p-4 text-left transition-colors disabled:cursor-default ${selected && !isChecked ? "quiz-choice-selected" : ""} ${stateClass}`} onClick={() => setSelectedOptionId(option.id)}>
                     <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-semibold ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{optionIndex + 1}</span>
                     {answersArePinyin
                       ? <TonePinyin text={option.text} className="text-sm font-medium sm:text-base" />

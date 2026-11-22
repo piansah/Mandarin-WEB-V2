@@ -128,6 +128,7 @@ function DashboardImageCard({
     width: 800,
     height: 500,
     sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 30vw",
+    loading: image === "/image-c.jpg" ? "eager" as const : "lazy" as const,
   }
   const mobileActionText = href ? "Buka →" : unavailableText ?? "Belum tersedia"
   const desktopActionText = href ? "Buka" : unavailableText ?? "Belum tersedia"

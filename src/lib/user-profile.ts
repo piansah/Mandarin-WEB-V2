@@ -111,8 +111,8 @@ export const AVATAR_OPTIONS: AvatarOption[] = [
   { id: "dog", emoji: "🐶", name: "Anjing", title: "Penjelajah Hanzi", watermark: "汉", tier: "menengah", hskLevel: 3 },
   { id: "cat", emoji: "🐱", name: "Kucing", title: "Pecinta Kata", watermark: "爱", tier: "pemula", hskLevel: 2 },
   { id: "rabbit", emoji: "🐰", name: "Kelinci", title: "Siswa Setia", watermark: "忠", tier: "pemula", hskLevel: 2 },
-  { id: "student", emoji: "🎓", name: "Pelajar", title: "Siswa Teladan", watermark: "进", tier: "pemula", hskLevel: 1 },
-  { id: "default", emoji: "👤", name: "Default", title: "Pemula Mandarin", watermark: "初", tier: "pemula", hskLevel: 1 },
+  { id: "hamster", emoji: "🐹", name: "Hamster", title: "Sahabat Mandarin", watermark: "友", tier: "pemula", hskLevel: 1 },
+  { id: "default", emoji: "👤", name: "Pemula", title: "Pemula Mandarin", watermark: "初", tier: "pemula", hskLevel: 1 },
 ]
 
 /**

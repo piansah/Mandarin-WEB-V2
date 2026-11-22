@@ -885,7 +885,7 @@ function QuizCard({
   const cardClass = !isAnswered ? styles.qCard : isCorrect ? `${styles.qCard} ${styles.qCardCorrect}` : `${styles.qCard} ${styles.qCardWrong}`
 
   return (
-    <div id={`card-${q.gi}`} className={`${cardClass} ${isHighlighted ? styles.qCardHighlight : ""} ${isAnswered ? styles.qCardReplay : ""}`} onClick={isAnswered ? onReplay : undefined}>
+    <div id={`card-${q.gi}`} data-bottom-accent="off" className={`${cardClass} ${isHighlighted ? styles.qCardHighlight : ""} ${isAnswered ? styles.qCardReplay : ""}`} onClick={isAnswered ? onReplay : undefined}>
       <div className={styles.qTop}>
         <span className={styles.qNum}>{num}</span>
         <div className={styles.qText}>
@@ -923,7 +923,7 @@ function QuizCard({
           const optContent = q.si === 2 ? <ColorPy text={optText} /> : optText
 
           return (
-            <button key={i} id={`opt-${q.gi}-${i}`} className={optClass} disabled={isAnswered} onClick={(event) => { event.stopPropagation(); onSelect(i) }}>
+            <button key={i} id={`opt-${q.gi}-${i}`} data-bottom-accent="off" className={optClass} disabled={isAnswered} onClick={(event) => { event.stopPropagation(); onSelect(i) }}>
               <span className={styles.optLbl}>{labs[i]}</span>
               <span className={styles.optContent}>
                 <span>{optContent}</span>
@@ -942,11 +942,6 @@ function QuizCard({
         })}
       </div>
 
-      {isAnswered && (
-        <div className={`${styles.fb} ${isCorrect ? styles.fbCorrect : styles.fbWrong}`}>
-          {isCorrect ? "✓ Benar!" : `✗ Salah. Jawaban: ${labs[q.ans]}`}
-        </div>
-      )}
     </div>
   )
 }

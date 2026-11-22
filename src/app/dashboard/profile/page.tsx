@@ -363,7 +363,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               <Sheet open={avatarPickerOpen && isMobileViewport} onOpenChange={setAvatarPickerOpen}>
-                <SheetContent side="bottom" showCloseButton={false} className="max-h-[75dvh] gap-3 rounded-t-2xl border-border bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] pt-4 sm:hidden">
+                <SheetContent side="bottom" showCloseButton={false} className="max-h-[75dvh] gap-3 rounded-t-2xl border-border bg-card px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:hidden">
                   <div className="mx-auto h-1 w-10 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
                   <SheetTitle className="text-sm">Avatar terbuka dari gelar</SheetTitle>
                   <div className="grid min-h-0 grid-cols-1 gap-2 overflow-y-auto overscroll-contain pb-2">
