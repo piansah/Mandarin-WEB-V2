@@ -521,7 +521,7 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end border-t border-border/50 pt-4">
+      <div className="flex justify-end border-t border-border/50 pt-4 md:hidden">
         <Button
           type="button"
           variant="outline"
