@@ -95,19 +95,22 @@ export interface AvatarOption {
   id: string
   emoji: string
   name: string
+  requiredLevel: number
+  unlockTitle: string
+  requiredTier?: Tier
 }
 
 export const AVATAR_OPTIONS: AvatarOption[] = [
-  { id: "default", emoji: "👤", name: "Default" },
-  { id: "student", emoji: "🎓", name: "Pelajar" },
-  { id: "panda", emoji: "🐼", name: "Panda" },
-  { id: "dragon", emoji: "🐉", name: "Naga" },
-  { id: "cat", emoji: "🐱", name: "Kucing" },
-  { id: "dog", emoji: "🐶", name: "Anjing" },
-  { id: "fox", emoji: "🦊", name: "Rubah" },
-  { id: "owl", emoji: "🦉", name: "Burung Hantu" },
-  { id: "rabbit", emoji: "🐰", name: "Kelinci" },
-  { id: "bear", emoji: "🐻", name: "Beruang" },
+  { id: "default", emoji: "👤", name: "Default", requiredLevel: 1, unlockTitle: "Pemula Mandarin" },
+  { id: "student", emoji: "🎓", name: "Pelajar", requiredLevel: 3, unlockTitle: "Penjelajah Hanzi" },
+  { id: "panda", emoji: "🐼", name: "Panda", requiredLevel: 5, unlockTitle: "Pecinta Kata" },
+  { id: "dragon", emoji: "🐉", name: "Naga", requiredLevel: 8, unlockTitle: "Siswa Setia" },
+  { id: "cat", emoji: "🐱", name: "Kucing", requiredLevel: 10, unlockTitle: "Siap Lanjut" },
+  { id: "dog", emoji: "🐶", name: "Anjing", requiredLevel: 13, unlockTitle: "Penguasa Kosakata", requiredTier: "menengah" },
+  { id: "fox", emoji: "🦊", name: "Rubah", requiredLevel: 18, unlockTitle: "Pendekar HSK", requiredTier: "menengah" },
+  { id: "owl", emoji: "🦉", name: "Burung Hantu", requiredLevel: 25, unlockTitle: "Master Pinyin", requiredTier: "lanjut" },
+  { id: "rabbit", emoji: "🐰", name: "Kelinci", requiredLevel: 38, unlockTitle: "Legenda Streak", requiredTier: "master" },
+  { id: "bear", emoji: "🐻", name: "Beruang", requiredLevel: 60, unlockTitle: "Legenda Abadi", requiredTier: "fasih" },
 ]
 
 function calculateLevel(xp: number): number {
@@ -253,18 +256,21 @@ export async function updateAvatar(avatarId: string): Promise<{ error: string | 
   if (!user) return { error: "Belum login" }
 
   const avatar = AVATAR_OPTIONS.find((opt) => opt.id === avatarId)?.emoji ?? null
-  const { error } = await supa
+  const { data, error } = await supa
     .from("user_profile")
-    .upsert(
-      { 
-        user_id: user.id, 
-        selected_avatar: avatar, 
-        custom_avatar_url: null, // Hapus URL custom agar emoji bisa tampil
-        updated_at: new Date().toISOString() 
-      },
-      { onConflict: "user_id" },
-    )
-  return { error: error?.message ?? null }
+    .update({ selected_avatar: avatar, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .select("user_id")
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (data) return { error: null }
+
+  const { error: insertError } = await supa.from("user_profile").insert({
+    user_id: user.id,
+    selected_avatar: avatar,
+    updated_at: new Date().toISOString(),
+  })
+  return { error: insertError?.message ?? null }
 }
 
 export async function updateProfileName(name: string): Promise<{ error: string | null }> {
@@ -306,13 +312,21 @@ export async function uploadAvatarPhoto(
   // Tambahkan cache-busting agar browser tidak pakai foto lama
   const cacheBustedUrl = `${urlData.publicUrl}?t=${Date.now()}`
 
-  const { error: dbError } = await supa
+  const { data: updatedProfile, error: updateError } = await supa
     .from("user_profile")
-    .upsert(
-      { user_id: user.id, custom_avatar_url: cacheBustedUrl, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
-    )
+    .update({ custom_avatar_url: cacheBustedUrl, updated_at: new Date().toISOString() })
+    .eq("user_id", user.id)
+    .select("user_id")
+    .maybeSingle()
 
-  if (dbError) return { url: null, error: dbError.message }
+  if (updateError) return { url: null, error: updateError.message }
+  if (!updatedProfile) {
+    const { error: insertError } = await supa.from("user_profile").insert({
+      user_id: user.id,
+      custom_avatar_url: cacheBustedUrl,
+      updated_at: new Date().toISOString(),
+    })
+    if (insertError) return { url: null, error: insertError.message }
+  }
   return { url: cacheBustedUrl, error: null }
 }

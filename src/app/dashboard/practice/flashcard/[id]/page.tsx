@@ -10,7 +10,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
-import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
+import { fetchWordExamplesForWords } from "@/lib/word-example-fallback"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -111,39 +111,10 @@ export default function FlashcardPracticePage() {
         }
       }
 
-      const hanziList = [...new Set(rawCards
-        .map(c => c.hanzi)
-        .filter((hanzi): hanzi is string => typeof hanzi === "string" && hanzi.length > 0))]
-      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
-
-      if (hanziList.length > 0) {
-        const { data: exactExamples } = await supa
-          .from("word_examples")
-          .select("id, word_hanzi, hanzi, pinyin, arti")
-          .in("word_hanzi", hanziList)
-          .order("id", { ascending: true })
-
-        for (const example of exactExamples ?? []) {
-          if (!example.word_hanzi || exampleMap.has(example.word_hanzi)) continue
-          exampleMap.set(example.word_hanzi, {
-            hanzi: example.hanzi ?? "",
-            pinyin: example.pinyin ?? "",
-            arti: example.arti ?? "",
-          })
-        }
-
-        const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-        const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
-        for (const hanzi of missingHanzi) {
-          const example = fallbackExamples.get(hanzi)
-          if (!example) continue
-          exampleMap.set(hanzi, {
-            hanzi: example.hanzi ?? "",
-            pinyin: example.pinyin ?? "",
-            arti: example.arti ?? "",
-          })
-        }
-      }
+      const exampleMap = await fetchWordExamplesForWords(
+        supa,
+        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+      )
 
         const orderedCards = orderNumeralsBeforeTen(rawCards)
         const cardsWithExamples: SwipeFlashcard[] = orderedCards.map(card => {

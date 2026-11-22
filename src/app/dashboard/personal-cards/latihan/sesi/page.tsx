@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { PageLoader } from "@/components/page-loader"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
+import { fetchWordExamplesForWords } from "@/lib/word-example-fallback"
 
 type DeckRow = { id: number; title: string; hsk_level: number | null }
 type CardRow = {
@@ -80,38 +80,10 @@ function CustomFlashcardSessionContent() {
       }
 
       const rawCards = (cardRows ?? []) as CardRow[]
-      const hanziList = [...new Set(rawCards.map(card => card.hanzi).filter((hanzi): hanzi is string => Boolean(hanzi)))]
-      const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
-
-      if (hanziList.length > 0) {
-        const { data: exactExamples } = await supa
-          .from("word_examples")
-          .select("id, word_hanzi, hanzi, pinyin, arti")
-          .in("word_hanzi", hanziList)
-          .order("id", { ascending: true })
-
-        for (const example of exactExamples ?? []) {
-          if (!example.word_hanzi || exampleMap.has(example.word_hanzi)) continue
-          exampleMap.set(example.word_hanzi, {
-            hanzi: example.hanzi ?? "",
-            pinyin: example.pinyin ?? "",
-            arti: example.arti ?? "",
-          })
-        }
-
-        const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-        const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
-
-        for (const hanzi of missingHanzi) {
-          const example = fallbackExamples.get(hanzi)
-          if (!example) continue
-          exampleMap.set(hanzi, {
-            hanzi: example.hanzi ?? "",
-            pinyin: example.pinyin ?? "",
-            arti: example.arti ?? "",
-          })
-        }
-      }
+      const exampleMap = await fetchWordExamplesForWords(
+        supa,
+        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+      )
 
       const deckById = new Map(validDecks.map(deck => [deck.id, deck]))
       const deckOrder = new Map(deckIds.map((id, index) => [id, index]))

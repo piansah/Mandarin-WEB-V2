@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { fetchFallbackWordExamples } from "@/lib/word-example-fallback"
+import { fetchWordExamplesForWords } from "@/lib/word-example-fallback"
 
 export type DueFlashcard = {
   id: string
@@ -293,46 +293,16 @@ export async function fetchDueFlashcards(
   const cardRows = cardResults.flatMap(result => result.data ?? [])
     .sort((a, b) => (dueOrder.get(String(a.id)) ?? Number.MAX_SAFE_INTEGER) - (dueOrder.get(String(b.id)) ?? Number.MAX_SAFE_INTEGER))
   const uniqueSetIds = [...new Set(cardRows.map(card => card.set_id).filter(Boolean))]
-  const hanziList = [...new Set(cardRows.map(card => card.hanzi).filter(Boolean))]
-
-  const [deckResult, examplesResult] = await Promise.all([
+  const [exampleMap, deckResult] = await Promise.all([
+    fetchWordExamplesForWords(supa, cardRows.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin }))),
     uniqueSetIds.length > 0
       ? supa.from("flashcard_sets").select("id, title, hsk_level").in("id", uniqueSetIds)
-      : Promise.resolve({ data: [] }),
-    hanziList.length > 0
-      ? supa.from("word_examples")
-          .select("id, word_hanzi, hanzi, pinyin, arti")
-          .in("word_hanzi", hanziList)
-          .order("id", { ascending: true })
       : Promise.resolve({ data: [] }),
   ])
 
   const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
   for (const deck of deckResult.data ?? []) {
     deckInfoMap.set(deck.id, { title: deck.title ?? "", hsk_level: deck.hsk_level ?? 0 })
-  }
-
-  const exampleMap = new Map<string, { hanzi: string; pinyin: string; arti: string }>()
-  for (const item of examplesResult.data ?? []) {
-    if (!item.word_hanzi || exampleMap.has(item.word_hanzi)) continue
-    exampleMap.set(item.word_hanzi, {
-      hanzi: item.hanzi ?? "",
-      pinyin: item.pinyin ?? "",
-      arti: item.arti ?? "",
-    })
-  }
-
-  // Keep partial-word fallback matches while batching lookups in small groups.
-  const missingHanzi = hanziList.filter(hanzi => !exampleMap.has(hanzi))
-  const fallbackExamples = await fetchFallbackWordExamples(supa, missingHanzi)
-  for (const hanzi of missingHanzi) {
-    const example = fallbackExamples.get(hanzi)
-    if (!example) continue
-    exampleMap.set(hanzi, {
-      hanzi: example.hanzi ?? "",
-      pinyin: example.pinyin ?? "",
-      arti: example.arti ?? "",
-    })
   }
 
   return cardRows.map(card => {

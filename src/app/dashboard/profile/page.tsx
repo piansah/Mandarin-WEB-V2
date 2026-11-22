@@ -25,7 +25,69 @@ import {
   type UserProfile,
 } from "@/lib/user-profile"
 import { getHighestUnlockedTier } from "@/lib/tier-unlock"
-import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart, Settings } from "lucide-react"
+import { Trophy, Star, Flame, BookOpen, Target, Award, PenLine, Camera, Loader2, FolderHeart, Settings, ChevronDown, Check, LockKeyhole } from "lucide-react"
+
+async function compressAvatarImage(file: File): Promise<File> {
+  let width = 0
+  let height = 0
+  let drawImage: (context: CanvasRenderingContext2D, width: number, height: number) => void
+  let cleanup = () => {}
+
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file)
+    width = bitmap.width
+    height = bitmap.height
+    drawImage = (context, targetWidth, targetHeight) => context.drawImage(bitmap, 0, 0, targetWidth, targetHeight)
+    cleanup = () => bitmap.close()
+  } else {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+    try {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve()
+        image.onerror = () => reject(new Error("Foto tidak dapat dibaca oleh browser."))
+        image.src = objectUrl
+      })
+      width = image.naturalWidth
+      height = image.naturalHeight
+      drawImage = (context, targetWidth, targetHeight) => context.drawImage(image, 0, 0, targetWidth, targetHeight)
+    } catch (error) {
+      URL.revokeObjectURL(objectUrl)
+      throw error
+    }
+    cleanup = () => URL.revokeObjectURL(objectUrl)
+  }
+
+  try {
+    const maxOutputSize = 300 * 1024
+    for (const maxDimension of [512, 448, 384, 320]) {
+      const scale = Math.min(1, maxDimension / Math.max(width, height))
+      const targetWidth = Math.max(1, Math.round(width * scale))
+      const targetHeight = Math.max(1, Math.round(height * scale))
+      const canvas = document.createElement("canvas")
+      canvas.width = targetWidth
+      canvas.height = targetHeight
+      const context = canvas.getContext("2d")
+      if (!context) throw new Error("Browser tidak dapat memproses foto.")
+
+      // JPEG has no alpha channel; use a light background for transparent PNGs.
+      context.fillStyle = "#ffffff"
+      context.fillRect(0, 0, targetWidth, targetHeight)
+      drawImage(context, targetWidth, targetHeight)
+
+      for (const quality of [0.82, 0.72, 0.62, 0.52]) {
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/jpeg", quality))
+        if (blob && blob.size <= maxOutputSize) {
+          return new File([blob], "profile.jpg", { type: "image/jpeg", lastModified: Date.now() })
+        }
+      }
+    }
+    throw new Error("Foto masih terlalu besar setelah dikompres. Coba pilih foto lain.")
+  } finally {
+    cleanup()
+  }
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const [loading, setLoading] = React.useState(true)
@@ -33,6 +95,7 @@ export default function ProfilePage() {
   const [newName, setNewName] = React.useState("")
   const [saving, setSaving] = React.useState(false)
   const [uploading, setUploading] = React.useState(false)
+  const [avatarPickerOpen, setAvatarPickerOpen] = React.useState(false)
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -63,6 +126,7 @@ export default function ProfilePage() {
     const result = await updateAvatar(avatarId)
     setSaving(false)
     if (!result.error) {
+      setAvatarPickerOpen(false)
       fetchUserProfile().then(setProfile)
     } else {
       toast.error(result.error)
@@ -82,34 +146,33 @@ export default function ProfilePage() {
       toast.error("Hanya file gambar yang diizinkan.")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ukuran foto maksimal 5 MB.")
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Ukuran foto maksimal 20 MB agar bisa diproses di perangkat.")
       return
     }
 
-    // Tampilkan preview lokal dulu agar terasa instan
-    const localUrl = URL.createObjectURL(file)
-    setPreviewUrl(localUrl)
-
     setUploading(true)
-    const result = await uploadAvatarPhoto(file)
-    setUploading(false)
+    try {
+      const compressedFile = await compressAvatarImage(file)
+      // Preview memakai file yang sama dengan yang dikirim ke storage.
+      setPreviewUrl(URL.createObjectURL(compressedFile))
 
-    if (result.error) {
-      toast.error("Gagal upload: " + result.error)
+      const result = await uploadAvatarPhoto(compressedFile)
+      if (result.error) {
+        toast.error("Gagal upload: " + result.error)
+        setPreviewUrl(null)
+      } else {
+        setProfile((prev) =>
+          prev ? { ...prev, customAvatarUrl: result.url } : prev
+        )
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Foto gagal diproses.")
       setPreviewUrl(null)
-    } else {
-      // Langsung update state untuk data database.
-      setProfile((prev) =>
-        prev ? { ...prev, customAvatarUrl: result.url } : prev
-      )
-      // Sengaja TIDAK men-set previewUrl(null) di sini agar foto tidak berkedip
-      // menunggu browser mendownload URL foto asli dari Supabase.
-      // localUrl (blob) tetap akan dipakai selama user di halaman ini.
+    } finally {
+      setUploading(false)
+      e.target.value = ""
     }
-
-    // Reset input agar bisa pilih file sama lagi
-    e.target.value = ""
   }
 
   const getLevelProgress = (level: number): number => {
@@ -150,6 +213,10 @@ export default function ProfilePage() {
     fasih: "通",
   } as const
   const profileWatermark = tierWatermarks[getHighestUnlockedTier(profile.unlockedTiers)]
+  const isAvatarUnlocked = (option: (typeof AVATAR_OPTIONS)[number]) =>
+    profile.level >= option.requiredLevel && (!option.requiredTier || profile.unlockedTiers.includes(option.requiredTier))
+  const unlockedAvatarOptions = AVATAR_OPTIONS.filter(isAvatarUnlocked)
+  const selectedAvatar = unlockedAvatarOptions.find(option => option.emoji === profile.avatar) ?? unlockedAvatarOptions[0]
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-6xl mx-auto">
@@ -176,7 +243,7 @@ export default function ProfilePage() {
                 <Avatar className="h-24 w-24 border-4 border-primary">
                   <AvatarImage src={displaySrc} alt={profile.displayName} />
                   <AvatarFallback className="text-3xl">
-                    {profile.avatar ?? profile.displayName.slice(0, 2).toUpperCase()}
+                    {selectedAvatar?.emoji ?? profile.displayName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
 
@@ -239,6 +306,50 @@ export default function ProfilePage() {
                   <Award className="h-3 w-3 mr-1" />
                   {profile.title}
                 </Badge>
+                <div className="relative">
+                  <button
+                    type="button"
+                    data-bottom-accent="off"
+                    aria-label="Pilih avatar gelar"
+                    aria-expanded={avatarPickerOpen}
+                    onClick={() => setAvatarPickerOpen(open => !open)}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border/70 bg-card px-2 text-sm transition-colors hover:bg-muted/60"
+                  >
+                    <span className="text-base leading-none">{selectedAvatar?.emoji ?? "👤"}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${avatarPickerOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {avatarPickerOpen && (
+                    <div className="absolute left-1/2 top-full z-30 mt-2 w-[min(19rem,calc(100vw-3rem))] -translate-x-1/2 rounded-xl border border-border bg-card p-3 text-left shadow-xl md:left-0 md:translate-x-0">
+                      <p className="mb-2 text-xs font-semibold text-muted-foreground">Avatar terbuka dari gelar</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {AVATAR_OPTIONS.map(option => {
+                          const unlocked = isAvatarUnlocked(option)
+                          const selected = option.emoji === selectedAvatar?.emoji
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              data-bottom-accent="off"
+                              disabled={!unlocked || saving}
+                              onClick={() => handleSelectAvatar(option.id)}
+                              title={unlocked ? option.name : `Terbuka saat mendapat gelar ${option.unlockTitle}`}
+                              className={`flex min-w-0 items-center gap-2 rounded-lg border px-2 py-2 text-left transition-colors ${selected ? "border-primary/70 bg-primary/10" : "border-border/60 bg-background/50"} ${unlocked ? "hover:bg-muted/70" : "cursor-not-allowed opacity-45"}`}
+                            >
+                              <span className="text-xl leading-none">{option.emoji}</span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-xs font-medium">{option.name}</span>
+                                <span className="block truncate text-[10px] text-muted-foreground">
+                                  {unlocked ? option.unlockTitle : `Gelar: ${option.unlockTitle}`}
+                                </span>
+                              </span>
+                              {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Dipilih" /> : !unlocked ? <LockKeyhole className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" /> : null}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               {/* Upload hint */}
             </div>
@@ -398,32 +509,6 @@ export default function ProfilePage() {
               Belum ada badge. Selesaikan quiz dan pertahankan streak untuk mendapatkan badge!
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Emoji Avatar Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Avatar Emoji</CardTitle>
-          <CardDescription>Atau pilih avatar emoji sebagai fallback saat tidak ada foto</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
-            {AVATAR_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                data-bottom-accent="off"
-                onClick={() => handleSelectAvatar(option.id)}
-                disabled={saving}
-                className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border-2 p-2 transition-colors hover:border-primary/50 ${profile.avatar === option.emoji ? "border-primary bg-primary/10" : "border-border"
-                  }`}
-              >
-                <div className="text-3xl">{option.emoji}</div>
-                <div className="text-xs text-center">{option.name}</div>
-              </button>
-            ))}
-          </div>
         </CardContent>
       </Card>
 

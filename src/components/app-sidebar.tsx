@@ -15,7 +15,6 @@ import {
   ClipboardList,
   FolderOpen,
   Shield,
-  UserRound,
 } from "lucide-react"
 import {
   Sidebar,
@@ -83,12 +82,6 @@ const learningItems = [
     subtitle: "Pantau progres dan pencapaian",
     url: "/dashboard/statistik",
     icon: BarChart3,
-  },
-  {
-    title: "Profil",
-    subtitle: "Profil dan pencapaianmu",
-    url: "/dashboard/profile",
-    icon: UserRound,
   },
   {
     title: "Simulasi Ujian HSK",
