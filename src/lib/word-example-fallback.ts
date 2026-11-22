@@ -3,7 +3,8 @@ import { initGlobalSearchCache, sentenceContainsExactWord } from "@/lib/hanzi-se
 
 type BrowserSupabaseClient = ReturnType<typeof createClient>
 type WordTarget = { hanzi: string; pinyin?: string | null }
-type WordExample = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null }
+type CandidateExample = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null }
+type WordExample = { id: number; hanzi: string; pinyin?: string; arti?: string }
 
 /**
  * Return the first relevant example using the same sources and selection order
@@ -26,7 +27,7 @@ export async function fetchWordExamplesForWords(
   // shared, so later calls reuse the same initialization.
   await initGlobalSearchCache()
 
-  const isExactMatch = (example: WordExample, target: WordTarget) =>
+  const isExactMatch = (example: CandidateExample, target: WordTarget) =>
     !!example.hanzi && sentenceContainsExactWord(
       example.hanzi,
       target.hanzi,
@@ -82,14 +83,14 @@ export async function fetchWordExamplesForWords(
         const key = `${candidate.id}-${candidate.hanzi}`
         if (seen.has(key)) return false
         seen.add(key)
-        return candidate.linkedToWord || isExactMatch(candidate, target)
+        return !!candidate.hanzi && (candidate.linkedToWord || isExactMatch(candidate, target))
       })
       if (example) {
         result.set(target.hanzi, {
           id: example.id,
-          hanzi: example.hanzi,
-          pinyin: example.pinyin,
-          arti: example.arti,
+          hanzi: example.hanzi!,
+          pinyin: example.pinyin ?? undefined,
+          arti: example.arti ?? undefined,
         })
       }
     }
