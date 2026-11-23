@@ -36,7 +36,6 @@ type DashboardRouteRestoration = {
 
 const DASHBOARD_ROUTE_HISTORY_KEY = "pwa_dashboard_route_history"
 const LAST_DASHBOARD_ROUTE_KEY = "pwa_last_dashboard_route"
-const DASHBOARD_ROUTE_RESUME_WINDOW_MS = 10 * 60 * 1000
 
 function isSafeDashboardRoute(route: unknown): route is string {
   return typeof route === "string" && /^\/dashboard(?:\/|$)/.test(route) && !route.startsWith("//")
@@ -121,11 +120,13 @@ export function DashboardLayoutClient({
           window.localStorage.removeItem(LAST_DASHBOARD_ROUTE_KEY)
         }
 
-        const age = savedHistory ? Date.now() - savedHistory.savedAt : Number.POSITIVE_INFINITY
-        const isRecent = age >= 0 && age <= DASHBOARD_ROUTE_RESUME_WINDOW_MS
         const savedCurrentRoute = savedHistory?.routes[savedHistory.cursor]
         const openedAtSavedRoute = currentRoute === savedCurrentRoute
-        if (isStandalone && savedHistory && isRecent && (pathname === "/dashboard" || openedAtSavedRoute)) {
+        // A saved dashboard route stack remains valid across app closes and
+        // longer idle periods. Expiring it after a few minutes made a normal
+        // PWA relaunch start with a one-entry browser history, so Android Back
+        // immediately closed the app instead of returning through prior pages.
+        if (isStandalone && savedHistory && (pathname === "/dashboard" || openedAtSavedRoute)) {
           routeRestorationRef.current = {
             routes: savedHistory.routes.slice(0, savedHistory.cursor + 1),
             nextIndex: 0,
