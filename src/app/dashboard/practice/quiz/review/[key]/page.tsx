@@ -49,13 +49,12 @@ type QuizQuestion = {
 }
 
 type Answered = Record<number, boolean>
-type TabId = "all" | 0 | 1 | 2 | 3
+type TabId = "all" | 0 | 1 | 2
 
 const SECTION_META = [
   { label: "1", title: "Hanzi → Pilih Arti", sub: "Hanzi → pilih arti Indonesia" },
   { label: "2", title: "Pinyin → Pilih Arti", sub: "Pinyin berwarna → pilih arti" },
   { label: "3", title: "Hanzi → Pilih Pinyin", sub: "Hanzi → pilih pinyin yang tepat" },
-  { label: "4", title: "Lengkapi Kalimat Hanzi", sub: "Pilih kata yang tepat untuk melengkapi" },
 ]
 
 const toneMapC: Record<string, string> = {
@@ -118,152 +117,41 @@ function getRandomItems<T>(arr: T[], count: number): T[] {
   return shuffled.slice(0, count)
 }
 
+function getItemsForQuestionCount<T>(items: T[], count: number): T[] {
+  if (items.length === 0) return []
+  const selected: T[] = []
+  while (selected.length < count) {
+    selected.push(...shuffle([...items]).slice(0, count - selected.length))
+  }
+  return selected
+}
+
 function buildKalimatQuiz(items: HanziItem[]): QuizQuestion[] {
   const all: QuizQuestion[] = []
-  let gi = 0
+  const sectionItems = [
+    getItemsForQuestionCount(items, 20),
+    getItemsForQuestionCount(items, 20),
+    getItemsForQuestionCount(items, 20),
+  ]
 
-  // Filter kalimat yang cukup panjang untuk kalimat rumpang (>= 2 kata)
-  const longSentences = items.filter(item => {
-    const words = item.hanzi.match(/[\u4e00-\u9fff\u3400-\u4dbf]+/g) ?? []
-    return words.length >= 2
-  })
-
-  // Kalimat pendek (tidak cocok untuk kalimat rumpang)
-  const shortSentences = items.filter(item => {
-    const words = item.hanzi.match(/[\u4e00-\u9fff\u3400-\u4dbf]+/g) ?? []
-    return words.length < 2
-  })
-
-  // Shuffle masing-masing grup
-  const shuffledLong = shuffle([...longSentences])
-  const shuffledShort = shuffle([...shortSentences])
-
-  // Hitung target per section (1/4 dari total items)
-  const targetPerSection = Math.ceil(items.length / 4)
-
-  // Section 4: Kalimat Rumpang (utamakan kalimat panjang)
-  const section4Items = shuffledLong.slice(0, targetPerSection)
-  for (const item of section4Items) {
-    // Split kalimat menjadi tokens (kata + punctuation) untuk presisi
-    const tokens: { type: 'word' | 'punct', text: string }[] = []
-    let remaining = item.hanzi
-    while (remaining.length > 0) {
-      // Cek punctuation dulu
-      const punctMatch = remaining.match(/^[，。！？、；：,!?;:]+/)
-      if (punctMatch) {
-        tokens.push({ type: 'punct', text: punctMatch[0] })
-        remaining = remaining.slice(punctMatch[0].length)
-        continue
-      }
-      // Cek spasi
-      const spaceMatch = remaining.match(/^\s+/)
-      if (spaceMatch) {
-        tokens.push({ type: 'punct', text: spaceMatch[0] })
-        remaining = remaining.slice(spaceMatch[0].length)
-        continue
-      }
-      // Ambil kata (hanzi characters)
-      const wordMatch = remaining.match(/^[\u4e00-\u9fff\u3400-\u4dbf]+/)
-      if (wordMatch) {
-        tokens.push({ type: 'word', text: wordMatch[0] })
-        remaining = remaining.slice(wordMatch[0].length)
-        continue
-      }
-      // Fallback untuk karakter lain
-      tokens.push({ type: 'punct', text: remaining[0] })
-      remaining = remaining.slice(1)
+  sectionItems.forEach((selectedItems, si) => {
+    for (const item of selectedItems) {
+      const answer = si === 2 ? item.pinyin : item.arti
+      const distractors = getRandomItems(items.filter(candidate => candidate.id !== item.id), 3)
+        .map(candidate => si === 2 ? candidate.pinyin : candidate.arti)
+      const options = shuffle([answer, ...distractors])
+      all.push({
+        gi: all.length,
+        si,
+        q: si === 1 ? item.pinyin : item.hanzi,
+        opts: options,
+        ans: options.indexOf(answer),
+      })
     }
-
-    const wordTokens = tokens.filter(t => t.type === 'word')
-    if (wordTokens.length < 2) continue // Skip jika kurang dari 2 kata
-
-    // Pilih 1 kata random untuk di-blank
-    const blankIndex = Math.floor(Math.random() * wordTokens.length)
-    const blankToken = wordTokens[blankIndex]
-
-    // Blank kan kata tersebut di token array
-    const blankedTokens = tokens.map(t =>
-      t.type === 'word' && t.text === blankToken.text ? { ...t, text: '____' } : t
-    )
-
-    // Reconstruct kalimat dengan blank
-    const blankedSentence = blankedTokens.map(t => t.text).join('')
-
-    // Generate distractor dari kata-kata lain di set yang sama
-    const allWords = items.flatMap(i => {
-      const t: { type: 'word' | 'punct', text: string }[] = []
-      let r = i.hanzi
-      while (r.length > 0) {
-        const w = r.match(/^[\u4e00-\u9fff\u3400-\u4dbf]+/)
-        if (w) { t.push({ type: 'word', text: w[0] }); r = r.slice(w[0].length) }
-        else { r = r.slice(1) }
-      }
-      return t.filter(x => x.type === 'word').map(x => x.text)
-    })
-    const distractors = getRandomItems(allWords.filter(w => w !== blankToken.text), 3)
-    const options = shuffle([blankToken.text, ...distractors])
-
-    all.push({
-      gi: gi++,
-      si: 3,
-      q: blankedSentence,
-      opts: options,
-      ans: options.indexOf(blankToken.text),
-    })
-  }
-
-  // Sisa kalimat panjang + kalimat pendek untuk section 1, 2, 3
-  const remainingLong = shuffledLong.slice(targetPerSection)
-  const remainingItems = shuffle([...remainingLong, ...shuffledShort])
-
-  // Bagi sisa items menjadi 3 chunk untuk section 1, 2, 3
-  const chunkSize13 = Math.ceil(remainingItems.length / 3)
-  const chunk1 = remainingItems.slice(0, chunkSize13)
-  const chunk2 = remainingItems.slice(chunkSize13, chunkSize13 * 2)
-  const chunk3 = remainingItems.slice(chunkSize13 * 2)
-
-  // Section 1: Hanzi → Arti
-  for (const item of chunk1) {
-    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.arti)
-    const options = shuffle([item.arti, ...distractors])
-    all.push({
-      gi: gi++,
-      si: 0,
-      q: item.hanzi,
-      opts: options,
-      ans: options.indexOf(item.arti),
-    })
-  }
-
-  // Section 2: Pinyin → Arti
-  for (const item of chunk2) {
-    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.arti)
-    const options = shuffle([item.arti, ...distractors])
-    all.push({
-      gi: gi++,
-      si: 1,
-      q: item.pinyin,
-      opts: options,
-      ans: options.indexOf(item.arti),
-    })
-  }
-
-  // Section 3: Hanzi → Pinyin
-  for (const item of chunk3) {
-    const distractors = getRandomItems(items.filter(i => i.id !== item.id), 3).map(i => i.pinyin)
-    const options = shuffle([item.pinyin, ...distractors])
-    all.push({
-      gi: gi++,
-      si: 2,
-      q: item.hanzi,
-      opts: options,
-      ans: options.indexOf(item.pinyin),
-    })
-  }
+  })
 
   return hydrateKalimatQuizDetails(all, items)
 }
-
 function hydrateKalimatQuizDetails(questions: QuizQuestion[], items: HanziItem[]): QuizQuestion[] {
   return questions.map(question => {
     if (question.answerDetail) return question
@@ -293,7 +181,6 @@ function getKalimatQuizSpeech(question: QuizQuestion): string {
   }
 
   let speech = question.q.replace(/<[^>]+>/g, "").replace(/\([^)]+\)/g, "")
-  if (question.si === 3) speech = speech.replace(/_{4,}/g, question.opts[question.ans])
   return speech
 }
 
@@ -383,9 +270,13 @@ export default function CumulativeQuizPracticePage() {
       const hoursDiff = state?.timestamp
         ? (Date.now() - state.timestamp) / (1000 * 60 * 60)
         : 0
+      const savedSectionsAreCurrent = Array.isArray(savedQ) &&
+        savedQ.length === 60 &&
+        savedQ.every((question: QuizQuestion) => question.si >= 0 && question.si <= 2) &&
+        [0, 1, 2].every(si => savedQ.filter((question: QuizQuestion) => question.si === si).length === 20)
 
       // ── 1. Cek sesi draft / retry yang sedang aktif (< 24 jam dan belum submit) ──
-      if (Array.isArray(savedQ) && savedQ.length > 0 && !state?.submitted && hoursDiff < 24) {
+      if (savedSectionsAreCurrent && !state?.submitted && hoursDiff < 24) {
         if (!cancelled) {
           setQuizTitle(metaRes.data.title)
           setQuizSub(metaRes.data.sub)
@@ -415,7 +306,7 @@ export default function CumulativeQuizPracticePage() {
         setQuizTitle(metaRes.data.title)
         setQuizSub(metaRes.data.sub)
 
-        if (state?.submitted && Array.isArray(savedQ) && savedQ.length > 0) {
+        if (state?.submitted && savedSectionsAreCurrent) {
           // Ada detail jawaban lokal -> tampilkan dengan detail
           setAllQ(hydrateKalimatQuizDetails(savedQ, items))
           setAnswered(savedAnswered)
@@ -582,7 +473,7 @@ export default function CumulativeQuizPracticePage() {
   }, [loading, submitted, allQ.length])
 
   // Scroll ke kartu pertama yang benar-benar tampil di layar (bukan card-0),
-  // karena gi Bagian 4 dibuat lebih dulu sehingga card-0 ada di Bagian 4.
+  // supaya kartu pertama tidak tertutup header sticky.
   function scrollToFirstQuestion() {
     // Scroll ke posisi 0 (bukan scrollIntoView) supaya kartu pertama tidak
     // tertutup header sticky. Cari ancestor yang benar-benar bisa di-scroll.
@@ -747,7 +638,7 @@ export default function CumulativeQuizPracticePage() {
           </button>
           {filterOpen && (
             <div className={styles.filterMenu} role="listbox">
-              {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"], [3, "Bagian 4"]] as const).map(([t, lbl]) => (
+              {([["all", "Semua Bagian"], [0, "Bagian 1"], [1, "Bagian 2"], [2, "Bagian 3"]] as const).map(([t, lbl]) => (
                 <button
                   key={String(t)}
                   type="button"
@@ -889,8 +780,8 @@ function QuizCard({
       <div className={styles.qTop}>
         <span className={styles.qNum}>{num}</span>
         <div className={styles.qText}>
-          {/* Semua bagian memakai gaya yang sama dengan Bagian 4 (RumpangText / qRumpang) */}
-          {(q.si === 0 || q.si === 2 || q.si === 3) && <RumpangText text={q.q} />}
+          {/* Hanzi ditampilkan dengan format karakter yang sama pada Bagian 1 dan 3. */}
+          {(q.si === 0 || q.si === 2) && <RumpangText text={q.q} />}
           {q.si === 1 && (
             <span className={styles.qRumpang}>
               {/* Bagian 2: sedikit lebih kecil (relatif ke ukuran qRumpang) dan italic */}
@@ -919,8 +810,7 @@ function QuizCard({
             if (i === q.ans) optClass += isCorrect ? ` ${styles.optCorrect}` : ` ${styles.optShowCorrect}`
             else if (i === q.selectedIdx && !isCorrect) optClass += ` ${styles.optWrong}`
           }
-          const optText = q.si === 3 && (q.q.match(/_{4,}/g) || []).length >= 2 ? opt.split(" ").join("，") : opt
-          const optContent = q.si === 2 ? <ColorPy text={optText} /> : optText
+          const optContent = q.si === 2 ? <ColorPy text={opt} /> : opt
 
           return (
             <button key={i} id={`opt-${q.gi}-${i}`} data-bottom-accent="off" className={optClass} disabled={isAnswered} onClick={(event) => { event.stopPropagation(); onSelect(i) }}>
