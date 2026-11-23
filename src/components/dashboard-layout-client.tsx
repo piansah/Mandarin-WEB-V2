@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { SidebarHoverTrigger } from "@/components/sidebar-hover-trigger"
 import { AppSidebar } from "@/components/app-sidebar"
@@ -20,25 +20,6 @@ type DashboardLayoutClientProps = {
   children: React.ReactNode
   sidebarUser: { name: string; email: string; avatar: string }
   defaultPinned: boolean
-}
-
-type DashboardRouteHistory = {
-  routes: string[]
-  cursor: number
-  savedAt: number
-}
-
-type DashboardRouteRestoration = {
-  routes: string[]
-  nextIndex: number
-  pendingTarget: string | null
-}
-
-const DASHBOARD_ROUTE_HISTORY_KEY = "pwa_dashboard_route_history"
-const LAST_DASHBOARD_ROUTE_KEY = "pwa_last_dashboard_route"
-
-function isSafeDashboardRoute(route: unknown): route is string {
-  return typeof route === "string" && /^\/dashboard(?:\/|$)/.test(route) && !route.startsWith("//")
 }
 
 // Rute yang menjalankan pengalaman "chrome-less"nya sendiri — tanpa
@@ -65,11 +46,6 @@ export function DashboardLayoutClient({
   defaultPinned,
 }: DashboardLayoutClientProps) {
   const pathname = usePathname()
-  const router = useRouter()
-  const checkedPwaResume = React.useRef(false)
-  const routeHistoryRef = React.useRef<DashboardRouteHistory | null>(null)
-  const routeRestorationRef = React.useRef<DashboardRouteRestoration | null>(null)
-  const popNavigationRef = React.useRef(false)
   const isChromeLess = CHROME_LESS_ROUTES.some((route) => pathname?.startsWith(route))
   const hideMobileBottomNav = isMobileBottomNavHidden(pathname)
   const hideDashboardHeader = Boolean(pathname && (
@@ -83,164 +59,6 @@ export function DashboardLayoutClient({
     pathname.startsWith("/dashboard/games/")
   ))
   const dashboardDesktopGutter = pathname === "/dashboard" ? "lg:px-[5%]" : ""
-
-  React.useEffect(() => {
-    if (!pathname) return
-
-    try {
-      const currentRoute = `${pathname}${window.location.search}`
-
-      if (!checkedPwaResume.current) {
-        checkedPwaResume.current = true
-        const savedHistoryValue = window.localStorage.getItem(DASHBOARD_ROUTE_HISTORY_KEY)
-        const savedLastRouteValue = window.localStorage.getItem(LAST_DASHBOARD_ROUTE_KEY)
-        let savedHistory: DashboardRouteHistory | null = null
-
-        try {
-          if (savedHistoryValue) {
-            const parsed = JSON.parse(savedHistoryValue) as Partial<DashboardRouteHistory>
-            const routes = Array.isArray(parsed.routes) ? parsed.routes.filter(isSafeDashboardRoute) : []
-            const cursor = typeof parsed.cursor === "number" ? parsed.cursor : routes.length - 1
-            if (routes.length > 0 && cursor >= 0 && cursor < routes.length) {
-              savedHistory = { routes, cursor, savedAt: parsed.savedAt ?? 0 }
-            }
-          } else if (savedLastRouteValue) {
-            // Migrate the older single-route record so existing installs keep
-            // their last page on the next PWA launch.
-            const parsed = JSON.parse(savedLastRouteValue) as { path?: string; savedAt?: number }
-            if (isSafeDashboardRoute(parsed.path)) {
-              savedHistory = { routes: [parsed.path], cursor: 0, savedAt: parsed.savedAt ?? 0 }
-            }
-          }
-        } catch {
-          window.localStorage.removeItem(DASHBOARD_ROUTE_HISTORY_KEY)
-          window.localStorage.removeItem(LAST_DASHBOARD_ROUTE_KEY)
-        }
-
-        const savedCurrentRoute = savedHistory?.routes[savedHistory.cursor]
-        const openedAtSavedRoute = currentRoute === savedCurrentRoute
-        // A saved dashboard route stack remains valid across app closes and
-        // longer idle periods. Expiring it after a few minutes made a normal
-        // PWA relaunch start with a one-entry browser history, so Android Back
-        // immediately closed the app instead of returning through prior pages.
-        // Do not depend on display-mode detection here: installed Android PWAs
-        // can report a different mode during startup, leaving the app with a
-        // single browser-history entry and making Back close the app.
-        if (savedHistory && (pathname === "/dashboard" || openedAtSavedRoute)) {
-          routeRestorationRef.current = {
-            routes: savedHistory.routes.slice(0, savedHistory.cursor + 1),
-            nextIndex: 0,
-            pendingTarget: null,
-          }
-        }
-      }
-
-      const restoration = routeRestorationRef.current
-      if (restoration) {
-        if (restoration.pendingTarget) {
-          // router.push/replace is asynchronous; ignore Strict Mode reruns
-          // until the URL reaches the requested restoration step.
-          if (currentRoute !== restoration.pendingTarget) return
-          restoration.pendingTarget = null
-          restoration.nextIndex += 1
-        } else if (restoration.nextIndex === 0) {
-          if (currentRoute === restoration.routes[0]) {
-            restoration.nextIndex = 1
-          } else {
-            restoration.pendingTarget = restoration.routes[0]
-            router.replace(restoration.routes[0])
-            return
-          }
-        }
-
-        if (restoration.nextIndex < restoration.routes.length) {
-          const nextRoute = restoration.routes[restoration.nextIndex]
-          restoration.pendingTarget = nextRoute
-          router.push(nextRoute)
-          return
-        }
-
-        const restoredHistory = {
-          routes: restoration.routes,
-          cursor: restoration.routes.length - 1,
-          savedAt: Date.now(),
-        }
-        routeHistoryRef.current = restoredHistory
-        routeRestorationRef.current = null
-        window.localStorage.setItem(DASHBOARD_ROUTE_HISTORY_KEY, JSON.stringify(restoredHistory))
-        window.localStorage.setItem(LAST_DASHBOARD_ROUTE_KEY, JSON.stringify({ path: currentRoute, savedAt: restoredHistory.savedAt }))
-        return
-      }
-
-      if (!pathname.startsWith("/dashboard")) return
-
-      let history = routeHistoryRef.current
-      if (!history) {
-        history = { routes: [currentRoute], cursor: 0, savedAt: Date.now() }
-      } else if (history.routes[history.cursor] !== currentRoute) {
-        if (popNavigationRef.current) {
-          const previousIndex = history.routes.lastIndexOf(currentRoute, history.cursor - 1)
-          const nextIndex = history.routes.indexOf(currentRoute, history.cursor + 1)
-          const foundIndex = previousIndex >= 0 ? previousIndex : nextIndex
-          if (foundIndex >= 0) {
-            history.cursor = foundIndex
-          } else {
-            history.routes = [...history.routes.slice(0, history.cursor + 1), currentRoute]
-            history.cursor = history.routes.length - 1
-          }
-        } else {
-          history.routes = [...history.routes.slice(0, history.cursor + 1), currentRoute]
-          history.cursor = history.routes.length - 1
-        }
-      }
-      popNavigationRef.current = false
-
-      // Bound local history size; dashboard navigation shouldn't grow storage
-      // indefinitely on a frequently used device.
-      if (history.routes.length > 50) {
-        const removeCount = history.routes.length - 50
-        history.routes = history.routes.slice(removeCount)
-        history.cursor = Math.max(0, history.cursor - removeCount)
-      }
-      history.savedAt = Date.now()
-      routeHistoryRef.current = history
-      window.localStorage.setItem(DASHBOARD_ROUTE_HISTORY_KEY, JSON.stringify(history))
-      window.localStorage.setItem(LAST_DASHBOARD_ROUTE_KEY, JSON.stringify({ path: currentRoute, savedAt: history.savedAt }))
-    } catch {
-      // Storage may be disabled by the browser; resume behavior is optional.
-    }
-  }, [pathname, router])
-
-  React.useEffect(() => {
-    const markRecentRoute = () => {
-      try {
-        const stored = window.localStorage.getItem(DASHBOARD_ROUTE_HISTORY_KEY)
-        if (!stored) return
-        const parsed = JSON.parse(stored) as DashboardRouteHistory
-        parsed.savedAt = Date.now()
-        window.localStorage.setItem(DASHBOARD_ROUTE_HISTORY_KEY, JSON.stringify(parsed))
-        const lastRoute = parsed.routes[parsed.cursor]
-        if (lastRoute) {
-          window.localStorage.setItem(LAST_DASHBOARD_ROUTE_KEY, JSON.stringify({ path: lastRoute, savedAt: parsed.savedAt }))
-        }
-      } catch {
-        // Ignore unavailable or malformed local storage.
-      }
-    }
-    const markPopNavigation = () => { popNavigationRef.current = true }
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden") markRecentRoute()
-    }
-
-    window.addEventListener("pagehide", markRecentRoute)
-    window.addEventListener("popstate", markPopNavigation)
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => {
-      window.removeEventListener("pagehide", markRecentRoute)
-      window.removeEventListener("popstate", markPopNavigation)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [])
 
   if (isChromeLess) {
     return (
