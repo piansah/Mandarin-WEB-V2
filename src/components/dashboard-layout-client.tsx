@@ -89,9 +89,6 @@ export function DashboardLayoutClient({
 
     try {
       const currentRoute = `${pathname}${window.location.search}`
-      const isStandalone =
-        window.matchMedia("(display-mode: standalone)").matches ||
-        ("standalone" in window.navigator && Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone))
 
       if (!checkedPwaResume.current) {
         checkedPwaResume.current = true
@@ -126,7 +123,10 @@ export function DashboardLayoutClient({
         // longer idle periods. Expiring it after a few minutes made a normal
         // PWA relaunch start with a one-entry browser history, so Android Back
         // immediately closed the app instead of returning through prior pages.
-        if (isStandalone && savedHistory && (pathname === "/dashboard" || openedAtSavedRoute)) {
+        // Do not depend on display-mode detection here: installed Android PWAs
+        // can report a different mode during startup, leaving the app with a
+        // single browser-history entry and making Back close the app.
+        if (savedHistory && (pathname === "/dashboard" || openedAtSavedRoute)) {
           routeRestorationRef.current = {
             routes: savedHistory.routes.slice(0, savedHistory.cursor + 1),
             nextIndex: 0,
