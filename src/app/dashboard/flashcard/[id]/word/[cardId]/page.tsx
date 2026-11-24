@@ -19,7 +19,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts } from "@/lib/hanzi-utils"
-import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, type SegmentedWord } from "@/lib/hanzi-segmentation"
+import { getWordDetailPath, initGlobalSearchCache, segmentSentenceByPinyin, sentenceContainsExactWord, sentenceMeaningMatches, type SegmentedWord } from "@/lib/hanzi-segmentation"
 import styles from "./page.module.css"
 import { sortRelatedWords } from "@/lib/flashcard-related-words"
 
@@ -93,6 +93,7 @@ export default function WordDetailPage() {
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [favoriteWords, setFavoriteWords] = React.useState<Set<string>>(new Set())
   const [cacheReady, setCacheReady] = React.useState(false)
+  const [needsMeaningMatch, setNeedsMeaningMatch] = React.useState(false)
   const [wordPopover, setWordPopover] = React.useState<WordPopoverState | null>(null)
   const [dictionary, setDictionary] = React.useState<CharacterDictionary | null>(null)
   const [dictionaryKey, setDictionaryKey] = React.useState("")
@@ -109,9 +110,19 @@ export default function WordDetailPage() {
   })
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
-  const relevantExamples = React.useMemo(() => examples.filter(example =>
-    example.linkedToWord || (!!cacheReady && !!example.hanzi && !!card && sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin))
-  ), [examples, card, cacheReady])
+  const relevantExamples = React.useMemo(() => examples.filter(example => {
+    if (example.linkedToWord) return true
+    if (!cacheReady || !example.hanzi || !card) return false
+    if (!sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin)) return false
+
+    // Apply meaning match filter for hanzi appearing in multiple HSK levels
+    if (needsMeaningMatch) {
+      const meaningMatch = sentenceMeaningMatches(card.arti, example.arti)
+      if (meaningMatch === false) return false
+    }
+
+    return true
+  }), [examples, card, cacheReady, needsMeaningMatch])
 
   React.useEffect(() => {
     setTab(getDetailTab(searchParams.get("tab")))
@@ -193,6 +204,35 @@ export default function WordDetailPage() {
           if (!cancelled) setDeckHanziPinyin([...lookup].map(([hanzi, pinyin]) => ({ hanzi, pinyin })))
         }
         if (!cancelled) setCard({ ...cardRes.data, hsk_level })
+
+        // Check if hanzi appears in multiple HSK levels
+        if (!cancelled && cardRes.data.hanzi) {
+          const hanzi = cardRes.data.hanzi
+          const escaped = hanzi.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
+          const { data: hanziItems } = await supa
+            .from("hanzi_items")
+            .select("hanzi_key")
+            .ilike("hanzi", `%${escaped}%`)
+            .limit(1000)
+
+          if (hanziItems && hanziItems.length > 0) {
+            const setKeys = [...new Set(hanziItems.map(row => row.hanzi_key).filter(Boolean))]
+            const { data: hanziSets } = await supa
+              .from("hanzi_sets")
+              .select("badge")
+              .in("key", setKeys)
+
+            const badges = new Set((hanziSets ?? []).map(s => s.badge).filter(Boolean))
+            // Count unique HSK levels (HSK 1, HSK 2, etc.)
+            const hskLevels = new Set<string>()
+            for (const badge of badges) {
+              const match = badge?.trim().match(/^HSK\s*([1-6])$/i)
+              if (match) hskLevels.add(`HSK ${match[1]}`)
+            }
+            setNeedsMeaningMatch(hskLevels.size >= 2)
+          }
+        }
+
         setLoading(false)
         return
       }
@@ -208,8 +248,10 @@ export default function WordDetailPage() {
           arti: compoundRes.data.arti ?? "",
           badge: compoundRes.data.badge,
         })
+        setNeedsMeaningMatch(false)
       } else {
         setCard(null)
+        setNeedsMeaningMatch(false)
       }
       setLoading(false)
     }
