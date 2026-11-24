@@ -1,6 +1,6 @@
 import * as React from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
-import { TonePinyin } from "@/components/tone-pinyin"
+import { TonePinyin, TonePinyinText } from "@/components/tone-pinyin"
 import { speakMandarin } from "@/lib/tts"
 import { CardTopBar } from "./card-top-bar"
 import { CardHint } from "./card-hint"
@@ -8,6 +8,8 @@ import { SwipeFlashcard } from "./types"
 
 type Props = {
   card: SwipeFlashcard
+  cards: SwipeFlashcard[]
+  noteHanziPinyin: Array<{ hanzi: string; pinyin: string }>
   idx: number
   flip: 0 | 1 | 2
   isDragging: boolean
@@ -25,6 +27,8 @@ type Props = {
 
 export function FlashcardCard({
   card,
+  cards,
+  noteHanziPinyin,
   idx,
   flip,
   isDragging,
@@ -144,7 +148,7 @@ export function FlashcardCard({
         {card.catatan?.trim() && (
           noteExpanded && (
             <div className="mt-2 w-full rounded-lg border border-primary/15 bg-background/55 px-3 py-2 text-center text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-              {card.catatan}
+              <TonePinyinText text={card.catatan} hanziPinyin={[...cards.map(item => ({ hanzi: item.hanzi, pinyin: item.pinyin })), ...noteHanziPinyin]} />
             </div>
           )
         )}

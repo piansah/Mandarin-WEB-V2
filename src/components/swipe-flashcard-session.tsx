@@ -5,6 +5,9 @@ import { TrendingUp, Star, CheckCircle2, ChevronLeft, ChevronDown, EyeOff, SkipF
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
+import { TonePinyin, TonePinyinText } from "@/components/tone-pinyin"
+import { useSupabase } from "@/hooks/use-supabase"
+import { fetchCharacterEntries } from "@/lib/character-dictionary"
 import { previewIntervalDays, getCardSrsState, computeSrsReassessment, isCardDue } from "@/lib/srs"
 import styles from "./swipe-flashcard-session.module.css"
 
@@ -70,14 +73,57 @@ export function SwipeFlashcardSession({
   reviewBatch,
   studyOnly = false,
 }: SwipeFlashcardSessionProps) {
+  const supa = useSupabase()
   const [noteExpanded, setNoteExpanded] = React.useState(false)
   const [wordClassGuideOpen, setWordClassGuideOpen] = React.useState(false)
+  const [noteHanziPinyin, setNoteHanziPinyin] = React.useState<Array<{ hanzi: string; pinyin: string }>>([])
   const session = useFlashcardSession({
     cards, userId, deckCardIds, wordDetailPath, onComplete,
     disableSwipeProp: disableSwipeProp || noteExpanded,
     studyOnly,
     deckId, sessionId, storageKey
   })
+  const activeNote = session.card?.catatan ?? ""
+  React.useEffect(() => {
+    let cancelled = false
+    const runs = activeNote.match(/[\u3400-\u9fff]+/gu) ?? []
+    const terms = new Set<string>()
+    for (const run of runs) {
+      for (let start = 0; start < run.length; start++) {
+        for (let length = 1; length <= Math.min(4, run.length - start); length++) {
+          terms.add(run.slice(start, start + length))
+        }
+      }
+    }
+    if (!terms.size) {
+      setNoteHanziPinyin([])
+      return () => { cancelled = true }
+    }
+
+    async function loadNotePinyin() {
+      const { data } = await supa.from("flashcard_cards").select("hanzi, pinyin").in("hanzi", [...terms])
+      const lookup = new Map<string, string>()
+      for (const item of data ?? []) {
+        if (item.hanzi && item.pinyin) lookup.set(item.hanzi, item.pinyin)
+      }
+      const characters = [...new Set(runs.join("").split(""))]
+      const missingCharacters = characters.filter(character => !lookup.has(character))
+      if (missingCharacters.length) {
+        try {
+          const characterEntries = await fetchCharacterEntries(supa, missingCharacters)
+          for (const [character, entry] of Object.entries(characterEntries)) {
+            if (entry.pinyin[0]) lookup.set(character, entry.pinyin[0])
+          }
+        } catch {
+          // Keep any readings available from flashcard_cards.
+        }
+      }
+      if (!cancelled) setNoteHanziPinyin([...lookup].map(([hanzi, pinyin]) => ({ hanzi, pinyin })))
+    }
+
+    void loadNotePinyin()
+    return () => { cancelled = true }
+  }, [activeNote, session.card?.id, supa])
   const activeWordClassName = session.card?.wordClass
     ? WORD_CLASS_KEYS[session.card.wordClass.trim().toLowerCase()] ?? session.card.wordClass.trim()
     : null
@@ -206,6 +252,8 @@ export function SwipeFlashcardSession({
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
           <FlashcardCard 
             card={session.card}
+            cards={cards}
+            noteHanziPinyin={noteHanziPinyin}
             idx={session.idx}
             flip={session.flip}
             isDragging={session.isDragging}
@@ -339,18 +387,18 @@ export function SwipeFlashcardSession({
               {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name === activeWordClassName).map(wordClass => (
                 <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-xs">
                   <h4 className="font-semibold">
-                    {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">({wordClass.pinyin})</span>
+                    {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} />)</span>
                   </h4>
-                  <p className="mt-1 leading-relaxed text-muted-foreground">{wordClass.phrase}: {wordClass.description}</p>
+                  <p className="mt-1 leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
                 </article>
               ))}
               <div id="word-class-guide-list" className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
                 {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name !== activeWordClassName).map((wordClass) => (
                   <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 sm:block`}>
                     <h4 className="text-xs font-semibold">
-                      {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">({wordClass.pinyin})</span>
+                      {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} />)</span>
                     </h4>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{wordClass.phrase}: {wordClass.description}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
                   </article>
                 ))}
               </div>

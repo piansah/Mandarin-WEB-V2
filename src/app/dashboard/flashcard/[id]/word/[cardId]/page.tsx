@@ -7,11 +7,11 @@
 
 import * as React from "react"
 import { PageLoader } from "@/components/page-loader"
-import { TonePinyin } from "@/components/tone-pinyin"
+import { TonePinyin, TonePinyinText } from "@/components/tone-pinyin"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { BookOpen, Flag, Heart, MoreHorizontal, Plus, Volume2, X, ArrowLeft } from "lucide-react"
 import { useSupabase } from "@/hooks/use-supabase"
-import { fetchCharacterDictionary, type CharacterDictionary, type CharacterDictionaryEntry } from "@/lib/character-dictionary"
+import { fetchCharacterDictionary, fetchCharacterEntries, type CharacterDictionary, type CharacterDictionaryEntry } from "@/lib/character-dictionary"
 import { speakMandarin, speakParagraph } from "@/lib/tts"
 import { toggleFavorite, checkFavorite, listFavorites } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
@@ -66,6 +66,20 @@ function heroBadgeLabel(card: Card): string | null {
   return null
 }
 
+function getHanziLookupTerms(text: string | null | undefined): string[] {
+  if (!text) return []
+  const terms = new Set<string>()
+  for (const run of text.match(/[\u3400-\u9fff]+/g) ?? []) {
+    if (run.length > 1) terms.add(run)
+    for (let start = 0; start < run.length; start++) {
+      for (let length = 1; length <= Math.min(4, run.length - start); length++) {
+        terms.add(run.slice(start, start + length))
+      }
+    }
+  }
+  return [...terms]
+}
+
 export default function WordDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -74,6 +88,7 @@ export default function WordDetailPage() {
   const supa = useSupabase()
   const [tab, setTab] = React.useState<DetailTab>(() => getDetailTab(searchParams.get("tab")))
   const [card, setCard] = React.useState<Card | null>(null)
+  const [deckHanziPinyin, setDeckHanziPinyin] = React.useState<Array<{ hanzi: string; pinyin: string }>>([])
   const [examples, setExamples] = React.useState<ExampleSentence[]>([])
   const [compounds, setCompounds] = React.useState<CompoundWord[]>([])
   const [favoriteWords, setFavoriteWords] = React.useState<Set<string>>(new Set())
@@ -146,8 +161,36 @@ export default function WordDetailPage() {
       if (cardRes.data) {
         let hsk_level: number | null = null
         if (cardRes.data.set_id != null) {
-          const setRes = await supa.from("flashcard_sets").select("hsk_level").eq("id", cardRes.data.set_id).maybeSingle()
+          const [setRes, deckCardsRes] = await Promise.all([
+            supa.from("flashcard_sets").select("hsk_level").eq("id", cardRes.data.set_id).maybeSingle(),
+            supa.from("flashcard_cards").select("hanzi, pinyin").eq("set_id", cardRes.data.set_id),
+          ])
           hsk_level = setRes.data?.hsk_level ?? null
+          const lookupTerms = getHanziLookupTerms(cardRes.data.catatan)
+          const noteCardsRes = lookupTerms.length
+            ? await supa.from("flashcard_cards").select("hanzi, pinyin").in("hanzi", lookupTerms)
+            : { data: [] }
+          const lookup = new Map<string, string>()
+          for (const item of [...(noteCardsRes.data ?? []), ...(deckCardsRes.data ?? [])]) {
+            if (item.hanzi && item.pinyin) lookup.set(item.hanzi, item.pinyin)
+          }
+          // Notes may contain a whole compound (e.g. 美国) with only the
+          // first syllable recorded beside it. Fill missing character readings
+          // from the character dictionary so the compound can still be rebuilt
+          // as one pinyin unit (měiguó), even when no matching vocab card exists.
+          const noteCharacters = [...new Set(cardRes.data.catatan?.match(/[\u3400-\u9fff]/gu) ?? [])]
+          const missingCharacters = noteCharacters.filter(character => !lookup.has(character))
+          if (missingCharacters.length) {
+            try {
+              const characterEntries = await fetchCharacterEntries(supa, missingCharacters)
+              for (const [character, entry] of Object.entries(characterEntries)) {
+                if (entry.pinyin[0]) lookup.set(character, entry.pinyin[0])
+              }
+            } catch {
+              // Keep the available flashcard readings if the dictionary is unavailable.
+            }
+          }
+          if (!cancelled) setDeckHanziPinyin([...lookup].map(([hanzi, pinyin]) => ({ hanzi, pinyin })))
         }
         if (!cancelled) setCard({ ...cardRes.data, hsk_level })
         setLoading(false)
@@ -415,7 +458,7 @@ export default function WordDetailPage() {
 
   return <div className={styles.page}>
     <nav className={styles.tabs}>{tabs.map(item => <button key={item.id} type="button" className={`${styles.tab} ${tab === item.id ? styles.tabActive : ""}`} onClick={() => handleTabChange(item.id)}>{item.label}</button>)}</nav>
-    <Hero card={card} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
+    <Hero card={card} hanziPinyin={deckHanziPinyin} favorited={favorited} onToggleFavorite={handleToggleFavorite} onReport={openReportModal} />
     <div ref={contentRef} className={styles.content}>{tabLoading && <LoadingLine label="Memuat data..." />}{tab === "kalimat" && !tabLoading && <SentenceTab examples={relevantExamples} cacheReady={cacheReady} onAddSentence={openAddSentenceModal} onWordOpen={openWordPopover} onReport={openSentenceReportModal} />}{tab === "stroke" && <div className={styles.strokeGrid}>{chars.map((char, index) => <StrokePreview key={`${char}-${index}`} char={char} />)}</div>}{tab === "karakter" && <div>{chars.map((char, index) => <CharBreakdown key={`${char}-${index}`} char={char} dictionary={dictionary} />)}</div>}{tab === "kata" && !tabLoading && <WordTab compounds={compounds} favoriteWords={favoriteWords} isScrolling={isScrolling} onSpeak={hanzi => speakMandarin(hanzi)} onOpen={word => { const path = getWordDetailPath(word); if (path) router.push(path) }} onReport={openRelatedWordReportModal} onFavorite={handleRelatedWordFavorite} />}</div>
 
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
@@ -472,10 +515,10 @@ export default function WordDetailPage() {
   </div>
 }
 
-function Hero({ card, favorited, onToggleFavorite, onReport }: { card: Card; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
+function Hero({ card, hanziPinyin, favorited, onToggleFavorite, onReport }: { card: Card; hanziPinyin: Array<{ hanzi: string; pinyin: string }>; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   const badge = heroBadgeLabel(card)
-  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><TonePinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}>{card.catatan}</p>}</div></section>
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><TonePinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}><TonePinyinText text={card.catatan} hanziPinyin={hanziPinyin} /></p>}</div></section>
 }
 
 function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
