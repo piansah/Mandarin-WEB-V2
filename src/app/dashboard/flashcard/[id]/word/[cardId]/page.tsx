@@ -111,11 +111,11 @@ export default function WordDetailPage() {
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
   const relevantExamples = React.useMemo(() => examples.filter(example => {
-    if (example.linkedToWord) return true
     if (!cacheReady || !example.hanzi || !card) return false
     if (!sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin)) return false
 
     // Apply meaning match filter for hanzi appearing in multiple HSK levels
+    // For multi-level hanzi, even linked examples must match the correct meaning
     if (needsMeaningMatch) {
       const meaningMatch = sentenceMeaningMatches(card.arti, example.arti)
       // Treat null as no match for multi-level hanzi to be strict
