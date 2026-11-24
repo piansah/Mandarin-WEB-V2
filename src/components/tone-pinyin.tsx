@@ -153,18 +153,27 @@ export function TonePinyinText({
     return result + text.slice(cursor)
   }, [text, hanziPinyin])
 
-  const parts = enrichedText.split(TONE_MARKED_PINYIN)
-  const matches = enrichedText.match(TONE_MARKED_PINYIN) ?? []
-  let matchIndex = 0
+  const renderToneText = (value: string, keyPrefix: string) => {
+    const parts = value.split(TONE_MARKED_PINYIN)
+    const matches = value.match(TONE_MARKED_PINYIN) ?? []
+    let matchIndex = 0
+    return parts.map((part, index) => (
+      <React.Fragment key={`${keyPrefix}-${index}`}>
+        {part}
+        {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} className="whitespace-nowrap" />}
+      </React.Fragment>
+    ))
+  }
+  const parts = enrichedText.split(/([（(][^（）()]*[）)])/gu)
 
   return (
     <span className={className}>
-      {parts.map((part, index) => (
-        <React.Fragment key={`note-part-${index}`}>
-          {part}
-          {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} className="whitespace-nowrap" />}
-        </React.Fragment>
-      ))}
+      {parts.map((part, index) => {
+        const isParenthetical = /^[（(].*[）)]$/u.test(part)
+        return isParenthetical
+          ? <span key={`note-group-${index}`} className="whitespace-nowrap">{renderToneText(part, `note-group-${index}`)}</span>
+          : <React.Fragment key={`note-part-${index}`}>{renderToneText(part, `note-part-${index}`)}</React.Fragment>
+      })}
     </span>
   )
 }
