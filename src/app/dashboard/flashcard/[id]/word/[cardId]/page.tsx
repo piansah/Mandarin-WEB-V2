@@ -591,7 +591,6 @@ function Hero({ card, hanziPinyin, favorited, onToggleFavorite, onReport }: { ca
 }
 
 function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
-  if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
@@ -605,8 +604,14 @@ function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport
           Tambah Contoh Kalimat
         </button>
       </div>
-      <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
-      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} onReport={onReport} />)}</div>
+      {examples.length === 0 ? (
+        <EmptyLine label="Belum ada contoh kalimat." />
+      ) : (
+        <>
+          <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
+          <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} onReport={onReport} />)}</div>
+        </>
+      )}
     </div>
   )
 }
