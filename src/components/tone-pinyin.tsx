@@ -162,7 +162,7 @@ export function TonePinyinText({
       {parts.map((part, index) => (
         <React.Fragment key={`note-part-${index}`}>
           {part}
-          {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} />}
+          {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} className="whitespace-nowrap" />}
         </React.Fragment>
       ))}
     </span>

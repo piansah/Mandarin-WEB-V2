@@ -385,18 +385,18 @@ export function SwipeFlashcardSession({
                 </button>
               </div>
               {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name === activeWordClassName).map(wordClass => (
-                <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-xs">
+                <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-left text-xs">
                   <h4 className="font-semibold">
-                    {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} />)</span>
+                    {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                   </h4>
                   <p className="mt-1 leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
                 </article>
               ))}
               <div id="word-class-guide-list" className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
                 {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name !== activeWordClassName).map((wordClass) => (
-                  <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 sm:block`}>
+                  <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 text-left sm:block`}>
                     <h4 className="text-xs font-semibold">
-                      {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} />)</span>
+                      {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                     </h4>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
                   </article>
