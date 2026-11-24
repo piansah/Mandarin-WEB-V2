@@ -112,11 +112,19 @@ export default function WordDetailPage() {
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
   const relevantExamples = React.useMemo(() => examples.filter(example => {
-    if (!cacheReady || !example.hanzi || !card) return false
+    if (!example.hanzi || !card) return false
+
+    // Contoh yang ditautkan manual (word_examples.word_hanzi = kata ini)
+    // dipercaya apa adanya: admin sudah secara eksplisit menautkannya, jadi
+    // tidak perlu dicek ulang oleh segmentasi maupun meaning match. Ini juga
+    // membuat kalimat tetap muncul walau cache segmentasi belum siap.
+    if (example.linkedToWord) return true
+
+    if (!cacheReady) return false
     if (!sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin)) return false
 
-    // Apply meaning match filter for hanzi appearing in multiple HSK levels
-    // For multi-level hanzi, even linked examples must match the correct meaning
+    // Apply meaning match filter for hanzi appearing in multiple HSK levels.
+    // Hanya berlaku untuk kandidat hasil pencarian substring.
     if (needsMeaningMatch) {
       const meaningMatch = sentenceMeaningMatches(card.arti, example.arti)
       // Treat null as no match for multi-level hanzi to be strict
@@ -519,20 +527,26 @@ export default function WordDetailPage() {
         style={{ left: wordPopover.x, top: wordPopover.y }}
         onClick={e => e.stopPropagation()}
       >
-        <div className={styles.wordPopoverHeader}>
-          <div className="min-w-0">
-            <div className={styles.wordPopoverHanzi}>{wordPopover.hanzi}</div>
-            {wordPopover.pinyin && <div className={styles.wordPopoverPinyin}>{wordPopover.pinyin}</div>}
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div>
+            {wordPopover.badge && <Badge variant="secondary" className="text-xs">{wordPopover.badge}</Badge>}
           </div>
           <button type="button" onClick={() => setWordPopover(null)} className={styles.wordPopoverClose} aria-label="Tutup">
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
-        <div className="flex gap-1.5 flex-wrap mb-2">
-          {wordPopover.badge && <Badge variant="secondary" className="text-xs">{wordPopover.badge}</Badge>}
-          {wordPopover.word_class && <Badge variant="outline" className="text-xs">{wordPopover.word_class}</Badge>}
+        <div className="flex gap-3 items-center">
+          <div className={styles.wordPopoverHanzi}>{wordPopover.hanzi}</div>
+          <div className="min-w-0 flex-1">
+            {wordPopover.pinyin && <div className={styles.wordPopoverPinyin}>{wordPopover.pinyin}</div>}
+            {wordPopover.arti && <p className={styles.wordPopoverArti}>{wordPopover.arti}</p>}
+          </div>
         </div>
-        {wordPopover.arti && <p className={styles.wordPopoverArti}>{wordPopover.arti}</p>}
+        {wordPopover.word_class && (
+          <div className="mt-2">
+            <Badge variant="outline" className="text-xs">{WORD_CLASS_LABELS[wordPopover.word_class] ?? wordPopover.word_class}</Badge>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => speakMandarin(wordPopover.hanzi)}

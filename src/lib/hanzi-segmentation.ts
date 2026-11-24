@@ -1,4 +1,3 @@
-
 // src/lib/hanzi-segmentation.ts
 import { createClient } from "@/lib/supabase/browser"
 import { buildQueryTokens, matchPinyinTokens, stripTones, isIndonesianQuery } from "./pinyin-search"
@@ -82,14 +81,39 @@ export function segmentSentenceByPinyin(sentence: string, pinyin?: string | null
   return aligned
 }
 
-/** Match a vocabulary item as a complete pinyin-aligned word, not as a Hanzi substring. */
+/**
+ * Match a vocabulary item as a complete pinyin-aligned word, not as a Hanzi substring.
+ *
+ * Pinyin in a sentence is sometimes spaced differently from the dictionary
+ * (e.g. "bú kèqi" for 不客气), which splits one word into several consecutive
+ * segments. So besides a single exact segment, consecutive non-punctuation
+ * segments are joined and compared with the target. Matches always start and
+ * end on a segment boundary, so a word is never matched inside a larger one.
+ */
 export function sentenceContainsExactWord(sentence: string, hanzi: string, pinyin?: string | null, sentencePinyin?: string | null): boolean {
   const targetPinyin = normalizeWordPinyin(pinyin)
-  return segmentSentenceByPinyin(sentence, sentencePinyin).some(segment => {
-    if (segment.hanzi !== hanzi) return false
-    const segmentPinyin = normalizeWordPinyin(segment.pinyin)
-    return !targetPinyin || !segmentPinyin || segmentPinyin === targetPinyin
-  })
+  const segments = segmentSentenceByPinyin(sentence, sentencePinyin)
+
+  for (let start = 0; start < segments.length; start++) {
+    if (segments[start].isPunct) continue
+    let joinedHanzi = ""
+    let joinedPinyin = ""
+
+    for (let end = start; end < segments.length && joinedHanzi.length < hanzi.length; end++) {
+      const segment = segments[end]
+      if (segment.isPunct) break
+      joinedHanzi += segment.hanzi
+      joinedPinyin += normalizeWordPinyin(segment.pinyin)
+
+      if (joinedHanzi === hanzi) {
+        if (!targetPinyin || !joinedPinyin || joinedPinyin === targetPinyin) return true
+        break
+      }
+      if (!hanzi.startsWith(joinedHanzi)) break
+    }
+  }
+
+  return false
 }
 
 const MEANING_STOP_WORDS = new Set(["dan", "atau", "dengan", "dari", "untuk", "pada", "dalam", "adalah", "sebagai"])
@@ -158,7 +182,7 @@ let _initPromise: Promise<void> | null = null
 
 const DB_NAME = "hanzi_cache_db"
 const STORE_NAME = "hanzi_store"
-const CACHE_KEY = "global_search_v2"
+const CACHE_KEY = "global_search_v3" // Bump version to force refresh for badge/word_class
 
 async function getIDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -219,12 +243,14 @@ export async function initGlobalSearchCache(forceRefresh = false) {
     // Fetch HSK Sets mapping
     const { data: sets } = await supabase
       .from("flashcard_sets")
-      .select("id, title, hsk_level")
-      
+      .select("id, title, hsk_level, badge")
+
     const setHskMap: Record<number, number> = {}
+    const setBadgeMap: Record<number, string> = {}
     if (sets) {
       sets.forEach((s) => {
         setHskMap[s.id] = s.hsk_level || 1
+        setBadgeMap[s.id] = s.badge || ""
       })
     }
 
@@ -264,12 +290,13 @@ export async function initGlobalSearchCache(forceRefresh = false) {
     const cards = await fetchAll<{ id: string | number; set_id?: number; hanzi: string; pinyin: string | null; arti: string | null; word_class?: string | null }>("flashcard_cards", "id, set_id, hanzi, pinyin, arti, word_class")
 
     // Fetch Compounds
-    const compounds = await fetchAll<{ id: string | number; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null; word_class?: string | null }>("word_compounds", "id, hanzi, pinyin, arti, badge, word_class")
+    const compounds = await fetchAll<{ id: string | number; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }>("word_compounds", "id, hanzi, pinyin, arti, badge")
 
     const hskMapped: GlobalWord[] = (cards || []).map((c) => ({
       ...c,
       source: "hsk" as const,
       hsk_level: c.set_id ? (setHskMap[c.set_id] || 1) : 1,
+      badge: c.set_id ? setBadgeMap[c.set_id] : null,
     }))
 
     const compMapped: GlobalWord[] = (compounds || []).map((c) => ({
@@ -461,4 +488,3 @@ export function segmentText(text: string): SegmentedWord[] {
 
   return result
 }
-
