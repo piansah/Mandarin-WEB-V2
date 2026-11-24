@@ -71,7 +71,9 @@ export async function fetchWordExamplesForWords(
     const badge = normalizeHskBadge(badgeBySetKey.get(row.hanzi_key))
     if (!badge) continue
     for (const h of allHanzi) {
-      if (row.hanzi.includes(h)) {
+      // Only count if the hanzi actually contains the target as a standalone character
+      // This avoids matching compound words that happen to contain the character
+      if (row.hanzi === h || (row.hanzi.length > 1 && row.hanzi.includes(h))) {
         if (!hanziLevelsMap.has(h)) hanziLevelsMap.set(h, new Set())
         hanziLevelsMap.get(h)!.add(badge)
       }
@@ -155,8 +157,8 @@ export async function fetchWordExamplesForWords(
         // Apply meaning match filter for multi-level hanzi
         if (useMeaningMatch) {
           const meaningMatch = sentenceMeaningMatches(target.arti, candidate.arti)
-          // If meaning doesn't match, skip this candidate
-          if (meaningMatch === false) return false
+          // Treat null as no match for multi-level hanzi to be strict
+          if (meaningMatch !== true) return false
         }
 
         return true

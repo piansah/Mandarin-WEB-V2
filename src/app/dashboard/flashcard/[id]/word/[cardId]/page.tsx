@@ -118,7 +118,8 @@ export default function WordDetailPage() {
     // Apply meaning match filter for hanzi appearing in multiple HSK levels
     if (needsMeaningMatch) {
       const meaningMatch = sentenceMeaningMatches(card.arti, example.arti)
-      if (meaningMatch === false) return false
+      // Treat null as no match for multi-level hanzi to be strict
+      if (meaningMatch !== true) return false
     }
 
     return true
@@ -209,14 +210,17 @@ export default function WordDetailPage() {
         if (!cancelled && cardRes.data.hanzi) {
           const hanzi = cardRes.data.hanzi
           const escaped = hanzi.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
+          // Query hanzi_items where hanzi exactly matches OR contains the target
           const { data: hanziItems } = await supa
             .from("hanzi_items")
-            .select("hanzi_key")
-            .ilike("hanzi", `%${escaped}%`)
+            .select("hanzi, hanzi_key")
+            .or(`hanzi.eq."${escaped}",hanzi.ilike."%${escaped}%"`)
             .limit(1000)
 
           if (hanziItems && hanziItems.length > 0) {
-            const setKeys = [...new Set(hanziItems.map(row => row.hanzi_key).filter(Boolean))]
+            // Filter to only items where the hanzi actually contains the target character
+            const relevantItems = hanziItems.filter(row => row.hanzi && row.hanzi.includes(hanzi))
+            const setKeys = [...new Set(relevantItems.map(row => row.hanzi_key).filter(Boolean))]
             const { data: hanziSets } = await supa
               .from("hanzi_sets")
               .select("badge")
@@ -230,6 +234,8 @@ export default function WordDetailPage() {
               if (match) hskLevels.add(`HSK ${match[1]}`)
             }
             setNeedsMeaningMatch(hskLevels.size >= 2)
+          } else {
+            setNeedsMeaningMatch(false)
           }
         }
 
