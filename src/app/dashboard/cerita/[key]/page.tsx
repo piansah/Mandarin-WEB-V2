@@ -50,7 +50,7 @@ type CeritaDetail = {
   quizQuestions: QuizQuestion[]
 }
 
-type Popover = { word: string; pinyin: string; arti: string; x: number; y: number }
+type Popover = { word: string; pinyin: string; arti: string; badge?: string | null; word_class?: string | null; x: number; y: number }
 
 const FONT_LEVELS = [16, 20, 24, 28, 32]
 
@@ -675,6 +675,8 @@ export default function CeritaReadPage() {
       word: seg.hanzi,
       pinyin: seg.pinyin || "Tidak ditemukan",
       arti: seg.arti || "Tidak ditemukan",
+      badge: seg.badge,
+      word_class: seg.word_class,
       x: Math.min(Math.max(rect.left, 12), window.innerWidth - 232),
       y: rect.bottom + 8,
     })
@@ -934,6 +936,10 @@ export default function CeritaReadPage() {
             <button type="button" onClick={() => setPopover(null)} className="grid h-5 w-5 shrink-0 place-items-center rounded text-muted-foreground hover:bg-muted" aria-label="Tutup">
               <X className="h-3.5 w-3.5" />
             </button>
+          </div>
+          <div className="mt-1.5 flex gap-1.5 flex-wrap">
+            {popover.badge && <Badge variant="secondary" className="text-xs">{popover.badge}</Badge>}
+            {popover.word_class && <Badge variant="outline" className="text-xs">{popover.word_class}</Badge>}
           </div>
           {popover.arti && <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{popover.arti}</p>}
           <button

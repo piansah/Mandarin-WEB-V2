@@ -16,6 +16,7 @@ import { speakMandarin, speakParagraph } from "@/lib/tts"
 import { toggleFavorite, checkFavorite, listFavorites } from "@/lib/personal-decks"
 import { ReportModal } from "@/components/report-modal"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Badge } from "@/components/ui/badge"
 import { AddSentenceModal } from "@/components/add-sentence-modal"
 import { SwipeToReport } from "@/components/swipe-to-report"
 import { isHanzi, IDS_LABELS, WORD_CLASS_LABELS, decompParts } from "@/lib/hanzi-utils"
@@ -27,7 +28,7 @@ type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
 type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
 type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null; linkedToWord?: boolean }
 type CompoundWord = { id?: string | number; set_id?: number; source?: "hsk" | "compound"; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
-type WordPopoverState = { hanzi: string; pinyin: string; arti: string; x: number; y: number }
+type WordPopoverState = { hanzi: string; pinyin: string; arti: string; badge?: string | null; word_class?: string | null; x: number; y: number }
 type DictionaryMap = CharacterDictionary
 type DictionaryEntry = CharacterDictionaryEntry
 type ContentReportState = {
@@ -491,6 +492,8 @@ export default function WordDetailPage() {
       hanzi: seg.hanzi,
       pinyin: seg.pinyin || "Tidak ditemukan",
       arti: seg.arti || "Tidak ditemukan",
+      badge: seg.badge,
+      word_class: seg.word_class,
       x: Math.min(Math.max(rect.left, 12), window.innerWidth - 232),
       y: rect.bottom + 8,
     })
@@ -524,6 +527,10 @@ export default function WordDetailPage() {
           <button type="button" onClick={() => setWordPopover(null)} className={styles.wordPopoverClose} aria-label="Tutup">
             <X className="h-3.5 w-3.5" />
           </button>
+        </div>
+        <div className="flex gap-1.5 flex-wrap mb-2">
+          {wordPopover.badge && <Badge variant="secondary" className="text-xs">{wordPopover.badge}</Badge>}
+          {wordPopover.word_class && <Badge variant="outline" className="text-xs">{wordPopover.word_class}</Badge>}
         </div>
         {wordPopover.arti && <p className={styles.wordPopoverArti}>{wordPopover.arti}</p>}
         <button

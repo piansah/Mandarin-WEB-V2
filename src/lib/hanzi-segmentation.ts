@@ -12,6 +12,7 @@ export type GlobalWord = {
   arti: string | null
   badge?: string | null
   hsk_level?: number | null
+  word_class?: string | null
   source: "hsk" | "compound"
 }
 
@@ -24,6 +25,7 @@ export type SegmentedWord = {
   arti?: string | null
   hsk?: number | null
   badge?: string | null
+  word_class?: string | null
   found: boolean
   isPunct?: boolean
 }
@@ -259,10 +261,10 @@ export async function initGlobalSearchCache(forceRefresh = false) {
     }
 
     // Fetch Cards
-    const cards = await fetchAll<{ id: string | number; set_id?: number; hanzi: string; pinyin: string | null; arti: string | null }>("flashcard_cards", "id, set_id, hanzi, pinyin, arti")
+    const cards = await fetchAll<{ id: string | number; set_id?: number; hanzi: string; pinyin: string | null; arti: string | null; word_class?: string | null }>("flashcard_cards", "id, set_id, hanzi, pinyin, arti, word_class")
 
     // Fetch Compounds
-    const compounds = await fetchAll<{ id: string | number; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }>("word_compounds", "id, hanzi, pinyin, arti, badge")
+    const compounds = await fetchAll<{ id: string | number; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null; word_class?: string | null }>("word_compounds", "id, hanzi, pinyin, arti, badge, word_class")
 
     const hskMapped: GlobalWord[] = (cards || []).map((c) => ({
       ...c,
@@ -435,6 +437,7 @@ export function segmentText(text: string): SegmentedWord[] {
           arti: wordData.arti,
           hsk: wordData.hsk_level,
           badge: wordData.badge,
+          word_class: wordData.word_class,
           found: true,
         })
         i += len
