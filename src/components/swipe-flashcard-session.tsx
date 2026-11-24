@@ -385,7 +385,7 @@ export function SwipeFlashcardSession({
                 </button>
               </div>
               {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name === activeWordClassName).map(wordClass => (
-                <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-left text-xs">
+                <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-center text-xs sm:text-left">
                   <h4 className="font-semibold">
                     {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                   </h4>
@@ -394,7 +394,7 @@ export function SwipeFlashcardSession({
               ))}
               <div id="word-class-guide-list" className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
                 {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name !== activeWordClassName).map((wordClass) => (
-                  <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 text-left sm:block`}>
+                  <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 text-center sm:text-left sm:block`}>
                     <h4 className="text-xs font-semibold">
                       {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                     </h4>
