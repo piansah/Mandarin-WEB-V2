@@ -20,6 +20,22 @@ const FlashcardSessionSummary = dynamic(() => import("./flashcard-session/flashc
 
 export type { SwipeFlashcard }
 
+const WORD_CLASS_EXPLANATIONS = [
+  { name: "Nomina", hanzi: "名词", pinyin: "míngcí", description: "Menamai orang, benda, tempat, atau konsep. Contoh: 学生 (xuéshēng, siswa), 学校 (xuéxiào, sekolah)." },
+  { name: "Verba", hanzi: "动词", pinyin: "dòngcí", description: "Menyatakan tindakan atau keadaan. Contoh: 学习 (xuéxí, belajar), 是 (shì, adalah)." },
+  { name: "Adjektiva", hanzi: "形容词", pinyin: "xíngróngcí", description: "Menjelaskan sifat atau keadaan. Contoh: 很好 (hěn hǎo, baik)." },
+  { name: "Adverbia", hanzi: "副词", pinyin: "fùcí", description: "Menerangkan verba, adjektiva, atau kalimat, misalnya tingkat atau negasi. Contoh: 很 (hěn, sangat), 不 (bù, tidak)." },
+  { name: "Konjungsi", hanzi: "连词", pinyin: "liáncí", description: "Menghubungkan kata, frasa, atau klausa. Contoh: 和 (hé, dan), 但是 (dànshì, tetapi)." },
+  { name: "Partikel", hanzi: "助词", pinyin: "zhùcí", description: "Menandai fungsi tata bahasa seperti aspek atau pertanyaan. Contoh: 了 (le), 吗 (ma), 的 (de)." },
+  { name: "Pronomina", hanzi: "代词", pinyin: "dàicí", description: "Menggantikan atau menunjuk orang, benda, maupun hal. Contoh: 我 (wǒ, saya), 这 (zhè, ini)." },
+  { name: "Numeralia", hanzi: "数词", pinyin: "shùcí", description: "Menyatakan jumlah atau urutan. Contoh: 三 (sān, tiga), 第一 (dì-yī, pertama)." },
+  { name: "Klasifikator", hanzi: "量词", pinyin: "liàngcí", description: "Dipakai bersama angka atau penunjuk sebelum nomina. Contoh: 一个人 (yí ge rén, satu orang), 一本书 (yì běn shū, satu buku)." },
+  { name: "Kata ukur", hanzi: "量词", pinyin: "liàngcí", description: "Menyatakan satuan hitung atau ukuran. Contoh: 一杯水 (yì bēi shuǐ, segelas air)." },
+  { name: "Prefiks", hanzi: "前缀", pinyin: "qiánzhuì", description: "Unsur di depan kata dasar untuk membentuk kata lain. Contoh: 第 (dì-) pada 第一 (dì-yī, pertama)." },
+  { name: "Preposisi", hanzi: "介词", pinyin: "jiècí", description: "Menandai hubungan tempat, arah, atau penerima. Contoh: 在 (zài, di), 给 (gěi, kepada)." },
+  { name: "Interjeksi", hanzi: "叹词", pinyin: "tàncí", description: "Mengungkapkan seruan, reaksi, atau emosi. Contoh: 哎 (āi), 啊 (a)." },
+] as const
+
 export function SwipeFlashcardSession({
   cards,
   loading = false,
@@ -285,6 +301,20 @@ export function SwipeFlashcardSession({
                 </div>
               </div>
             </div>
+
+            <section className="w-full rounded-xl border border-border/40 bg-muted/20 p-3" aria-labelledby="word-class-guide-title">
+              <h3 id="word-class-guide-title" className="text-xs font-semibold text-muted-foreground mb-2">Kelas kata Mandarin</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {WORD_CLASS_EXPLANATIONS.map((wordClass) => (
+                  <article key={wordClass.name} className="rounded-lg border border-border/30 bg-background/30 p-2.5">
+                    <h4 className="text-xs font-semibold">
+                      {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">({wordClass.pinyin})</span>
+                    </h4>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{wordClass.description}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
             </>}
 
             {session.feedback && (
