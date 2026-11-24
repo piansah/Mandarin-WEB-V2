@@ -389,7 +389,7 @@ export function SwipeFlashcardSession({
                   <h4 className="font-semibold">
                     {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                   </h4>
-                  <p className="mt-1 leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
+                  <p className="mt-1 leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} keepPinyinWithMeaningTogether /></p>
                 </article>
               ))}
               <div id="word-class-guide-list" className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
@@ -398,7 +398,7 @@ export function SwipeFlashcardSession({
                     <h4 className="text-xs font-semibold">
                       {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">(<TonePinyin text={wordClass.pinyin} className="whitespace-nowrap" />)</span>
                     </h4>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} /></p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground"><TonePinyinText text={`${wordClass.phrase}: ${wordClass.description}`} keepPinyinWithMeaningTogether /></p>
                   </article>
                 ))}
               </div>

@@ -50,10 +50,12 @@ export function TonePinyinText({
   text,
   className,
   hanziPinyin = [],
+  keepPinyinWithMeaningTogether = false,
 }: {
   text: string
   className?: string
   hanziPinyin?: Array<{ hanzi: string; pinyin: string }>
+  keepPinyinWithMeaningTogether?: boolean
 }) {
   const enrichedText = React.useMemo(() => {
     const entries = [...hanziPinyin]
@@ -160,16 +162,18 @@ export function TonePinyinText({
     return parts.map((part, index) => (
       <React.Fragment key={`${keyPrefix}-${index}`}>
         {part}
-        {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} className="whitespace-nowrap" />}
+        {index < parts.length - 1 && <TonePinyin text={matches[matchIndex++] ?? ""} className={keepPinyinWithMeaningTogether ? "whitespace-nowrap" : undefined} />}
       </React.Fragment>
     ))
   }
-  const parts = enrichedText.split(/([（(][^（）()]*[）)])/gu)
+  const parts = keepPinyinWithMeaningTogether
+    ? enrichedText.split(/([（(][^（）()]*[）)])/gu)
+    : [enrichedText]
 
   return (
     <span className={className}>
       {parts.map((part, index) => {
-        const isParenthetical = /^[（(].*[）)]$/u.test(part)
+        const isParenthetical = keepPinyinWithMeaningTogether && /^[（(].*[）)]$/u.test(part)
         return isParenthetical
           ? <span key={`note-group-${index}`} className="whitespace-nowrap">{renderToneText(part, `note-group-${index}`)}</span>
           : <React.Fragment key={`note-part-${index}`}>{renderToneText(part, `note-part-${index}`)}</React.Fragment>
