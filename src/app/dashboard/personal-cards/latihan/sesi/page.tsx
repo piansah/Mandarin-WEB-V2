@@ -82,7 +82,7 @@ function CustomFlashcardSessionContent() {
       const rawCards = (cardRows ?? []) as CardRow[]
       const exampleMap = await fetchWordExamplesForWords(
         supa,
-        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin, arti: card.arti })),
       )
 
       const deckById = new Map(validDecks.map(deck => [deck.id, deck]))

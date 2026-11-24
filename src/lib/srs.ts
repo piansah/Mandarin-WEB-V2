@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { fetchWordExamplesForWords } from "@/lib/word-example-fallback"
+import { fetchWordExamplesForWords, getWordExampleKey } from "@/lib/word-example-fallback"
 
 export type DueFlashcard = {
   id: string
@@ -293,21 +293,34 @@ export async function fetchDueFlashcards(
   const cardRows = cardResults.flatMap(result => result.data ?? [])
     .sort((a, b) => (dueOrder.get(String(a.id)) ?? Number.MAX_SAFE_INTEGER) - (dueOrder.get(String(b.id)) ?? Number.MAX_SAFE_INTEGER))
   const uniqueSetIds = [...new Set(cardRows.map(card => card.set_id).filter(Boolean))]
-  const [exampleMap, deckResult] = await Promise.all([
-    fetchWordExamplesForWords(supa, cardRows.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin }))),
-    uniqueSetIds.length > 0
-      ? supa.from("flashcard_sets").select("id, title, hsk_level").in("id", uniqueSetIds)
-      : Promise.resolve({ data: [] }),
-  ])
+  const deckResult = uniqueSetIds.length > 0
+    ? await supa.from("flashcard_sets").select("id, title, hsk_level, badge").in("id", uniqueSetIds)
+    : { data: [] }
 
-  const deckInfoMap = new Map<string | number, { title: string; hsk_level: number }>()
+  const deckInfoMap = new Map<string | number, { title: string; hsk_level: number; badge: string }>()
   for (const deck of deckResult.data ?? []) {
-    deckInfoMap.set(deck.id, { title: deck.title ?? "", hsk_level: deck.hsk_level ?? 0 })
+    deckInfoMap.set(deck.id, {
+      title: deck.title ?? "",
+      hsk_level: deck.hsk_level ?? 0,
+      badge: deck.badge ?? "",
+    })
   }
+
+  const exampleMap = await fetchWordExamplesForWords(
+    supa,
+    cardRows.map(card => ({
+      hanzi: card.hanzi ?? "",
+      pinyin: card.pinyin,
+      arti: card.arti,
+      badge: card.set_id ? deckInfoMap.get(card.set_id)?.badge : undefined,
+    })),
+  )
 
   return cardRows.map(card => {
     const deckInfo = card.set_id ? deckInfoMap.get(card.set_id) : null
-    const example = card.hanzi ? exampleMap.get(card.hanzi) : null
+    const example = card.hanzi
+      ? exampleMap.get(getWordExampleKey(card.hanzi, deckInfo?.badge))
+      : null
     const progress = progressByCard.get(String(card.id))
 
     return {

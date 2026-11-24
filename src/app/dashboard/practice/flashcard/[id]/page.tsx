@@ -10,7 +10,7 @@ import { useSupabase } from "@/hooks/use-supabase"
 import { saveUserScore } from "@/lib/user-scores"
 import { SwipeFlashcardSession, type SwipeFlashcard } from "@/components/swipe-flashcard-session"
 import { orderNumeralsBeforeTen } from "@/lib/flashcard-order"
-import { fetchWordExamplesForWords } from "@/lib/word-example-fallback"
+import { fetchWordExamplesForWords, getWordExampleKey } from "@/lib/word-example-fallback"
 
 export default function FlashcardPracticePage() {
   const params = useParams()
@@ -41,6 +41,7 @@ export default function FlashcardPracticePage() {
       const progressByCard = new Map<string, { srs_level: number; interval_days: number; ease_factor: number; next_review: string | null; last_reviewed: string | null; last_quality: number | null }>()
       const reviewedCardIds = new Set<string>()
       let deckHskLevel: number | undefined = undefined
+      let deckBadge: string | undefined
 
       if (isPersonal) {
         // For personal decks, fetch from personal_cards table
@@ -57,11 +58,12 @@ export default function FlashcardPracticePage() {
         // For regular flashcard decks
         const { data: setData } = await supa
           .from("flashcard_sets")
-          .select("title, description, hsk_level")
+          .select("title, description, hsk_level, badge")
           .eq("id", deckId)
           .maybeSingle()
 
         deckHskLevel = setData?.hsk_level ?? undefined
+        deckBadge = setData?.badge ?? undefined
 
         if (setData) {
           setDeckTitle(setData.title ?? "Kartu Hafalan")
@@ -113,12 +115,19 @@ export default function FlashcardPracticePage() {
 
       const exampleMap = await fetchWordExamplesForWords(
         supa,
-        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+        rawCards.map(card => ({
+          hanzi: card.hanzi ?? "",
+          pinyin: card.pinyin,
+          arti: card.arti,
+          badge: isPersonal ? undefined : deckBadge,
+        })),
       )
 
         const orderedCards = orderNumeralsBeforeTen(rawCards)
         const cardsWithExamples: SwipeFlashcard[] = orderedCards.map(card => {
-        const ex = card.hanzi ? exampleMap.get(card.hanzi) : undefined
+        const ex = card.hanzi
+          ? exampleMap.get(getWordExampleKey(card.hanzi, isPersonal ? undefined : deckBadge))
+          : undefined
         const progress = progressByCard.get(String(card.id))
         return {
           ...card,

@@ -381,7 +381,7 @@ export default function NadaPracticePage() {
 
       const exampleMap = await fetchWordExamplesForWords(
         supa,
-        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin, arti: card.arti })),
       )
 
       const cardsWithExamples = rawCards.map(card => {

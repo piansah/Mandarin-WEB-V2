@@ -188,7 +188,7 @@ export default function TulisHanziPage() {
       // dari kata yang sama menunjukkan contoh kalimat yang sama juga.
       const exampleMap = await fetchWordExamplesForWords(
         supa,
-        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin })),
+        rawCards.map(card => ({ hanzi: card.hanzi ?? "", pinyin: card.pinyin, arti: card.arti })),
       )
 
       // Satu baris kosakata = SATU kartu, bukan dipecah per suku kata/karakter.
