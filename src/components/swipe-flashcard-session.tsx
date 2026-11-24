@@ -21,20 +21,36 @@ const FlashcardSessionSummary = dynamic(() => import("./flashcard-session/flashc
 export type { SwipeFlashcard }
 
 const WORD_CLASS_EXPLANATIONS = [
-  { name: "Nomina", hanzi: "名词", pinyin: "míngcí", description: "Menamai orang, benda, tempat, atau konsep. Contoh: 学生 (xuéshēng, siswa), 学校 (xuéxiào, sekolah)." },
-  { name: "Verba", hanzi: "动词", pinyin: "dòngcí", description: "Menyatakan tindakan atau keadaan. Contoh: 学习 (xuéxí, belajar), 是 (shì, adalah)." },
-  { name: "Adjektiva", hanzi: "形容词", pinyin: "xíngróngcí", description: "Menjelaskan sifat atau keadaan. Contoh: 很好 (hěn hǎo, baik)." },
-  { name: "Adverbia", hanzi: "副词", pinyin: "fùcí", description: "Menerangkan verba, adjektiva, atau kalimat, misalnya tingkat atau negasi. Contoh: 很 (hěn, sangat), 不 (bù, tidak)." },
-  { name: "Konjungsi", hanzi: "连词", pinyin: "liáncí", description: "Menghubungkan kata, frasa, atau klausa. Contoh: 和 (hé, dan), 但是 (dànshì, tetapi)." },
-  { name: "Partikel", hanzi: "助词", pinyin: "zhùcí", description: "Menandai fungsi tata bahasa seperti aspek atau pertanyaan. Contoh: 了 (le), 吗 (ma), 的 (de)." },
-  { name: "Pronomina", hanzi: "代词", pinyin: "dàicí", description: "Menggantikan atau menunjuk orang, benda, maupun hal. Contoh: 我 (wǒ, saya), 这 (zhè, ini)." },
-  { name: "Numeralia", hanzi: "数词", pinyin: "shùcí", description: "Menyatakan jumlah atau urutan. Contoh: 三 (sān, tiga), 第一 (dì-yī, pertama)." },
-  { name: "Klasifikator", hanzi: "量词", pinyin: "liàngcí", description: "Dipakai bersama angka atau penunjuk sebelum nomina. Contoh: 一个人 (yí ge rén, satu orang), 一本书 (yì běn shū, satu buku)." },
-  { name: "Kata ukur", hanzi: "量词", pinyin: "liàngcí", description: "Menyatakan satuan hitung atau ukuran. Contoh: 一杯水 (yì bēi shuǐ, segelas air)." },
-  { name: "Prefiks", hanzi: "前缀", pinyin: "qiánzhuì", description: "Unsur di depan kata dasar untuk membentuk kata lain. Contoh: 第 (dì-) pada 第一 (dì-yī, pertama)." },
-  { name: "Preposisi", hanzi: "介词", pinyin: "jiècí", description: "Menandai hubungan tempat, arah, atau penerima. Contoh: 在 (zài, di), 给 (gěi, kepada)." },
-  { name: "Interjeksi", hanzi: "叹词", pinyin: "tàncí", description: "Mengungkapkan seruan, reaksi, atau emosi. Contoh: 哎 (āi), 啊 (a)." },
+  { name: "Nomina", hanzi: "名词", pinyin: "míngcí", phrase: "Frasa kata benda", description: "menyebut orang, benda, tempat, atau konsep. Contoh: 学生 (xuéshēng, siswa), 学校 (xuéxiào, sekolah)." },
+  { name: "Verba", hanzi: "动词", pinyin: "dòngcí", phrase: "Frasa kata kerja", description: "menyatakan tindakan atau keadaan. Contoh: 学习 (xuéxí, belajar), 是 (shì, adalah)." },
+  { name: "Adjektiva", hanzi: "形容词", pinyin: "xíngróngcí", phrase: "Frasa kata sifat", description: "menjelaskan sifat atau keadaan orang atau benda. Contoh: 很好 (hěn hǎo, baik)." },
+  { name: "Adverbia", hanzi: "副词", pinyin: "fùcí", phrase: "Frasa kata keterangan", description: "menerangkan kata kerja, kata sifat, atau kalimat, misalnya tingkat atau negasi. Contoh: 很 (hěn, sangat), 不 (bù, tidak)." },
+  { name: "Konjungsi", hanzi: "连词", pinyin: "liáncí", phrase: "Frasa kata hubung", description: "menghubungkan kata, frasa, atau klausa. Contoh: 和 (hé, dan), 但是 (dànshì, tetapi)." },
+  { name: "Partikel", hanzi: "助词", pinyin: "zhùcí", phrase: "Frasa partikel tata bahasa", description: "menandai fungsi tata bahasa, seperti aspek, perubahan keadaan, atau pertanyaan. Contoh: 了 (le), 吗 (ma), 的 (de)." },
+  { name: "Pronomina", hanzi: "代词", pinyin: "dàicí", phrase: "Frasa kata ganti", description: "menggantikan atau menunjuk orang, benda, atau hal. Contoh: 我 (wǒ, saya), 这 (zhè, ini)." },
+  { name: "Numeralia", hanzi: "数词", pinyin: "shùcí", phrase: "Frasa kata bilangan", description: "menyatakan jumlah atau urutan. Contoh: 三 (sān, tiga), 第一 (dì-yī, pertama)." },
+  { name: "Klasifikator", hanzi: "量词", pinyin: "liàngcí", phrase: "Frasa kata penggolong", description: "digunakan bersama angka atau kata penunjuk sebelum kata benda. Contoh: 一个人 (yí ge rén, satu orang), 一本书 (yì běn shū, satu buku)." },
+  { name: "Kata ukur", hanzi: "量词", pinyin: "liàngcí", phrase: "Frasa kata satuan ukur", description: "menyatakan satuan hitung atau ukuran. Contoh: 一杯水 (yì bēi shuǐ, segelas air)." },
+  { name: "Prefiks", hanzi: "前缀", pinyin: "qiánzhuì", phrase: "Frasa imbuhan awalan", description: "diletakkan di depan kata dasar untuk membentuk kata lain. Contoh: 第 (dì-) pada 第一 (dì-yī, pertama)." },
+  { name: "Preposisi", hanzi: "介词", pinyin: "jiècí", phrase: "Frasa kata depan", description: "menandai hubungan tempat, arah, atau penerima. Contoh: 在 (zài, di), 给 (gěi, kepada)." },
+  { name: "Interjeksi", hanzi: "叹词", pinyin: "tàncí", phrase: "Frasa kata seru", description: "mengungkapkan seruan, reaksi, atau emosi. Contoh: 哎 (āi), 啊 (a)." },
 ] as const
+
+const WORD_CLASS_KEYS: Record<string, string> = {
+  noun: "Nomina",
+  verb: "Verba",
+  adj: "Adjektiva",
+  adv: "Adverbia",
+  conj: "Konjungsi",
+  particle: "Partikel",
+  pron: "Pronomina",
+  num: "Numeralia",
+  classifier: "Klasifikator",
+  meas: "Kata ukur",
+  prefix: "Prefiks",
+  prep: "Preposisi",
+  interj: "Interjeksi",
+}
 
 export function SwipeFlashcardSession({
   cards,
@@ -62,6 +78,9 @@ export function SwipeFlashcardSession({
     studyOnly,
     deckId, sessionId, storageKey
   })
+  const activeWordClassName = session.card?.wordClass
+    ? WORD_CLASS_KEYS[session.card.wordClass.trim().toLowerCase()] ?? session.card.wordClass.trim()
+    : null
   const hasSavedDeckRating = Boolean(deckId && session.card?.lastReviewed)
   const canReassessDeckRating = Boolean(hasSavedDeckRating && !isCardDue(session.card?.nextReview))
   const savedDeckIntervalQuality = hasSavedDeckRating ? session.card?.lastQuality : null
@@ -317,13 +336,21 @@ export function SwipeFlashcardSession({
                   <ChevronDown className={`h-4 w-4 transition-transform ${wordClassGuideOpen ? "rotate-180" : ""}`} />
                 </button>
               </div>
-              <div id="word-class-guide-list" className={`${wordClassGuideOpen ? "grid" : "hidden"} sm:grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs`}>
-                {WORD_CLASS_EXPLANATIONS.map((wordClass) => (
-                  <article key={wordClass.name} className="rounded-lg border border-border/30 bg-background/30 p-2.5">
+              {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name === activeWordClassName).map(wordClass => (
+                <article key={`active-${wordClass.name}`} className="mb-2 rounded-lg border border-primary bg-background/30 p-2.5 text-xs">
+                  <h4 className="font-semibold">
+                    {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">({wordClass.pinyin})</span>
+                  </h4>
+                  <p className="mt-1 leading-relaxed text-muted-foreground">{wordClass.phrase}: {wordClass.description}</p>
+                </article>
+              ))}
+              <div id="word-class-guide-list" className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+                {WORD_CLASS_EXPLANATIONS.filter(wordClass => wordClass.name !== activeWordClassName).map((wordClass) => (
+                  <article key={wordClass.name} className={`${wordClassGuideOpen ? "block" : "hidden"} rounded-lg border border-border/30 bg-background/30 p-2.5 sm:block`}>
                     <h4 className="text-xs font-semibold">
                       {wordClass.name} · <span className="font-hanzi">{wordClass.hanzi}</span> <span className="font-normal text-muted-foreground">({wordClass.pinyin})</span>
                     </h4>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{wordClass.description}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{wordClass.phrase}: {wordClass.description}</p>
                   </article>
                 ))}
               </div>
