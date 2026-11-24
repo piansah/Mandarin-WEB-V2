@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { TrendingUp, Star, CheckCircle2, ChevronLeft, EyeOff, SkipForward, Settings2, CheckCircle2 as CheckCircle2Icon } from "lucide-react"
+import { TrendingUp, Star, CheckCircle2, ChevronLeft, ChevronDown, EyeOff, SkipForward, Settings2, CheckCircle2 as CheckCircle2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/page-loader"
 import { PracticeHeader } from "@/components/practice-header"
@@ -55,6 +55,7 @@ export function SwipeFlashcardSession({
   studyOnly = false,
 }: SwipeFlashcardSessionProps) {
   const [noteExpanded, setNoteExpanded] = React.useState(false)
+  const [wordClassGuideOpen, setWordClassGuideOpen] = React.useState(false)
   const session = useFlashcardSession({
     cards, userId, deckCardIds, wordDetailPath, onComplete,
     disableSwipeProp: disableSwipeProp || noteExpanded,
@@ -303,8 +304,20 @@ export function SwipeFlashcardSession({
             </div>
 
             <section className="w-full rounded-xl border border-border/40 bg-muted/20 p-3" aria-labelledby="word-class-guide-title">
-              <h3 id="word-class-guide-title" className="text-xs font-semibold text-muted-foreground mb-2">Kelas kata Mandarin</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 id="word-class-guide-title" className="text-xs font-semibold text-muted-foreground">Kelas kata Mandarin</h3>
+                <button
+                  type="button"
+                  className="sm:hidden rounded-md p-1.5 text-muted-foreground hover:bg-muted/40"
+                  aria-label={wordClassGuideOpen ? "Tutup penjelasan kelas kata" : "Buka penjelasan kelas kata"}
+                  aria-expanded={wordClassGuideOpen}
+                  aria-controls="word-class-guide-list"
+                  onClick={() => setWordClassGuideOpen(open => !open)}
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform ${wordClassGuideOpen ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+              <div id="word-class-guide-list" className={`${wordClassGuideOpen ? "grid" : "hidden"} sm:grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs`}>
                 {WORD_CLASS_EXPLANATIONS.map((wordClass) => (
                   <article key={wordClass.name} className="rounded-lg border border-border/30 bg-background/30 p-2.5">
                     <h4 className="text-xs font-semibold">
