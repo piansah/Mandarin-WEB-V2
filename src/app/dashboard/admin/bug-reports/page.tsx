@@ -5,8 +5,6 @@ import {
   AlertCircle,
   Bug,
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   ChevronUp,
   ClipboardList,
@@ -36,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Pagination } from "@/components/ui/pagination"
 import type { Json } from "@/lib/database.types"
 
 type ReportStatus = "open" | "in-progress" | "fixed" | "closed"
@@ -57,7 +56,7 @@ type BugReport = {
 
 type StatusCount = Record<ReportStatus, number>
 
-const PAGE_SIZE = 25
+const DEFAULT_ROWS_PER_PAGE = 10
 const REPORT_COLUMNS = "id,user_id,title,description,detail,reason,device_info,status,created_at,report_type,target_id"
 
 const STATUS_OPTIONS: { value: ReportStatus; label: string }[] = [
@@ -132,6 +131,7 @@ export default function AdminBugReportsPage() {
   const [statusFilter, setStatusFilter] = React.useState("all")
   const [typeFilter, setTypeFilter] = React.useState("all")
   const [page, setPage] = React.useState(0)
+  const [rowsPerPage, setRowsPerPage] = React.useState(DEFAULT_ROWS_PER_PAGE)
   const [loading, setLoading] = React.useState(true)
   const [updatingId, setUpdatingId] = React.useState<number | null>(null)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
@@ -209,8 +209,8 @@ export default function AdminBugReportsPage() {
         )
       }
 
-      const from = page * PAGE_SIZE
-      const { data, count, error } = await query.range(from, from + PAGE_SIZE - 1)
+      const from = page * rowsPerPage
+      const { data, count, error } = await query.range(from, from + rowsPerPage - 1)
 
       if (cancelled) return
       if (error) {
@@ -253,7 +253,7 @@ export default function AdminBugReportsPage() {
     return () => {
       cancelled = true
     }
-  }, [page, search, statusFilter, supabase, typeFilter])
+  }, [page, rowsPerPage, search, statusFilter, supabase, typeFilter])
 
   async function updateStatus(reportId: number, nextStatus: ReportStatus) {
     setUpdatingId(reportId)
@@ -297,7 +297,7 @@ export default function AdminBugReportsPage() {
     })
   }
 
-  const totalPages = Math.max(1, Math.ceil(reportCount / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(reportCount / rowsPerPage))
 
   return (
     <main className="flex flex-col gap-6 p-4 sm:p-6">
@@ -470,18 +470,18 @@ export default function AdminBugReportsPage() {
         )}
       </section>
 
-      {!loading && reportCount > PAGE_SIZE && (
-        <nav aria-label="Halaman laporan" className="flex items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">Halaman {page + 1} dari {totalPages}</p>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))}>
-              <ChevronLeft className="mr-1 h-4 w-4" /> Sebelumnya
-            </Button>
-            <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((current) => Math.min(totalPages - 1, current + 1))}>
-              Berikutnya <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
-        </nav>
+      {!loading && reportCount > 0 && (
+        <Pagination
+          currentPage={page + 1}
+          totalPages={totalPages}
+          rowsPerPage={rowsPerPage}
+          totalRows={reportCount}
+          onPageChange={(nextPage) => setPage(Math.max(0, nextPage - 1))}
+          onRowsPerPageChange={(nextRows) => {
+            setRowsPerPage(nextRows)
+            setPage(0)
+          }}
+        />
       )}
     </main>
   )

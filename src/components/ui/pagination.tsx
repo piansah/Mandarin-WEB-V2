@@ -70,16 +70,15 @@ export function Pagination({
           value={rowsPerPage.toString()}
           onValueChange={(value) => onRowsPerPageChange(parseInt(value))}
         >
-          <SelectTrigger className="h-8 w-[120px]">
+          <SelectTrigger className="h-8 w-[120px]" data-bottom-accent="off">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="10">10 baris</SelectItem>
-            <SelectItem value="25">25 baris</SelectItem>
-            <SelectItem value="50">50 baris</SelectItem>
-            <SelectItem value="100">100 baris</SelectItem>
-            <SelectItem value="500">500 baris</SelectItem>
-            <SelectItem value="1000">1000 baris</SelectItem>
+            {[10, 25, 50, 100, 500, 1000].map((size) => (
+              <SelectItem key={size} value={String(size)} data-bottom-accent="off">
+                {size} baris
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

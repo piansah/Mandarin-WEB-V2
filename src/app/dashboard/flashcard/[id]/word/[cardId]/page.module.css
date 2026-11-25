@@ -159,6 +159,7 @@
 
 .wordClass {
   display: inline-flex;
+  align-items: center;
   margin-top: 14px;
   border: 1px solid var(--c-chip-border);
   border-radius: 999px;

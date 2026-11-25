@@ -212,7 +212,7 @@ export default function HanziItemsPage() {
                     <TableCell>{item.user_contribution ? <Badge variant="default">Yes</Badge> : <Badge variant="secondary">No</Badge>}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger>
+                        <DropdownMenuTrigger data-bottom-accent="off">
                           <div className="flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer">
                             <MoreVertical className="h-4 w-4" />
                           </div>

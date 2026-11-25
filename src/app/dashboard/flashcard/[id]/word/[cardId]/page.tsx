@@ -934,7 +934,7 @@ function WordClassBadge({ wordClass }: { wordClass: string }) {
   const [, before, pinyinPart, after] = match
   return (
     <Badge variant="outline" className="text-xs">
-      {before}<TonePinyin text={pinyinPart} />{after}
+      <span>{before}<TonePinyin text={pinyinPart} className="leading-normal" />{after}</span>
     </Badge>
   )
 }
@@ -943,7 +943,7 @@ function WordClassBadge({ wordClass }: { wordClass: string }) {
 function WordClassBadgeInline({ wordClass }: { wordClass: string }) {
   const label = WORD_CLASS_LABELS[wordClass] ?? wordClass
   const match = label.match(/^(.*?\()(.*?)(\).*)$/)
-  if (!match) return <>{label}</>
+  if (!match) return <span>{label}</span>
   const [, before, pinyinPart, after] = match
-  return <>{before}<TonePinyin text={pinyinPart} />{after}</>
+  return <span>{before}<TonePinyin text={pinyinPart} className="leading-normal" />{after}</span>
 }

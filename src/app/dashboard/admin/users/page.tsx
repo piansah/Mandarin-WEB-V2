@@ -250,7 +250,7 @@ export default function AdminUsersPage() {
                     <TableCell className="text-right">
                       {isSuperAdminUser ? (
                         <DropdownMenu>
-                          <DropdownMenuTrigger>
+                          <DropdownMenuTrigger data-bottom-accent="off">
                             <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
                               {updatingRole === user.user_id ? (
                                 <Clock className="h-4 w-4 animate-spin" />
@@ -272,7 +272,7 @@ export default function AdminUsersPage() {
                         </DropdownMenu>
                       ) : (
                         <DropdownMenu>
-                          <DropdownMenuTrigger>
+                          <DropdownMenuTrigger data-bottom-accent="off">
                             <div className={`flex items-center justify-center h-8 w-8 rounded-md hover:bg-muted cursor-pointer transition-colors ${updatingRole === user.user_id ? 'opacity-50 pointer-events-none' : ''}`}>
                               {updatingRole === user.user_id ? (
                                 <Clock className="h-4 w-4 animate-spin" />

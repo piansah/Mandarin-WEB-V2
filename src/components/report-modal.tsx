@@ -16,7 +16,8 @@ interface ReportModalProps {
 
 const REPORT_REASONS = {
   wrong_arti: "Arti salah",
-  wrong_pinyin: "Pinyin salah", 
+  wrong_pinyin: "Pinyin salah",
+  wrong_word_class: "Kelas kata salah",
   typo: "Typo/kesalahan ketik",
   inappropriate: "Konten tidak pantas",
   other: "Lainnya",

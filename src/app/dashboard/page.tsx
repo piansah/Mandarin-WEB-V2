@@ -155,15 +155,15 @@ function DashboardImageCard({
         <div className="relative overflow-hidden">
           <Image
             {...imageProps}
-            className="aspect-[1.55/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className="aspect-[1.7/1] w-full shrink-0 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         </div>
-        <div className="flex min-h-0 flex-1 flex-col p-3 lg:min-h-44 lg:p-4">
-          <div className="flex min-w-0 items-start gap-2.5">
-            <h3 className="line-clamp-2 min-h-[2.75rem] min-w-0 text-base font-bold leading-snug text-foreground">{title}</h3>
+        <div className="flex min-h-0 flex-1 flex-col p-3 lg:min-h-36 lg:p-3">
+          <div className="flex min-w-0 items-start gap-2">
+            <h3 className="line-clamp-2 min-h-[2.45rem] min-w-0 text-sm font-bold leading-snug text-foreground">{title}</h3>
           </div>
-          <p className="mt-2 line-clamp-2 min-h-10 text-xs leading-relaxed text-muted-foreground">{description}</p>
-          <span data-bottom-accent={href ? "on" : "off"} className={`mt-auto flex w-full items-center justify-center rounded-lg px-4 py-2.5 text-sm font-semibold ${href ? "bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90" : "bg-muted text-muted-foreground"}`}>
+          <p className="mt-1.5 mb-3 line-clamp-2 min-h-[1.9rem] text-[11px] leading-snug text-muted-foreground">{description}</p>
+          <span data-bottom-accent={href ? "on" : "off"} className={`mt-auto flex w-full items-center justify-center whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold ${href ? "bg-primary text-primary-foreground transition-colors group-hover:bg-primary/90" : "bg-muted text-muted-foreground"}`}>
             {desktopActionText}
           </span>
         </div>
@@ -951,9 +951,9 @@ export default function DashboardPage() {
       <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
         <h2 className="mb-4 text-xl font-semibold tracking-tight">Sesi hari ini</h2>
         {nextContentLoading ? (
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3" aria-label="Memuat latihan" aria-busy="true">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4" aria-label="Memuat latihan" aria-busy="true">
             {[0, 1, 2, 3].map((item) => (
-              <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-72" />
+              <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-64" />
             ))}
           </div>
         ) : (
