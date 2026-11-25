@@ -1086,7 +1086,7 @@ export default function DashboardPage() {
                       <div>
                         <h2 className="text-base font-semibold tracking-tight">Kosakata HSK</h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Kondisi hafalanmu<span className="hidden sm:inline"> di level yang sedang dipelajari</span>
+                          Kondisi hafalanmu di level yang sedang dipelajari
                         </p>
                       </div>
                     </div>
@@ -1094,7 +1094,7 @@ export default function DashboardPage() {
                     {/* HSK Filter Pill Dropdown */}
                     {srsStats?.hskLevels && srsStats.hskLevels.length > 0 && (
                       <DropdownMenu>
-                        <DropdownMenuTrigger className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs font-semibold text-foreground transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0">
+                        <DropdownMenuTrigger data-bottom-accent="off" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs font-semibold text-foreground transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0">
                           <span>HSK {activeLevel}</span>
                           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                         </DropdownMenuTrigger>
@@ -1157,7 +1157,7 @@ export default function DashboardPage() {
                         ? "flex min-h-56 flex-col justify-center gap-4"
                         : "space-y-4"}>
                         {/* Chart + Legend: mobile stacked (chart on top), desktop row */}
-                        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-6">
+                        <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4.5">
                           {/* Donut SVG */}
                           <div className="shrink-0 relative mx-auto sm:mx-0 my-1 sm:my-0">
                             <svg width="128" height="128" viewBox="0 0 128 128">
@@ -1181,17 +1181,17 @@ export default function DashboardPage() {
                           </div>
 
                           {/* Legend */}
-                          <div className="w-full flex-1 space-y-2">
+                          <div className="w-full flex-1 space-y-2 min-w-0">
                             {legendItems.map(item => (
                               <div key={item.label}
-                                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 border ${item.border} ${item.bg}`}
+                                className={`flex items-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-2.5 py-1.5 border ${item.border} ${item.bg}`}
                               >
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
                                 <span className={`text-sm font-medium flex-1 ${item.text}`}>
                                   {item.label}
                                 </span>
-                                <span className="text-xs text-muted-foreground">{item.value} kata</span>
-                                <span className="text-xs font-semibold text-muted-foreground w-8 text-right">
+                                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{item.value} kata</span>
+                                <span className="text-xs font-semibold text-muted-foreground w-8 text-right whitespace-nowrap shrink-0">
                                   {totalCards > 0 ? Math.round((item.value / totalCards) * 100) : 0}%
                                 </span>
                               </div>
@@ -1205,7 +1205,7 @@ export default function DashboardPage() {
                         {/* CTA */}
                         {countToReview > 0 ? (
                           <Button
-                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm transition-all cursor-pointer"
+                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm whitespace-nowrap transition-all cursor-pointer"
                             onClick={() => router.push(`/dashboard/review?hsk=${activeSrsLevel}`)}
                           >
                             Review Kosakata · {countToReview} kata
@@ -1213,7 +1213,7 @@ export default function DashboardPage() {
                         ) : reviewed === 0 && lupa === 0 ? (
                           <Button
                             variant="outline"
-                            className="w-full rounded-full h-11 text-sm"
+                            className="w-full rounded-full h-11 text-sm whitespace-nowrap"
                             onClick={() => router.push('/dashboard/flashcard')}
                           >
                             Mulai belajar kosakata
