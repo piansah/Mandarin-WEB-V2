@@ -799,485 +799,504 @@ export default function DashboardPage() {
       })()}
 
       <div className="grid gap-4 lg:gap-y-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.9fr)] lg:items-stretch">
-      {/* Konten utama + kolom samping. `lg:contents` menempatkan hero dan streak
+        {/* Konten utama + kolom samping. `lg:contents` menempatkan hero dan streak
           langsung di grid besar tanpa mengubah urutan satu kolom di mobile. */}
-      <div className="grid gap-4 lg:contents relative">
-        <section className="order-2 flex flex-col gap-2 lg:order-none lg:col-start-1 lg:row-start-1">
-        {/* Lanjutkan Belajar (Deck Hero) */}
-        <Card className="lg:flex-1 border-emerald-500/20 dark:border-emerald-500/30 bg-card shadow-sm overflow-hidden relative group flex flex-col justify-center isolate">
-          <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-emerald-400/12 dark:bg-emerald-500/8 rounded-full blur-2xl sm:blur-3xl pointer-events-none" />
+        <div className="grid gap-4 lg:contents relative">
+          <section className="order-2 flex flex-col gap-2 lg:order-none lg:col-start-1 lg:row-start-1">
+            {/* Lanjutkan Belajar (Deck Hero) */}
+            <Card className="lg:flex-1 border-emerald-500/20 dark:border-emerald-500/30 bg-card shadow-sm overflow-hidden relative group flex flex-col justify-center isolate">
+              <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 w-36 sm:w-48 h-36 sm:h-48 bg-emerald-400/12 dark:bg-emerald-500/8 rounded-full blur-2xl sm:blur-3xl pointer-events-none" />
 
-          {/* Watermark Hanzi in background (Tap area khusus untuk ganti kata dari deck ini) */}
-          {(() => {
-            const currentWatermark = activeDeckHero?.watermarkList[watermarkIndex % (activeDeckHero?.watermarkList.length || 1)] || "你好"
-            const watermarkSizeClass = currentWatermark.length >= 4
-              ? "text-4xl sm:text-5xl lg:text-6xl"
-              : currentWatermark.length === 3
-                ? "text-5xl sm:text-6xl lg:text-7xl"
-                : "text-6xl sm:text-7xl lg:text-8xl"
+              {/* Watermark Hanzi in background (Tap area khusus untuk ganti kata dari deck ini) */}
+              {(() => {
+                const currentWatermark = activeDeckHero?.watermarkList[watermarkIndex % (activeDeckHero?.watermarkList.length || 1)] || "你好"
+                const watermarkSizeClass = currentWatermark.length >= 4
+                  ? "text-4xl sm:text-5xl lg:text-6xl"
+                  : currentWatermark.length === 3
+                    ? "text-5xl sm:text-6xl lg:text-7xl"
+                    : "text-6xl sm:text-7xl lg:text-8xl"
 
-            return (
-              <button
-                type="button"
-                data-bottom-accent="off"
-                title="Klik/tap untuk ganti kata Hanzi dari deck ini"
-                onClick={handleNextWatermark}
-                className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 flex items-center justify-end z-20 cursor-pointer bg-transparent border-0 outline-none group/hanzi select-none p-1"
-              >
-                <span
-                  className={`whitespace-nowrap inline-block ${watermarkSizeClass} font-black text-emerald-600/20 dark:text-emerald-400/30 group-hover/hanzi:text-emerald-600/30 dark:group-hover/hanzi:text-emerald-400/45 leading-none tracking-normal transition-all duration-200 active:scale-90 ${isWatermarkPopping ? "scale-105 opacity-80" : ""
-                    }`}
-                  style={{
-                    fontFamily: '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", "SimHei", sans-serif',
-                    fontWeight: 900,
-                  }}
-                >
-                  {currentWatermark}
-                </span>
-              </button>
-            )
-          })()}
+                return (
+                  <button
+                    type="button"
+                    data-bottom-accent="off"
+                    title="Klik/tap untuk ganti kata Hanzi dari deck ini"
+                    onClick={handleNextWatermark}
+                    className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 flex items-center justify-end z-20 cursor-pointer bg-transparent border-0 outline-none group/hanzi select-none p-1"
+                  >
+                    <span
+                      className={`whitespace-nowrap inline-block ${watermarkSizeClass} font-black text-emerald-600/20 dark:text-emerald-400/30 group-hover/hanzi:text-emerald-600/30 dark:group-hover/hanzi:text-emerald-400/45 leading-none tracking-normal transition-all duration-200 active:scale-90 ${isWatermarkPopping ? "scale-105 opacity-80" : ""
+                        }`}
+                      style={{
+                        fontFamily: '"PingFang SC", "Microsoft YaHei", "Noto Sans SC", "SimHei", sans-serif',
+                        fontWeight: 900,
+                      }}
+                    >
+                      {currentWatermark}
+                    </span>
+                  </button>
+                )
+              })()}
 
-          <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-center pointer-events-none">
-            <div className="space-y-2 max-w-[260px] sm:max-w-md pointer-events-auto">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight mt-0.5">
-                  {activeDeckHero?.title || "Mulai Belajar Deck"}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {activeDeckHero?.isCompletedToday
-                    ? "Target harian selesai · Hebat, pertahankan konsistensimu!"
-                    : `Bagian ${activeDeckHero?.currentStep || 1} dari 2`}
-                </p>
+              <CardContent className="p-4 sm:p-5 relative z-10 flex flex-col justify-center pointer-events-none">
+                <div className="space-y-2 max-w-[260px] sm:max-w-md pointer-events-auto">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight mt-0.5">
+                      {activeDeckHero?.title || "Mulai Belajar Deck"}
+                    </h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {activeDeckHero?.isCompletedToday
+                        ? "Target harian selesai · Hebat, pertahankan konsistensimu!"
+                        : `Bagian ${activeDeckHero?.currentStep || 1} dari 2`}
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1 pt-0.5">
+                    <div className="h-1.5 sm:h-2 w-[52%] max-w-[140px] sm:w-full sm:max-w-xs rounded-full bg-emerald-500/10 dark:bg-muted/60 overflow-hidden border border-emerald-500/20 dark:border-border/40 shadow-inner">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000 ease-out"
+                        style={{ width: `${activeDeckHero?.percent || 0}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground font-medium">
+                      {activeDeckHero?.percent || 0}% deck selesai
+                    </p>
+                  </div>
+
+                  {/* Button langsung di bawah progress bar tanpa jarak jauh */}
+                  <div className="pt-2">
+                    <Button
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full px-5 py-2 h-9 text-xs sm:text-sm transition-all flex items-center gap-1.5 group/btn cursor-pointer"
+                      onClick={() => router.push(activeDeckHero?.actionUrl || `/dashboard/flashcard`)}
+                    >
+                      <span>{activeDeckHero?.isCompletedToday ? "Ulangi Flashcard" : "Lanjutkan Flashcard"}</span>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="order-1 flex flex-col gap-2 lg:order-none lg:col-start-2 lg:row-start-1">
+            {/* Streak Widget */}
+            <Card className="w-full pb-0 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
+              <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
+                <Flame className="w-24 h-24 text-primary" />
               </div>
 
-              {/* Progress bar */}
-              <div className="space-y-1 pt-0.5">
-                <div className="h-1.5 sm:h-2 w-[52%] max-w-[140px] sm:w-full sm:max-w-xs rounded-full bg-emerald-500/10 dark:bg-muted/60 overflow-hidden border border-emerald-500/20 dark:border-border/40 shadow-inner">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-1000 ease-out"
-                    style={{ width: `${activeDeckHero?.percent || 0}%` }}
+              <CardContent className="px-4 pt-4 pb-4 sm:px-5 sm:pt-5 sm:pb-4 relative z-10 flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start mb-2.5 w-full">
+                    <div>
+                      <h2 className="text-base font-semibold tracking-tight mb-0.5">Streak belajar</h2>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl sm:text-3xl font-bold text-primary">{stats.streak}</span>
+                        <span className="text-xs text-muted-foreground">hari beruntun</span>
+                      </div>
+                    </div>
+                    <Flame className="h-5 w-5 text-primary drop-shadow-md" />
+                  </div>
+                </div>
+
+                <div className="relative mb-2.5 w-full px-1">
+                  {/* Connecting line behind dots */}
+                  <div className="absolute top-[16px] left-4 right-4 h-[1.5px] bg-border/40 -z-10" />
+
+                  <div className="grid grid-cols-7 gap-1 w-full relative z-10">
+                    {stats.weekDots.map((dot, i) => (
+                      <div
+                        key={i}
+                        className={`flex flex-col items-center justify-center rounded-md py-1.5 px-0.5 transition-colors ${dot.isToday
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                          : dot.active
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "bg-muted/30 text-muted-foreground border border-border/30"
+                          }`}
+                      >
+                        <div className="text-xs font-bold mb-0.5 flex items-center justify-center min-h-[16px]">
+                          {dot.active ? (
+                            <Flame
+                              className="w-3.5 h-3.5 fill-current animate-flame-pop"
+                              style={{ animationDelay: `${i * 75}ms` }}
+                            />
+                          ) : dot.isToday ? (
+                            "•"
+                          ) : (
+                            "-"
+                          )}
+                        </div>
+                        <div className="text-[9px] font-medium uppercase tracking-wider">{dot.day}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2.5 w-full">
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 py-2 px-3">
+                    <span className="text-base sm:text-lg font-bold text-primary">{stats.bestStreak}</span>
+                    <span className="text-[10px] text-muted-foreground">Streak terbaik</span>
+                  </div>
+                  <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 py-2 px-3">
+                    <span className="text-base sm:text-lg font-bold text-primary">{stats.consistency}%</span>
+                    <span className="text-[10px] text-muted-foreground">Konsistensi</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+        </div>
+
+        {/* Sesi hari ini */}
+        <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
+          <h2 className="mb-4 text-xl font-semibold tracking-tight">Sesi hari ini</h2>
+          {nextContentLoading ? (
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4" aria-label="Memuat latihan" aria-busy="true">
+              {[0, 1, 2, 3].map((item) => (
+                <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-64" />
+              ))}
+            </div>
+          ) : (
+            <>
+              {nextContentError && <p className="mb-3 text-xs text-muted-foreground">Sebagian latihan gagal dimuat. Coba segarkan halaman.</p>}
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
+                <div className="min-w-0">
+                  <DashboardImageCard
+                    href={nextModule ? "/dashboard/modul" : undefined}
+                    image="/image-c.jpg"
+                    category="Modul"
+                    title={nextModule?.title ?? "Tidak ada modul aktif"}
+                    description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Belum ada modul yang perlu dilanjutkan saat ini."}
+                    icon={FolderOpen}
+                    tone="primary"
+                    unavailableText="Tidak ada modul"
+                    compact
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground font-medium">
-                  {activeDeckHero?.percent || 0}% deck selesai
-                </p>
+                <div className="min-w-0">
+                  <DashboardImageCard
+                    href={sessionDeck ? `/dashboard/flashcard/${sessionDeck.id}` : undefined}
+                    image="/image-e.jpg"
+                    category="Flashcard"
+                    title={sessionDeck?.title ?? (deckQuotaMet ? "Target flashcard selesai" : "Flashcard belum tersedia")}
+                    description={sessionDeck
+                      ? `Flashcard & quiz · HSK ${sessionDeck.hsk_level}`
+                      : deckQuotaMet
+                        ? "Target flashcard hari ini sudah terpenuhi."
+                        : "Belum ada deck flashcard yang bisa dikerjakan saat ini."}
+                    icon={Languages}
+                    tone="amber"
+                    unavailableText={deckQuotaMet ? "Selesai hari ini" : "Belum tersedia"}
+                    compact
+                  />
+                </div>
+                <div className="min-w-0">
+                  <DashboardImageCard
+                    href={activeSrsDue > 0 ? `/dashboard/review?hsk=${activeSrsLevel}` : undefined}
+                    image="/image-d.jpg"
+                    category="Review"
+                    title={activeSrsDue > 0 ? `Review ${activeSrsDue} Kosakata` : "Belum ada review"}
+                    description={activeSrsDue > 0
+                      ? "Kosakata siap direview · Perkuat memori jangka panjang"
+                      : "Belum ada kosakata yang perlu ditinjau hari ini."}
+                    icon={SquareStack}
+                    tone="blue"
+                    unavailableText="Tidak ada review"
+                    compact
+                  />
+                </div>
+                <div className="min-w-0">
+                  <DashboardImageCard
+                    href={nextEstafet ? `/dashboard/flashcard/cumulative/${nextEstafet.key}` : undefined}
+                    image="/image-a.jpg"
+                    category="Estafet"
+                    title={nextEstafet?.title ?? "Belum ada bacaan berikutnya"}
+                    description={nextEstafet
+                      ? "Baca kalimat berurutan untuk melatih pemahaman"
+                      : "Selesaikan syarat belajar sebelumnya untuk membuka bacaan berikutnya."}
+                    icon={BookText}
+                    tone="violet"
+                    unavailableText="Belum tersedia"
+                    compact
+                  />
+                </div>
               </div>
+              <section aria-labelledby="learning-tools-title" className="mt-6">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h2 id="learning-tools-title" className="text-lg font-semibold tracking-tight">
+                    Alat belajar
+                  </h2>
+                </div>
+                <div className="grid grid-cols-3 gap-3 sm:gap-4">
+                  {[
+                    { title: "Cari Kosakata", href: "/dashboard/flashcard?tab=search", icon: Search },
+                    { title: "Baca Hanzi", href: "/dashboard/cerita", icon: BookMarked },
+                    { title: "Tulis Hanzi", href: "/dashboard/tulis-hanzi", icon: PenLine },
+                    { title: "Peta Hanzi", href: "/dashboard/peta-hanzi", icon: Network },
+                    { title: "Dialog Percakapan", upcoming: true, icon: MessageCircle },
+                    { title: "Mini Games", href: "/dashboard/games", icon: Gamepad2 },
+                  ].map(({ title, href, icon: Icon, upcoming }) => {
+                    const content = (
+                      <>
+                        {upcoming && (
+                          <span className="absolute right-2 top-2 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            Segera hadir
+                          </span>
+                        )}
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary">
+                          <Icon className="h-6 w-6" aria-hidden="true" />
+                        </span>
+                        <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{title}</span>
+                      </>
+                    )
 
-              {/* Button langsung di bawah progress bar tanpa jarak jauh */}
-              <div className="pt-2">
-                <Button
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full px-5 py-2 h-9 text-xs sm:text-sm transition-all flex items-center gap-1.5 group/btn cursor-pointer"
-                  onClick={() => router.push(activeDeckHero?.actionUrl || `/dashboard/flashcard`)}
-                >
-                  <span>{activeDeckHero?.isCompletedToday ? "Ulangi Flashcard" : "Lanjutkan Flashcard"}</span>
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    const className = `relative flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-2xl border border-border/60 bg-card/50 px-2 py-4 text-center transition-colors ${upcoming ? "cursor-not-allowed opacity-65" : "hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"}`
+
+                    return href ? (
+                      <Link key={title} href={href} data-bottom-accent="off" className={className}>
+                        {content}
+                      </Link>
+                    ) : (
+                      <div key={title} aria-disabled="true" className={className}>
+                        {content}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            </>
+          )}
         </section>
 
-        <section className="order-1 flex flex-col gap-2 lg:order-none lg:col-start-2 lg:row-start-1">
-        {/* Streak Widget */}
-        <Card className="w-full pb-0 border-border/30 bg-card/40 backdrop-blur-md shadow-sm overflow-hidden relative group">
-          <div className="absolute top-0 right-0 p-6 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity duration-500">
-            <Flame className="w-24 h-24 text-primary" />
-          </div>
+        {/* Grid Bawah: Review Kosakata (SRS Stats) & Aktivitas Terbaru */}
+        <div className="grid gap-6 lg:col-start-2 lg:row-start-2 lg:grid-cols-1 lg:self-start">
+          {/* Review Kosakata (SRS) — new design */}
+          <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
+            {(() => {
+              const activeLevel = activeSrsLevel
 
-          <CardContent className="px-4 pt-4 pb-4 sm:px-5 sm:pt-5 sm:pb-4 relative z-10 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-start mb-2.5 w-full">
-                <div>
-                  <h2 className="text-base font-semibold tracking-tight mb-0.5">Streak belajar</h2>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl sm:text-3xl font-bold text-primary">{stats.streak}</span>
-                    <span className="text-xs text-muted-foreground">hari beruntun</span>
-                  </div>
-                </div>
-                <Flame className="h-5 w-5 text-primary drop-shadow-md" />
-              </div>
-            </div>
+              return (
+                <>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-500">
+                          <SquareStack className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-semibold tracking-tight">Kosakata HSK</h2>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Kondisi hafalanmu
+                          </p>
+                        </div>
+                      </div>
 
-            <div className="relative mb-2.5 w-full px-1">
-              {/* Connecting line behind dots */}
-              <div className="absolute top-[16px] left-4 right-4 h-[1.5px] bg-border/40 -z-10" />
-
-              <div className="grid grid-cols-7 gap-1 w-full relative z-10">
-                {stats.weekDots.map((dot, i) => (
-                  <div
-                    key={i}
-                    className={`flex flex-col items-center justify-center rounded-md py-1.5 px-0.5 transition-colors ${dot.isToday
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-                      : dot.active
-                        ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-muted/30 text-muted-foreground border border-border/30"
-                      }`}
-                  >
-                    <div className="text-xs font-bold mb-0.5 flex items-center justify-center min-h-[16px]">
-                      {dot.active ? (
-                        <Flame
-                          className="w-3.5 h-3.5 fill-current animate-flame-pop"
-                          style={{ animationDelay: `${i * 75}ms` }}
-                        />
-                      ) : dot.isToday ? (
-                        "•"
-                      ) : (
-                        "-"
+                      {/* HSK Filter Pill Dropdown */}
+                      {srsStats?.hskLevels && srsStats.hskLevels.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger data-bottom-accent="off" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs font-semibold text-foreground transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0">
+                            <span>HSK {activeLevel}</span>
+                            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="min-w-32 rounded-xl border border-border/50 bg-popover/95 backdrop-blur-md p-1 shadow-md">
+                            {srsStats.hskLevels.map((lvl) => (
+                              <DropdownMenuItem
+                                key={lvl}
+                                onClick={() => setHskFilterLevel(lvl)}
+                                className={`rounded-lg text-xs cursor-pointer py-1.5 px-2.5 font-medium ${activeLevel === lvl ? "bg-accent font-bold" : ""}`}
+                              >
+                                HSK {lvl}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
-                    <div className="text-[9px] font-medium uppercase tracking-wider">{dot.day}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  </CardHeader>
+                  <div className="mx-6 h-px bg-border/50" />
+                  <CardContent className="pt-3 px-3.5 sm:px-4">
+                    {srsStats ? (() => {
+                      const activeData = activeSrsData ?? srsStats
 
-            <div className="grid grid-cols-2 gap-2.5 w-full">
-              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 py-2 px-3">
-                <span className="text-base sm:text-lg font-bold text-primary">{stats.bestStreak}</span>
-                <span className="text-[10px] text-muted-foreground">Streak terbaik</span>
-              </div>
-              <div className="flex flex-col items-center justify-center rounded-lg bg-muted/20 border border-border/40 py-2 px-3">
-                <span className="text-base sm:text-lg font-bold text-primary">{stats.consistency}%</span>
-                <span className="text-[10px] text-muted-foreground">Konsistensi</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        </section>
-      </div>
+                      const { mudah, ingat, sulit, lupa, notStarted, totalCards, due } = activeData
+                      const reviewed = mudah + ingat + sulit + lupa
+                      const pctDikuasai = totalCards > 0 ? Math.round(((mudah + ingat) / totalCards) * 100) : 0
+                      const countToReview = due ?? 0
 
-      {/* Sesi hari ini */}
-      <section className="lg:col-start-1 lg:row-start-2 lg:self-start">
-        <h2 className="mb-4 text-xl font-semibold tracking-tight">Sesi hari ini</h2>
-        {nextContentLoading ? (
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4" aria-label="Memuat latihan" aria-busy="true">
-            {[0, 1, 2, 3].map((item) => (
-              <div key={item} className="h-[124px] animate-pulse rounded-2xl border border-border/60 bg-card/60 lg:h-64" />
-            ))}
-          </div>
-        ) : (
-        <>
-        {nextContentError && <p className="mb-3 text-xs text-muted-foreground">Sebagian latihan gagal dimuat. Coba segarkan halaman.</p>}
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
-          <div className="min-w-0">
-            <DashboardImageCard
-              href={nextModule ? "/dashboard/modul" : undefined}
-              image="/image-c.jpg"
-              category="Modul"
-              title={nextModule?.title ?? "Tidak ada modul aktif"}
-              description={nextModule ? "Lanjutan jalur kamu · bagian pertama dari modul" : "Belum ada modul yang perlu dilanjutkan saat ini."}
-              icon={FolderOpen}
-              tone="primary"
-              unavailableText="Tidak ada modul"
-              compact
-            />
-          </div>
-          <div className="min-w-0">
-            <DashboardImageCard
-              href={sessionDeck ? `/dashboard/flashcard/${sessionDeck.id}` : undefined}
-              image="/image-e.jpg"
-              category="Flashcard"
-              title={sessionDeck?.title ?? (deckQuotaMet ? "Target flashcard selesai" : "Flashcard belum tersedia")}
-              description={sessionDeck
-                ? `Flashcard & quiz · HSK ${sessionDeck.hsk_level}`
-                : deckQuotaMet
-                  ? "Target flashcard hari ini sudah terpenuhi."
-                  : "Belum ada deck flashcard yang bisa dikerjakan saat ini."}
-              icon={Languages}
-              tone="amber"
-              unavailableText={deckQuotaMet ? "Selesai hari ini" : "Belum tersedia"}
-              compact
-            />
-          </div>
-          <div className="min-w-0">
-            <DashboardImageCard
-              href={activeSrsDue > 0 ? `/dashboard/review?hsk=${activeSrsLevel}` : undefined}
-              image="/image-d.jpg"
-              category="Review"
-              title={activeSrsDue > 0 ? `Review ${activeSrsDue} Kosakata` : "Belum ada review"}
-              description={activeSrsDue > 0
-                ? "Kosakata siap direview · Perkuat memori jangka panjang"
-                : "Belum ada kosakata yang perlu ditinjau hari ini."}
-              icon={SquareStack}
-              tone="blue"
-              unavailableText="Tidak ada review"
-              compact
-            />
-          </div>
-          <div className="min-w-0">
-            <DashboardImageCard
-              href={nextEstafet ? `/dashboard/flashcard/cumulative/${nextEstafet.key}` : undefined}
-              image="/image-a.jpg"
-              category="Estafet"
-              title={nextEstafet?.title ?? "Belum ada bacaan berikutnya"}
-              description={nextEstafet
-                ? "Baca kalimat berurutan untuk melatih pemahaman"
-                : "Selesaikan syarat belajar sebelumnya untuk membuka bacaan berikutnya."}
-              icon={BookText}
-              tone="violet"
-              unavailableText="Belum tersedia"
-              compact
-            />
-          </div>
-        </div>
-        <section aria-labelledby="learning-tools-title" className="mt-6">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 id="learning-tools-title" className="text-lg font-semibold tracking-tight">
-              Alat belajar
-            </h2>
-          </div>
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
-            {[
-              { title: "Cari Kosakata", href: "/dashboard/flashcard?tab=search", icon: Search },
-              { title: "Baca Hanzi", href: "/dashboard/cerita", icon: BookMarked },
-              { title: "Tulis Hanzi", href: "/dashboard/tulis-hanzi", icon: PenLine },
-              { title: "Peta Hanzi", href: "/dashboard/peta-hanzi", icon: Network },
-              { title: "Dialog Percakapan", upcoming: true, icon: MessageCircle },
-              { title: "Mini Games", href: "/dashboard/games", icon: Gamepad2 },
-            ].map(({ title, href, icon: Icon, upcoming }) => {
-              const content = (
-                <>
-                  {upcoming && (
-                    <span className="absolute right-2 top-2 rounded-full border border-border/70 bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                      Segera hadir
-                    </span>
-                  )}
-                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted/70 text-primary">
-                    <Icon className="h-6 w-6" aria-hidden="true" />
-                  </span>
-                  <span className="line-clamp-2 text-sm font-medium leading-tight text-foreground">{title}</span>
-                </>
-              )
+                      // Donut chart data
+                      const segments = [
+                        { value: mudah, color: "#22c55e", label: "Mudah" },
+                        { value: ingat, color: "#3b82f6", label: "Ingat" },
+                        { value: sulit, color: "#eab308", label: "Sulit" },
+                        { value: lupa, color: "#ef4444", label: "Lupa" },
+                        { value: notStarted, color: "#374151", label: "Belum" },
+                      ].filter(s => s.value > 0)
 
-              const className = `relative flex min-h-[132px] flex-col items-center justify-center gap-2.5 rounded-2xl border border-border/60 bg-card/50 px-2 py-4 text-center transition-colors ${upcoming ? "cursor-not-allowed opacity-65" : "hover:border-primary/50 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"}`
+                      const total = totalCards || 1
+                      const R = 52, cx = 64, cy = 64, strokeW = 16
+                      const circumference = 2 * Math.PI * R
 
-              return href ? (
-                <Link key={title} href={href} data-bottom-accent="off" className={className}>
-                  {content}
-                </Link>
-              ) : (
-                <div key={title} aria-disabled="true" className={className}>
-                  {content}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-        </>
-        )}
-      </section>
+                      let offset = 0
+                      const arcs = segments.map(seg => {
+                        const fraction = seg.value / total
+                        const dash = fraction * circumference
+                        const arc = { ...seg, dash, gap: circumference - dash, offset }
+                        offset += dash
+                        return arc
+                      })
 
-      {/* Grid Bawah: Review Kosakata (SRS Stats) & Aktivitas Terbaru */}
-      <div className="grid gap-6 lg:col-start-2 lg:row-start-2 lg:grid-cols-1 lg:self-start">
-        {/* Review Kosakata (SRS) — new design */}
-        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
-          {(() => {
-            const activeLevel = activeSrsLevel
+                      const legendItems = [
+                        { label: "Mudah", value: mudah, color: "#22c55e", border: "border-emerald-500/40", bg: "bg-emerald-500/5", text: "text-emerald-500 dark:text-emerald-400" },
+                        { label: "Ingat", value: ingat, color: "#3b82f6", border: "border-blue-500/40", bg: "bg-blue-500/5", text: "text-blue-500 dark:text-blue-400" },
+                        { label: "Sulit", value: sulit, color: "#eab308", border: "border-amber-500/40", bg: "bg-amber-500/5", text: "text-amber-500 dark:text-amber-400" },
+                        { label: "Lupa", value: lupa, color: "#ef4444", border: "border-red-500/40", bg: "bg-red-500/5", text: "text-red-500 dark:text-red-400" },
+                      ]
 
-            return (
-              <>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-blue-500">
-                        <SquareStack className="h-4 w-4" />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-semibold tracking-tight">Kosakata HSK</h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Kondisi hafalanmu di level yang sedang dipelajari
-                        </p>
-                      </div>
-                    </div>
+                      return (
+                        <div className={countToReview === 0 && reviewed > 0
+                          ? "flex min-h-56 flex-col justify-center gap-4"
+                          : "space-y-4"}>
+                          {/* Chart + Legend: mobile stacked (chart on top), desktop row */}
+                          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 xl:gap-4">
+                            {/* Donut SVG - Dynamic vector scaling: both ring and text scale perfectly in sync */}
+                            <div className="relative mx-auto sm:mx-0 my-1 sm:my-0 aspect-square w-24 sm:w-[clamp(92px,28%,120px)] max-w-[124px] min-w-[92px] shrink-0 flex items-center justify-center">
+                              <svg viewBox="0 0 128 128" className="w-full h-full select-none">
+                                {/* track */}
+                                <circle cx={cx} cy={cy} r={R} fill="none" stroke="currentColor"
+                                  strokeWidth={strokeW} className="text-muted/30" />
+                                {arcs.map((arc, i) => (
+                                  <circle key={i} cx={cx} cy={cy} r={R} fill="none"
+                                    stroke={arc.color} strokeWidth={strokeW}
+                                    strokeDasharray={`${arc.dash} ${arc.gap}`}
+                                    strokeDashoffset={-arc.offset}
+                                    strokeLinecap="butt"
+                                    style={{ transform: "rotate(-90deg)", transformOrigin: "64px 64px" }}
+                                  />
+                                ))}
+                                {/* Center text rendered in SVG so it scales vectorially 1:1 with the ring */}
+                                <text
+                                  x="64"
+                                  y="58"
+                                  textAnchor="middle"
+                                  dominantBaseline="central"
+                                  fill="currentColor"
+                                  className="text-foreground"
+                                  style={{ fontSize: "24px", fontWeight: 700 }}
+                                >
+                                  {pctDikuasai}%
+                                </text>
+                                <text
+                                  x="64"
+                                  y="75"
+                                  textAnchor="middle"
+                                  dominantBaseline="central"
+                                  fill="currentColor"
+                                  className="text-muted-foreground"
+                                  style={{ fontSize: "11px", fontWeight: 400 }}
+                                >
+                                  dikuasai
+                                </text>
+                              </svg>
+                            </div>
 
-                    {/* HSK Filter Pill Dropdown */}
-                    {srsStats?.hskLevels && srsStats.hskLevels.length > 0 && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger data-bottom-accent="off" className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/60 bg-muted/40 hover:bg-muted/70 text-xs font-semibold text-foreground transition-all cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-ring shrink-0">
-                          <span>HSK {activeLevel}</span>
-                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="min-w-32 rounded-xl border border-border/50 bg-popover/95 backdrop-blur-md p-1 shadow-md">
-                          {srsStats.hskLevels.map((lvl) => (
-                            <DropdownMenuItem
-                              key={lvl}
-                              onClick={() => setHskFilterLevel(lvl)}
-                              className={`rounded-lg text-xs cursor-pointer py-1.5 px-2.5 font-medium ${activeLevel === lvl ? "bg-accent font-bold" : ""}`}
-                            >
-                              HSK {lvl}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </div>
-                </CardHeader>
-                <div className="mx-6 h-px bg-border/50" />
-                <CardContent className="pt-3">
-                  {srsStats ? (() => {
-                    const activeData = activeSrsData ?? srsStats
-
-                    const { mudah, ingat, sulit, lupa, notStarted, totalCards, due } = activeData
-                    const reviewed = mudah + ingat + sulit + lupa
-                    const pctDikuasai = totalCards > 0 ? Math.round(((mudah + ingat) / totalCards) * 100) : 0
-                    const countToReview = due ?? 0
-
-                    // Donut chart data
-                    const segments = [
-                      { value: mudah, color: "#22c55e", label: "Mudah" },
-                      { value: ingat, color: "#3b82f6", label: "Ingat" },
-                      { value: sulit, color: "#eab308", label: "Sulit" },
-                      { value: lupa, color: "#ef4444", label: "Lupa" },
-                      { value: notStarted, color: "#374151", label: "Belum" },
-                    ].filter(s => s.value > 0)
-
-                    const total = totalCards || 1
-                    const R = 52, cx = 64, cy = 64, strokeW = 16
-                    const circumference = 2 * Math.PI * R
-
-                    let offset = 0
-                    const arcs = segments.map(seg => {
-                      const fraction = seg.value / total
-                      const dash = fraction * circumference
-                      const arc = { ...seg, dash, gap: circumference - dash, offset }
-                      offset += dash
-                      return arc
-                    })
-
-                    const legendItems = [
-                      { label: "Mudah", value: mudah, color: "#22c55e", border: "border-emerald-500/40", bg: "bg-emerald-500/5", text: "text-emerald-500 dark:text-emerald-400" },
-                      { label: "Ingat", value: ingat, color: "#3b82f6", border: "border-blue-500/40", bg: "bg-blue-500/5", text: "text-blue-500 dark:text-blue-400" },
-                      { label: "Sulit", value: sulit, color: "#eab308", border: "border-amber-500/40", bg: "bg-amber-500/5", text: "text-amber-500 dark:text-amber-400" },
-                      { label: "Lupa", value: lupa, color: "#ef4444", border: "border-red-500/40", bg: "bg-red-500/5", text: "text-red-500 dark:text-red-400" },
-                    ]
-
-                    return (
-                      <div className={countToReview === 0 && reviewed > 0
-                        ? "flex min-h-56 flex-col justify-center gap-4"
-                        : "space-y-4"}>
-                        {/* Chart + Legend: mobile stacked (chart on top), desktop row */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4.5">
-                          {/* Donut SVG */}
-                          <div className="shrink-0 relative mx-auto sm:mx-0 my-1 sm:my-0">
-                            <svg width="128" height="128" viewBox="0 0 128 128">
-                              {/* track */}
-                              <circle cx={cx} cy={cy} r={R} fill="none" stroke="currentColor"
-                                strokeWidth={strokeW} className="text-muted/30" />
-                              {arcs.map((arc, i) => (
-                                <circle key={i} cx={cx} cy={cy} r={R} fill="none"
-                                  stroke={arc.color} strokeWidth={strokeW}
-                                  strokeDasharray={`${arc.dash} ${arc.gap}`}
-                                  strokeDashoffset={-arc.offset}
-                                  strokeLinecap="butt"
-                                  style={{ transform: "rotate(-90deg)", transformOrigin: "64px 64px" }}
-                                />
+                            {/* Legend */}
+                            <div className="w-full flex-1 space-y-1.5 sm:space-y-2 min-w-0">
+                              {legendItems.map(item => (
+                                <div key={item.label}
+                                  className={`flex items-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-2.5 py-1.5 border ${item.border} ${item.bg}`}
+                                >
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
+                                  <span className={`text-xs sm:text-sm font-medium flex-1 min-w-0 ${item.text}`}>
+                                    {item.label}
+                                  </span>
+                                  <span className="text-[11px] sm:text-xs text-muted-foreground whitespace-nowrap shrink-0">{item.value} kata</span>
+                                  <span className="text-[11px] sm:text-xs font-semibold text-muted-foreground w-7 sm:w-8 text-right whitespace-nowrap shrink-0">
+                                    {totalCards > 0 ? Math.round((item.value / totalCards) * 100) : 0}%
+                                  </span>
+                                </div>
                               ))}
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                              <span className="text-2xl font-bold text-foreground leading-none">{pctDikuasai}%</span>
-                              <span className="text-[10px] text-muted-foreground mt-0.5">dikuasai</span>
+                              <p className="text-xs text-muted-foreground text-center pt-1">
+                                {mudah + ingat} dari {totalCards} kosakata dikuasai
+                              </p>
                             </div>
                           </div>
 
-                          {/* Legend */}
-                          <div className="w-full flex-1 space-y-2 min-w-0">
-                            {legendItems.map(item => (
-                              <div key={item.label}
-                                className={`flex items-center gap-1.5 sm:gap-2 rounded-lg px-2 sm:px-2.5 py-1.5 border ${item.border} ${item.bg}`}
-                              >
-                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: item.color }} />
-                                <span className={`text-sm font-medium flex-1 ${item.text}`}>
-                                  {item.label}
-                                </span>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">{item.value} kata</span>
-                                <span className="text-xs font-semibold text-muted-foreground w-8 text-right whitespace-nowrap shrink-0">
-                                  {totalCards > 0 ? Math.round((item.value / totalCards) * 100) : 0}%
-                                </span>
-                              </div>
-                            ))}
-                            <p className="text-xs text-muted-foreground text-center pt-1">
-                              {mudah + ingat} dari {totalCards} kosakata dikuasai
-                            </p>
-                          </div>
+                          {/* CTA */}
+                          {countToReview > 0 ? (
+                            <Button
+                              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm whitespace-nowrap transition-all cursor-pointer"
+                              onClick={() => router.push(`/dashboard/review?hsk=${activeSrsLevel}`)}
+                            >
+                              Review Kosakata · {countToReview} kata
+                            </Button>
+                          ) : reviewed === 0 && lupa === 0 ? (
+                            <Button
+                              variant="outline"
+                              className="w-full rounded-full h-11 text-sm whitespace-nowrap"
+                              onClick={() => router.push('/dashboard/flashcard')}
+                            >
+                              Mulai belajar kosakata
+                            </Button>
+                          ) : null}
                         </div>
-
-                        {/* CTA */}
-                        {countToReview > 0 ? (
-                          <Button
-                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-full h-11 text-sm whitespace-nowrap transition-all cursor-pointer"
-                            onClick={() => router.push(`/dashboard/review?hsk=${activeSrsLevel}`)}
-                          >
-                            Review Kosakata · {countToReview} kata
-                          </Button>
-                        ) : reviewed === 0 && lupa === 0 ? (
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-full h-11 text-sm whitespace-nowrap"
-                            onClick={() => router.push('/dashboard/flashcard')}
-                          >
-                            Mulai belajar kosakata
-                          </Button>
-                        ) : null}
+                      )
+                    })() : (
+                      <div className="flex items-center justify-center py-12 text-muted-foreground">
+                        <span className="text-sm">Memuat statistik...</span>
                       </div>
-                    )
-                  })() : (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground">
-                      <span className="text-sm">Memuat statistik...</span>
-                    </div>
-                  )}
-                </CardContent>
-              </>
-            )
-          })()}
-        </Card>
+                    )}
+                  </CardContent>
+                </>
+              )
+            })()}
+          </Card>
 
-        {/* Aktivitas Terbaru */}
-        <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-purple-500">
-                <ClipboardList className="h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold tracking-tight">Aktivitas Terbaru</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Rekap sesi belajar terakhirmu</p>
-              </div>
-            </div>
-          </CardHeader>
-          <div className="mx-6 h-px bg-border/50" />
-          <CardContent className="pt-2">
-            {stats.recentActivity.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
-                  <ClipboardList className="h-6 w-6" />
+          {/* Aktivitas Terbaru */}
+          <Card className="border-border/30 bg-card/40 backdrop-blur-md shadow-sm gap-0">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/15 text-purple-500">
+                  <ClipboardList className="h-4 w-4" />
                 </div>
-                <p className="text-sm">Belum ada aktivitas. Mulai belajar sekarang!</p>
+                <div>
+                  <h2 className="text-base font-semibold tracking-tight">Aktivitas Terbaru</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Rekap sesi belajar terakhirmu</p>
+                </div>
               </div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {stats.recentActivity.map((act, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
-                      {act.xp !== null ? `+${act.xp}` : act.score}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{act.key}</p>
-                      <p className="text-xs text-muted-foreground">{act.typeLabel} · {act.timeAgo}</p>
-                    </div>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {act.xp !== null ? `${act.xp} XP` : `Score: ${act.score}`}
-                    </Badge>
+            </CardHeader>
+            <div className="mx-6 h-px bg-border/50" />
+            <CardContent className="pt-2">
+              {stats.recentActivity.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-muted-foreground">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted/50">
+                    <ClipboardList className="h-6 w-6" />
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  <p className="text-sm">Belum ada aktivitas. Mulai belajar sekarang!</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {stats.recentActivity.map((act, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        {act.xp !== null ? `+${act.xp}` : act.score}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{act.key}</p>
+                        <p className="text-xs text-muted-foreground">{act.typeLabel} · {act.timeAgo}</p>
+                      </div>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {act.xp !== null ? `${act.xp} XP` : `Score: ${act.score}`}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )
