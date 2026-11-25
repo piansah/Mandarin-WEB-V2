@@ -28,29 +28,7 @@ type DetailTab = "kalimat" | "stroke" | "karakter" | "kata"
 type Card = { id: string; set_id: number | string; hanzi: string; pinyin: string; arti: string; catatan?: string | null; word_class?: string | null; hsk_level?: number | null; badge?: string | null }
 type ExampleSentence = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null; section_label?: string | null; linkedToWord?: boolean }
 type CompoundWord = { id?: string | number; set_id?: number; source?: "hsk" | "compound"; hanzi: string; pinyin: string | null; arti: string | null; badge?: string | null }
-type PopoverAnchor = { left: number; right: number; top: number; bottom: number }
-type WordPopoverState = { hanzi: string; pinyin: string; arti: string; badge?: string | null; word_class?: string | null; anchor: PopoverAnchor; x: number; y: number }
-
-const POPOVER_MARGIN = 12
-const POPOVER_GAP = 8
-
-function computePopoverPosition(
-  anchor: PopoverAnchor,
-  size: { width: number; height: number },
-  viewport: { width: number; height: number },
-): { x: number; y: number } {
-  const maxX = Math.max(POPOVER_MARGIN, viewport.width - size.width - POPOVER_MARGIN)
-  const x = Math.min(Math.max(anchor.left, POPOVER_MARGIN), maxX)
-  const spaceBelow = viewport.height - anchor.bottom - POPOVER_MARGIN
-  const spaceAbove = anchor.top - POPOVER_MARGIN
-  const fitsBelow = spaceBelow >= size.height + POPOVER_GAP
-  const fitsAbove = spaceAbove >= size.height + POPOVER_GAP
-  const openAbove = !fitsBelow && (fitsAbove || spaceAbove > spaceBelow)
-  const rawY = openAbove ? anchor.top - size.height - POPOVER_GAP : anchor.bottom + POPOVER_GAP
-  const maxY = Math.max(POPOVER_MARGIN, viewport.height - size.height - POPOVER_MARGIN)
-  const y = Math.min(Math.max(rawY, POPOVER_MARGIN), maxY)
-  return { x, y }
-}
+type WordPopoverState = { hanzi: string; pinyin: string; arti: string; badge?: string | null; word_class?: string | null; x: number; y: number }
 type DictionaryMap = CharacterDictionary
 type DictionaryEntry = CharacterDictionaryEntry
 type ContentReportState = {
@@ -118,7 +96,6 @@ export default function WordDetailPage() {
   const [cacheReady, setCacheReady] = React.useState(false)
   const [needsMeaningMatch, setNeedsMeaningMatch] = React.useState(false)
   const [wordPopover, setWordPopover] = React.useState<WordPopoverState | null>(null)
-  const popoverRef = React.useRef<HTMLDivElement>(null)
   const [dictionary, setDictionary] = React.useState<CharacterDictionary | null>(null)
   const [dictionaryKey, setDictionaryKey] = React.useState("")
   const [loading, setLoading] = React.useState(true)
@@ -135,19 +112,20 @@ export default function WordDetailPage() {
   const [addSentenceModal, setAddSentenceModal] = React.useState(false)
   const fromSearch = searchParams.get('from') === 'search'
   const relevantExamples = React.useMemo(() => examples.filter(example => {
-    if (!example.hanzi || !card) return false
+    if (!cacheReady || !example.hanzi || !card) return false
 
-    // Contoh yang ditautkan manual (word_examples.word_hanzi = kata ini)
-    // dipercaya apa adanya: admin sudah secara eksplisit menautkannya, jadi
-    // tidak perlu dicek ulang oleh segmentasi maupun meaning match. Ini juga
-    // membuat kalimat tetap muncul walau cache segmentasi belum siap.
-    if (example.linkedToWord) return true
-
-    if (!cacheReady) return false
+    // Wajib untuk SEMUA contoh, termasuk yang ditautkan manual: kata harus
+    // muncul sebagai kata utuh hasil penyelarasan pinyin. Kata 1 suku kata
+    // seperti 事 tidak boleh cocok dengan 没事 (méishì), karena segmennya
+    // adalah 没事, bukan 事.
     if (!sentenceContainsExactWord(example.hanzi, card.hanzi, card.pinyin, example.pinyin)) return false
 
-    // Apply meaning match filter for hanzi appearing in multiple HSK levels.
-    // Hanya berlaku untuk kandidat hasil pencarian substring.
+    // Contoh yang ditautkan manual tidak perlu meaning match: admin sudah
+    // menautkannya secara eksplisit, dan whole-word di atas sudah lolos.
+    if (example.linkedToWord) return true
+
+    // Meaning match hanya untuk hanzi yang muncul di beberapa level HSK
+    // dan hanya untuk kandidat hasil pencarian substring.
     if (needsMeaningMatch) {
       const meaningMatch = sentenceMeaningMatches(card.arti, example.arti)
       // Treat null as no match for multi-level hanzi to be strict
@@ -302,31 +280,15 @@ export default function WordDetailPage() {
     return () => { cancelled = true }
   }, [])
 
-  // Tutup popup detail kata saat klik di luar popup atau saat scroll halaman.
+  // Tutup popup detail kata saat klik di luar popup atau saat scroll.
   React.useEffect(() => {
     if (!wordPopover) return
-    function close(event?: Event) {
-      if (event?.type === "scroll" && popoverRef.current?.contains(event.target as Node)) return
-      setWordPopover(null)
-    }
+    function close() { setWordPopover(null) }
     document.addEventListener("click", close)
     window.addEventListener("scroll", close, true)
     return () => {
       document.removeEventListener("click", close)
       window.removeEventListener("scroll", close, true)
-    }
-  }, [wordPopover])
-
-  React.useLayoutEffect(() => {
-    if (!wordPopover || !popoverRef.current) return
-    const popRect = popoverRef.current.getBoundingClientRect()
-    const next = computePopoverPosition(
-      wordPopover.anchor,
-      { width: popRect.width, height: popRect.height },
-      { width: window.innerWidth, height: window.innerHeight },
-    )
-    if (Math.abs(next.x - wordPopover.x) > 0.5 || Math.abs(next.y - wordPopover.y) > 0.5) {
-      setWordPopover(current => (current ? { ...current, x: next.x, y: next.y } : null))
     }
   }, [wordPopover])
 
@@ -531,22 +493,18 @@ export default function WordDetailPage() {
   }
 
   function openWordPopover(seg: SegmentedWord, e: React.MouseEvent) {
-    const target = (e.currentTarget ?? e.target) as HTMLElement
-    const rect = target.getBoundingClientRect()
-    const anchor: PopoverAnchor = { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }
-    const initial = computePopoverPosition(
-      anchor,
-      { width: 232, height: 220 },
-      { width: window.innerWidth, height: window.innerHeight },
-    )
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    // pinyin/arti sudah ikut dari hasil segmentText() (cache global), jadi
+    // popup langsung tampil tanpa query tambahan. TTS TIDAK diputar di sini
+    // — hanya dipicu saat tombol "Dengar" di dalam popup ditekan.
     setWordPopover({
       hanzi: seg.hanzi,
       pinyin: seg.pinyin || "Tidak ditemukan",
       arti: seg.arti || "Tidak ditemukan",
       badge: seg.badge,
       word_class: seg.word_class,
-      anchor,
-      ...initial,
+      x: Math.min(Math.max(rect.left, 12), window.innerWidth - 232),
+      y: rect.bottom + 8,
     })
   }
 
@@ -566,7 +524,6 @@ export default function WordDetailPage() {
     {/* Popup detail kata hasil segmentasi contoh kalimat */}
     {wordPopover && (
       <div
-        ref={popoverRef}
         className={styles.wordPopover}
         style={{ left: wordPopover.x, top: wordPopover.y }}
         onClick={e => e.stopPropagation()}
@@ -582,13 +539,13 @@ export default function WordDetailPage() {
         <div className="flex gap-3 items-center">
           <div className={styles.wordPopoverHanzi}>{wordPopover.hanzi}</div>
           <div className="min-w-0 flex-1">
-            {wordPopover.pinyin && <div className={styles.wordPopoverPinyin}><TonePinyin text={wordPopover.pinyin} /></div>}
+            {wordPopover.pinyin && <div className={styles.wordPopoverPinyin}>{wordPopover.pinyin}</div>}
             {wordPopover.arti && <p className={styles.wordPopoverArti}>{wordPopover.arti}</p>}
           </div>
         </div>
         {wordPopover.word_class && (
           <div className="mt-2">
-            <WordClassBadge wordClass={wordPopover.word_class} />
+            <Badge variant="outline" className="text-xs">{WORD_CLASS_LABELS[wordPopover.word_class] ?? wordPopover.word_class}</Badge>
           </div>
         )}
         <button
@@ -631,81 +588,11 @@ export default function WordDetailPage() {
 function Hero({ card, hanziPinyin, favorited, onToggleFavorite, onReport }: { card: Card; hanziPinyin: Array<{ hanzi: string; pinyin: string }>; favorited: boolean; onToggleFavorite: () => void; onReport: () => void }) {
   const gesture = useLongPress(() => speakMandarin(card.hanzi), () => speakMandarin(card.hanzi))
   const badge = heroBadgeLabel(card)
-  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><TonePinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}><WordClassBadgeInline wordClass={card.word_class} /></div>}{card.catatan && <p className={styles.note}><TonePinyinText text={card.catatan} hanziPinyin={hanziPinyin} /></p>}</div></section>
-}
-
-const TRAILING_PUNCT_RE = /^[，。、！？；：,.!?;:”）)》」】’"'…—–·]+$/u
-const OPENING_PUNCT_RE = /^[（(《「【“‘]+$/u
-const CJK_FULLWIDTH_PUNCT_RE = /^[，。、！？；：（(《「【“‘]+$/u
-
-type SentenceRenderItem =
-  | { type: "group"; key: string; leading: string; token?: { segment: SegmentedWord; index: number }; trailing: string }
-  | { type: "text"; key: string; text: string }
-
-function buildSentenceRenderItems(segments: SegmentedWord[]): SentenceRenderItem[] {
-  // Hapus spasi berlebih sebelum tanda baca penutup/pemisah dan setelah tanda baca CJK full-width.
-  const cleaned: Array<{ segment: SegmentedWord; index: number }> = []
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i]
-    const isSpace = /^\s+$/u.test(seg.hanzi)
-    if (isSpace) {
-      const prev = cleaned.at(-1)?.segment.hanzi ?? ""
-      const next = segments[i + 1]?.hanzi ?? ""
-      if (TRAILING_PUNCT_RE.test(next) || OPENING_PUNCT_RE.test(prev) || (CJK_FULLWIDTH_PUNCT_RE.test(prev) && isHanzi(next[0] ?? ""))) {
-        continue
-      }
-    }
-    cleaned.push({ segment: seg, index: i })
-  }
-
-  const items: SentenceRenderItem[] = []
-  let pendingLeading = ""
-
-  for (const entry of cleaned) {
-    const text = entry.segment.hanzi
-    if (isHanzi(text[0] ?? "")) {
-      items.push({
-        type: "group",
-        key: `${text}-${entry.index}`,
-        leading: pendingLeading,
-        token: entry,
-        trailing: "",
-      })
-      pendingLeading = ""
-      continue
-    }
-
-    if (OPENING_PUNCT_RE.test(text)) {
-      pendingLeading += text
-      continue
-    }
-
-    if (TRAILING_PUNCT_RE.test(text)) {
-      const last = items.at(-1)
-      if (last && last.type === "group") {
-        last.trailing += text
-      } else {
-        items.push({ type: "text", key: `${text}-${entry.index}`, text })
-      }
-      continue
-    }
-
-    if (pendingLeading) {
-      items.push({ type: "group", key: `lead-${entry.index}`, leading: pendingLeading, trailing: text })
-      pendingLeading = ""
-    } else {
-      items.push({ type: "text", key: `${text}-${entry.index}`, text })
-    }
-  }
-
-  if (pendingLeading) {
-    items.push({ type: "text", key: "trailing-open", text: pendingLeading })
-  }
-
-  return items
+  return <section className={styles.hero}>{badge && <span className={styles.hskBadge}>{badge}</span>}<div className={styles.heroTools}><button type="button" aria-label="Laporkan kesalahan" className={styles.toolButton} onClick={onReport}><Flag className="h-5 w-5" /></button><button type="button" aria-label="Favorit" className={`${styles.toolButton} ${favorited ? styles.toolButtonActive : ""}`} onClick={onToggleFavorite}><Heart className={`h-5 w-5 ${favorited ? "fill-current" : ""}`} /></button></div><div className={styles.heroContent} {...gesture}><div className={styles.hanzi}>{card.hanzi}</div><div className={styles.pinyin}><TonePinyin text={card.pinyin || ""} /></div><div className={styles.meaning}>{card.arti}</div>{card.word_class && <div className={styles.wordClass}>{WORD_CLASS_LABELS[card.word_class] ?? card.word_class}</div>}{card.catatan && <p className={styles.note}><TonePinyinText text={card.catatan} hanziPinyin={hanziPinyin} /></p>}</div></section>
 }
 
 function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport }: { examples: ExampleSentence[]; cacheReady: boolean; onAddSentence: () => void; onWordOpen: (segment: SegmentedWord, e: React.MouseEvent) => void; onReport: (example: ExampleSentence) => void }) {
+  if (examples.length === 0) return <EmptyLine label="Belum ada contoh kalimat." />
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
@@ -719,14 +606,8 @@ function SentenceTab({ examples, cacheReady, onAddSentence, onWordOpen, onReport
           Tambah Contoh Kalimat
         </button>
       </div>
-      {examples.length === 0 ? (
-        <EmptyLine label="Belum ada contoh kalimat." />
-      ) : (
-        <>
-          <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
-          <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} onReport={onReport} />)}</div>
-        </>
-      )}
+      <div className={styles.sentenceGroupTitle}>{examples.length} contoh kalimat</div>
+      <div className={styles.sentenceList}>{examples.map(example => <SentenceCard key={`${example.id}-${example.hanzi}`} example={example} cacheReady={cacheReady} onWordOpen={onWordOpen} onReport={onReport} />)}</div>
     </div>
   )
 }
@@ -741,7 +622,6 @@ function SentenceCard({ example, cacheReady, onWordOpen, onReport }: { example: 
   // sudah membawa pinyin & arti asli untuk ditampilkan di popup — bukan
   // sekadar status "diketahui/tidak" seperti sebelumnya.
   const segments = React.useMemo(() => (cacheReady ? segmentSentenceByPinyin(sentence, example.pinyin) : []), [sentence, example.pinyin, cacheReady])
-  const renderItems = React.useMemo(() => buildSentenceRenderItems(segments), [segments])
 
   const playSentence = React.useCallback(() => {
     const currentPlaybackId = ++playbackId.current
@@ -803,31 +683,11 @@ function SentenceCard({ example, cacheReady, onWordOpen, onReport }: { example: 
     <SwipeToReport onReport={() => onReport(example)}>
       <article className={`${styles.sentenceCard} ${activeSegment !== null ? styles.sentenceCardPlaying : ""}`} {...gesture}>
         <div className={styles.sentenceHanzi}>
-          {renderItems.length > 0
-            ? renderItems.map(item => {
-                if (item.type === "text") {
-                  return <span key={item.key} className={styles.sentencePunct}>{item.text}</span>
-                }
-                const hasAdjacentPunct = Boolean(item.leading || item.trailing)
-                const tokenEl = item.token ? (
-                  <SentenceToken
-                    segment={item.token.segment}
-                    active={activeSegment === item.token.index}
-                    onOpen={onWordOpen}
-                  />
-                ) : null
-                if (!hasAdjacentPunct) {
-                  return <React.Fragment key={item.key}>{tokenEl}</React.Fragment>
-                }
-                return (
-                  <span key={item.key} className={styles.sentenceTokenGroup}>
-                    {item.leading && <span className={styles.sentencePunct}>{item.leading}</span>}
-                    {tokenEl}
-                    {item.trailing && <span className={styles.sentencePunct}>{item.trailing}</span>}
-                  </span>
-                )
-              })
-            : sentence.replace(/\s+([，。、！？；：”’）)》」】])/gu, "$1")}
+          {segments.length > 0
+            ? segments.map((segment, index) => isHanzi(segment.hanzi[0] ?? "")
+              ? <SentenceToken key={`${segment.hanzi}-${index}`} segment={segment} active={activeSegment === index} onOpen={onWordOpen} />
+              : <React.Fragment key={`${segment.hanzi}-${index}`}>{segment.hanzi}</React.Fragment>)
+            : sentence}
         </div>
         {example.pinyin && <div className={styles.sentencePinyin}><TonePinyin text={example.pinyin} /></div>}
         {example.arti && <div className={styles.sentenceMeaning}>{example.arti}</div>}
@@ -915,35 +775,10 @@ function CharBreakdown({ char, dictionary }: { char: string; dictionary: Diction
 function CharSpeaker({ char, className }: { char: string; className: string }) { const gesture = useLongPress(() => speakMandarin(char), () => speakMandarin(char)); return <button type="button" aria-label={`Dengarkan ${char}`} className={className} {...gesture}>{char}</button> }
 function CharComponent({ char, entry }: { char: string; entry?: DictionaryEntry }) { const { ids, label, parts } = decompParts(entry); return <article className={styles.componentCard}><div className={styles.componentHeader}><CharSpeaker char={char} className={styles.componentHanzi} /><div className="min-w-0">{entry?.pinyin?.length ? <div className={styles.pinyin}><TonePinyin text={entry.pinyin.join(", ")} /></div> : null}<div className={styles.charDefinition}>{entry?.definition || "Data komponen belum tersedia."}</div>{label && <div className={styles.charStructure}>{ids} · {label}</div>}</div></div>{entry?.etymology?.hint && <p className={styles.charEtymology}>{entry.etymology.hint}</p>}{parts.length > 0 && <p className={styles.componentSub}>Komponen: {parts.join(" · ")}</p>}</article> }
 
-function StrokePreview({ char }: { char: string }) {  const targetRef = React.useRef<HTMLDivElement>(null); const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
+function StrokePreview({ char }: { char: string }) {
+  const targetRef = React.useRef<HTMLDivElement>(null); const writerRef = React.useRef<{ animateCharacter: () => void } | null>(null)
   React.useEffect(() => { let cancelled = false; const target = targetRef.current; if (!target) return; target.innerHTML = ""; import("hanzi-writer").then(({ default: HanziWriter }) => { if (cancelled || !targetRef.current) return; writerRef.current = HanziWriter.create(targetRef.current, char, { width: 260, height: 260, padding: 20, strokeColor: "#edf6ff", outlineColor: "#1b4965", drawingColor: "#42d6a4", showOutline: true, showCharacter: false }) }); return () => { cancelled = true; target.innerHTML = "" } }, [char])
   return <button type="button" data-bottom-accent="on" aria-label={`Putar animasi stroke ${char}`} className="flex w-full cursor-pointer flex-col items-center rounded-xl border border-border/60 bg-card/70 px-5 pb-6 pt-7 transition-colors hover:border-primary/55" onClick={() => writerRef.current?.animateCharacter()}><div ref={targetRef} className="h-[260px] w-[260px]" /></button>
 }
 function LoadingLine({ label }: { label: string }) { return <div className="flex justify-center py-12 text-sm text-slate-400">{label}</div> }
 function EmptyLine({ label }: { label: string }) { return <div className="py-12 text-center text-sm text-slate-400">{label}</div> }
-
-/**
- * Render label kelas kata dengan tone color pada bagian pinyin.
- * Contoh: "Nomina · 名词 (míngcí)" → "míngcí" diwarnai sesuai nada.
- */
-function WordClassBadge({ wordClass }: { wordClass: string }) {
-  const label = WORD_CLASS_LABELS[wordClass] ?? wordClass
-  // Label format: "Nomina · 名词 (míngcí)" — pisahkan bagian dalam kurung
-  const match = label.match(/^(.*?\()(.*?)(\).*)$/)
-  if (!match) return <Badge variant="outline" className="text-xs">{label}</Badge>
-  const [, before, pinyinPart, after] = match
-  return (
-    <Badge variant="outline" className="text-xs">
-      <span>{before}<TonePinyin text={pinyinPart} className="leading-normal" />{after}</span>
-    </Badge>
-  )
-}
-
-/** Versi inline (tanpa Badge wrapper) untuk hero section */
-function WordClassBadgeInline({ wordClass }: { wordClass: string }) {
-  const label = WORD_CLASS_LABELS[wordClass] ?? wordClass
-  const match = label.match(/^(.*?\()(.*?)(\).*)$/)
-  if (!match) return <span>{label}</span>
-  const [, before, pinyinPart, after] = match
-  return <span>{before}<TonePinyin text={pinyinPart} className="leading-normal" />{after}</span>
-}

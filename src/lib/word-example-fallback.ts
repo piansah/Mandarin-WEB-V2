@@ -1,25 +1,29 @@
 import type { createClient } from "@/lib/supabase/browser"
 import { initGlobalSearchCache, sentenceContainsExactWord, sentenceMeaningMatches } from "@/lib/hanzi-segmentation"
-
+ 
 type BrowserSupabaseClient = ReturnType<typeof createClient>
 type WordTarget = { hanzi: string; pinyin?: string | null; badge?: string | null; arti?: string | null }
 type CandidateExample = { id: number; hanzi: string | null; pinyin: string | null; arti: string | null }
 type WordExample = { id: number; hanzi: string; pinyin?: string; arti?: string }
-
+ 
 function normalizeHskBadge(badge?: string | null): string | null {
   const match = badge?.trim().match(/^HSK\s*([1-6])$/i)
   return match ? `HSK ${match[1]}` : null
 }
-
+ 
 export function getWordExampleKey(hanzi: string, badge?: string | null): string {
   const normalizedBadge = normalizeHskBadge(badge)
   return normalizedBadge ? `${normalizedBadge}::${hanzi}` : hanzi
 }
-
+ 
 /**
  * Select same-HSK hanzi_items first for HSK flashcard cards. If that level has
  * no matching sentence, use explicitly linked word_examples as the fallback.
  * Calls without an HSK badge keep the existing cross-level candidate behavior.
+ *
+ * Every candidate, including explicitly linked ones, must contain the target as
+ * a whole pinyin-aligned word (事 must not match 没事). Linked candidates only
+ * skip the meaning match.
  */
 export async function fetchWordExamplesForWords(
   supa: BrowserSupabaseClient,
@@ -33,11 +37,11 @@ export async function fetchWordExamplesForWords(
   const targets = [...targetMap.values()]
   const result = new Map<string, WordExample>()
   if (targets.length === 0) return result
-
+ 
   // Needed for exact segmentation when an example has no pinyin. The cache is
   // shared, so later calls reuse the same initialization.
   await initGlobalSearchCache()
-
+ 
   const isExactMatch = (example: CandidateExample, target: WordTarget) =>
     !!example.hanzi && sentenceContainsExactWord(
       example.hanzi,
@@ -45,14 +49,14 @@ export async function fetchWordExamplesForWords(
       target.pinyin,
       example.pinyin,
     )
-
+ 
   // Detect which hanzi appear in multiple HSK levels (need meaning match)
   const allHanzi = [...new Set(targets.map(t => t.hanzi))]
   const filters = allHanzi.map(hanzi => {
     const escaped = hanzi.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
     return `hanzi.ilike."%${escaped}%"`
   })
-
+ 
   const [allHanziItems, setBadgeResults] = await Promise.all([
     supa.from("hanzi_items")
       .select("id, hanzi_key, hanzi, pinyin, arti")
@@ -61,9 +65,9 @@ export async function fetchWordExamplesForWords(
       .limit(2000),
     supa.from("hanzi_sets").select("key, badge"),
   ])
-
+ 
   const badgeBySetKey = new Map((setBadgeResults.data ?? []).map(set => [set.key, set.badge] as const))
-
+ 
   // Build map: hanzi -> set of HSK levels where it appears
   const hanziLevelsMap = new Map<string, Set<string>>()
   for (const row of allHanziItems.data ?? []) {
@@ -79,13 +83,13 @@ export async function fetchWordExamplesForWords(
       }
     }
   }
-
+ 
   // Determine which hanzi need meaning match filter (appears in >=2 HSK levels)
   const needsMeaningMatch = new Set<string>()
   for (const [hanzi, levels] of hanziLevelsMap.entries()) {
     if (levels.size >= 2) needsMeaningMatch.add(hanzi)
   }
-
+ 
   // Batch the same three sources queried by the detail page, avoiding three
   // round trips per card when a full deck loads. Substring queries only gather
   // candidates; segmentation below decides whether the target is a whole word.
@@ -95,7 +99,7 @@ export async function fetchWordExamplesForWords(
       const escaped = hanzi.replace(/\\/g, "\\\\").replace(/"/g, "\\\"")
       return `hanzi.ilike."%${escaped}%"`
     })
-
+ 
     const [hanziItems, linkedExamples, sentenceExamples] = await Promise.all([
       supa.from("hanzi_items")
         .select("id, hanzi_key, section_label, hanzi, pinyin, arti")
@@ -112,7 +116,7 @@ export async function fetchWordExamplesForWords(
         .order("id")
         .limit(1000),
     ])
-
+ 
     const setKeys = [...new Set((hanziItems.data ?? []).map(row => row.hanzi_key).filter(Boolean))]
     const setKeyChunks = Array.from({ length: Math.ceil(setKeys.length / 100) }, (_, index) =>
       setKeys.slice(index * 100, (index + 1) * 100)
@@ -123,14 +127,14 @@ export async function fetchWordExamplesForWords(
     const batchBadgeBySetKey = new Map(batchSetBadgeResults.flatMap(({ data }) =>
       (data ?? []).map(set => [set.key, set.badge] as const)
     ))
-
+ 
     for (const target of batch) {
       const targetBadge = normalizeHskBadge(target.badge)
       const levelMatchedItems = (hanziItems.data ?? [])
         .filter(row => row.hanzi?.includes(target.hanzi))
         .filter(row => !targetBadge || normalizeHskBadge(batchBadgeBySetKey.get(row.hanzi_key)) === targetBadge)
         .slice(0, 20)
-
+ 
       const candidates = [
         ...levelMatchedItems.map(row => ({ ...row, linkedToWord: false })),
         ...(linkedExamples.data ?? [])
@@ -142,25 +146,30 @@ export async function fetchWordExamplesForWords(
           .map(row => ({ ...row, linkedToWord: false })) : []),
       ]
       const seen = new Set<string>()
-
+ 
       // For hanzi appearing in multiple HSK levels, also check meaning match
       const useMeaningMatch = needsMeaningMatch.has(target.hanzi)
-
+ 
       const example = candidates.find(candidate => {
         const key = `${candidate.id}-${candidate.hanzi}`
         if (seen.has(key)) return false
         seen.add(key)
         if (!candidate.hanzi) return false
-        if (candidate.linkedToWord) return true
+ 
+        // Whole-word check applies to every candidate, linked or not:
+        // a 1-syllable target like 事 must not match 没事 (méishì).
         if (!isExactMatch(candidate, target)) return false
-
+ 
+        // Linked examples were attached explicitly, so skip the meaning match.
+        if (candidate.linkedToWord) return true
+ 
         // Apply meaning match filter for multi-level hanzi
         if (useMeaningMatch) {
           const meaningMatch = sentenceMeaningMatches(target.arti, candidate.arti)
           // Treat null as no match for multi-level hanzi to be strict
           if (meaningMatch !== true) return false
         }
-
+ 
         return true
       })
       if (example) {
@@ -173,6 +182,7 @@ export async function fetchWordExamplesForWords(
       }
     }
   }
-
+ 
   return result
 }
+ 
