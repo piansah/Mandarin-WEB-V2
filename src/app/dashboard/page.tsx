@@ -613,7 +613,12 @@ export default function DashboardPage() {
         }
 
         // Show the first Estafet set that the Estafet page itself considers
-        // unlocked and that still has unread items.
+        // unlocked and that still has unread items. Jika semua set yang terbuka
+        // sudah selesai dibaca, tetap tampilkan set terakhir yang terbuka agar
+        // user dapat membuka dan latihan dari dashboard (tidak disabled/belum tersedia).
+        let targetEstafet: typeof estafetSets[0] | null = null
+        let latestUnlockedSet: typeof estafetSets[0] | null = null
+
         for (let i = 0; i < estafetSets.length; i++) {
           const set = estafetSets[i]
 
@@ -626,6 +631,8 @@ export default function DashboardPage() {
             continue
           }
 
+          latestUnlockedSet = set
+
           // Estafet tetap berurutan: level berikutnya baru masuk sesi setelah
           // semua kalimat di level sebelumnya selesai dibaca.
           const prevSet = i > 0 ? estafetSets[i - 1] : null
@@ -634,10 +641,12 @@ export default function DashboardPage() {
             : true
 
           if (prevDone && readCounts[set.key] < itemCounts[set.key] && itemCounts[set.key] > 0) {
-            setNextEstafet(set)
+            targetEstafet = set
             break
           }
         }
+
+        setNextEstafet(targetEstafet ?? latestUnlockedSet)
       }
     } catch (e) {
       console.error(e)

@@ -58,12 +58,6 @@ export default function CumulativeFlashcardSessionPage() {
   const key = params.key
   const supa = useSupabase()
   const { pinned, isMobile } = useSidebar()
-
-  // Sidebar floating sebagai overlay, tapi kalau di-pin terbuka di desktop dia
-  // makan ruang layout — offset footer fixed ini biar sama kayak pola yang
-  // sudah dipakai di halaman Daftar Kata (flashcard/[id]/page.tsx). Di mobile
-  // sidebar selalu overlay (Sheet), jadi cookie `pinned` yang tersimpan TIDAK
-  // boleh ikut menggeser footer ini di sana.
   const sidebarOffset = pinned && !isMobile ? '280px' : '0px'
 
   const [set, setSet] = React.useState<HanziSet | null>(null)
@@ -238,6 +232,7 @@ export default function CumulativeFlashcardSessionPage() {
   }, [key])
 
   const completedCount = items.filter((item) => stateById[item.id] === 2).length
+  const isCompleted = completedCount === items.length && items.length > 0
   const progress = items.length ? (completedCount / items.length) * 100 : 0
   const groups = items.reduce<Array<{ label: string; tag: string; items: HanziItem[] }>>((result, item) => {
     const current = result.at(-1)
@@ -314,6 +309,68 @@ export default function CumulativeFlashcardSessionPage() {
   if (loading) return <PageLoader />
   if (error || !set) return <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background p-6 text-center"><p className="text-sm text-red-400">{error ?? "Set kalimat tidak ditemukan."}</p><Button variant="outline" onClick={() => router.push("/dashboard/flashcard/cumulative")}>Kembali</Button></div>
 
+  const practiceDrawerContent = (
+    <DrawerContent>
+      <div className="mx-auto w-full max-w-sm">
+        <DrawerHeader className="text-center pb-2">
+          <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
+            Pilih Latihan
+          </DrawerTitle>
+        </DrawerHeader>
+        <div className="p-4 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => { if (quizKey) navigateToQuiz() }}
+            aria-disabled={!quizKey}
+            className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative ${!quizKey
+                ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
+                : quizScore !== null
+                  ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
+                  : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
+              }`}
+          >
+            {quizScore !== null && typeof quizScore === "number" && (
+              <div className="absolute top-2 right-2">
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+                  {quizScore}%
+                </span>
+              </div>
+            )}
+            <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+              <ListChecks className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-semibold text-center leading-tight">Quiz Estafet</span>
+            {!quizKey && (
+              <span className="text-[10px] text-muted-foreground text-center leading-tight">Belum Tersedia</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={navigateToSpeakingPractice}
+            className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative cursor-pointer ${speakingDone
+                ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
+                : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50"
+              }`}
+          >
+            {speakingDone && (
+              <div className="absolute top-2 right-2 flex items-center justify-center">
+                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              </div>
+            )}
+            <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
+              <Mic className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-semibold text-center leading-tight">Latihan Speaking</span>
+          </button>
+        </div>
+        <DrawerFooter>
+          <DrawerClose render={<Button variant="outline" className="rounded-xl">Kembali</Button>} />
+        </DrawerFooter>
+      </div>
+    </DrawerContent>
+  )
+
   return (
     <div className={styles.page}>
       <div className="flex flex-col flex-1 select-none relative z-10 min-h-0">
@@ -325,7 +382,7 @@ export default function CumulativeFlashcardSessionPage() {
           showStats={false}
         />
 
-        <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 pb-32 sm:px-6 flex-1 overflow-x-hidden">
+        <main className={`mx-auto w-full max-w-6xl space-y-8 px-4 py-6 ${isCompleted ? "pb-12" : "pb-32"} sm:px-6 flex-1 overflow-x-hidden`}>
           <p className="rounded-lg border border-border/60 bg-card/50 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
             <span className="md:hidden">Tap kalimat untuk membuka pinyin dan audio. Tap lagi untuk melihat arti; tap berikutnya memutar ulang audio dan mengganti kecepatannya.</span>
             <span className="hidden md:inline">Tap kalimat untuk membuka pinyin dan mendengar pelafalannya. Tap sekali lagi untuk melihat arti. Setelah terbuka penuh, tap lagi untuk mengulang audio. Tap kalimat berulang kali untuk mengganti kecepatan: normal, pelan, lalu lambat.</span>
@@ -408,10 +465,25 @@ export default function CumulativeFlashcardSessionPage() {
                     </div>
                   </div>
 
-                  <div className="flex gap-3 w-full max-w-xs relative z-10">
-                    <Button variant="outline" className="flex-1 rounded-2xl h-11" onClick={resetProgress} disabled={resettingProgress}>
-                      <RotateCcw className="h-4 w-4 mr-2" />{resettingProgress ? "Mengulang..." : "Ulangi dari awal"}
+                  <div className="flex flex-col gap-2.5 w-full max-w-xs relative z-10">
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-2xl h-11 cursor-pointer"
+                      onClick={resetProgress}
+                      disabled={resettingProgress}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      {resettingProgress ? "Mengulang..." : "Ulangi dari awal"}
                     </Button>
+
+                    <Drawer>
+                      <DrawerTrigger render={
+                        <Button className="w-full rounded-2xl h-11 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold shadow-sm transition-all cursor-pointer">
+                          Mulai Latihan
+                        </Button>
+                      } />
+                      {practiceDrawerContent}
+                    </Drawer>
                   </div>
                 </ResultSequence>
                 </CardContent>
@@ -420,80 +492,20 @@ export default function CumulativeFlashcardSessionPage() {
           )}
         </main>
 
-        {/* Fixed Footer with Practice Button */}
-        <div
-          className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur transition-[left] duration-200 ease-linear"
-          style={{ left: sidebarOffset, paddingBottom: "env(safe-area-inset-bottom)" }}
-        >
-          <div className="mx-auto w-full max-w-6xl px-6 py-4">
-            <Drawer>
-              <DrawerTrigger render={<Button className="w-full" size="lg" />}>
-                Mulai Latihan
-              </DrawerTrigger>
-              <DrawerContent>
-                <div className="mx-auto w-full max-w-sm">
-                  <DrawerHeader className="text-center pb-2">
-                    <DrawerTitle className="text-xs tracking-widest text-muted-foreground uppercase">
-                      Pilih Latihan
-                    </DrawerTitle>
-                  </DrawerHeader>
-                  <div className="p-4 grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => { if (quizKey) navigateToQuiz() }}
-                      aria-disabled={!quizKey}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative ${!quizKey
-                          ? "border-border/30 bg-card/40 opacity-55 cursor-not-allowed"
-                          : quizScore !== null
-                            ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm cursor-pointer"
-                            : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50 cursor-pointer"
-                        }`}
-                    >
-                      {quizScore !== null && typeof quizScore === "number" && (
-                        <div className="absolute top-2 right-2">
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
-                            {quizScore}%
-                          </span>
-                        </div>
-                      )}
-                      <div className="h-11 w-11 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-                        <ListChecks className="h-5 w-5" />
-                      </div>
-                      <span className="text-xs font-semibold text-center leading-tight">Quiz Estafet</span>
-                      {!quizKey && (
-                        <span className="text-[10px] text-muted-foreground text-center leading-tight">Belum Tersedia</span>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={navigateToSpeakingPractice}
-                      className={`flex flex-col items-center justify-center gap-3 p-4 rounded-xl border transition-colors relative cursor-pointer ${speakingDone
-                          ? "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 shadow-sm"
-                          : "border-border/50 bg-card hover:bg-muted/50 hover:border-primary/50"
-                        }`}
-                    >
-                      {speakingDone && (
-                        <div className="absolute top-2 right-2 flex items-center justify-center">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                        </div>
-                      )}
-                      <div className="h-11 w-11 rounded-full bg-violet-500/10 flex items-center justify-center text-violet-500">
-                        <Mic className="h-5 w-5" />
-                      </div>
-                      <span className="text-xs font-semibold text-center leading-tight">Latihan Speaking</span>
-                    </button>
-                  </div>
-                  <DrawerFooter>
-                    <DrawerClose render={<Button variant="outline" className="rounded-xl" />}>
-                      Kembali
-                    </DrawerClose>
-                  </DrawerFooter>
-                </div>
-              </DrawerContent>
-            </Drawer>
+        {/* Fixed Footer with Practice Button (Tampil SEBELUM semua kalimat selesai dibaca) */}
+        {!isCompleted && (
+          <div
+            className="fixed bottom-0 right-0 z-20 border-t border-border/60 bg-background/95 backdrop-blur transition-[left] duration-200 ease-linear"
+            style={{ left: sidebarOffset, paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div className="mx-auto w-full max-w-6xl px-6 py-4">
+              <Drawer>
+                <DrawerTrigger render={<Button className="w-full" size="lg">Mulai Latihan</Button>} />
+                {practiceDrawerContent}
+              </Drawer>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Report Modal */}
         <ReportModal

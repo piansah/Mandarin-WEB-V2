@@ -4,8 +4,7 @@ type ResultWatermarkProps = {
 }
 
 const DEFAULT_PATTERN = ["完", "学", "習", "語", "字"]
-const WATERMARK_COUNT = 30
-const MOBILE_WATERMARK_COUNT = 12
+const WATERMARK_COUNT = 12
 
 export function ResultWatermark({ pattern = DEFAULT_PATTERN, className = "" }: ResultWatermarkProps) {
   const safePattern = pattern.length > 0 ? pattern : DEFAULT_PATTERN
@@ -14,13 +13,13 @@ export function ResultWatermark({ pattern = DEFAULT_PATTERN, className = "" }: R
     <div
       aria-hidden="true"
       data-result-watermark
-      className={`absolute inset-0 grid grid-cols-3 grid-rows-4 place-items-center overflow-hidden select-none pointer-events-none font-hanzi text-foreground/[0.055] dark:text-foreground/[0.075] lg:grid-cols-6 lg:grid-rows-5 ${className}`}
+      className={`absolute inset-0 grid grid-cols-3 grid-rows-4 lg:grid-cols-4 lg:grid-rows-3 place-items-center overflow-hidden select-none pointer-events-none font-hanzi text-foreground/[0.055] dark:text-foreground/[0.075] ${className}`}
     >
       {Array.from({ length: WATERMARK_COUNT }, (_, index) => (
         <span
           key={index}
-          className={`font-black leading-none ${index >= MOBILE_WATERMARK_COUNT ? "hidden lg:block" : ""} ${
-            index % 3 === 0 ? "text-7xl lg:text-8xl" : index % 3 === 1 ? "text-6xl lg:text-9xl" : "text-8xl lg:text-[10rem]"
+          className={`font-black leading-none ${
+            index % 3 === 0 ? "text-7xl" : index % 3 === 1 ? "text-6xl" : "text-8xl"
           }`}
           style={{ transform: `rotate(${index % 2 === 0 ? -12 : 10}deg)` }}
         >
